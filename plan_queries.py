@@ -71,33 +71,29 @@ query_nodes_by_id = {
     for node in query_graph['nodes']
 }
 
-# identify pedges matching qedges
-pqedges_by_qedge = defaultdict(list)
-for qedge in query_graph['edges']:
-    qedge_source = query_nodes_by_id[qedge['source_id']]
-    qedge_target = query_nodes_by_id[qedge['target_id']]
-    for pedge in pedges:
-        if (BLM.compatible(pedge['source'], qedge_source['type']) and
-            BLM.compatible(pedge['target'], qedge_target['type'])):
-            # pedge and qedge are aligned
-            pqedges_by_qedge[qedge['id']].append({
-                'source': qedge_source['id'],
-                'target': qedge_target['id'],
-                'details': pedge,
-            })
-        if (BLM.compatible(pedge['source'], qedge_target['type']) and
-            BLM.compatible(pedge['target'], qedge_source['type'])):
-            # pedge and qedge are inverted
-            pqedges_by_qedge[qedge['id']].append({
-                'source': qedge_target['id'],
-                'target': qedge_source['id'],
-                'details': pedge,
-            })
+# get candidate steps
+# i.e. steps we could imagine taking through the qgraph
+candidate_steps = defaultdict(list)
+for edge in query_graph['edges']:
+    candidate_steps[edge['source_id']].append(edge['target_id'])
+    candidate_steps[edge['target_id']].append(edge['source_id'])
 
-pedges = [x for value in pqedges_by_qedge.values() for x in value]
-pqedges_by_source = defaultdict(list)
-for edge in pedges:
-    pqedges_by_source[edge['source']].append(edge)
+
+def step_to_kps(source_id, target_id):
+    """Find KP endpoint(s) that enable step."""
+    source = query_nodes_by_id[source_id]
+    target = query_nodes_by_id[target_id]
+    return [pedge for pedge in pedges if (
+        BLM.compatible(pedge['source'], source['type']) and
+        BLM.compatible(pedge['target'], target['type'])
+    )]
+
+
+# evaluate which candidates are realizable
+plan = {
+    source_id: {target_id: step_to_kps(source_id, target_id) for target_id in target_ids}
+    for source_id, target_ids in candidate_steps.items()
+}
 
 # check that query is traversable via KP edges
 # initialize starting nodes
@@ -108,13 +104,13 @@ to_visit = {
 }
 visited = set()
 while to_visit:
-    node_id = to_visit.pop()
+    source_id = to_visit.pop()
     # don't visit this node again
-    visited.add(node_id)
+    visited.add(source_id)
     # remember to visit target nodes
-    targets = {edge['target'] for edge in pqedges_by_source[node_id]}
-    to_visit |= (targets - visited)
+    target_ids = {target_id for target_id, kps in plan[source_id].items() if kps}
+    to_visit |= (target_ids - visited)
 
+print(plan)
 if visited != set(node['id'] for node in query_graph['nodes']):
     raise RuntimeError('We did not traverse the entire query.')
-print(pqedges_by_source)
