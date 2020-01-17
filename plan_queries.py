@@ -108,11 +108,11 @@ to_visit = {
 }
 visited = set()
 while to_visit:
-    node = query_nodes_by_id[to_visit.pop()]
+    node_id = to_visit.pop()
     # don't visit this node again
-    visited.add(node['id'])
+    visited.add(node_id)
     # remember to visit target nodes
-    targets = {edge['target'] for edge in pqedges_by_source[node['id']]}
+    targets = {edge['target'] for edge in pqedges_by_source[node_id]}
     to_visit |= (targets - visited)
 
 if visited != set(node['id'] for node in query_graph['nodes']):
