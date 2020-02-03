@@ -1,116 +1,52 @@
-"""Convert biolink model to graph."""
-from collections import defaultdict
-from biolink_model import BiolinkModel
+"""Example: plan a query."""
+import asyncio
+import json
+import sqlite3
+
+import aioredis
+import uvloop
+import yaml
+
+from strider.query_planner import generate_plan
+
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 
-BLM = BiolinkModel('https://raw.githubusercontent.com/biolink/biolink-model/master/biolink-model.yaml')
+async def main():
+    """Generate plan and put in Redis."""
+    # get user query
+    with open('examples/query_graph2.yml', 'r') as f:
+        query_graph = yaml.load(f, Loader=yaml.SafeLoader)
 
-# define edges provided by KPs
-pedges = []
-pedges.append({
-    'source': 'disease',
-    # 'target': 'gene',
-    'target': 'gene or gene product',
-    'predicate': 'affects',
-})
-pedges.append({
-    'source': 'gene',
-    'target': 'biological process or activity',
-    # 'target': 'biological process',
-    'predicate': 'associated_with',
-})
-pedges.append({
-    'source': 'biological process',
-    'target': 'disease',
-    'predicate': 'associated_with',
-})
+    slots = [node['id'] for node in query_graph['nodes']] + [edge['id'] for edge in query_graph['edges']]
 
-# define user query
-query_graph = {
-    'nodes': [
-        {
-            'id': 'n00',
-            'type': 'disease',
-            'curie': 'MONDO:0005737',
-        },
-        {
-            'id': 'n01',
-            'type': 'gene',
-        },
-        {
-            'id': 'n02',
-            'type': 'biological process',
-        },
-        {
-            'id': 'n03',
-            'type': 'disease or phenotypic feature',
-        },
-    ],
-    'edges': [
-        {
-            'id': 'e01',
-            'source_id': 'n00',
-            'target_id': 'n01',
-        },
-        {
-            'id': 'e12',
-            'source_id': 'n01',
-            'target_id': 'n02',
-        },
-        {
-            'id': 'e23',
-            'source_id': 'n02',
-            'target_id': 'n03',
-        },
-    ],
-}
+    execution_plan = 'alpha'
 
-# helper things
-query_nodes_by_id = {
-    node['id']: node
-    for node in query_graph['nodes']
-}
+    plan = generate_plan(query_graph)
+    print(plan)
 
-# get candidate steps
-# i.e. steps we could imagine taking through the qgraph
-candidate_steps = defaultdict(list)
-for edge in query_graph['edges']:
-    candidate_steps[edge['source_id']].append(edge['target_id'])
-    candidate_steps[edge['target_id']].append(edge['source_id'])
+    redis = await aioredis.create_redis_pool(
+        'redis://localhost'
+    )
+    await redis.delete(f'{execution_plan}_slots', f'{execution_plan}_plan')
+    for key, value in plan.items():
+        await redis.hset(f'{execution_plan}_plan', key, json.dumps(value))
+    await redis.sadd(f'{execution_plan}_slots', *slots)
+    redis.close()
+
+    sql = sqlite3.connect('results.db')
+    column_names = ', '.join([f'`{qid}`' for qid in slots])
+    columns = ', '.join([f'`{qid}` text' for qid in slots])
+    columns += f', UNIQUE({column_names})'
+    statements = [
+        f'DROP TABLE IF EXISTS `{execution_plan}`',
+        f'CREATE TABLE `{execution_plan}` ({columns})',
+    ]
+    with sql:
+        for statement in statements:
+            sql.execute(statement)
 
 
-def step_to_kps(source_id, target_id):
-    """Find KP endpoint(s) that enable step."""
-    source = query_nodes_by_id[source_id]
-    target = query_nodes_by_id[target_id]
-    return [pedge for pedge in pedges if (
-        BLM.compatible(pedge['source'], source['type']) and
-        BLM.compatible(pedge['target'], target['type'])
-    )]
-
-
-# evaluate which candidates are realizable
-plan = {
-    source_id: {target_id: step_to_kps(source_id, target_id) for target_id in target_ids}
-    for source_id, target_ids in candidate_steps.items()
-}
-
-# check that query is traversable via KP edges
-# initialize starting nodes
-to_visit = {
-    node['id']
-    for node in query_graph['nodes']
-    if 'curie' in node
-}
-visited = set()
-while to_visit:
-    source_id = to_visit.pop()
-    # don't visit this node again
-    visited.add(source_id)
-    # remember to visit target nodes
-    target_ids = {target_id for target_id, kps in plan[source_id].items() if kps}
-    to_visit |= (target_ids - visited)
-
-print(plan)
-if visited != set(node['id'] for node in query_graph['nodes']):
-    raise RuntimeError('We did not traverse the entire query.')
+if __name__ == '__main__':
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
