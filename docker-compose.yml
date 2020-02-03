@@ -1,0 +1,24 @@
+version: '3'
+services:
+  neo4j:
+    image: neo4j
+    environment:
+      - NEO4J_AUTH=none
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - ./neo4j_plugins/:/var/lib/neo4j/plugins/
+      - ./:/var/lib/neo4j/import/
+    command: ["neo4j"]
+    
+  postgres:
+    image: rabbitmq:3.7.5-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  
+  redis:
+    image: redis
+    ports:
+      - "6379:6379"
