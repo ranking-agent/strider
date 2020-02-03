@@ -11,11 +11,12 @@ class BiolinkModel():
         response = requests.get(filename_url)
         if response.status_code != 200:
             raise RuntimeError(f'Unable to access Biolink Model at {filename_url}')
-        self.model = yaml.load(response.text, Loader=yaml.FullLoader)
+        model = yaml.load(response.text, Loader=yaml.FullLoader)
+        self.things = {**model['classes'], **model['slots']}
 
     def get_children(self, concepts):
         """Get direct children of concepts."""
-        return {key for key, value in self.model['classes'].items() if value.get('is_a', None) in concepts}
+        return {key for key, value in self.things.items() if value.get('is_a', None) in concepts}
 
     def get_descendants(self, concepts):
         """Get all descendants of concepts, recursively."""
@@ -29,9 +30,9 @@ class BiolinkModel():
     def get_parents(self, concepts):
         """Get direct parent of each concept."""
         return {
-            self.model['classes'][c]['is_a']
+            self.things[c]['is_a']
             for c in concepts
-            if 'is_a' in self.model['classes'][c]
+            if 'is_a' in self.things[c]
         }
 
     def get_ancestors(self, concepts):
