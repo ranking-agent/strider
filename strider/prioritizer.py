@@ -103,27 +103,36 @@ class Prioritizer(Worker):
         statement = ''
         for node in data['nodes']:
             statement += f'\nMERGE ({node_vars[node["kid"]]}:`{data["query_id"]}` {{kid:"{node["kid"]}", qid:"{node["qid"]}"}})'
-            statement += f'\nON CREATE SET {node_vars[node["kid"]]}.new = TRUE'
         for edge in data['edges']:
             statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{data["query_id"]}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
+            statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
         for edge in data['edges']:
             statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {random.randint(1, 10)}'
-        statement += f'\nWITH [{", ".join(node_vars.values())}] AS ns UNWIND ns as n'
-        statement += '\nWITH n WHERE n.new'
-        statement += '\nREMOVE n.new'
-        statement += '\nRETURN n'
+        statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
+        statement += '\nWITH e WHERE e.new'
+        statement += '\nREMOVE e.new'
+        statement += '\nRETURN e'
         result = self.neo4j.run(statement)
-        new_nodes = [row['n'] for row in result]
+        new_edges = [row['e'] for row in result]
 
         # compute priority:
         # get subgraphs
         subgraphs = [
             path.to_dict()
-            for node in new_nodes
+            for edge in new_edges
             for path in get_paths(
-                query_id=data['query_id'], kid=node['kid'], qid=node['qid']
+                query_id=data['query_id'], kid=edge['kid'], qid=edge['qid'],
+                weight=edge['weight'],
             )
         ]
+        # in case the answer is just disconnected nodes
+        subgraphs.append({
+            'nodes': {
+                node['qid']: node
+                for node in data['nodes']
+            },
+            'edges': {},
+        })
 
         slots = {
             x.decode('utf-8')
@@ -145,8 +154,8 @@ class Prioritizer(Worker):
                 answers.append(subgraph)
 
         # publish answers to the results DB
-        LOGGER.debug("[result %s]: Storing answers %s", result_id, str(answers))
         if answers:
+            LOGGER.debug("[result %s]: Storing answers %s", result_id, str(answers))
             rows = []
             for answer in answers:
                 things = {**answer['nodes'], **answer['edges']}

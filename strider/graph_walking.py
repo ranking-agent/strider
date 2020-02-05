@@ -1,10 +1,8 @@
 """Partial answer compilation."""
 import copy
-import hashlib
-import json
 import time
 
-from strider.graph import create_node
+from strider.graph import create_edge
 
 
 class InvalidSubgraphError(Exception):
@@ -92,29 +90,29 @@ class Partial():
         return self.hash == other.hash
 
 
-def get_paths(query_id=None, kid=None, qid=None, prefix=None, level=0):
+def get_paths(query_id=None, prefix=None, level=0, **kwargs):
     """Get partial answer paths."""
     if isinstance(query_id, str):
-        node = create_node(query_id=query_id, kid=kid, qid=qid)
+        edge = create_edge(query_id=query_id, **kwargs)
     else:
-        node = query_id
+        edge = query_id
     if prefix is None:
-        prefix = Partial(nodes={qid: node})
+        prefix = Partial() + edge
     partials = {prefix}
-    for edge in node.edges:
-        start_time = time.time()
-        if edge.qid in prefix.edges:
-            continue
-        target_node = edge.other(node)
-        new_partials = set()
-        for partial in partials:
-            try:
-                new_prefix = partial + edge
-            except InvalidSubgraphError:
+    for node in edge.nodes:
+        for _edge in node.edges:
+            # start_time = time.time()
+            if _edge.qid in prefix.edges:
                 continue
-            new_partials |= get_paths(target_node, prefix=new_prefix, level=level + 1)
-        partials |= new_partials
-        # print('  |' * level + f'  |elapsed: {time.time() - start_time} seconds')
+            new_partials = set()
+            for partial in partials:
+                try:
+                    new_prefix = partial + _edge
+                except InvalidSubgraphError:
+                    continue
+                new_partials |= get_paths(_edge, prefix=new_prefix, level=level + 1)
+            partials |= new_partials
+            # print('  |' * level + f'  |elapsed: {time.time() - start_time} seconds')
     return partials
 
 
