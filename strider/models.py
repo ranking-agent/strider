@@ -21,14 +21,16 @@ class QNode(BaseModel):
 
     id: str
     curie: Union[str, List[str]] = None
-    type: Union[BiolinkEntity, List[BiolinkEntity]] = None
+    # type: Union[BiolinkEntity, List[BiolinkEntity]] = None
+    type: Union[str, List[str]] = None
 
 
 class QEdge(BaseModel):
     """Query edge."""
 
     id: str
-    type: Union[BiolinkRelation, List[BiolinkRelation]] = None
+    # type: Union[BiolinkRelation, List[BiolinkRelation]] = None
+    type: Union[str, List[str]] = None
     source_id: str
     target_id: str
 

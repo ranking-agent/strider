@@ -70,7 +70,7 @@ class Node(Base):
     @cached_property
     def edges(self):
         """Get edges attached to node."""
-        statement = f'MATCH (:{self.query_id} {{kid: "{self.kid}", qid:"{self.qid}"}})-[e:{self.query_id}]-() RETURN DISTINCT e{{.*}}'
+        statement = f'MATCH (:`{self.query_id}` {{kid: "{self.kid}", qid:"{self.qid}"}})-[e:`{self.query_id}`]-() RETURN DISTINCT e{{.*}}'
         results = self.neo4j_interface.run(statement)
         edges = [create_edge(query_id=self.query_id, **row['e']) for row in results]
         return edges
@@ -82,7 +82,7 @@ class Edge(Base):
     @cached_property
     def nodes(self):
         """Get nodes attached to edge."""
-        statement = f'MATCH (n:{self.query_id})-[e {{kid: "{self.kid}", qid: "{self.qid}"}}]-() RETURN n{{.*}}'
+        statement = f'MATCH (n:`{self.query_id}`)-[e {{kid: "{self.kid}", qid: "{self.qid}"}}]-() RETURN n{{.*}}'
         results = self.neo4j_interface.run(statement)
         return [create_node(self.query_id, **row['n']) for row in results]
 

@@ -2,7 +2,7 @@
 from collections import defaultdict
 import sqlite3
 
-from biolink_model import BiolinkModel
+from strider.biolink_model import BiolinkModel
 
 BLM = BiolinkModel('https://raw.githubusercontent.com/biolink/biolink-model/master/biolink-model.yaml')
 
@@ -59,7 +59,7 @@ class Planner():
             visited.add(source_id)
             # remember to visit target nodes
             target_ids = set()
-            for step_id, kps in plan[source_id].items():
+            for step_id, kps in plan.get(source_id, dict()).items():
                 edge_id, _ = step_id.split('/')
                 if not kps:
                     continue

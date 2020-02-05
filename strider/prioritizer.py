@@ -55,7 +55,7 @@ class Prioritizer(Worker):
         The message should be jsonified dictionary:
         type: object
         properties:
-          execution_plan:
+          query_id:
             type: string
           source:
             type: object
@@ -84,29 +84,50 @@ class Prioritizer(Worker):
 
         # parse message
         data = json.loads(message.body)
-        result_id = f'({data["source"]["qid"]}:{data["source"]["kid"]})' \
-                    f'-[{data["edge"]["qid"]}:{data["edge"]["kid"]}]-' \
-                    f'({data["target"]["qid"]}:{data["target"]["kid"]})'
+        result_id = ', '.join(
+            [f'({node["qid"]}:{node["kid"]})' for node in data['nodes']] \
+            + [f'({edge["qid"]}:{edge["kid"]})' for edge in data['edges']]
+        )
         LOGGER.debug("[result %s]: Processing...", result_id)
 
         # store result
         # merge with existing nodes/edge, but update edge weight
-        statement = f'''MERGE (n0:{data['execution_plan']} {{kid:"{data['source']['kid']}", qid:"{data['source']['qid']}"}})
-                        MERGE (n1:{data['execution_plan']} {{kid:"{data['target']['kid']}", qid:"{data['target']['qid']}"}})
-                        MERGE (n0)-[e:{data['execution_plan']} {{kid:"{data['edge']['kid']}", qid:"{data['edge']['qid']}"}}]->(n1)
-                        SET e.weight = {random.randint(1, 10)}
-                        '''
-        self.neo4j.run(statement)
+        node_vars = {
+            node['kid']: f'n{i:03d}'
+            for i, node in enumerate(data['nodes'])
+        }
+        edge_vars = {
+            edge['kid']: f'e{i:03d}'
+            for i, edge in enumerate(data['edges'])
+        }
+        statement = ''
+        for node in data['nodes']:
+            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{data["query_id"]}` {{kid:"{node["kid"]}", qid:"{node["qid"]}"}})'
+            statement += f'\nON CREATE SET {node_vars[node["kid"]]}.new = TRUE'
+        for edge in data['edges']:
+            statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{data["query_id"]}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
+        for edge in data['edges']:
+            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {random.randint(1, 10)}'
+        statement += f'\nWITH [{", ".join(node_vars.values())}] AS ns UNWIND ns as n'
+        statement += '\nWITH n WHERE n.new'
+        statement += '\nREMOVE n.new'
+        statement += '\nRETURN n'
+        result = self.neo4j.run(statement)
+        new_nodes = [row['n'] for row in result]
 
         # compute priority:
         # get subgraphs
-        subgraphs = [path.to_dict() for path in get_paths(
-            query_id=data['execution_plan'], kid=data['target']['kid'], qid=data['target']['qid']
-        )]
+        subgraphs = [
+            path.to_dict()
+            for node in new_nodes
+            for path in get_paths(
+                query_id=data['query_id'], kid=node['kid'], qid=node['qid']
+            )
+        ]
 
         slots = {
             x.decode('utf-8')
-            for x in await self.redis.smembers(f'{data["execution_plan"]}_slots')
+            for x in await self.redis.smembers(f'{data["query_id"]}_slots')
         }
 
         # compute scores
@@ -115,9 +136,9 @@ class Prioritizer(Worker):
         answers = []
         for subgraph, score in zip(subgraphs, scores):
             for node in subgraph['nodes'].values():
-                # if await self.redis.hexists(f'{data["execution_plan"]}_done', node['label']):
+                # if await self.redis.hexists(f'{data["query_id"]}_done', node['label']):
                 #     continue
-                await self.redis.hincrbyfloat(f'{data["execution_plan"]}_priorities', f'({node["kid"]}:{node["qid"]})', score)
+                await self.redis.hincrbyfloat(f'{data["query_id"]}_priorities', f'({node["kid"]}:{node["qid"]})', score)
             subgraph_things = {qid for qid in subgraph['nodes'].keys()}
             subgraph_things |= {qid for qid in subgraph['edges'].keys()}
             if subgraph_things == slots:
@@ -135,7 +156,7 @@ class Prioritizer(Worker):
             columns = ', '.join([f'`{qid}`' for qid in slots])
             with self.sql:
                 self.sql.executemany(
-                    f'''INSERT OR IGNORE INTO `{data['execution_plan']}` ({columns}) VALUES ({placeholders})''',
+                    f'''INSERT OR IGNORE INTO `{data['query_id']}` ({columns}) VALUES ({placeholders})''',
                     rows
                 )
 
@@ -144,17 +165,17 @@ class Prioritizer(Worker):
             (node['qid'], node['kid'])
             for subgraph in subgraphs
             for node in subgraph['nodes'].values()
-            if not await self.is_done(data["execution_plan"], qid=node['qid'], kid=node['kid'])
+            if not await self.is_done(data["query_id"], qid=node['qid'], kid=node['kid'])
         })
         for qid, kid in nodes:
             job = {
-                'execution_plan': data["execution_plan"],
+                'query_id': data["query_id"],
                 'qid': qid,
                 'kid': kid,
             }
             job_id = f'({kid}:{qid})'
             LOGGER.debug("[result %s]: Queueing job %s", result_id, job_id)
-            priority = min(255, int(float(await self.redis.hget(f'{data["execution_plan"]}_priorities', job_id))))
+            priority = min(255, int(float(await self.redis.hget(f'{data["query_id"]}_priorities', job_id))))
             await self.channel.basic_publish(
                 routing_key='jobs',
                 body=json.dumps(job).encode('utf-8'),

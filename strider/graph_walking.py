@@ -99,7 +99,7 @@ def get_paths(query_id=None, kid=None, qid=None, prefix=None, level=0):
     else:
         node = query_id
     if prefix is None:
-        prefix = Partial()
+        prefix = Partial(nodes={qid: node})
     partials = {prefix}
     for edge in node.edges:
         start_time = time.time()
