@@ -2,6 +2,7 @@
 import asyncio
 import json
 import logging
+import os
 import sqlite3
 import uuid
 
@@ -10,10 +11,15 @@ import aioredis
 import uvloop
 
 from strider.query_planner import generate_plan
+from strider.rabbitmq import setup as setup_rabbitmq
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 LOGGER = logging.getLogger(__name__)
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
+RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
 
 
 async def execute_query(query_graph):
@@ -31,7 +37,7 @@ async def execute_query(query_graph):
 
     # store plan in Redis
     redis = await aioredis.create_redis_pool(
-        'redis://localhost'
+        f'redis://{REDIS_HOST}'
     )
     await redis.delete(
         f'{query_id}_slots',
@@ -58,11 +64,22 @@ async def execute_query(query_graph):
             sql.execute(statement)
 
     # create a RabbitMQ connection
-    connection = await aiormq.connect("amqp://guest:guest@localhost:5672/%2F")
+    seconds = 1
+    while True:
+        try:
+            connection = await aiormq.connect(f'amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:5672/%2F')
+            break
+        except ConnectionError as err:
+            if seconds >= 65:
+                raise err
+            LOGGER.debug('Failed to connect to RabbitMQ. Trying again in %d seconds', seconds)
+            await asyncio.sleep(seconds)
+            seconds *= 2
     channel = await connection.channel()
+    setup_rabbitmq()
 
     # add a result for each named node
-    # add a job for each named node 
+    # add a job for each named node
     for node in query_graph['nodes']:
         if 'curie' not in node or node['curie'] is None:
             continue
@@ -97,11 +114,3 @@ async def execute_query(query_graph):
         )
 
     return query_id
-
-
-if __name__ == '__main__':
-    import yaml
-    with open('examples/query_graph2.yml', 'r') as f:
-        query_graph = yaml.load(f, Loader=yaml.SafeLoader)
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(execute_query(query_graph))

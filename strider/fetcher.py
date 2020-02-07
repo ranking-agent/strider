@@ -1,34 +1,23 @@
 """async fetcher (worker)."""
-import asyncio
 import json
 import logging
 import urllib
 
-import aioredis
 import httpx
 
-from strider.worker import Worker
+from strider.worker import Worker, RedisMixin
 
-LOG_FORMAT = ('%(levelname) -10s %(asctime)s %(name) -30s %(funcName) '
-              '-35s %(lineno) -5d: %(message)s')
 LOGGER = logging.getLogger(__name__)
 
 
-class Fetcher(Worker):
+class Fetcher(Worker, RedisMixin):
     """Asynchronous worker to consume jobs and publish results."""
 
     IN_QUEUE = 'jobs'
 
-    def __init__(self, *args, **kwargs):
-        """Initialize."""
-        super().__init__(*args, **kwargs)
-        self.redis = None
-
     async def setup(self):
         """Set up Redis connection."""
-        self.redis = await aioredis.create_redis_pool(
-            'redis://localhost'
-        )
+        await self.setup_redis()
 
     async def on_message(self, message):
         """Handle message from jobs queue.
@@ -97,20 +86,3 @@ class Fetcher(Worker):
                         routing_key='results',
                         body=json.dumps(result).encode('utf-8'),
                     )
-        # LOGGER.debug("After fetching!")
-
-
-if __name__ == "__main__":
-    # add FileHandler to root logger
-    logging.basicConfig(
-        filename='logs/strider.log',
-        format=LOG_FORMAT,
-        level=logging.DEBUG,
-    )
-
-    fetcher = Fetcher()
-
-    # start event loop
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(fetcher.run())
-    loop.run_forever()

@@ -47,3 +47,18 @@ class HttpInterface(Neo4jInterface):
             for datum in result['data']
         ]
         return result
+
+    async def run_async(self, statement, *args):
+        """Run statement."""
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.url,
+                auth=self.auth,
+                json={"statements": [{"statement": statement}]},
+            )
+        result = response.json()['results'][0]
+        result = [
+            dict(zip(result['columns'], datum['row']))
+            for datum in result['data']
+        ]
+        return result

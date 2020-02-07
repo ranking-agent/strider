@@ -1,13 +1,46 @@
 """Base Worker class."""
 from abc import ABC, abstractmethod
+import asyncio
 import logging
+import os
 
+import aioredis
 import aiormq
 
+from strider.rabbitmq import setup as setup_rabbitmq
+
 LOGGER = logging.getLogger(__name__)
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
+RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
+RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
 
 
-class Worker():
+class RedisMixin(ABC):
+    """Mixin to hold a Redis database connection."""
+
+    def __init__(self):
+        """Initialize."""
+        self.redis = None
+
+    async def setup_redis(self):
+        """Set up Redis connection."""
+        seconds = 1
+        while True:
+            try:
+                self.redis = await aioredis.create_redis_pool(
+                    f'redis://{REDIS_HOST}'
+                )
+                break
+            except (ConnectionError, OSError) as err:
+                if seconds > 65:
+                    raise err
+                LOGGER.debug('Failed to connect to Redis. Trying again in %d seconds', seconds)
+                await asyncio.sleep(seconds)
+                seconds *= 2
+
+
+class Worker(ABC):
     """Asynchronous worker to consume messages from IN_QUEUE."""
 
     @property
@@ -27,10 +60,22 @@ class Worker():
             return
 
         # Perform connection
-        self.connection = await aiormq.connect("amqp://guest:guest@localhost:5672/%2F")
+        seconds = 1
+        while True:
+            try:
+                self.connection = await aiormq.connect(f'amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:5672/%2F')
+                break
+            except ConnectionError as err:
+                if seconds >= 65:
+                    raise err
+                LOGGER.debug('Failed to connect to RabbitMQ. Trying again in %d seconds', seconds)
+                await asyncio.sleep(seconds)
+                seconds *= 2
 
         # Creating a channel
         self.channel = await self.connection.channel()
+
+        await setup_rabbitmq()
 
         self._is_connected = True
 

@@ -2,24 +2,22 @@
 import asyncio
 import json
 import logging
+import os
 import random
 import sqlite3
 
-import aioredis
 import aiormq
 
 from strider.graph_walking import get_paths
 from strider.neo4j import HttpInterface
 from strider.scoring import score_graph
-from strider.worker import Worker
+from strider.worker import Worker, RedisMixin
 
-LOG_FORMAT = ('%(levelname) -10s %(asctime)s %(name) -30s %(funcName) '
-              '-35s %(lineno) -5d: %(message)s')
 LOGGER = logging.getLogger(__name__)
-HOSTNAME = 'localhost'
+NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
 
 
-class Prioritizer(Worker):
+class Prioritizer(Worker, RedisMixin):
     """Asynchronous worker to consume results and publish jobs."""
 
     IN_QUEUE = 'results'
@@ -28,22 +26,31 @@ class Prioritizer(Worker):
         """Initialize."""
         super().__init__(*args, **kwargs)
         self.neo4j = None
-        self.redis = None
         self.sql = None
 
     async def setup(self):
-        """Set up Neo4j and Redis connections."""
-        self.neo4j = HttpInterface(
-            url=f'http://{HOSTNAME}:7474',
-            # credentials={
-            #     'username': 'neo4j',
-            #     'password': 'ncatsgamma',
-            # },
-        )
-        self.redis = await aioredis.create_redis_pool(
-            f'redis://{HOSTNAME}'
-        )
+        """Set up SQLite, Redis, and Neo4j connections."""
+        # SQLite
         self.sql = sqlite3.connect('results.db')
+
+        # Redis
+        await self.setup_redis()
+
+        # Neo4j
+        seconds = 1
+        while True:
+            try:
+                self.neo4j = HttpInterface(
+                    url=f'http://{NEO4J_HOST}:7474',
+                )
+                break
+            except (ConnectionError, OSError) as err:
+                if seconds >= 129:
+                    raise err
+                LOGGER.debug('Failed to connect to Neo4j. Trying again in %d seconds', seconds)
+                await asyncio.sleep(seconds)
+                seconds *= 2
+        await self.neo4j.run_async('MATCH (n) DETACH DELETE n')  # clear it
 
     async def is_done(self, plan, qid=None, kid=None):
         """Return True iff a job (qid/kid) has already been completed."""
@@ -196,19 +203,3 @@ class Prioritizer(Worker):
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
-
-
-if __name__ == "__main__":
-    # add FileHandler to root logger
-    logging.basicConfig(
-        filename='logs/strider.log',
-        format=LOG_FORMAT,
-        level=logging.DEBUG,
-    )
-
-    prioritizer = Prioritizer()
-
-    # start event loop
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(prioritizer.run())
-    loop.run_forever()

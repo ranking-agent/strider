@@ -1,24 +1,48 @@
 version: '3'
 services:
   neo4j:
+    container_name: strider_neo4j
     image: neo4j
     environment:
       - NEO4J_AUTH=none
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      - '7474:7474'
+      - '7687:7687'
     volumes:
       - ./neo4j_plugins/:/var/lib/neo4j/plugins/
-      - ./:/var/lib/neo4j/import/
-    command: ["neo4j"]
-    
-  postgres:
+
+  rabbitmq:
+    container_name: strider_rabbitmq
     image: rabbitmq:3.7.5-management
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - '5672:5672'
+      - '15672:15672'
   
   redis:
+    container_name: strider_redis
     image: redis
     ports:
-      - "6379:6379"
+      - '6379:6379'
+ 
+  strider:
+    container_name: strider
+    image: strider
+    build:
+      context: .
+    environment:
+      - NEO4J_HOST=strider_neo4j
+      - RABBITMQ_HOST=strider_rabbitmq
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - REDIS_HOST=strider_redis
+      - SUPERVISOR_PORT=${SUPERVISOR_PORT}
+      - SUPERVISOR_USER=${SUPERVISOR_USER}
+      - SUPERVISOR_PASSWORD=${SUPERVISOR_PASSWORD}
+    volumes:
+      - ./logs:/home/murphy/logs
+    ports:
+      - '5781:5781'
+      - '${SUPERVISOR_PORT}:${SUPERVISOR_PORT}'

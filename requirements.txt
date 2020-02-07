@@ -1,3 +1,9 @@
--e .
-requests
+aioredis
+aiormq
+fastapi
+httpx
+numpy
 pyyaml
+requests
+supervisor
+uvicorn

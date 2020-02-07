@@ -7,3 +7,4 @@ venv/
 *.db
 logs/
 *.jar
+.env

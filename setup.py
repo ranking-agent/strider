@@ -3,7 +3,7 @@ from setuptools import setup
 
 setup(
     name='strider',
-    version='0.1.0-dev',
+    version='0.1.0-dev0',
     author='Patrick Wang',
     author_email='patrick@covar.com',
     url='https://github.com/TranslatorIIPrototypes/strider',

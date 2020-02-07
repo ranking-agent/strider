@@ -1,10 +1,11 @@
 """Node/edge classes."""
 from abc import ABC
 from functools import cached_property
+import os
 
 from strider.neo4j import HttpInterface
 
-HOSTNAME = 'localhost'
+NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
 
 _nodes = dict()
 _edges = dict()
@@ -39,7 +40,7 @@ class Base(ABC):
         self.qid = qid
         self.query_id = query_id
         self.neo4j_interface = HttpInterface(
-            url=f'http://{HOSTNAME}:7474',
+            url=f'http://{NEO4J_HOST}:7474',
             # credentials={
             #     'username': 'neo4j',
             #     'password': 'ncatsgamma',
