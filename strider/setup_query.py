@@ -32,8 +32,14 @@ async def execute_query(query_graph):
     """
     # generate query execution plan
     query_id = str(uuid.uuid4())
-    plan = generate_plan(query_graph)
-    slots = [node['id'] for node in query_graph['nodes']] + [edge['id'] for edge in query_graph['edges']]
+    plan = await generate_plan(query_graph)
+    slots = dict(**{
+        node['id']: json.dumps(node)
+        for node in query_graph['nodes']
+    }, **{
+        edge['id']: json.dumps(edge)
+        for edge in query_graph['edges']
+    })
 
     # store plan in Redis
     redis = await aioredis.create_redis_pool(
@@ -47,7 +53,7 @@ async def execute_query(query_graph):
     )
     for key, value in plan.items():
         await redis.hset(f'{query_id}_plan', key, json.dumps(value))
-    await redis.sadd(f'{query_id}_slots', *slots)
+    await redis.hmset_dict(f'{query_id}_slots', slots)
     redis.close()
 
     # setup results DB
@@ -76,7 +82,7 @@ async def execute_query(query_graph):
             await asyncio.sleep(seconds)
             seconds *= 2
     channel = await connection.channel()
-    setup_rabbitmq()
+    await setup_rabbitmq()
 
     # add a result for each named node
     # add a job for each named node

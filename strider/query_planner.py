@@ -1,6 +1,9 @@
 """Query planner."""
+import asyncio
 from collections import defaultdict
-import sqlite3
+
+from fastapi import HTTPException
+import httpx
 
 from strider.biolink_model import BiolinkModel
 
@@ -20,15 +23,6 @@ class Planner():
             edge['id']: edge
             for edge in query_graph['edges']
         }
-        self.conn = sqlite3.connect('kps.db')
-
-    def __enter__(self):
-        """Enter context."""
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        """Exit context."""
-        self.conn.close()
 
     @property
     def query_nodes(self):
@@ -71,9 +65,12 @@ class Planner():
         things = set(node['id'] for node in self.query_nodes) | set(edge['id'] for edge in self.query_edges)
         if visited != things:
             missing = things - visited
-            raise RuntimeError(f'The query is not traversable. The following nodes/edges cannot be reached: {", ".join(missing)}')
+            raise HTTPException(
+                status_code=404,
+                detail=f'The query is not traversable. The following nodes/edges cannot be reached: {", ".join(missing)}'
+            )
 
-    def plan(self):
+    async def plan(self):
         """Generate a query execution plan."""
         # get candidate steps
         # i.e. steps we could imagine taking through the qgraph
@@ -83,40 +80,47 @@ class Planner():
             candidate_steps[edge['target_id']].append(edge['id'])
 
         # evaluate which candidates are realizable
-        plan = {
-            source_id: {f'{edge_id}/{self.query_edges_by_id[edge_id]["target_id"]}': self.step_to_kps(source_id, edge_id) for edge_id in edge_ids}
-            for source_id, edge_ids in candidate_steps.items()
-        }
+        plan = dict()
+        for source_id, edge_ids in candidate_steps.items():
+            plan[source_id] = dict()
+            for edge_id in edge_ids:
+                step_id = f'{edge_id}/{self.query_edges_by_id[edge_id]["target_id"]}'
+                plan[source_id][step_id] = await self.step_to_kps(source_id, edge_id)
 
         self.validate_traversable(plan)
 
         return plan
 
-    def step_to_kps(self, source_id, edge_id):
+    async def step_to_kps(self, source_id, edge_id):
         """Find KP endpoint(s) that enable step."""
         source = self.query_nodes_by_id[source_id]
         edge = self.query_edges_by_id[edge_id]
         target = self.query_nodes_by_id[edge['target_id']]
-        # source_types = BLM.get_lineage(source['type'])
-        source_types = (source['type'],)
-        source_bindings = ', '.join('?' for _ in range(len(source_types)))
-        # target_types = BLM.get_lineage(target['type'])
-        target_types = (target['type'],)
-        target_bindings = ', '.join('?' for _ in range(len(target_types)))
-        # edge_types = BLM.get_lineage(edge['type'])
-        edge_types = (edge['type'],)
-        edge_bindings = ', '.join('?' for _ in range(len(edge_types)))
-        c = self.conn.cursor()
-        c.execute(f'''
-            SELECT url FROM knowledge_providers
-            WHERE source_type in ({source_bindings})
-            AND edge_type in ({edge_bindings})
-            AND target_type in ({target_bindings})
-            ''', list(source_types) + list(edge_types) + list(target_types))
-        return [row[0] for row in c.fetchall()]
+        async with httpx.AsyncClient() as client:
+            responses = await asyncio.gather(
+                client.get(
+                    f'https://bl-lookup-sri.renci.org/bl/{source["type"]}/lineage?version=latest'
+                ),
+                client.get(
+                    f'https://bl-lookup-sri.renci.org/bl/{target["type"]}/lineage?version=latest'
+                ),
+                client.get(
+                    f'https://bl-lookup-sri.renci.org/bl/{edge["type"]}/lineage?version=latest'
+                )
+            )
+            source_types, target_types, edge_types = (response.json() for response in responses)
+            response = await client.get(
+                f'http://localhost:4983/search',
+                params={
+                    'source_type': source_types,
+                    'target_type': target_types,
+                    'edge_type': edge_types
+                }
+            )
+            assert response.status_code < 300
+        return response.json()
 
 
-def generate_plan(query_graph):
+async def generate_plan(query_graph):
     """Generate a query execution plan."""
-    with Planner(query_graph) as planner:
-        return planner.plan()
+    return await Planner(query_graph).plan()

@@ -54,7 +54,7 @@ class Prioritizer(Worker, RedisMixin):
 
     async def is_done(self, plan, qid=None, kid=None):
         """Return True iff a job (qid/kid) has already been completed."""
-        return bool(await self.redis.sismember(f'{plan}_done', f'({kid}:{qid})'))
+        return bool(await self.redis.sismember(f'{plan}_done', f'({qid}:{kid})'))
 
     async def on_message(self, message):
         """Handle message from results queue.
@@ -143,7 +143,7 @@ class Prioritizer(Worker, RedisMixin):
 
         slots = {
             x.decode('utf-8')
-            for x in await self.redis.smembers(f'{data["query_id"]}_slots')
+            for x in await self.redis.hkeys(f'{data["query_id"]}_slots')
         }
 
         # compute scores
@@ -154,7 +154,7 @@ class Prioritizer(Worker, RedisMixin):
             for node in subgraph['nodes'].values():
                 # if await self.redis.hexists(f'{data["query_id"]}_done', node['label']):
                 #     continue
-                await self.redis.hincrbyfloat(f'{data["query_id"]}_priorities', f'({node["kid"]}:{node["qid"]})', score)
+                await self.redis.hincrbyfloat(f'{data["query_id"]}_priorities', f'({node["qid"]}:{node["kid"]})', score)
             subgraph_things = {qid for qid in subgraph['nodes'].keys()}
             subgraph_things |= {qid for qid in subgraph['edges'].keys()}
             if subgraph_things == slots:
@@ -189,7 +189,7 @@ class Prioritizer(Worker, RedisMixin):
                 'qid': qid,
                 'kid': kid,
             }
-            job_id = f'({kid}:{qid})'
+            job_id = f'({qid}:{kid})'
             LOGGER.debug("[result %s]: Queueing job %s", result_id, job_id)
             priority = min(255, int(float(await self.redis.hget(f'{data["query_id"]}_priorities', job_id))))
             await self.channel.basic_publish(
