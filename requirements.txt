@@ -1,5 +1,6 @@
 aioredis
 aiormq
+aiosqlite
 fastapi
 httpx
 numpy
