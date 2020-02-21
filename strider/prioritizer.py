@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import sqlite3
 
 import aiormq
@@ -90,7 +91,7 @@ class Prioritizer(Worker, RedisMixin):
         # parse message
         data = json.loads(message.body)
         result_id = ', '.join(
-            [f'({node["qid"]}:{node["kid"]})' for node in data['nodes']] \
+            [f'({node["qid"]}:{node["kid"]})' for node in data['nodes']]
             + [f'({edge["qid"]}:{edge["kid"]})' for edge in data['edges']]
         )
         LOGGER.debug("[result %s]: Processing...", result_id)
@@ -185,25 +186,47 @@ class Prioritizer(Worker, RedisMixin):
         for qid, kid in nodes:
             job_id = f'({qid}:{kid})'
 
+            # TODO: track done-ness by step, not node - it matters where we come from
             # never process the same job (node) twice
             if await self.redis.exists(f'{data["query_id"]}_done') and await self.redis.sismember(f'{data["query_id"]}_done', job_id):
                 continue
             await self.redis.sadd(f'{data["query_id"]}_done', job_id)
 
-            job = {
-                'query_id': data["query_id"],
-                'qid': qid,
-                'kid': kid,
-            }
-            LOGGER.debug("[result %s]: Queueing job %s", result_id, job_id)
+            LOGGER.debug("[result %s]: Queueing job(s) %s", result_id, job_id)
             priority = min(255, int(float(await self.redis.hget(f'{data["query_id"]}_priorities', job_id))))
-            publish_awaitables.append(self.channel.basic_publish(
-                routing_key='jobs',
-                body=json.dumps(job).encode('utf-8'),
-                properties=aiormq.spec.Basic.Properties(
-                    priority=priority,
-                ),
-            ))
+
+            # get step(s):
+            steps_string = await self.redis.hget(f'{data["query_id"]}_plan', qid, encoding='utf-8')
+            try:
+                steps = json.loads(steps_string)
+            except TypeError:
+                steps = dict()
+
+            # TODO: filter out steps that are too specific for source node
+            # e.g. we got a disease_or_phenotypic_feature and step requires disease
+            for step_id, endpoints in steps.items():
+                match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
+                if match is None:
+                    raise ValueError(f'Cannot parse step id {step_id}')
+                edge_qid = match[1]
+                # target_qid = match[2]
+                if edge_qid in [edge['qid'] for edge in data['edges']]:
+                    continue
+
+                job = {
+                    'query_id': data['query_id'],
+                    'qid': qid,
+                    'kid': kid,
+                    'step_id': step_id,
+                    'endpoints': endpoints,
+                }
+                publish_awaitables.append(self.channel.basic_publish(
+                    routing_key='jobs',
+                    body=json.dumps(job).encode('utf-8'),
+                    properties=aiormq.spec.Basic.Properties(
+                        priority=priority,
+                    ),
+                ))
         await asyncio.gather(*publish_awaitables)
         return
 

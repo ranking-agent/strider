@@ -3,7 +3,6 @@ import asyncio
 import json
 import logging
 import re
-import urllib
 
 import httpx
 from bmt import Toolkit as BMToolkit
@@ -68,24 +67,13 @@ class Fetcher(Worker, RedisMixin):
         if self.redis is None:
             await self.setup()
         data = json.loads(message.body)
-        job_id = f'({data["qid"]}:{data["kid"]})'
+        job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
         LOGGER.debug("[job %s]: Processing...", job_id)
 
-        # get step(s):
-        steps_string = await self.redis.hget(f'{data["query_id"]}_plan', data['qid'], encoding='utf-8')
-        try:
-            steps = json.loads(steps_string)
-        except TypeError:
-            steps = dict()
-
-        # TODO: filter out steps that are too specific for source node
-        # e.g. we got a disease_or_phenotypic_feature and step requires disease
-
-        # iterator over steps
-        step_awaitables = [
-            self.take_steps(job_id, data, step_id, endpoints)
-            for step_id, endpoints in steps.items()
-        ]
+        step_awaitables = (
+            self.take_step(job_id, data, endpoint)
+            for endpoint in data['endpoints']
+        )
         await asyncio.gather(*step_awaitables)
 
     async def get_spec(self, query_id, thing_qid):
@@ -99,29 +87,19 @@ class Fetcher(Worker, RedisMixin):
             raise ValueError(f'{query_id}_slots has no {thing_qid}')
         return json.loads(json_string)
 
-    async def take_steps(self, job_id, data, step_id, endpoints):
-        """Query a KP and handle results."""
-        match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
+    async def take_step(self, job_id, data, endpoint):
+        """Call specific endpoint."""
+        match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
         if match is None:
-            raise ValueError(f'Cannot parse step id {step_id}')
+            raise ValueError(f'Cannot parse step id {data["step_id"]}')
         edge_qid = match[1]
         target_qid = match[2]
 
-        # edge and target specs
+        # source, edge, and target specs
         edge_spec = await self.get_spec(data['query_id'], edge_qid)
         target_spec = await self.get_spec(data['query_id'], target_qid)
-
-        # send and process all API requests, in parallel
-        # async with httpx.AsyncClient() as client:
-        step_awaitables = (
-            self.take_step(job_id, data, edge_spec, target_spec, endpoint)
-            for endpoint in endpoints
-        )
-        await asyncio.gather(*step_awaitables)
-
-    async def take_step(self, job_id, data, edge_spec, target_spec, endpoint):
-        """Call specific endpoint."""
         source_spec = await self.get_spec(data['query_id'], data['qid'])
+
         async with httpx.AsyncClient() as client:
             request = {
                 "query_graph": {
@@ -155,8 +133,6 @@ class Fetcher(Worker, RedisMixin):
                 }
             }
             response = await client.post(endpoint, json=request)
-            # response = await client.get(f'{endpoint}?source={urllib.parse.quote(data["kid"])}')
-            # response = await client.get(f'{endpoint}/{urllib.parse.quote(data["kid"])}')
         assert response.status_code < 300
         await self.process_response(job_id, data, response.json())
 
@@ -205,20 +181,20 @@ class Fetcher(Worker, RedisMixin):
             'nodes': [
                 {
                     'qid': key,
-                    'kid': value.pop('id'),
-                    **value,
+                    'kid': node['id'],
+                    **{key: value for key, value in node.items() if key != 'id'},
                 }
-                for key, value in node_bindings.items()
+                for key, node in node_bindings.items()
             ],
             'edges': [
                 {
                     'qid': key,
-                    'kid': value.pop('id'),
-                    'source_id': value.pop('source_id'),
-                    'target_id': value.pop('target_id'),
-                    **value,
+                    'kid': edge['id'],
+                    # 'source_id': edge['source_id'],
+                    # 'target_id': edge['target_id'],
+                    **{key: value for key, value in edge.items() if key != 'id'}
                 }
-                for key, value in edge_bindings.items()
+                for key, edge in edge_bindings.items()
             ]
         }
         LOGGER.debug("[job %s]: Queueing result...", job_id)
