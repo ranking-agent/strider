@@ -89,20 +89,20 @@ async def execute_query(query_graph):
     for node in query_graph['nodes']:
         if 'curie' not in node or node['curie'] is None:
             continue
-        job = {
-            'query_id': query_id,
-            'qid': node['id'],
-            'kid': node['curie'],
-        }
         job_id = f'({node["curie"]}:{node["id"]})'
-        LOGGER.debug("Queueing job %s", job_id)
-        await channel.basic_publish(
-            routing_key='jobs',
-            body=json.dumps(job).encode('utf-8'),
-            properties=aiormq.spec.Basic.Properties(
-                priority=255,
-            ),
-        )
+        # job = {
+        #     'query_id': query_id,
+        #     'qid': node['id'],
+        #     'kid': node['curie'],
+        # }
+        # LOGGER.debug("Queueing job %s", job_id)
+        # await channel.basic_publish(
+        #     routing_key='jobs',
+        #     body=json.dumps(job).encode('utf-8'),
+        #     properties=aiormq.spec.Basic.Properties(
+        #         priority=255,
+        #     ),
+        # )
         result = {
             'query_id': query_id,
             'nodes': [

@@ -3,12 +3,10 @@ import asyncio
 import json
 import logging
 import os
-import random
 import sqlite3
 
 import aiormq
 
-from strider.graph_walking import get_paths
 from strider.neo4j import HttpInterface
 from strider.scoring import score_graph
 from strider.worker import Worker, RedisMixin
@@ -114,24 +112,26 @@ class Prioritizer(Worker, RedisMixin):
             statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{data["query_id"]}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
             statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
         for edge in data['edges']:
-            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {random.randint(1, 10)}'
+            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {len(edge["publications"])}'
         statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
         statement += '\nWITH e WHERE e.new'
         statement += '\nREMOVE e.new'
         statement += '\nRETURN e'
-        result = self.neo4j.run(statement)
+        result = await self.neo4j.run_async(statement)
         new_edges = [row['e'] for row in result]
 
         # compute priority:
         # get subgraphs
-        subgraphs = [
-            path.to_dict()
-            for edge in new_edges
-            for path in get_paths(
-                query_id=data['query_id'], kid=edge['kid'], qid=edge['qid'],
-                weight=edge['weight'],
-            )
-        ]
+        subgraphs = []
+        subgraph_awaitables = []
+        for edge in new_edges:
+            statement = f'MATCH (:`{data["query_id"]}`)-[e:`{data["query_id"]}` {{kid:"{edge["kid"]}"}}]->(:`{data["query_id"]}`)'
+            statement += '\nCALL strider.getPaths(e) YIELD nodes, edges RETURN nodes, edges'
+            subgraph_awaitables.append(self.neo4j.run_async(statement))
+        nested_results = await asyncio.gather(*subgraph_awaitables)
+
+        subgraphs.extend(result for results in nested_results for result in results)
+
         # in case the answer is just disconnected nodes
         subgraphs.append({
             'nodes': {
@@ -183,22 +183,30 @@ class Prioritizer(Worker, RedisMixin):
             for node in subgraph['nodes'].values()
             if not await self.is_done(data["query_id"], qid=node['qid'], kid=node['kid'])
         })
+        publish_awaitables = []
         for qid, kid in nodes:
+            job_id = f'({qid}:{kid})'
+
+            # never process the same job (node) twice
+            if await self.redis.exists(f'{data["query_id"]}_done') and await self.redis.sismember(f'{data["query_id"]}_done', job_id):
+                continue
+            await self.redis.sadd(f'{data["query_id"]}_done', job_id)
+
             job = {
                 'query_id': data["query_id"],
                 'qid': qid,
                 'kid': kid,
             }
-            job_id = f'({qid}:{kid})'
             LOGGER.debug("[result %s]: Queueing job %s", result_id, job_id)
             priority = min(255, int(float(await self.redis.hget(f'{data["query_id"]}_priorities', job_id))))
-            await self.channel.basic_publish(
+            publish_awaitables.append(self.channel.basic_publish(
                 routing_key='jobs',
                 body=json.dumps(job).encode('utf-8'),
                 properties=aiormq.spec.Basic.Properties(
                     priority=priority,
                 ),
-            )
+            ))
+        await asyncio.gather(*publish_awaitables)
         return
 
         # black-list any old jobs for these nodes

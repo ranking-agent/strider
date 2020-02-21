@@ -22,11 +22,11 @@ async def get_db():
 
 # @app.post('/query', response_model=Message, tags=['query'])
 # async def answer_query(query: Query) -> Message:
-@app.post('/query', response_model=str, tags=['query'], status_code=303)
+@app.post('/query', response_model=str, tags=['query'])
 async def answer_query(query: Query) -> str:
     """Answer biomedical question."""
     query_id = await execute_query(query.message.query_graph.dict())
-    return f'http://localhost:5781/results?query_id={query_id}'
+    return query_id
 
 
 @app.get('/results')
