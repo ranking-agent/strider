@@ -177,12 +177,10 @@ class Prioritizer(Worker, RedisMixin):
                 )
 
         # publish all nodes to jobs queue
-        nodes = list({
-            (node['qid'], node['kid'])
-            for subgraph in subgraphs
-            for node in subgraph['nodes'].values()
+        nodes = [
+            (node['qid'], node['kid']) for node in data['nodes']
             if not await self.is_done(data["query_id"], qid=node['qid'], kid=node['kid'])
-        })
+        ]
         publish_awaitables = []
         for qid, kid in nodes:
             job_id = f'({qid}:{kid})'
