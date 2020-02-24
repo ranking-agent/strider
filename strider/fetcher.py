@@ -110,7 +110,6 @@ class Fetcher(Worker, RedisMixin):
                     # "edges": [
                     #     edge_spec
                     # ],
-                    # TODO: qg_id -> id
                     "nodes": [
                         {
                             "curie": data['kid'],
@@ -146,12 +145,12 @@ class Fetcher(Worker, RedisMixin):
         edge_awaitables = []
         for result in response['results']:
             edge_bindings = {
-                key: edges_by_id[value]
-                for key, value in result['edge_bindings'].items()
+                binding['qg_id']: edges_by_id[binding['kg_id']]
+                for binding in result['edge_bindings']
             }
             node_bindings = {
-                key: nodes_by_id[value]
-                for key, value in result['node_bindings'].items()
+                binding['qg_id']: nodes_by_id[binding['kg_id']]
+                for binding in result['node_bindings']
             }
             edge_awaitables.append(self.process_edge(job_id, data, edge_bindings, node_bindings))
         await asyncio.gather(*edge_awaitables)
