@@ -41,7 +41,7 @@ services:
       - SUPERVISOR_PORT=${SUPERVISOR_PORT}
       - SUPERVISOR_USER=${SUPERVISOR_USER}
       - SUPERVISOR_PASSWORD=${SUPERVISOR_PASSWORD}
-      - KPREGISTRY_URL=http://robokop.renci.org:4983
+      - KPREGISTRY_URL=${KPREGISTRY_URL}
     volumes:
       - ./logs:/home/murphy/logs
     ports:
