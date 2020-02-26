@@ -3,6 +3,7 @@ from typing import List, Dict
 
 import aiosqlite
 from fastapi import Depends, FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from strider.models import Query, Message
 from strider.setup_query import execute_query
@@ -11,6 +12,13 @@ app = FastAPI(
     title='Strider/ARAGORN/Ranking Agent',
     description='Translator Autonomous Relay Agent',
     version='1.0.0',
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
