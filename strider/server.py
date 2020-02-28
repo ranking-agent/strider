@@ -40,6 +40,9 @@ async def answer_query(query: Query) -> str:
 @app.get('/results')
 async def get_results(
         query_id: str,
+        t0: float = None,
+        limit: int = None,
+        offset: int = 0,
         db=Depends(get_db),
 ):
     """Get results for a query."""
@@ -53,6 +56,14 @@ async def get_results(
 
     # get result rows
     statement = f'SELECT * FROM "{query_id}"'
+    if t0 is not None:
+        statement += f' WHERE _timestamp >= {t0}'
+    statement += ' ORDER BY _timestamp ASC'
+    if t0 is None:
+        if limit is not None:
+            statement += f' LIMIT {limit}'
+        if offset:
+            statement += f' OFFSET {offset}'
     cursor = await db.execute(
         statement,
     )
