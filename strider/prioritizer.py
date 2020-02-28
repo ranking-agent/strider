@@ -8,6 +8,7 @@ import sqlite3
 import time
 
 import aiormq
+import httpx
 
 from strider.neo4j import HttpInterface
 from strider.scoring import score_graph
@@ -45,7 +46,7 @@ class Prioritizer(Worker, RedisMixin):
             try:
                 await self.neo4j.run_async('MATCH (n) DETACH DELETE n')  # clear it
                 break
-            except (ConnectionError, OSError) as err:
+            except httpx.HTTPError as err:
                 if seconds >= 129:
                     raise err
                 LOGGER.debug('Failed to connect to Neo4j. Trying again in %d seconds', seconds)
