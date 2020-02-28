@@ -5,6 +5,7 @@ import logging
 import os
 import re
 import sqlite3
+import time
 
 import aiormq
 
@@ -36,9 +37,9 @@ class Prioritizer(Worker, RedisMixin):
         await self.setup_redis()
 
         # Neo4j
-                self.neo4j = HttpInterface(
-                    url=f'http://{NEO4J_HOST}:7474',
-                )
+        self.neo4j = HttpInterface(
+            url=f'http://{NEO4J_HOST}:7474',
+        )
         seconds = 1
         while True:
             try:
@@ -159,18 +160,18 @@ class Prioritizer(Worker, RedisMixin):
             subgraph_things = {qid for qid in subgraph['nodes'].keys()}
             subgraph_things |= {qid for qid in subgraph['edges'].keys()}
             if subgraph_things == slots:
-                answers.append(subgraph)
+                answers.append((subgraph, score))
 
         # publish answers to the results DB
         if answers:
             LOGGER.debug("[result %s]: Storing answers %s", result_id, str(answers))
             rows = []
-            for answer in answers:
+            for answer, score in answers:
                 things = {**answer['nodes'], **answer['edges']}
-                values = [things[qid]['kid'] for qid in slots]
+                values = [things[qid]['kid'] for qid in slots] + [score, time.time()]
                 rows.append(values)
             placeholders = ', '.join(['?' for _ in range(len(rows[0]))])
-            columns = ', '.join([f'`{qid}`' for qid in slots])
+            columns = ', '.join([f'`{qid}`' for qid in slots] + ['_score', '_timestamp'])
             with self.sql:
                 self.sql.executemany(
                     f'''INSERT OR IGNORE INTO `{data['query_id']}` ({columns}) VALUES ({placeholders})''',
@@ -186,7 +187,6 @@ class Prioritizer(Worker, RedisMixin):
         for qid, kid in nodes:
             job_id = f'({qid}:{kid})'
 
-            # TODO: track done-ness by step, not node - it matters where we come from
             # never process the same job (node) twice
             if await self.redis.exists(f'{data["query_id"]}_done') and await self.redis.sismember(f'{data["query_id"]}_done', job_id):
                 continue

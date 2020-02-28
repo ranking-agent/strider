@@ -58,8 +58,8 @@ async def execute_query(query_graph):
 
     # setup results DB
     sql = sqlite3.connect('results.db')
-    column_names = ', '.join([f'`{qid}`' for qid in slots])
-    columns = ', '.join([f'`{qid}` text' for qid in slots])
+    column_names = ', '.join([f'`{qid}`' for qid in slots] + ['_score', '_timestamp'])
+    columns = ', '.join([f'`{qid}` TEXT' for qid in slots] + ['_score REAL', '_timestamp REAL'])
     columns += f', UNIQUE({column_names})'
     statements = [
         f'DROP TABLE IF EXISTS `{query_id}`',
