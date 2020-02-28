@@ -36,12 +36,13 @@ class Prioritizer(Worker, RedisMixin):
         await self.setup_redis()
 
         # Neo4j
-        seconds = 1
-        while True:
-            try:
                 self.neo4j = HttpInterface(
                     url=f'http://{NEO4J_HOST}:7474',
                 )
+        seconds = 1
+        while True:
+            try:
+                await self.neo4j.run_async('MATCH (n) DETACH DELETE n')  # clear it
                 break
             except (ConnectionError, OSError) as err:
                 if seconds >= 129:
@@ -49,7 +50,6 @@ class Prioritizer(Worker, RedisMixin):
                 LOGGER.debug('Failed to connect to Neo4j. Trying again in %d seconds', seconds)
                 await asyncio.sleep(seconds)
                 seconds *= 2
-        await self.neo4j.run_async('MATCH (n) DETACH DELETE n')  # clear it
 
     async def is_done(self, plan, qid=None, kid=None):
         """Return True iff a job (qid/kid) has already been completed."""
