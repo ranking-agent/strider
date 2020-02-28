@@ -1,8 +1,9 @@
 """Simple ReasonerStdAPI server."""
+import sqlite3
 from typing import List, Dict
 
 import aiosqlite
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from strider.models import Query, Message
@@ -64,9 +65,14 @@ async def get_results(
             statement += f' LIMIT {limit}'
         if offset:
             statement += f' OFFSET {offset}'
-    cursor = await db.execute(
-        statement,
-    )
+    try:
+        cursor = await db.execute(
+            statement,
+        )
+    except sqlite3.OperationalError as err:
+        if 'no such table' in str(err):
+            raise HTTPException(400, str(err))
+        raise err
     results = await cursor.fetchall()
 
     # zip 'em up
