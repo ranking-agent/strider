@@ -6,6 +6,7 @@ import os
 import re
 import sqlite3
 import time
+import urllib
 
 import aiormq
 import httpx
@@ -123,7 +124,13 @@ class Prioritizer(Worker, RedisMixin):
             statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{data["query_id"]}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
             statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
         for edge in data['edges']:
-            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {len(edge["publications"])}'
+            async with httpx.AsyncClient() as client:
+                response = await client.get(
+                    f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(edge["source_id"])}&curie={urllib.parse.quote(edge["target_id"])}'
+                )
+            assert response.status_code < 300
+            num_pubs = response.json()
+            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {num_pubs + 1}'
         statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
         statement += '\nWITH e WHERE e.new'
         statement += '\nREMOVE e.new'
@@ -192,7 +199,7 @@ class Prioritizer(Worker, RedisMixin):
             (node['qid'], node['kid']) for node in data['nodes']
             if not await self.is_done(data["query_id"], qid=node['qid'], kid=node['kid'])
         ]
-        publish_awaitables = []
+        node_steps = []
         for qid, kid in nodes:
             job_id = f'({qid}:{kid})'
 
@@ -210,9 +217,14 @@ class Prioritizer(Worker, RedisMixin):
                 steps = json.loads(steps_string)
             except TypeError:
                 steps = dict()
-
             # TODO: filter out steps that are too specific for source node
             # e.g. we got a disease_or_phenotypic_feature and step requires disease
+            node_steps.append((priority, qid, kid, steps))
+
+        # add steps in order of descending priority
+        node_steps.sort(key=lambda x: x[0], reverse=True)
+        publish_awaitables = []
+        for priority, qid, kid, steps in node_steps:
             for step_id, endpoints in steps.items():
                 match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
                 if match is None:
