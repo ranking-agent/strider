@@ -92,6 +92,14 @@ class Prioritizer(Worker, RedisMixin):
 
         # parse message
         data = json.loads(message.body)
+        try:
+            await self.process_message(data)
+        except Exception as err:
+            LOGGER.exception(err)
+            raise err
+
+    async def process_message(self, data):
+        """Process parsed message."""
         result_id = ', '.join(
             [f'({node["qid"]}:{node["kid"]})' for node in data['nodes']]
             + [f'({edge["qid"]}:{edge["kid"]})' for edge in data['edges']]

@@ -67,6 +67,15 @@ class Fetcher(Worker, RedisMixin):
         if self.redis is None:
             await self.setup()
         data = json.loads(message.body)
+
+        try:
+            await self.process_message(data)
+        except Exception as err:
+            LOGGER.exception(err)
+            raise err
+
+    async def process_message(self, data):
+        """Process parsed message."""        
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
         LOGGER.debug("[job %s]: Processing...", job_id)
 
