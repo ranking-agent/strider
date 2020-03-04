@@ -2,14 +2,22 @@
 import asyncio
 import json
 import logging
+import os
 import re
+import sqlite3
+import time
+import urllib
 
-import httpx
+import aiormq
 from bmt import Toolkit as BMToolkit
+import httpx
 
+from strider.neo4j import HttpInterface
+from strider.scoring import score_graph
 from strider.worker import Worker, RedisMixin
 
 LOGGER = logging.getLogger(__name__)
+NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
 
 
 class InvalidNode(Exception):
@@ -25,10 +33,36 @@ class Fetcher(Worker, RedisMixin):
         """Initialize."""
         super().__init__(*args, **kwargs)
         self.bmt = BMToolkit()
+        self.neo4j = None
+        self.sql = None
 
     async def setup(self):
-        """Set up Redis connection."""
+        """Set up SQLite, Redis, and Neo4j connections."""
+        # SQLite
+        self.sql = sqlite3.connect('results.db')
+
+        # Redis
         await self.setup_redis()
+
+        # Neo4j
+        self.neo4j = HttpInterface(
+            url=f'http://{NEO4J_HOST}:7474',
+        )
+        seconds = 1
+        while True:
+            try:
+                await self.neo4j.run_async('MATCH (n) DETACH DELETE n')  # clear it
+                break
+            except httpx.HTTPError as err:
+                if seconds >= 129:
+                    raise err
+                LOGGER.debug('Failed to connect to Neo4j. Trying again in %d seconds', seconds)
+                await asyncio.sleep(seconds)
+                seconds *= 2
+
+    async def is_done(self, plan, qid=None, kid=None):
+        """Return True iff a job (qid/kid) has already been completed."""
+        return bool(await self.redis.sismember(f'{plan}_done', f'({qid}:{kid})'))
 
     async def validate(self, element, spec):
         """Validate a node against a query-node specification."""
@@ -68,6 +102,22 @@ class Fetcher(Worker, RedisMixin):
             await self.setup()
         data = json.loads(message.body)
 
+        if not data.get('step_id', None):
+            edge_bindings = dict()
+            node_bindings = {
+                data['qid']: {
+                    'id': data['kid'],
+                    'type': data['type'],
+                }
+            }
+            job_id = f'({data["kid"]}:{data["qid"]})'
+            try:
+                await self.process_result(job_id, data['query_id'], edge_bindings, node_bindings)
+            except Exception as err:
+                LOGGER.exception(err)
+                raise err
+            return
+
         try:
             await self.process_message(data)
         except Exception as err:
@@ -75,7 +125,7 @@ class Fetcher(Worker, RedisMixin):
             raise err
 
     async def process_message(self, data):
-        """Process parsed message."""        
+        """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
         LOGGER.debug("[job %s]: Processing...", job_id)
 
@@ -84,17 +134,6 @@ class Fetcher(Worker, RedisMixin):
             for endpoint in data['endpoints']
         )
         await asyncio.gather(*step_awaitables)
-
-    async def get_spec(self, query_id, thing_qid):
-        """Get specs for slot."""
-        json_string = await self.redis.hget(
-            f'{query_id}_slots',
-            thing_qid,
-            encoding='utf-8'
-        )
-        if json_string is None:
-            raise ValueError(f'{query_id}_slots has no {thing_qid}')
-        return json.loads(json_string)
 
     async def take_step(self, job_id, data, endpoint):
         """Call specific endpoint."""
@@ -142,9 +181,20 @@ class Fetcher(Worker, RedisMixin):
             }
             response = await client.post(endpoint, json=request)
         assert response.status_code < 300
-        await self.process_response(job_id, data, response.json())
+        await self.process_response(job_id, data['query_id'], response.json())
 
-    async def process_response(self, job_id, data, response):
+    async def get_spec(self, query_id, thing_qid):
+        """Get specs for slot."""
+        json_string = await self.redis.hget(
+            f'{query_id}_slots',
+            thing_qid,
+            encoding='utf-8'
+        )
+        if json_string is None:
+            raise ValueError(f'{query_id}_slots has no {thing_qid}')
+        return json.loads(json_string)
+
+    async def process_response(self, job_id, query_id, response):
         """Process response from KP."""
         if response is None:
             return
@@ -161,31 +211,30 @@ class Fetcher(Worker, RedisMixin):
                 binding['qg_id']: nodes_by_id[binding['kg_id']]
                 for binding in result['node_bindings']
             }
-            edge_awaitables.append(self.process_edge(job_id, data, edge_bindings, node_bindings))
+            edge_awaitables.append(self.process_result(job_id, query_id, edge_bindings, node_bindings))
         await asyncio.gather(*edge_awaitables)
 
-    async def process_edge(self, job_id, data, edge_bindings, node_bindings):
+    async def process_result(self, job_id, query_id, edge_bindings, node_bindings):
         """Process edge from KP."""
         # filter out results that are incompatible with qgraph
         for qid, edge in edge_bindings.items():
-            edge_spec = await self.get_spec(data['query_id'], qid)
+            edge_spec = await self.get_spec(query_id, qid)
             try:
                 await self.validate(edge, edge_spec)
             except InvalidNode as err:
                 LOGGER.debug('[job %s]: Filtered out edge %s: %s', job_id, str(edge), err)
                 return
         for qid, node in node_bindings.items():
-            target_spec = await self.get_spec(data['query_id'], qid)
+            target_spec = await self.get_spec(query_id, qid)
             try:
                 await self.validate(node, target_spec)
             except InvalidNode as err:
                 # LOGGER.debug('[job %s]: Filtered out node %s: %s', job_id, str(node), err)
                 return
 
-        # generate result struct
-        # TODO: fix bindings structure and handling
-        result = {
-            'query_id': data['query_id'],
+        # reformat result
+        data = {
+            'query_id': query_id,
             'nodes': [
                 {
                     'qid': key,
@@ -205,9 +254,180 @@ class Fetcher(Worker, RedisMixin):
                 for key, edge in edge_bindings.items()
             ]
         }
-        LOGGER.debug("[job %s]: Queueing result...", job_id)
-        # publish to results queue
-        await self.channel.basic_publish(
-            routing_key='results',
-            body=json.dumps(result).encode('utf-8'),
-        )
+
+        node_ids = [f'({node["qid"]}:{node["kid"]})' for node in data['nodes']]
+        edge_ids = [f'({edge["qid"]}:{edge["kid"]})' for edge in data['edges']]
+        result_id = ', '.join(node_ids + edge_ids)
+        LOGGER.debug("[result %s]: Processing...", result_id)
+
+        slots = {
+            x.decode('utf-8')
+            for x in await self.redis.hkeys(f'{data["query_id"]}_slots')
+        }
+
+        # assign weights to edges
+        for edge in data['edges']:
+            query = f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(edge["source_id"])}&curie={urllib.parse.quote(edge["target_id"])}'
+            async with httpx.AsyncClient() as client:
+                response = await client.get(query)
+            if response.status_code >= 300:
+                raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{query}')
+            num_pubs = response.json()
+            edge['weight'] = num_pubs + 1
+
+        # store result in Neo4j
+        new_edges = await self.store_result(data)
+
+        # get subgraphs and scores
+        subgraphs = await self.get_subgraphs(data, new_edges)
+        scores = [score_graph(subgraph) for subgraph in subgraphs]
+
+        # update priorities
+        # for each subgraph, add its weight to each component node's priority
+        for subgraph, score in zip(subgraphs, scores):
+            for node in subgraph['nodes'].values():
+                # if await self.redis.hexists(f'{data["query_id"]}_done', node['label']):
+                #     continue
+                await self.redis.hincrbyfloat(f'{data["query_id"]}_priorities', f'({node["qid"]}:{node["kid"]})', score)
+
+        # publish answers to the results DB
+        answers = [
+            (subgraph, score)
+            for subgraph, score in zip(subgraphs, scores)
+            if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == slots
+        ]
+        if answers:
+            LOGGER.debug("[result %s]: Storing %d answers", result_id, len(answers))
+            self.store_answers(answers, data["query_id"], slots)
+
+        # publish all nodes to jobs queue
+        await self.queue_jobs(data, result_id)
+
+        # black-list any old jobs for these nodes
+        # *not necessary if priority only increases
+
+    async def get_subgraphs(self, data, new_edges):
+        """Get subgraphs."""
+        subgraph_awaitables = []
+        for edge in new_edges:
+            statement = f'MATCH (:`{data["query_id"]}`)-[e:`{data["query_id"]}` {{kid:"{edge["kid"]}"}}]->(:`{data["query_id"]}`)'
+            statement += '\nCALL strider.getPaths(e) YIELD nodes, edges RETURN nodes, edges'
+            subgraph_awaitables.append(self.neo4j.run_async(statement))
+        nested_results = await asyncio.gather(*subgraph_awaitables)
+        subgraphs = [result for results in nested_results for result in results]
+        # in case the answer is just disconnected nodes
+        subgraphs.append({
+            'nodes': {
+                node['qid']: node
+                for node in data['nodes']
+            },
+            'edges': {},
+        })
+        return subgraphs
+
+    async def get_jobs(self, data):
+        """Get jobs for data nodes."""
+        nodes = [
+            (node['qid'], node['kid']) for node in data['nodes']
+            if not await self.is_done(data["query_id"], qid=node['qid'], kid=node['kid'])
+        ]
+        node_steps = []
+        for qid, kid in nodes:
+            job_id = f'({qid}:{kid})'
+
+            # never process the same job twice
+            if await self.redis.exists(f'{data["query_id"]}_done') and await self.redis.sismember(f'{data["query_id"]}_done', job_id):
+                continue
+            await self.redis.sadd(f'{data["query_id"]}_done', job_id)
+
+            priority = min(255, int(float(await self.redis.hget(f'{data["query_id"]}_priorities', job_id))))
+
+            # get step(s):
+            steps_string = await self.redis.hget(f'{data["query_id"]}_plan', qid, encoding='utf-8')
+            try:
+                steps = json.loads(steps_string)
+            except TypeError:
+                steps = dict()
+            # TODO: filter out steps that are too specific for source node
+            # e.g. we got a disease_or_phenotypic_feature and step requires disease
+            node_steps.append((priority, qid, kid, steps))
+        return node_steps
+
+    async def queue_jobs(self, data, result_id):
+        """Queue jobs from result."""
+        node_steps = await self.get_jobs(data)
+
+        # add steps in order of descending priority
+        node_steps.sort(key=lambda x: x[0], reverse=True)
+        publish_awaitables = []
+        for priority, qid, kid, steps in node_steps:
+            job_id = f'({qid}:{kid})'
+            LOGGER.debug("[result %s]: Queueing job(s) %s", result_id, job_id)
+            for step_id, endpoints in steps.items():
+                match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
+                if match is None:
+                    raise ValueError(f'Cannot parse step id {step_id}')
+                edge_qid = match[1]
+                # target_qid = match[2]
+                if edge_qid in [edge['qid'] for edge in data['edges']]:
+                    continue
+
+                job = {
+                    'query_id': data['query_id'],
+                    'qid': qid,
+                    'kid': kid,
+                    'step_id': step_id,
+                    'endpoints': endpoints,
+                }
+                publish_awaitables.append(self.channel.basic_publish(
+                    routing_key='jobs',
+                    body=json.dumps(job).encode('utf-8'),
+                    properties=aiormq.spec.Basic.Properties(
+                        priority=priority,
+                    ),
+                ))
+        await asyncio.gather(*publish_awaitables)
+
+    async def store_result(self, data):
+        """Store result in Neo4j.
+
+        Return new edges.
+        """
+        # merge with existing nodes/edge, but update edge weight
+        node_vars = {
+            node['kid']: f'n{i:03d}'
+            for i, node in enumerate(data['nodes'])
+        }
+        edge_vars = {
+            edge['kid']: f'e{i:03d}'
+            for i, edge in enumerate(data['edges'])
+        }
+        statement = ''
+        for node in data['nodes']:
+            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{data["query_id"]}` {{kid:"{node["kid"]}", qid:"{node["qid"]}"}})'
+        for edge in data['edges']:
+            statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{data["query_id"]}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
+            statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
+        for edge in data['edges']:
+            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {edge["weight"]}'
+        statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
+        statement += '\nWITH e WHERE e.new'
+        statement += '\nREMOVE e.new'
+        statement += '\nRETURN e'
+        result = await self.neo4j.run_async(statement)
+        return [row['e'] for row in result]
+
+    def store_answers(self, answers, query_id, slots):
+        """Store answers in sqlite."""
+        rows = []
+        for answer, score in answers:
+            things = {**answer['nodes'], **answer['edges']}
+            values = [things[qid]['kid'] for qid in slots] + [score, time.time()]
+            rows.append(values)
+        placeholders = ', '.join(['?' for _ in range(len(rows[0]))])
+        columns = ', '.join([f'`{qid}`' for qid in slots] + ['_score', '_timestamp'])
+        with self.sql:
+            self.sql.executemany(
+                f'''INSERT OR IGNORE INTO `{query_id}` ({columns}) VALUES ({placeholders})''',
+                rows
+            )

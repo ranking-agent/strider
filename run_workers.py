@@ -7,7 +7,7 @@ import uvloop
 import yaml
 
 from strider.fetcher import Fetcher
-from strider.prioritizer import Prioritizer
+# from strider.prioritizer import Prioritizer
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -18,9 +18,9 @@ async def start():
     await fetcher.setup()
     await fetcher.run()
 
-    prioritizer = Prioritizer()
-    await prioritizer.setup()
-    await prioritizer.run()
+    # prioritizer = Prioritizer()
+    # await prioritizer.setup()
+    # await prioritizer.run()
 
     print('Ready.')
 
