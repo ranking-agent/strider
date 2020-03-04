@@ -20,8 +20,8 @@ LOGGER = logging.getLogger(__name__)
 NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
 
 
-class InvalidNode(Exception):
-    """Invalid node."""
+class ValidationError(Exception):
+    """Invalid node or edge."""
 
 
 class Fetcher(Worker, RedisMixin):
@@ -71,7 +71,7 @@ class Fetcher(Worker, RedisMixin):
                 continue
             if key == 'curie':
                 if element['id'] != value:
-                    raise InvalidNode(f'{element["id"]} != {value}')
+                    raise ValidationError(f'{element["id"]} != {value}')
             elif key == 'type':
                 if isinstance(element['type'], str):
                     lineage = self.bmt.ancestors(value) + self.bmt.descendents(value) + [value]
@@ -81,15 +81,15 @@ class Fetcher(Worker, RedisMixin):
                     # assert response.status_code < 300
                     # lineage = response.json()
                     if element['type'] not in lineage:
-                        raise InvalidNode(f'{element["type"]} not in {lineage}')
+                        raise ValidationError(f'{element["type"]} not in {lineage}')
                 elif isinstance(element['type'], list):
                     if value not in element['type']:
-                        raise InvalidNode(f'{value} not in {element["type"]}')
+                        raise ValidationError(f'{value} not in {element["type"]}')
                 else:
                     raise ValueError('Type must be a str or list')
             elif key not in ['id', 'source_id', 'target_id']:
                 if element[key] != value:
-                    raise InvalidNode(f'{element[key]} != {value}')
+                    raise ValidationError(f'{element[key]} != {value}')
         return True
 
     async def on_message(self, message):
@@ -102,40 +102,36 @@ class Fetcher(Worker, RedisMixin):
             await self.setup()
         data = json.loads(message.body)
 
-        if not data.get('step_id', None):
-            edge_bindings = dict()
-            node_bindings = {
-                data['qid']: {
-                    'id': data['kid'],
-                    'type': data['type'],
-                }
-            }
-            job_id = f'({data["kid"]}:{data["qid"]})'
-            try:
-                await self.process_result(job_id, data['query_id'], edge_bindings, node_bindings)
-            except Exception as err:
-                LOGGER.exception(err)
-                raise err
-            return
-
         try:
-            await self.process_message(data)
+            if not data.get('step_id', None):
+                edge_bindings = dict()
+                node_bindings = {
+                    data['qid']: {
+                        'id': data['kid'],
+                        'type': data['type'],
+                    }
+                }
+                job_id = f'({data["kid"]}:{data["qid"]})'
+                await self.process_result(data['query_id'], job_id, edge_bindings, node_bindings)
+                return
+
+            await self.process_message(data['query_id'], data)
         except Exception as err:
             LOGGER.exception(err)
             raise err
 
-    async def process_message(self, data):
+    async def process_message(self, query_id, data):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
         LOGGER.debug("[job %s]: Processing...", job_id)
 
         step_awaitables = (
-            self.take_step(job_id, data, endpoint)
+            self.take_step(query_id, job_id, data, endpoint)
             for endpoint in data['endpoints']
         )
         await asyncio.gather(*step_awaitables)
 
-    async def take_step(self, job_id, data, endpoint):
+    async def take_step(self, query_id, job_id, data, endpoint):
         """Call specific endpoint."""
         match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
         if match is None:
@@ -144,9 +140,9 @@ class Fetcher(Worker, RedisMixin):
         target_qid = match[2]
 
         # source, edge, and target specs
-        edge_spec = await self.get_spec(data['query_id'], edge_qid)
-        target_spec = await self.get_spec(data['query_id'], target_qid)
-        source_spec = await self.get_spec(data['query_id'], data['qid'])
+        edge_spec = await self.get_spec(query_id, edge_qid)
+        target_spec = await self.get_spec(query_id, target_qid)
+        source_spec = await self.get_spec(query_id, data['qid'])
 
         async with httpx.AsyncClient() as client:
             request = {
@@ -181,7 +177,7 @@ class Fetcher(Worker, RedisMixin):
             }
             response = await client.post(endpoint, json=request)
         assert response.status_code < 300
-        await self.process_response(job_id, data['query_id'], response.json())
+        await self.process_response(query_id, job_id, response.json())
 
     async def get_spec(self, query_id, thing_qid):
         """Get specs for slot."""
@@ -194,7 +190,7 @@ class Fetcher(Worker, RedisMixin):
             raise ValueError(f'{query_id}_slots has no {thing_qid}')
         return json.loads(json_string)
 
-    async def process_response(self, job_id, query_id, response):
+    async def process_response(self, query_id, job_id, response):
         """Process response from KP."""
         if response is None:
             return
@@ -211,26 +207,16 @@ class Fetcher(Worker, RedisMixin):
                 binding['qg_id']: nodes_by_id[binding['kg_id']]
                 for binding in result['node_bindings']
             }
-            edge_awaitables.append(self.process_result(job_id, query_id, edge_bindings, node_bindings))
+            edge_awaitables.append(self.process_result(query_id, job_id, edge_bindings, node_bindings))
         await asyncio.gather(*edge_awaitables)
 
-    async def process_result(self, job_id, query_id, edge_bindings, node_bindings):
-        """Process edge from KP."""
+    async def process_result(self, query_id, job_id, edge_bindings, node_bindings):
+        """Process individual result from KP."""
         # filter out results that are incompatible with qgraph
-        for qid, edge in edge_bindings.items():
-            edge_spec = await self.get_spec(query_id, qid)
-            try:
-                await self.validate(edge, edge_spec)
-            except InvalidNode as err:
-                LOGGER.debug('[job %s]: Filtered out edge %s: %s', job_id, str(edge), err)
-                return
-        for qid, node in node_bindings.items():
-            target_spec = await self.get_spec(query_id, qid)
-            try:
-                await self.validate(node, target_spec)
-            except InvalidNode as err:
-                # LOGGER.debug('[job %s]: Filtered out node %s: %s', job_id, str(node), err)
-                return
+        try:
+            await self.validate_result(query_id, job_id, edge_bindings, node_bindings)
+        except ValidationError:
+            return
 
         # reformat result
         data = {
@@ -262,33 +248,21 @@ class Fetcher(Worker, RedisMixin):
 
         slots = {
             x.decode('utf-8')
-            for x in await self.redis.hkeys(f'{data["query_id"]}_slots')
+            for x in await self.redis.hkeys(f'{query_id}_slots')
         }
 
         # assign weights to edges
-        for edge in data['edges']:
-            query = f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(edge["source_id"])}&curie={urllib.parse.quote(edge["target_id"])}'
-            async with httpx.AsyncClient() as client:
-                response = await client.get(query)
-            if response.status_code >= 300:
-                raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{query}')
-            num_pubs = response.json()
-            edge['weight'] = num_pubs + 1
+        data['edges'] = await self.assign_weights(data['edges'])
 
         # store result in Neo4j
-        new_edges = await self.store_result(data)
+        new_edges = await self.store_result(query_id, data)
 
         # get subgraphs and scores
-        subgraphs = await self.get_subgraphs(data, new_edges)
+        subgraphs = await self.get_subgraphs(query_id, data, new_edges)
         scores = [score_graph(subgraph) for subgraph in subgraphs]
 
         # update priorities
-        # for each subgraph, add its weight to each component node's priority
-        for subgraph, score in zip(subgraphs, scores):
-            for node in subgraph['nodes'].values():
-                # if await self.redis.hexists(f'{data["query_id"]}_done', node['label']):
-                #     continue
-                await self.redis.hincrbyfloat(f'{data["query_id"]}_priorities', f'({node["qid"]}:{node["kid"]})', score)
+        await self.update_priorities(query_id, subgraphs, scores)
 
         # publish answers to the results DB
         answers = [
@@ -297,20 +271,63 @@ class Fetcher(Worker, RedisMixin):
             if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == slots
         ]
         if answers:
-            LOGGER.debug("[result %s]: Storing %d answers", result_id, len(answers))
-            self.store_answers(answers, data["query_id"], slots)
+            LOGGER.debug(
+                "[result %s]: Storing %d %s",
+                result_id,
+                len(answers),
+                'answers' if len(answers) > 1 else 'answer'
+            )
+            self.store_answers(answers, query_id, slots)
 
         # publish all nodes to jobs queue
-        await self.queue_jobs(data, result_id)
+        await self.queue_jobs(query_id, data, result_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
 
-    async def get_subgraphs(self, data, new_edges):
+    async def validate_result(self, query_id, job_id, edge_bindings, node_bindings):
+        """Validate result nodes and edges against qgraph."""
+        for qid, edge in edge_bindings.items():
+            edge_spec = await self.get_spec(query_id, qid)
+            try:
+                await self.validate(edge, edge_spec)
+            except ValidationError as err:
+                LOGGER.debug('[job %s]: Filtered out edge %s: %s', job_id, str(edge), err)
+                raise err
+        for qid, node in node_bindings.items():
+            target_spec = await self.get_spec(query_id, qid)
+            await self.validate(node, target_spec)
+
+    async def assign_weights(self, edges):
+        """Assign weights to edges using OmniCorp."""
+        for edge in edges:
+            query = f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(edge["source_id"])}&curie={urllib.parse.quote(edge["target_id"])}'
+            async with httpx.AsyncClient() as client:
+                response = await client.get(query)
+            if response.status_code >= 300:
+                raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{query}')
+            num_pubs = response.json()
+            edge['weight'] = num_pubs + 1
+        return edges
+
+    async def update_priorities(self, query_id, subgraphs, scores):
+        """Update job priorities."""
+        # for each subgraph, add its weight to each component node's priority
+        for subgraph, score in zip(subgraphs, scores):
+            for node in subgraph['nodes'].values():
+                # if await self.redis.hexists(f'{query_id}_done', node['label']):
+                #     continue
+                await self.redis.hincrbyfloat(
+                    f'{query_id}_priorities',
+                    f'({node["qid"]}:{node["kid"]})',
+                    score
+                )
+
+    async def get_subgraphs(self, query_id, data, new_edges):
         """Get subgraphs."""
         subgraph_awaitables = []
         for edge in new_edges:
-            statement = f'MATCH (:`{data["query_id"]}`)-[e:`{data["query_id"]}` {{kid:"{edge["kid"]}"}}]->(:`{data["query_id"]}`)'
+            statement = f'MATCH (:`{query_id}`)-[e:`{query_id}` {{kid:"{edge["kid"]}"}}]->(:`{query_id}`)'
             statement += '\nCALL strider.getPaths(e) YIELD nodes, edges RETURN nodes, edges'
             subgraph_awaitables.append(self.neo4j.run_async(statement))
         nested_results = await asyncio.gather(*subgraph_awaitables)
@@ -325,37 +342,9 @@ class Fetcher(Worker, RedisMixin):
         })
         return subgraphs
 
-    async def get_jobs(self, data):
-        """Get jobs for data nodes."""
-        nodes = [
-            (node['qid'], node['kid']) for node in data['nodes']
-            if not await self.is_done(data["query_id"], qid=node['qid'], kid=node['kid'])
-        ]
-        node_steps = []
-        for qid, kid in nodes:
-            job_id = f'({qid}:{kid})'
-
-            # never process the same job twice
-            if await self.redis.exists(f'{data["query_id"]}_done') and await self.redis.sismember(f'{data["query_id"]}_done', job_id):
-                continue
-            await self.redis.sadd(f'{data["query_id"]}_done', job_id)
-
-            priority = min(255, int(float(await self.redis.hget(f'{data["query_id"]}_priorities', job_id))))
-
-            # get step(s):
-            steps_string = await self.redis.hget(f'{data["query_id"]}_plan', qid, encoding='utf-8')
-            try:
-                steps = json.loads(steps_string)
-            except TypeError:
-                steps = dict()
-            # TODO: filter out steps that are too specific for source node
-            # e.g. we got a disease_or_phenotypic_feature and step requires disease
-            node_steps.append((priority, qid, kid, steps))
-        return node_steps
-
-    async def queue_jobs(self, data, result_id):
+    async def queue_jobs(self, query_id, data, result_id):
         """Queue jobs from result."""
-        node_steps = await self.get_jobs(data)
+        node_steps = await self.get_jobs(query_id, data)
 
         # add steps in order of descending priority
         node_steps.sort(key=lambda x: x[0], reverse=True)
@@ -373,7 +362,7 @@ class Fetcher(Worker, RedisMixin):
                     continue
 
                 job = {
-                    'query_id': data['query_id'],
+                    'query_id': query_id,
                     'qid': qid,
                     'kid': kid,
                     'step_id': step_id,
@@ -388,7 +377,35 @@ class Fetcher(Worker, RedisMixin):
                 ))
         await asyncio.gather(*publish_awaitables)
 
-    async def store_result(self, data):
+    async def get_jobs(self, query_id, data):
+        """Get jobs for data nodes."""
+        nodes = [
+            (node['qid'], node['kid']) for node in data['nodes']
+            if not await self.is_done(query_id, qid=node['qid'], kid=node['kid'])
+        ]
+        node_steps = []
+        for qid, kid in nodes:
+            job_id = f'({qid}:{kid})'
+
+            # never process the same job twice
+            if await self.redis.exists(f'{query_id}_done') and await self.redis.sismember(f'{query_id}_done', job_id):
+                continue
+            await self.redis.sadd(f'{query_id}_done', job_id)
+
+            priority = min(255, int(float(await self.redis.hget(f'{query_id}_priorities', job_id))))
+
+            # get step(s):
+            steps_string = await self.redis.hget(f'{query_id}_plan', qid, encoding='utf-8')
+            try:
+                steps = json.loads(steps_string)
+            except TypeError:
+                steps = dict()
+            # TODO: filter out steps that are too specific for source node
+            # e.g. we got a disease_or_phenotypic_feature and step requires disease
+            node_steps.append((priority, qid, kid, steps))
+        return node_steps
+
+    async def store_result(self, query_id, data):
         """Store result in Neo4j.
 
         Return new edges.
@@ -404,9 +421,9 @@ class Fetcher(Worker, RedisMixin):
         }
         statement = ''
         for node in data['nodes']:
-            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{data["query_id"]}` {{kid:"{node["kid"]}", qid:"{node["qid"]}"}})'
+            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{query_id}` {{kid:"{node["kid"]}", qid:"{node["qid"]}"}})'
         for edge in data['edges']:
-            statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{data["query_id"]}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
+            statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{query_id}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
             statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
         for edge in data['edges']:
             statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {edge["weight"]}'
