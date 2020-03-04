@@ -92,9 +92,9 @@ async def execute_query(query_graph):
         job_id = f'({node["curie"]}:{node["id"]})'
         job = {
             'query_id': query_id,
-            'qid': node['id'],
-            'kid': node['curie'],
-            'type': node['type'],
+            'qid': node.pop('id'),
+            'kid': node.pop('curie'),
+            **node,
         }
         LOGGER.debug("Queueing result %s", job_id)
         await channel.basic_publish(
