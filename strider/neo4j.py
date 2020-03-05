@@ -41,6 +41,7 @@ class HttpInterface(Neo4jInterface):
             auth=self.auth,
             json={"statements": [{"statement": statement}]},
         )
+        assert response.status_code < 300
         result = response.json()['results'][0]
         result = [
             dict(zip(result['columns'], datum['row']))
@@ -56,7 +57,14 @@ class HttpInterface(Neo4jInterface):
                 auth=self.auth,
                 json={"statements": [{"statement": statement}]},
             )
-        result = response.json()['results'][0]
+        assert response.status_code < 300
+        response = response.json()
+        if response['errors']:
+            raise RuntimeError(response['errors'])
+        results = response['results']
+        if not results:
+            return []
+        result = results[0]
         result = [
             dict(zip(result['columns'], datum['row']))
             for datum in result['data']
