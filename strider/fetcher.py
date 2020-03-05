@@ -101,6 +101,12 @@ class Fetcher(Worker, RedisMixin):
         if self.redis is None:
             await self.setup()
         data = json.loads(message.body)
+        query_id = data.pop('query_id')
+        statement = f'''
+            CREATE CONSTRAINT
+            ON (n:`{query_id}`)
+            ASSERT n.kid_qid IS UNIQUE'''
+        result = await self.neo4j.run_async(statement)
 
         try:
             if not data.get('step_id', None):
@@ -112,10 +118,23 @@ class Fetcher(Worker, RedisMixin):
                     }
                 }
                 job_id = f'({data["kid"]}:{data["qid"]})'
-                await self.process_result(data['query_id'], job_id, edge_bindings, node_bindings)
-                return
+                jobs = await self.process_result(query_id, job_id, edge_bindings, node_bindings)
+            else:
+                jobs = await self.process_message(query_id, data)
 
-            await self.process_message(data['query_id'], data)
+            # queue jobs in order of descending priority
+            jobs.sort(key=lambda x: x['priority'], reverse=True)
+            publish_awaitables = []
+            for job in jobs:
+                priority = job.pop('priority')
+                publish_awaitables.append(self.channel.basic_publish(
+                    routing_key='jobs',
+                    body=json.dumps(job).encode('utf-8'),
+                    properties=aiormq.spec.Basic.Properties(
+                        priority=priority,
+                    ),
+                ))
+            await asyncio.gather(*publish_awaitables)
         except Exception as err:
             LOGGER.exception(err)
             raise err
@@ -129,7 +148,8 @@ class Fetcher(Worker, RedisMixin):
             self.take_step(query_id, job_id, data, endpoint)
             for endpoint in data['endpoints']
         )
-        await asyncio.gather(*step_awaitables)
+        nested_jobs = await asyncio.gather(*step_awaitables)
+        return [job for jobs in nested_jobs for job in jobs]
 
     async def take_step(self, query_id, job_id, data, endpoint):
         """Call specific endpoint."""
@@ -177,7 +197,8 @@ class Fetcher(Worker, RedisMixin):
             }
             response = await client.post(endpoint, json=request)
         assert response.status_code < 300
-        await self.process_response(query_id, job_id, response.json())
+
+        return await self.process_response(query_id, job_id, response.json())
 
     async def get_spec(self, query_id, thing_qid):
         """Get specs for slot."""
@@ -208,7 +229,9 @@ class Fetcher(Worker, RedisMixin):
                 for binding in result['node_bindings']
             }
             edge_awaitables.append(self.process_result(query_id, job_id, edge_bindings, node_bindings))
-        await asyncio.gather(*edge_awaitables)
+            # jobs.extend(await self.process_result(query_id, job_id, edge_bindings, node_bindings))
+        nested_jobs = await asyncio.gather(*edge_awaitables)
+        return [job for jobs in nested_jobs for job in jobs]
 
     async def process_result(self, query_id, job_id, edge_bindings, node_bindings):
         """Process individual result from KP."""
@@ -246,11 +269,6 @@ class Fetcher(Worker, RedisMixin):
         result_id = ', '.join(node_ids + edge_ids)
         LOGGER.debug("[result %s]: Processing...", result_id)
 
-        slots = {
-            x.decode('utf-8')
-            for x in await self.redis.hkeys(f'{query_id}_slots')
-        }
-
         # assign weights to edges
         data['edges'] = await self.assign_weights(data['edges'])
 
@@ -265,6 +283,10 @@ class Fetcher(Worker, RedisMixin):
         await self.update_priorities(query_id, subgraphs, scores)
 
         # publish answers to the results DB
+        slots = {
+            x.decode('utf-8')
+            for x in await self.redis.hkeys(f'{query_id}_slots')
+        }
         answers = [
             (subgraph, score)
             for subgraph, score in zip(subgraphs, scores)
@@ -277,10 +299,10 @@ class Fetcher(Worker, RedisMixin):
                 len(answers),
                 'answers' if len(answers) > 1 else 'answer'
             )
-            self.store_answers(answers, query_id, slots)
+            self.store_answers(query_id, answers, slots)
 
         # publish all nodes to jobs queue
-        await self.queue_jobs(query_id, data, result_id)
+        return await self.queue_jobs(query_id, data, result_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
@@ -327,11 +349,12 @@ class Fetcher(Worker, RedisMixin):
         """Get subgraphs."""
         subgraph_awaitables = []
         for edge in new_edges:
-            statement = f'MATCH (:`{query_id}`)-[e:`{query_id}` {{kid:"{edge["kid"]}"}}]->(:`{query_id}`)'
+            statement = f'MATCH (:`{query_id}`)-[e:`{query_id}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->(:`{query_id}`)'
             statement += '\nCALL strider.getPaths(e) YIELD nodes, edges RETURN nodes, edges'
             subgraph_awaitables.append(self.neo4j.run_async(statement))
         nested_results = await asyncio.gather(*subgraph_awaitables)
         subgraphs = [result for results in nested_results for result in results]
+
         # in case the answer is just disconnected nodes
         subgraphs.append({
             'nodes': {
@@ -346,9 +369,7 @@ class Fetcher(Worker, RedisMixin):
         """Queue jobs from result."""
         node_steps = await self.get_jobs(query_id, data)
 
-        # add steps in order of descending priority
-        node_steps.sort(key=lambda x: x[0], reverse=True)
-        publish_awaitables = []
+        jobs = []
         for priority, qid, kid, steps in node_steps:
             job_id = f'({qid}:{kid})'
             LOGGER.debug("[result %s]: Queueing job(s) %s", result_id, job_id)
@@ -357,7 +378,7 @@ class Fetcher(Worker, RedisMixin):
                 if match is None:
                     raise ValueError(f'Cannot parse step id {step_id}')
                 edge_qid = match[1]
-                # target_qid = match[2]
+                # do not retrace your steps
                 if edge_qid in [edge['qid'] for edge in data['edges']]:
                     continue
 
@@ -367,15 +388,10 @@ class Fetcher(Worker, RedisMixin):
                     'kid': kid,
                     'step_id': step_id,
                     'endpoints': endpoints,
+                    'priority': priority,
                 }
-                publish_awaitables.append(self.channel.basic_publish(
-                    routing_key='jobs',
-                    body=json.dumps(job).encode('utf-8'),
-                    properties=aiormq.spec.Basic.Properties(
-                        priority=priority,
-                    ),
-                ))
-        await asyncio.gather(*publish_awaitables)
+                jobs.append(job)
+        return jobs
 
     async def get_jobs(self, query_id, data):
         """Get jobs for data nodes."""
@@ -421,7 +437,7 @@ class Fetcher(Worker, RedisMixin):
         }
         statement = ''
         for node in data['nodes']:
-            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{query_id}` {{kid:"{node["kid"]}", qid:"{node["qid"]}"}})'
+            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{query_id}` {{kid:"{node["kid"]}", qid:"{node["qid"]}", kid_qid:"{node["kid"]}_{node["qid"]}"}})'
         for edge in data['edges']:
             statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{query_id}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
             statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
@@ -434,7 +450,7 @@ class Fetcher(Worker, RedisMixin):
         result = await self.neo4j.run_async(statement)
         return [row['e'] for row in result]
 
-    def store_answers(self, answers, query_id, slots):
+    def store_answers(self, query_id, answers, slots):
         """Store answers in sqlite."""
         rows = []
         for answer, score in answers:
