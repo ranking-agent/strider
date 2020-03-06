@@ -270,7 +270,7 @@ class Fetcher(Worker, RedisMixin):
         LOGGER.debug("[result %s]: Processing...", result_id)
 
         # assign weights to edges
-        data['edges'] = await self.assign_weights(data['edges'])
+        data['edges'] = await self.assign_weights(data)
 
         # store result in Neo4j
         new_edges = await self.store_result(query_id, data)
@@ -320,17 +320,30 @@ class Fetcher(Worker, RedisMixin):
             target_spec = await self.get_spec(query_id, qid)
             await self.validate(node, target_spec)
 
-    async def assign_weights(self, edges):
+    async def assign_weights(self, data):
         """Assign weights to edges using OmniCorp."""
-        for edge in edges:
-            query = f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(edge["source_id"])}&curie={urllib.parse.quote(edge["target_id"])}'
-            async with httpx.AsyncClient() as client:
-                response = await client.get(query)
-            if response.status_code >= 300:
-                raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{query}')
-            num_pubs = response.json()
+        node_synonyms = {
+            node['kid']: node.get('equivalent_identifiers', [])
+            for node in data['nodes']
+        }
+        for edge in data['edges']:
+            # prefer HGNC
+            source_id = edge['source_id']
+            target_id = edge['target_id']
+            if source_id.startswith('NCBIGene'):
+                source_id = next(
+                    (curie for curie in node_synonyms[source_id] if curie.startswith('HGNC')),
+                    default=source_id
+                )
+            if target_id.startswith('NCBIGene'):
+                target_id = next(
+                    (curie for curie in node_synonyms[target_id] if curie.startswith('HGNC')),
+                    default=target_id
+                )
+
+            num_pubs = await get_support(source_id, target_id)
             edge['weight'] = num_pubs + 1
-        return edges
+        return data['edges']
 
     async def update_priorities(self, query_id, subgraphs, scores):
         """Update job priorities."""
