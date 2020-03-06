@@ -48,11 +48,13 @@ class Worker(ABC):
     def IN_QUEUE(self):
         """Name of the queue from which this worker will consume."""
 
-    def __init__(self):
+    def __init__(self, max_jobs=-1):
         """Initialize."""
         self.connection = None
         self.channel = None
         self._is_connected = False
+        self.max_jobs = max_jobs
+        self.active_jobs = 0
 
     async def connect(self):
         """Connect to RabbitMQ."""
@@ -74,10 +76,36 @@ class Worker(ABC):
 
         # Creating a channel
         self.channel = await self.connection.channel()
+        await self.channel.basic_qos(prefetch_count=1)
 
         await setup_rabbitmq()
 
         self._is_connected = True
+
+    async def _on_message(self, message):
+        """Handle message from results queue."""
+        self.active_jobs += 1
+        if self.max_jobs > 0 and self.active_jobs < self.max_jobs:
+            await self.ack(message)
+            await self.on_message(message)
+        else:
+            await self.on_message(message)
+            await self.ack(message)
+        self.active_jobs -= 1
+
+        # wait_between_comsumes = 1  # seconds
+        # await asyncio.gather(
+        #     self.ack(message, timeout=wait_between_consumes),
+        #     self.on_message(message),
+        # )
+
+    async def ack(self, message, timeout=0):
+        """Wait for timeout, then ack."""
+        if timeout:
+            await asyncio.sleep(timeout)
+        await message.channel.basic_ack(
+            message.delivery.delivery_tag
+        )
 
     @abstractmethod
     async def on_message(self, message):
@@ -87,5 +115,5 @@ class Worker(ABC):
         """Run async RabbitMQ consumer."""
         await self.connect()
         consume_ok = await self.channel.basic_consume(
-            self.IN_QUEUE, self.on_message, no_ack=True
+            self.IN_QUEUE, self._on_message
         )

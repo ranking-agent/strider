@@ -14,7 +14,7 @@ asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 async def start():
     """Start fetcher and prioritizer."""
-    fetcher = Fetcher()
+    fetcher = Fetcher(max_jobs=5)
     await fetcher.setup()
     await fetcher.run()
 
