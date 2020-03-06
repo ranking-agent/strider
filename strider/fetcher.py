@@ -13,7 +13,7 @@ from bmt import Toolkit as BMToolkit
 import httpx
 
 from strider.neo4j import HttpInterface
-from strider.scoring import score_graph
+from strider.scoring import score_graph, get_support
 from strider.worker import Worker, RedisMixin
 
 LOGGER = logging.getLogger(__name__)
@@ -277,7 +277,7 @@ class Fetcher(Worker, RedisMixin):
 
         # get subgraphs and scores
         subgraphs = await self.get_subgraphs(query_id, data, new_edges)
-        scores = [score_graph(subgraph) for subgraph in subgraphs]
+        scores = [await score_graph(subgraph) for subgraph in subgraphs]
 
         # update priorities
         await self.update_priorities(query_id, subgraphs, scores)
