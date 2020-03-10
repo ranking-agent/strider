@@ -89,8 +89,10 @@ class Worker(ABC):
             await self.ack(message)
             await self.on_message(message)
         else:
-            await self.on_message(message)
-            await self.ack(message)
+            try:
+                await self.on_message(message)
+            finally:
+                await self.ack(message)
         self.active_jobs -= 1
 
         # wait_between_comsumes = 1  # seconds
