@@ -8,8 +8,20 @@ import numpy as np
 LOGGER = logging.getLogger(__name__)
 
 
-async def get_support(node1, node2):
+async def get_support(node1, node2, synonyms):
     """Get number of publications shared by nodes."""
+    # prefer HGNC
+    if node1.startswith('NCBIGene'):
+        node1 = next(
+            (curie for curie in synonyms[node1] if curie.startswith('HGNC')),
+            node1
+        )
+    if node2.startswith('NCBIGene'):
+        node2 = next(
+            (curie for curie in synonyms[node2] if curie.startswith('HGNC')),
+            node2
+        )
+
     query = f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(node1)}&curie={urllib.parse.quote(node2)}'
     async with httpx.AsyncClient() as client:
         response = await client.get(query)

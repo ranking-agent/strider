@@ -327,21 +327,9 @@ class Fetcher(Worker, RedisMixin):
             for node in data['nodes']
         }
         for edge in data['edges']:
-            # prefer HGNC
             source_id = edge['source_id']
             target_id = edge['target_id']
-            if source_id.startswith('NCBIGene'):
-                source_id = next(
-                    (curie for curie in node_synonyms[source_id] if curie.startswith('HGNC')),
-                    default=source_id
-                )
-            if target_id.startswith('NCBIGene'):
-                target_id = next(
-                    (curie for curie in node_synonyms[target_id] if curie.startswith('HGNC')),
-                    default=target_id
-                )
-
-            num_pubs = await get_support(source_id, target_id)
+            num_pubs = await get_support(source_id, target_id, node_synonyms)
             edge['weight'] = num_pubs + 1
         return data['edges']
 
