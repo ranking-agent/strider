@@ -1,4 +1,6 @@
 """Graph scoring."""
+from collections import defaultdict
+from itertools import combinations
 import logging
 import urllib
 
@@ -31,7 +33,30 @@ async def get_support(node1, node2, synonyms):
 
 
 async def score_graph(graph):
-    """Score graph."""
+    """Score graph.
+    
+    https://en.wikipedia.org/wiki/Resistance_distance#General_sum_rule
+    """
     if not graph['edges']:
         return 0
-    return 1 / np.sum([1 / edge['weight'] for edge in graph['edges'].values()]).tolist()
+
+    kid_to_qids = defaultdict(list)
+    node_synonyms = dict()
+    for node in graph['nodes'].values():
+        kid_to_qids[node['kid']].append(node['qid'])
+        node_synonyms[node['kid']] = node.get('equivalent_identifiers', [])
+    node_ids = sorted([node['kid'] for node in graph['nodes'].values()])
+    num_nodes = len(node_ids)
+    laplacian = np.zeros((num_nodes, num_nodes))
+    index = {node_id: node_ids.index(node_id) for node_id in node_ids}
+    for curie1, curie2 in combinations(node_ids, 2):
+        admittance = 1 + await get_support(curie1, curie2, node_synonyms)
+        i, j = index[curie1], index[curie2]
+        laplacian[i, j] += -admittance
+        laplacian[j, i] += -admittance
+        laplacian[i, i] += admittance
+        laplacian[j, j] += admittance
+    eigvals = np.linalg.eigvals(laplacian).tolist()
+    eigvals = np.array(sorted(eigvals)[1:])
+    kirchhoff_index = (num_nodes * np.sum(1 / eigvals)).tolist()
+    return 1 / kirchhoff_index
