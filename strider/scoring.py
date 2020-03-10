@@ -2,12 +2,14 @@
 from collections import defaultdict
 from itertools import combinations
 import logging
+import os
 import urllib
 
 import httpx
 import numpy as np
 
 LOGGER = logging.getLogger(__name__)
+OMNICORP_URL = os.getenv('OMNICORP_URL', 'http://localhost:3210')
 
 
 async def get_support(node1, node2, synonyms):
@@ -24,7 +26,7 @@ async def get_support(node1, node2, synonyms):
             node2
         )
 
-    query = f'http://robokop.renci.org:3210/shared?curie={urllib.parse.quote(node1)}&curie={urllib.parse.quote(node2)}'
+    query = f'{OMNICORP_URL}/shared?curie={urllib.parse.quote(node1)}&curie={urllib.parse.quote(node2)}'
     async with httpx.AsyncClient() as client:
         response = await client.get(query)
     if response.status_code >= 300:
