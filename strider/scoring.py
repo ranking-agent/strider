@@ -3,7 +3,6 @@ from collections import defaultdict
 from itertools import combinations
 import logging
 import os
-import urllib
 
 import httpx
 import numpy as np
@@ -26,9 +25,15 @@ async def get_support(node1, node2, synonyms):
             node2
         )
 
-    query = f'{OMNICORP_URL}/shared?curie={urllib.parse.quote(node1)}&curie={urllib.parse.quote(node2)}'
+    query = f'{OMNICORP_URL}/shared'
     async with httpx.AsyncClient() as client:
-        response = await client.get(query)
+        response = await client.get(
+            query,
+            params={'curie': [
+                node1,
+                node2,
+            ]},
+        )
     if response.status_code >= 300:
         raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{query}')
     return response.json()
