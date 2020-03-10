@@ -22,7 +22,7 @@ class QNode(BaseModel):
     id: str
     curie: Union[str, List[str]] = None
     # type: Union[BiolinkEntity, List[BiolinkEntity]] = None
-    type: Union[str, List[str]] = None
+    type: Union[str, List[str]] = 'named_thing'
 
 
 class QEdge(BaseModel):
@@ -30,7 +30,7 @@ class QEdge(BaseModel):
 
     id: str
     # type: Union[BiolinkRelation, List[BiolinkRelation]] = None
-    type: Union[str, List[str]] = None
+    type: Union[str, List[str]] = 'related_to'
     source_id: str
     target_id: str
 
