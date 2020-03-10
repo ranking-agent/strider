@@ -450,7 +450,11 @@ class Fetcher(Worker, RedisMixin):
         }
         statement = ''
         for node in data['nodes']:
-            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{query_id}` {{kid:"{node["kid"]}", qid:"{node["qid"]}", kid_qid:"{node["kid"]}_{node["qid"]}"}})'
+            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{query_id}` {{' \
+                f'kid:"{node["kid"]}", ' \
+                f'qid:"{node["qid"]}", ' \
+                f'kid_qid:"{node["kid"]}_{node["qid"]}"}})'
+            statement += f'\nON CREATE SET {node_vars[node["kid"]]}.equivalent_identifiers = {node.get("equivalent_identifiers", [])}'
         for edge in data['edges']:
             statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{query_id}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
             statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
