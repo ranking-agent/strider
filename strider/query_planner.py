@@ -100,17 +100,11 @@ class Planner():
         target = self.query_nodes_by_id[target_id]
         async with httpx.AsyncClient() as client:
             responses = await asyncio.gather(
-                client.get(
-                    f'https://bl-lookup-sri.renci.org/bl/{source["type"]}/lineage?version=latest'
-                ),
-                client.get(
-                    f'https://bl-lookup-sri.renci.org/bl/{target["type"]}/lineage?version=latest'
-                ),
-                client.get(
-                    f'https://bl-lookup-sri.renci.org/bl/{edge["type"]}/lineage?version=latest'
-                )
+                expand_bl(source["type"]),
+                expand_bl(target["type"]),
+                expand_bl(edge["type"])
             )
-            source_types, target_types, edge_types = (response.json() for response in responses)
+            source_types, target_types, edge_types = responses
 
         if source_id == edge['source_id']:
             edge_types = [f'-{edge_type}->' for edge_type in edge_types]
@@ -132,3 +126,14 @@ class Planner():
 async def generate_plan(query_graph):
     """Generate a query execution plan."""
     return await Planner(query_graph).plan()
+
+
+async def expand_bl(concept):
+    """Return lineage of biolink concept."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f'https://bl-lookup-sri.renci.org/bl/{concept}/lineage?version=latest'
+        )
+    if response.status_code >= 300:
+        raise ValueError(response.text)
+    return response.json()
