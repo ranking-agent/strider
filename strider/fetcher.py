@@ -268,9 +268,6 @@ class Fetcher(Worker, RedisMixin):
         result_id = ', '.join(node_ids + edge_ids)
         LOGGER.debug("[result %s]: Processing...", result_id)
 
-        # assign weights to edges
-        data['edges'] = await self.assign_weights(data)
-
         # store result in Neo4j
         new_edges = await self.store_result(query_id, data)
 
@@ -445,8 +442,6 @@ class Fetcher(Worker, RedisMixin):
         for edge in data['edges']:
             statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{query_id}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
             statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
-        for edge in data['edges']:
-            statement += f'\nSET {edge_vars[edge["kid"]]}.weight = {edge["weight"]}'
         statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
         statement += '\nWITH e WHERE e.new'
         statement += '\nREMOVE e.new'
