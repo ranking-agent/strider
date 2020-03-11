@@ -1,6 +1,5 @@
 """Simple ReasonerStdAPI server."""
 import sqlite3
-from typing import List, Dict
 
 import aiosqlite
 from fastapi import Depends, FastAPI, HTTPException
@@ -83,12 +82,3 @@ async def get_results(
         dict(zip(columns, row))
         for row in results
     ]
-
-
-predicates_type = Dict[str, Dict[str, List[str]]]
-
-
-@app.get('/predicates', response_model=predicates_type, tags=['predicates'])
-async def get_predicates() -> predicates_type:
-    """Get available predicates."""
-    return {}
