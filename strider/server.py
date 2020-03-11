@@ -1,12 +1,13 @@
 """Simple ReasonerStdAPI server."""
 import sqlite3
+from typing import Dict
 
 import aiosqlite
 from fastapi import Depends, FastAPI, HTTPException
 from starlette.middleware.cors import CORSMiddleware
 
 from strider.models import Query, Message
-from strider.setup_query import execute_query
+from strider.setup_query import execute_query, generate_plan
 
 app = FastAPI(
     title='Strider/ARAGORN/Ranking Agent',
@@ -82,3 +83,12 @@ async def get_results(
         dict(zip(columns, row))
         for row in results
     ]
+
+
+@app.post('/plan', response_model=Dict, tags=['query'])
+async def generate_traversal_plan(
+    query: Query,
+) -> Dict:
+    """Generate a plan for traversing knowledge providers."""
+    query_graph = query.message.query_graph.dict()
+    return await generate_plan(query_graph)
