@@ -29,7 +29,8 @@ class RedisMixin(ABC):
         while True:
             try:
                 self.redis = await aioredis.create_redis_pool(
-                    f'redis://{REDIS_HOST}'
+                    f'redis://{REDIS_HOST}',
+                    encoding='utf-8'
                 )
                 break
             except (ConnectionError, OSError) as err:

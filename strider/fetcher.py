@@ -272,21 +272,21 @@ class Fetcher(Worker, RedisMixin):
         new_edges = await self.store_result(query_id, data)
 
         # get subgraphs and scores
+        slots = {
+            key: json.loads(value)
+            for key, value in (await self.redis.hgetall(f'{query_id}_slots')).items()
+        }
         subgraphs = await self.get_subgraphs(query_id, data, new_edges)
-        scores = [await score_graph(subgraph) for subgraph in subgraphs]
+        scores = [await score_graph(subgraph, slots, support=False) for subgraph in subgraphs]
 
         # update priorities
         await self.update_priorities(query_id, subgraphs, scores)
 
         # publish answers to the results DB
-        slots = {
-            x.decode('utf-8')
-            for x in await self.redis.hkeys(f'{query_id}_slots')
-        }
         answers = [
             (subgraph, score)
             for subgraph, score in zip(subgraphs, scores)
-            if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == slots
+            if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == set(slots.keys())
         ]
         if answers:
             LOGGER.debug(
