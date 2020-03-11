@@ -22,7 +22,7 @@ RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
 
 
-async def execute_query(query_graph):
+async def execute_query(query_graph, **kwargs):
     """Execute a user query.
 
     1) Generate execution plan.
@@ -50,10 +50,13 @@ async def execute_query(query_graph):
         f'{query_id}_plan',
         f'{query_id}_priorities',
         f'{query_id}_done',
+        f'{query_id}_options',
     )
     for key, value in plan.items():
         await redis.hset(f'{query_id}_plan', key, json.dumps(value))
     await redis.hmset_dict(f'{query_id}_slots', slots)
+    for key, value in kwargs.items():
+        await redis.hset(f'{query_id}_options', key, json.dumps(value))
     redis.close()
 
     # setup results DB

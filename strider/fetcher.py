@@ -106,6 +106,10 @@ class Fetcher(Worker, RedisMixin):
             ON (n:`{query_id}`)
             ASSERT n.kid_qid IS UNIQUE'''
         result = await self.neo4j.run_async(statement)
+        options = {
+            key: json.loads(value)
+            for key, value in (await self.redis.hgetall(f'{query_id}_options')).items()
+        }
 
         try:
             if not data.get('step_id', None):
@@ -119,7 +123,7 @@ class Fetcher(Worker, RedisMixin):
                 job_id = f'({data["kid"]}:{data["qid"]})'
                 jobs = await self.process_result(query_id, job_id, edge_bindings, node_bindings)
             else:
-                jobs = await self.process_message(query_id, data)
+                jobs = await self.process_message(query_id, data, **options)
 
             # queue jobs in order of descending priority
             jobs.sort(key=lambda x: x['priority'], reverse=True)
@@ -138,19 +142,19 @@ class Fetcher(Worker, RedisMixin):
             LOGGER.exception(err)
             raise err
 
-    async def process_message(self, query_id, data):
+    async def process_message(self, query_id, data, **kwargs):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
         LOGGER.debug("[job %s]: Processing...", job_id)
 
         step_awaitables = (
-            self.take_step(query_id, job_id, data, endpoint)
+            self.take_step(query_id, job_id, data, endpoint, **kwargs)
             for endpoint in data['endpoints']
         )
         nested_jobs = await asyncio.gather(*step_awaitables)
         return [job for jobs in nested_jobs for job in jobs]
 
-    async def take_step(self, query_id, job_id, data, endpoint):
+    async def take_step(self, query_id, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
         match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
         if match is None:
@@ -197,7 +201,7 @@ class Fetcher(Worker, RedisMixin):
             response = await client.post(endpoint, json=request)
         assert response.status_code < 300
 
-        return await self.process_response(query_id, job_id, response.json())
+        return await self.process_response(query_id, job_id, response.json(), **kwargs)
 
     async def get_spec(self, query_id, thing_qid):
         """Get specs for slot."""
@@ -210,7 +214,7 @@ class Fetcher(Worker, RedisMixin):
             raise ValueError(f'{query_id}_slots has no {thing_qid}')
         return json.loads(json_string)
 
-    async def process_response(self, query_id, job_id, response):
+    async def process_response(self, query_id, job_id, response, **kwargs):
         """Process response from KP."""
         if response is None:
             return
@@ -227,12 +231,12 @@ class Fetcher(Worker, RedisMixin):
                 binding['qg_id']: nodes_by_id[binding['kg_id']]
                 for binding in result['node_bindings']
             }
-            edge_awaitables.append(self.process_result(query_id, job_id, edge_bindings, node_bindings))
+            edge_awaitables.append(self.process_result(query_id, job_id, edge_bindings, node_bindings, **kwargs))
             # jobs.extend(await self.process_result(query_id, job_id, edge_bindings, node_bindings))
         nested_jobs = await asyncio.gather(*edge_awaitables)
         return [job for jobs in nested_jobs for job in jobs]
 
-    async def process_result(self, query_id, job_id, edge_bindings, node_bindings):
+    async def process_result(self, query_id, job_id, edge_bindings, node_bindings, **kwargs):
         """Process individual result from KP."""
         # filter out results that are incompatible with qgraph
         try:
@@ -277,7 +281,7 @@ class Fetcher(Worker, RedisMixin):
             for key, value in (await self.redis.hgetall(f'{query_id}_slots')).items()
         }
         subgraphs = await self.get_subgraphs(query_id, data, new_edges)
-        scores = [await score_graph(subgraph, slots, support=False) for subgraph in subgraphs]
+        scores = [await score_graph(subgraph, slots, **kwargs) for subgraph in subgraphs]
 
         # update priorities
         await self.update_priorities(query_id, subgraphs, scores)
