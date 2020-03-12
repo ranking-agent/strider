@@ -242,7 +242,7 @@ class Fetcher(Worker, RedisMixin):
         try:
             await self.validate_result(query_id, job_id, edge_bindings, node_bindings)
         except ValidationError:
-            return
+            return []
 
         # reformat result
         data = {
