@@ -135,5 +135,5 @@ async def expand_bl(concept):
             f'https://bl-lookup-sri.renci.org/bl/{concept}/lineage?version=latest'
         )
     if response.status_code >= 300:
-        raise ValueError(response.text)
+        return [concept]
     return response.json()
