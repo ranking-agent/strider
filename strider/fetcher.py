@@ -431,13 +431,9 @@ class Fetcher(Worker, RedisMixin):
             qid = node['qid']
             kid = node['kid']
             statement += f'\nMERGE ({node_vars[kid]}:`{query_id}` {{' \
-                f'kid:"{kid}", ' \
-                f'qid:"{qid}", ' \
                 f'kid_qid:"{kid}_{qid}"}})'
             for key, value in node.items():
-                if key in ('qid', 'kid'):
-                    continue
-                statement += f'\nON CREATE SET {node_vars[kid]}.{key} = {json.dumps(value)}'
+                statement += f'\nSET {node_vars[kid]}.{key} = {json.dumps(value)}'
         for edge in data['edges']:
             qid = edge['qid']
             kid = edge['kid']
@@ -446,7 +442,7 @@ class Fetcher(Worker, RedisMixin):
             statement += f'\nMERGE ({node_vars[source_id]})-[{edge_vars[kid]}:`{query_id}`]->({node_vars[target_id]})'
             statement += f'\nON CREATE SET {edge_vars[kid]}.new = TRUE'
             for key, value in edge.items():
-                statement += f'\nON CREATE SET {edge_vars[kid]}.{key} = {json.dumps(value)}'
+                statement += f'\nSET {edge_vars[kid]}.{key} = {json.dumps(value)}'
         statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
         statement += '\nWITH e WHERE e.new'
         statement += '\nREMOVE e.new'
