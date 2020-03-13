@@ -28,13 +28,6 @@ async def setup():
             auth=(RABBITMQ_USER, RABBITMQ_PASSWORD),
         )
         assert r.status_code < 300
-        # add results queue to RabbitMQ
-        r = await client.put(
-            rf'http://{RABBITMQ_HOST}:15672/api/queues/%2f/results',
-            json={"durable": True},
-            auth=(RABBITMQ_USER, RABBITMQ_PASSWORD),
-        )
-        assert r.status_code < 300
 
 
 if __name__ == "__main__":
