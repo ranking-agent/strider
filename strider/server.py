@@ -97,6 +97,8 @@ async def get_results(
         raise err
     _results = await cursor.fetchall()
 
+    knodes = dict()
+    kedges = dict()
     results = []
     for row in _results:
         node_bindings = []
@@ -105,21 +107,37 @@ async def get_results(
         for key, value in zip(columns, row):
             if key.startswith('_'):
                 result[key[1:]] = value
-            elif 'source_id' in slots[key]:
+                continue
+            element = json.loads(value)
+            kid = element.pop('kid')
+            qid = element.pop('qid')
+            if 'source_id' in slots[key]:
                 edge_bindings.append({
-                    'qg_id': key,
-                    'kg_id': value,
+                    'qg_id': qid,
+                    'kg_id': kid,
                 })
+                kedges[kid] = {
+                    'id': kid,
+                    **element,
+                }
             else:
                 node_bindings.append({
-                    'qg_id': key,
-                    'kg_id': value,
+                    'qg_id': qid,
+                    'kg_id': kid,
                 })
+                knodes[kid] = {
+                    'id': kid,
+                    **element,
+                }
         result.update({
             'node_bindings': node_bindings,
             'edge_bindings': edge_bindings,
         })
         results.append(result)
+    kgraph = {
+        'nodes': list(knodes.values()),
+        'edges': list(kedges.values()),
+    }
     qgraph = {
         'nodes': [],
         'edges': [],
@@ -131,6 +149,7 @@ async def get_results(
             qgraph['nodes'].append(value)
     message = {
         'query_graph': qgraph,
+        'knowledge_graph': kgraph,
         'results': results
     }
     return message

@@ -259,8 +259,6 @@ class Fetcher(Worker, RedisMixin):
                 {
                     'qid': key,
                     'kid': edge['id'],
-                    # 'source_id': edge['source_id'],
-                    # 'target_id': edge['target_id'],
                     **{key: value for key, value in edge.items() if key != 'id'}
                 }
                 for key, edge in edge_bindings.items()
@@ -292,17 +290,10 @@ class Fetcher(Worker, RedisMixin):
             for subgraph, score in zip(subgraphs, scores)
             if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == set(slots.keys())
         ]
-        if answers:
-            LOGGER.debug(
-                "[result %s]: Storing %d %s",
-                result_id,
-                len(answers),
-                'answers' if len(answers) > 1 else 'answer'
-            )
-            self.store_answers(query_id, answers, slots)
+        self.store_answers(query_id, job_id, answers, slots)
 
         # publish all nodes to jobs queue
-        return await self.queue_jobs(query_id, data, result_id)
+        return await self.queue_jobs(query_id, data, job_id, result_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
@@ -366,14 +357,14 @@ class Fetcher(Worker, RedisMixin):
         })
         return subgraphs
 
-    async def queue_jobs(self, query_id, data, result_id):
+    async def queue_jobs(self, query_id, data, job_id, result_id):
         """Queue jobs from result."""
         node_steps = await self.get_jobs(query_id, data)
 
         jobs = []
         for priority, qid, kid, steps in node_steps:
-            job_id = f'({qid}:{kid})'
-            LOGGER.debug("[result %s]: Queueing job(s) %s", result_id, job_id)
+            new_job_id = f'({qid}:{kid})'
+            LOGGER.debug("[result %s]: Queueing job(s) %s", result_id, new_job_id)
             for step_id, endpoints in steps.items():
                 match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
                 if match is None:
@@ -438,14 +429,25 @@ class Fetcher(Worker, RedisMixin):
         }
         statement = ''
         for node in data['nodes']:
-            statement += f'\nMERGE ({node_vars[node["kid"]]}:`{query_id}` {{' \
-                f'kid:"{node["kid"]}", ' \
-                f'qid:"{node["qid"]}", ' \
-                f'kid_qid:"{node["kid"]}_{node["qid"]}"}})'
-            statement += f'\nON CREATE SET {node_vars[node["kid"]]}.equivalent_identifiers = {node.get("equivalent_identifiers", [])}'
+            qid = node['qid']
+            kid = node['kid']
+            statement += f'\nMERGE ({node_vars[kid]}:`{query_id}` {{' \
+                f'kid:"{kid}", ' \
+                f'qid:"{qid}", ' \
+                f'kid_qid:"{kid}_{qid}"}})'
+            for key, value in node.items():
+                if key in ('qid', 'kid'):
+                    continue
+                statement += f'\nON CREATE SET {node_vars[kid]}.{key} = {json.dumps(value)}'
         for edge in data['edges']:
-            statement += f'\nMERGE ({node_vars[edge["source_id"]]})-[{edge_vars[edge["kid"]]}:`{query_id}` {{kid:"{edge["kid"]}", qid:"{edge["qid"]}"}}]->({node_vars[edge["target_id"]]})'
-            statement += f'\nON CREATE SET {edge_vars[edge["kid"]]}.new = TRUE'
+            qid = edge['qid']
+            kid = edge['kid']
+            source_id = edge['source_id']
+            target_id = edge['target_id']
+            statement += f'\nMERGE ({node_vars[source_id]})-[{edge_vars[kid]}:`{query_id}`]->({node_vars[target_id]})'
+            statement += f'\nON CREATE SET {edge_vars[kid]}.new = TRUE'
+            for key, value in edge.items():
+                statement += f'\nON CREATE SET {edge_vars[kid]}.{key} = {json.dumps(value)}'
         statement += f'\nWITH [{", ".join(edge_vars.values())}] AS es UNWIND es as e'
         statement += '\nWITH e WHERE e.new'
         statement += '\nREMOVE e.new'
@@ -453,12 +455,14 @@ class Fetcher(Worker, RedisMixin):
         result = await self.neo4j.run_async(statement)
         return [row['e'] for row in result]
 
-    def store_answers(self, query_id, answers, slots):
+    def store_answers(self, query_id, job_id, answers, slots):
         """Store answers in sqlite."""
+        if not answers:
+            return
         rows = []
         for answer, score in answers:
             things = {**answer['nodes'], **answer['edges']}
-            values = [things[qid]['kid'] for qid in slots] + [score, time.time()]
+            values = [json.dumps(things[qid]) for qid in slots] + [score, time.time()]
             rows.append(values)
         placeholders = ', '.join(['?' for _ in range(len(rows[0]))])
         columns = ', '.join([f'`{qid}`' for qid in slots] + ['_score', '_timestamp'])

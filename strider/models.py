@@ -1,5 +1,5 @@
 """ReasonerStdAPI models."""
-from typing import Union, List, Dict
+from typing import Union, List
 
 from pydantic import BaseModel, AnyUrl
 
@@ -21,7 +21,6 @@ class QNode(BaseModel):
 
     id: str
     curie: Union[str, List[str]] = None
-    # type: Union[BiolinkEntity, List[BiolinkEntity]] = None
     type: Union[str, List[str]] = 'named_thing'
 
 
@@ -29,7 +28,6 @@ class QEdge(BaseModel):
     """Query edge."""
 
     id: str
-    # type: Union[BiolinkRelation, List[BiolinkRelation]] = None
     type: Union[str, List[str]] = 'related_to'
     source_id: str
     target_id: str
@@ -40,16 +38,24 @@ class Node(BaseModel):
 
     id: str
     name: str = None
-    type: Union[BiolinkEntity, List[BiolinkEntity]] = None
+    type: Union[str, List[str]] = None
+    equivalent_identifiers: List[str] = None
 
 
 class Edge(BaseModel):
     """Knowledge graph edge."""
 
     id: str
-    type: Union[BiolinkRelation, List[BiolinkRelation]] = None
+    type: Union[str, List[str]] = None
     source_id: str
     target_id: str
+    predicate_id: str = None
+    relation_label: str = None
+    edge_source: str = None
+    ctime: str = None
+    source_database: str = None
+    relation: str = None
+    publications: List[str] = None
 
 
 class QueryGraph(BaseModel):
@@ -100,6 +106,8 @@ class Result(BaseModel):
 
     node_bindings: List[NodeBinding]
     edge_bindings: List[EdgeBinding]
+    score: float
+    timestamp: float
 
 
 class Message(BaseModel):
