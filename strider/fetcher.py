@@ -145,7 +145,7 @@ class Fetcher(Worker, RedisMixin):
     async def process_message(self, query_id, data, **kwargs):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
-        LOGGER.debug("[job %s]: Processing...", job_id)
+        LOGGER.debug("[query %s]: [job %s]: Starting...", query_id, job_id)
 
         step_awaitables = (
             self.take_step(query_id, job_id, data, endpoint, **kwargs)
@@ -268,7 +268,6 @@ class Fetcher(Worker, RedisMixin):
         node_ids = [f'({node["qid"]}:{node["kid"]})' for node in data['nodes']]
         edge_ids = [f'({edge["qid"]}:{edge["kid"]})' for edge in data['edges']]
         result_id = ', '.join(node_ids + edge_ids)
-        LOGGER.debug("[result %s]: Processing...", result_id)
 
         # store result in Neo4j
         new_edges = await self.store_result(query_id, data)
@@ -305,7 +304,7 @@ class Fetcher(Worker, RedisMixin):
             try:
                 await self.validate(edge, edge_spec)
             except ValidationError as err:
-                LOGGER.debug('[job %s]: Filtered out edge %s: %s', job_id, str(edge), err)
+                LOGGER.debug('[query %s]: [job %s]: Filtered out edge %s: %s', query_id, job_id, str(edge), err)
                 raise err
         for qid, node in node_bindings.items():
             target_spec = await self.get_spec(query_id, qid)
@@ -364,7 +363,7 @@ class Fetcher(Worker, RedisMixin):
         jobs = []
         for priority, qid, kid, steps in node_steps:
             new_job_id = f'({qid}:{kid})'
-            LOGGER.debug("[result %s]: Queueing job(s) %s", result_id, new_job_id)
+            LOGGER.debug("[query %s]: [job %s]: Queueing job(s) %s", query_id, job_id, new_job_id)
             for step_id, endpoints in steps.items():
                 match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
                 if match is None:
@@ -464,6 +463,12 @@ class Fetcher(Worker, RedisMixin):
             things = {**answer['nodes'], **answer['edges']}
             values = [json.dumps(things[qid]) for qid in slots] + [score, time.time()]
             rows.append(values)
+            LOGGER.debug(
+                "[query %s]: [job %s]: Storing answer %s",
+                query_id,
+                job_id,
+                str(values),
+            )
         placeholders = ', '.join(['?' for _ in range(len(rows[0]))])
         columns = ', '.join([f'`{qid}`' for qid in slots] + ['_score', '_timestamp'])
         with self.sql:
