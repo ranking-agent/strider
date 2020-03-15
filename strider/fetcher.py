@@ -167,7 +167,7 @@ class Fetcher(Worker, RedisMixin):
         target_spec = await self.get_spec(query_id, target_qid)
         source_spec = await self.get_spec(query_id, data['qid'])
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=None) as client:
             request = {
                 "query_graph": {
                     # "nodes": [
