@@ -11,6 +11,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from strider.models import Query, Message
 from strider.setup_query import execute_query, generate_plan
+from strider.scoring import score_graph
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
@@ -162,3 +163,36 @@ async def generate_traversal_plan(
     """Generate a plan for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
     return await generate_plan(query_graph)
+
+
+@app.post('/score', response_model=Message, tags=['query'])
+async def score_results(
+        query: Query,
+) -> Message:
+    """Score results."""
+    message = query.message.dict()
+    slots = {
+        el['id']: el
+        for el in message['query_graph']['nodes'] + message['query_graph']['edges']
+    }
+    for result in message['results']:
+        result['score'] = await score_graph(
+            {
+                'nodes': {
+                    nb['qg_id']: {
+                        'qid': nb['qg_id'],
+                        'kid': nb['kg_id'],
+                    }
+                    for nb in result['node_bindings']
+                },
+                'edges': {
+                    eb['qg_id']: {
+                        'qid': eb['qg_id'],
+                        'kid': eb['kg_id'],
+                    }
+                    for eb in result['edge_bindings']
+                }
+            },
+            slots,
+        )
+    return message
