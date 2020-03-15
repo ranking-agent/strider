@@ -1,8 +1,9 @@
 
 # Strider
-### A web service and API for Strider, the knowledge provider querying, answer generation and ranking service for ARAGORN.
 
-This serivce accepts a [translator reasoner standard message](https://github.com/NCATS-Tangerine/NCATS-ReasonerStdAPI) and constructs a knowledge graph by 
+__A web service and API for Strider, the knowledge-provider querying, answer generating, ranking module of ARAGORN.__
+
+This service accepts a biomedical question as a [Translator reasoner standard message](https://github.com/NCATS-Tangerine/NCATS-ReasonerStdAPI) and asynchronously generates results in the same format.
 
 ## Demonstration
 
@@ -16,13 +17,13 @@ A docker file is included in the base directory and can be used to build the cus
 docker build -t strider .
 ```
 
-Strider utilizes Neo4j as a graph database, rabbitMQ for message passing, and redis for local storage. These are provided and configured through standard container images and docker-compose. Strider requires a [custom Neo4j plugin](https://github.com/TranslatorIIPrototypes/strider-neo4j) to be placed in the neo4j_plugins directory. A pre-built version of the plugin can be download and saved to the correct location using
+Strider utilizes Neo4j as an internal graph cache, RabbitMQ for message passing, and Redis for local storage. These are provided and configured through standard container images and docker-compose. Strider requires a [custom Neo4j plugin](https://github.com/TranslatorIIPrototypes/strider-neo4j) to be placed in the neo4j_plugins directory. A pre-built version of the plugin can be download and saved to the correct location using
 
 ```bash
 curl -L https://github.com/TranslatorIIPrototypes/strider-neo4j/releases/download/v1.0.0/strider-1.0.0.jar -o neo4j_plugins/strider-1.0.0.jar
 ```
 
-A set of environmental variables must be defined. Make sure to replace "***" with actual passwords.
+A set of environmental variables must be defined in a `.env` file. Make sure to replace `***` with actual passwords.
 
 ```bash
 SUPERVISOR_PORT=9000
@@ -37,12 +38,9 @@ OMNICORP_URL=http://robokop.renci.org:3210
 All necessary containers can then be built and started using docker-compose
 
 ```bash
-cd <code base>
 docker-compose up
 ```
 
 ## Usage
 
-http://"host name or IP":"port"/docs
-
-The default port, configured in `docker-compose.yml` is 5781
+`http://<HOST>:5781/docs`
