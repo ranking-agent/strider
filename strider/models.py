@@ -106,8 +106,8 @@ class Result(BaseModel):
 
     node_bindings: List[NodeBinding]
     edge_bindings: List[EdgeBinding]
-    score: float
-    timestamp: float
+    score: float = None
+    timestamp: float = None
 
 
 class Message(BaseModel):
