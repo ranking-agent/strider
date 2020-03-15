@@ -198,7 +198,11 @@ class Fetcher(Worker, RedisMixin):
                     ],
                 }
             }
-            response = await client.post(endpoint, json=request)
+            try:
+                response = await client.post(endpoint, json=request)
+            except httpx.exceptions.ReadTimeout:
+                LOGGER.error("ReadTimeout: endpoint: %s, JSON: %s", endpoint, json.dumps(request))
+                return []
         assert response.status_code < 300
 
         return await self.process_response(query_id, job_id, response.json(), **kwargs)
