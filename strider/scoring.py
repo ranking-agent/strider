@@ -2,6 +2,7 @@
 import asyncio
 from collections import defaultdict
 from itertools import combinations
+import json
 import logging
 import os
 
@@ -10,6 +11,7 @@ import numpy as np
 
 LOGGER = logging.getLogger(__name__)
 OMNICORP_URL = os.getenv('OMNICORP_URL', 'http://localhost:3210')
+OMNICORP_RETRIES = 5
 NUM_PUBS = 27840000
 
 
@@ -41,15 +43,24 @@ async def get_support(node1, node2, synonyms):
 
 async def count_pubs(*curies):
     """Count pubs shared by curies."""
-    query = f'{OMNICORP_URL}/shared'
+    url = f'{OMNICORP_URL}/shared?'  # + '&'.join(f'curie={urllib.parse.quote(curie)}' for curie in curies)
     params = {'curie': curies}
     async with httpx.AsyncClient() as client:
-        response = await client.get(
-            query,
-            params=params,
-        )
+        for _ in range(OMNICORP_RETRIES):
+            try:
+                response = await client.get(
+                    url,
+                    params=params,
+                )
+                break
+            except httpx.exceptions.NetworkError as err:
+                LOGGER.warning(
+                    'Omnicorp network error: curies: %s, %s. Trying again...',
+                    json.dumps(curies),
+                    str(err)
+                )
     if response.status_code >= 300:
-        raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{query}\n{params}\n{response.text}')
+        raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{url}\n{params}\n{response.text}')
     return response.json()
 
 
