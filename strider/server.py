@@ -175,24 +175,30 @@ async def score_results(
         el['id']: el
         for el in message['query_graph']['nodes'] + message['query_graph']['edges']
     }
+    knodes = {
+        knode['id']: knode
+        for knode in message['knowledge_graph']['nodes']
+    }
     for result in message['results']:
-        result['score'] = await score_graph(
-            {
-                'nodes': {
-                    nb['qg_id']: {
-                        'qid': nb['qg_id'],
-                        'kid': nb['kg_id'],
-                    }
-                    for nb in result['node_bindings']
-                },
-                'edges': {
-                    eb['qg_id']: {
-                        'qid': eb['qg_id'],
-                        'kid': eb['kg_id'],
-                    }
-                    for eb in result['edge_bindings']
+        graph = {
+            'nodes': {
+                nb['qg_id']: {
+                    'qid': nb['qg_id'],
+                    'kid': nb['kg_id'],
+                    'equivalent_identifiers': knodes[nb['kg_id']].get('equivalent_identifiers', [])
                 }
+                for nb in result['node_bindings']
             },
+            'edges': {
+                eb['qg_id']: {
+                    'qid': eb['qg_id'],
+                    'kid': eb['kg_id'],
+                }
+                for eb in result['edge_bindings']
+            }
+        }
+        result['score'] = await score_graph(
+            graph,
             slots,
         )
     return message
