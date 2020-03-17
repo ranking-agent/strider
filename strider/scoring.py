@@ -23,9 +23,19 @@ async def get_support(node1, node2, synonyms):
             (curie for curie in synonyms[node1] if curie.startswith('HGNC')),
             node1
         )
+    elif node1.startswith('MESH'):
+        node1 = next(
+            (curie for curie in synonyms[node1] if curie.startswith('CHEBI')),
+            node1
+        )
     if node2.startswith('NCBIGene'):
         node2 = next(
             (curie for curie in synonyms[node2] if curie.startswith('HGNC')),
+            node2
+        )
+    elif node2.startswith('MESH'):
+        node2 = next(
+            (curie for curie in synonyms[node2] if curie.startswith('CHEBI')),
             node2
         )
 
