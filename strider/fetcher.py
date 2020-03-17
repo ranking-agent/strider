@@ -151,8 +151,15 @@ class Fetcher(Worker, RedisMixin):
             self.take_step(query_id, job_id, data, endpoint, **kwargs)
             for endpoint in data['endpoints']
         )
-        nested_jobs = await asyncio.gather(*step_awaitables)
-        return [job for jobs in nested_jobs for job in jobs]
+        step_results = await asyncio.gather(*step_awaitables, return_exceptions=True)
+
+        jobs = []
+        for result in step_results:
+            if isinstance(result, Exception):
+                LOGGER.error(result)
+                continue
+            jobs.extend(result)
+        return jobs
 
     async def take_step(self, query_id, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
@@ -237,8 +244,15 @@ class Fetcher(Worker, RedisMixin):
             }
             edge_awaitables.append(self.process_result(query_id, job_id, edge_bindings, node_bindings, **kwargs))
             # jobs.extend(await self.process_result(query_id, job_id, edge_bindings, node_bindings))
-        nested_jobs = await asyncio.gather(*edge_awaitables)
-        return [job for jobs in nested_jobs for job in jobs]
+        results = await asyncio.gather(*edge_awaitables)
+
+        jobs = []
+        for result in results:
+            if isinstance(result, Exception):
+                LOGGER.error(result)
+                continue
+            jobs.extend(result)
+        return jobs
 
     async def process_result(self, query_id, job_id, edge_bindings, node_bindings, **kwargs):
         """Process individual result from KP."""
@@ -365,6 +379,7 @@ class Fetcher(Worker, RedisMixin):
         node_steps = await self.get_jobs(query_id, data)
 
         jobs = []
+        publish_awaitables = []
         for priority, qid, kid, steps in node_steps:
             new_job_id = f'({qid}:{kid})'
             LOGGER.debug("[query %s]: [job %s]: Queueing job(s) %s", query_id, job_id, new_job_id)
@@ -385,7 +400,17 @@ class Fetcher(Worker, RedisMixin):
                     'endpoints': endpoints,
                     'priority': priority,
                 }
-                jobs.append(job)
+
+                priority = job.pop('priority')
+                publish_awaitables.append(self.channel.basic_publish(
+                    routing_key='jobs',
+                    body=json.dumps(job).encode('utf-8'),
+                    properties=aiormq.spec.Basic.Properties(
+                        priority=priority,
+                    ),
+                ))
+                # jobs.append(job)
+        await asyncio.gather(*publish_awaitables)
         return jobs
 
     async def get_jobs(self, query_id, data):
