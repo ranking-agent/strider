@@ -293,7 +293,7 @@ class Fetcher(Worker, RedisMixin):
             for subgraph, score in zip(subgraphs, scores)
             if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == set(slots.keys())
         ]
-        self.store_answers(query_id, job_id, answers, slots)
+        await self.store_answers(query_id, job_id, answers, slots)
 
         # publish all nodes to jobs queue
         return await self.queue_jobs(query_id, data, job_id, result_id)
@@ -454,14 +454,17 @@ class Fetcher(Worker, RedisMixin):
         result = await self.neo4j.run_async(statement)
         return [row['e'] for row in result]
 
-    def store_answers(self, query_id, job_id, answers, slots):
+    async def store_answers(self, query_id, job_id, answers, slots):
         """Store answers in sqlite."""
         if not answers:
             return
         rows = []
+        start_time = float(await self.redis.get(
+            f'{query_id}_starttime'
+        ))
         for answer, score in answers:
             things = {**answer['nodes'], **answer['edges']}
-            values = [json.dumps(things[qid]) for qid in slots] + [score, time.time()]
+            values = [json.dumps(things[qid]) for qid in slots] + [score, time.time() - start_time]
             rows.append(values)
             LOGGER.debug(
                 "[query %s]: [job %s]: Storing answer %s",

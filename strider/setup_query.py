@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sqlite3
+import time
 import uuid
 
 import aiormq
@@ -52,6 +53,7 @@ async def execute_query(query_graph, **kwargs):
         f'{query_id}_done',
         f'{query_id}_options',
     )
+    await redis.set(f'{query_id}_starttime', time.time())
     for key, value in plan.items():
         await redis.hset(f'{query_id}_plan', key, json.dumps(value))
     await redis.hmset_dict(f'{query_id}_slots', slots)
