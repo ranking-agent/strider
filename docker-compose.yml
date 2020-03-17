@@ -43,6 +43,7 @@ services:
       - SUPERVISOR_PASSWORD=${SUPERVISOR_PASSWORD}
       - KPREGISTRY_URL=${KPREGISTRY_URL}
       - BIOLINK_URL=${BIOLINK_URL}
+      - OMNICORP_URL=${OMNICORP_URL}
     volumes:
       - ./logs:/home/murphy/logs
     ports:
