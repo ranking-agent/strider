@@ -8,6 +8,7 @@ import httpx
 
 from strider.biolink_model import BiolinkModel
 
+BIOLINK_URL = os.getenv('BIOLINK_URL', 'http://localhost:8144')
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 BLM = BiolinkModel('https://raw.githubusercontent.com/biolink/biolink-model/master/biolink-model.yaml')
 
@@ -132,7 +133,7 @@ async def expand_bl(concept):
     """Return lineage of biolink concept."""
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f'https://bl-lookup-sri.renci.org/bl/{concept}/lineage?version=latest'
+            f'{BIOLINK_URL}/bl/{concept}/lineage?version=custom'
         )
     if response.status_code >= 300:
         return [concept]
