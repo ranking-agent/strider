@@ -15,12 +15,12 @@ from strider.scoring import score_graph
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
-app = FastAPI(
+APP = FastAPI(
     title='Strider/ARAGORN/Ranking Agent',
     description='Translator Autonomous Relay Agent',
     version='1.0.0',
 )
-app.add_middleware(
+APP.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
     allow_credentials=True,
@@ -31,8 +31,8 @@ app.add_middleware(
 
 async def get_db():
     """Get SQLite connection."""
-    async with aiosqlite.connect('results.db') as db:
-        yield db
+    async with aiosqlite.connect('results.db') as database:
+        yield database
 
 
 async def get_redis():
@@ -44,9 +44,8 @@ async def get_redis():
     yield redis
     redis.close()
 
-# @app.post('/query', response_model=Message, tags=['query'])
-# async def answer_query(query: Query) -> Message:
-@app.post('/query', response_model=str, tags=['query'])
+
+@APP.post('/query', response_model=str, tags=['query'])
 async def answer_query(
         query: Query,
         support: bool = True,
@@ -56,107 +55,116 @@ async def answer_query(
     return query_id
 
 
-@app.get('/results', response_model=Message)
-async def get_results(
+@APP.get('/results', response_model=Message)
+async def get_results(  # pylint: disable=too-many-arguments
         query_id: str,
-        t0: float = None,
+        since: float = None,
         limit: int = None,
         offset: int = 0,
-        db=Depends(get_db),
+        database=Depends(get_db),
         redis=Depends(get_redis),
 ) -> Message:
     """Get results for a query."""
-    # get column names
-    statement = f'PRAGMA table_info("{query_id}")'
-    cursor = await db.execute(
-        statement,
-    )
-    results = await cursor.fetchall()
-    columns = [row[1] for row in results]
-    slots = {
-        key: json.loads(value)
-        for key, value in (await redis.hgetall(f'{query_id}_slots')).items()
+    qgraph = {
+        'nodes': [],
+        'edges': [],
+    }
+    for value in await redis.hvals(f'{query_id}_slots'):
+        value = json.loads(value)
+        if 'source_id' in value:
+            qgraph['edges'].append(value)
+        else:
+            qgraph['nodes'].append(value)
+
+    # get column names from results db
+    async with database.execute(f'PRAGMA table_info("{query_id}")') as cursor:
+        columns = [row[1] for row in await cursor.fetchall()]
+
+    kgraph = {
+        'nodes': dict(),
+        'edges': dict(),
+    }
+    results = []
+    for row in await extract_results(query_id, since, limit, offset, database):
+        result, _kgraph = parse_bindings(dict(zip(columns, row)), qgraph)
+        results.append(result)
+        kgraph['nodes'].update(_kgraph['nodes'])
+        kgraph['edges'].update(_kgraph['edges'])
+    # convert kgraph nodes and edges to list format
+    kgraph = {
+        'nodes': list(kgraph['nodes'].values()),
+        'edges': list(kgraph['edges'].values()),
+    }
+    return {
+        'query_graph': qgraph,
+        'knowledge_graph': kgraph,
+        'results': results
     }
 
-    # get result rows
+
+def parse_bindings(bindings, qgraph):
+    """Parse bindings into message format."""
+    kgraph = {
+        'nodes': dict(),
+        'edges': dict(),
+    }
+    result = {
+        'node_bindings': [],
+        'edge_bindings': [],
+    }
+    qedge_ids = [edge['id'] for edge in qgraph['edges']]
+    for key, element in bindings.items():
+        if key.startswith('_'):
+            result[key[1:]] = element
+            continue
+        kid = element.pop('kid')
+        qid = element.pop('qid')
+        if qid in qedge_ids:
+            result['edge_bindings'].append({
+                'qg_id': qid,
+                'kg_id': kid,
+            })
+            kgraph['edges'][kid] = {
+                'id': kid,
+                **element,
+            }
+        else:
+            result['node_bindings'].append({
+                'qg_id': qid,
+                'kg_id': kid,
+            })
+            kgraph['nodes'][kid] = {
+                'id': kid,
+                **element,
+            }
+    return result, kgraph
+
+
+async def extract_results(query_id, since, limit, offset, database):
+    """Extract results from database."""
     statement = f'SELECT * FROM "{query_id}"'
-    if t0 is not None:
-        statement += f' WHERE _timestamp >= {t0}'
+    if since is not None:
+        statement += f' WHERE _timestamp >= {since}'
     statement += ' ORDER BY _timestamp ASC'
-    if t0 is None:
-        if limit is not None:
-            statement += f' LIMIT {limit}'
-        if offset:
-            statement += f' OFFSET {offset}'
+    if limit is not None:
+        statement += f' LIMIT {limit}'
+    if offset:
+        statement += f' OFFSET {offset}'
     try:
-        cursor = await db.execute(
+        cursor = await database.execute(
             statement,
         )
     except sqlite3.OperationalError as err:
         if 'no such table' in str(err):
             raise HTTPException(400, str(err))
         raise err
-    _results = await cursor.fetchall()
-
-    knodes = dict()
-    kedges = dict()
-    results = []
-    for row in _results:
-        node_bindings = []
-        edge_bindings = []
-        result = dict()
-        for key, value in zip(columns, row):
-            if key.startswith('_'):
-                result[key[1:]] = value
-                continue
-            element = json.loads(value)
-            kid = element.pop('kid')
-            qid = element.pop('qid')
-            if 'source_id' in slots[key]:
-                edge_bindings.append({
-                    'qg_id': qid,
-                    'kg_id': kid,
-                })
-                kedges[kid] = {
-                    'id': kid,
-                    **element,
-                }
-            else:
-                node_bindings.append({
-                    'qg_id': qid,
-                    'kg_id': kid,
-                })
-                knodes[kid] = {
-                    'id': kid,
-                    **element,
-                }
-        result.update({
-            'node_bindings': node_bindings,
-            'edge_bindings': edge_bindings,
-        })
-        results.append(result)
-    kgraph = {
-        'nodes': list(knodes.values()),
-        'edges': list(kedges.values()),
-    }
-    qgraph = {
-        'nodes': [],
-        'edges': [],
-    }
-    for value in slots.values():
-        if 'source_id' in value:
-            qgraph['edges'].append(value)
-        else:
-            qgraph['nodes'].append(value)
-    message = {
-        'query_graph': qgraph,
-        'knowledge_graph': kgraph,
-        'results': results
-    }
-    return message
+    return [
+        tuple(json.loads(value) if isinstance(value, str) else value for value in row)
+        for row in await cursor.fetchall()
+    ]
 
 
-@app.post('/plan', response_model=Dict, tags=['query'])
+@APP.post('/plan', response_model=Dict, tags=['query'])
 async def generate_traversal_plan(
         query: Query,
 ) -> Dict:
@@ -165,7 +173,7 @@ async def generate_traversal_plan(
     return await generate_plan(query_graph)
 
 
-@app.post('/score', response_model=Message, tags=['query'])
+@APP.post('/score', response_model=Message, tags=['query'])
 async def score_results(
         query: Query,
 ) -> Message:
