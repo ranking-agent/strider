@@ -11,7 +11,7 @@ LOGGER = logging.getLogger(__name__)
 class Neo4jInterface(ABC):
     """Abstract interface to Neo4j database."""
 
-    def __init__(self, url=None, credentials=None, **kwargs):
+    def __init__(self, url=None, credentials=None):
         """Initialize."""
         url = urlparse(url)
         self.hostname = url.hostname
@@ -32,7 +32,10 @@ class HttpInterface(Neo4jInterface):
     def __init__(self, **kwargs):
         """Initialize."""
         super().__init__(**kwargs)
-        self.url = f'http://{self.hostname}:{self.port}/db/data/transaction/commit'
+        self.url = 'http://{0}:{1}/db/data/transaction/commit'.format(
+            self.hostname,
+            self.port,
+        )
 
     def run(self, statement, *args):
         """Run statement."""
@@ -49,7 +52,7 @@ class HttpInterface(Neo4jInterface):
         ]
         return result
 
-    async def run_async(self, statement, *args):
+    async def run_async(self, statement):
         """Run statement."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
