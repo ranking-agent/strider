@@ -440,8 +440,6 @@ class Fetcher(Worker, RedisMixin):
                 steps = json.loads(steps_string)
             except TypeError:
                 steps = dict()
-            # TODO: filter out steps that are too specific for source node
-            # e.g. we got a disease_or_phenotypic_feature and step requires disease
             node_steps.append((priority, qid, kid, steps))
         return node_steps
 
