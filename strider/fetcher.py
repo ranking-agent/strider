@@ -291,12 +291,21 @@ class Fetcher(Worker, RedisMixin):
         new_edges = await self.store_result(query_id, data)
 
         # get subgraphs and scores
-        slots = {
-            key: json.loads(value)
-            for key, value in (await self.redis.hgetall(f'{query_id}_slots')).items()
+        qgraph = {
+            'nodes': [],
+            'edges': [],
         }
+        for value in await self.redis.hvals(f'{query_id}_slots'):
+            value = json.loads(value)
+            if 'source_id' in value:
+                qgraph['edges'].append(value)
+            else:
+                qgraph['nodes'].append(value)
+        qnode_ids = [qnode['id'] for qnode in qgraph['nodes']]
+        qedge_ids = [qedge['id'] for qedge in qgraph['edges']]
+
         subgraphs = await self.get_subgraphs(query_id, data, new_edges)
-        scores = [await score_graph(subgraph, slots, **kwargs) for subgraph in subgraphs]
+        scores = [await score_graph(subgraph, qgraph, **kwargs) for subgraph in subgraphs]
 
         # update priorities
         await self.update_priorities(query_id, subgraphs, scores)
@@ -305,9 +314,9 @@ class Fetcher(Worker, RedisMixin):
         answers = [
             (subgraph, score)
             for subgraph, score in zip(subgraphs, scores)
-            if set(subgraph['nodes'].keys()) | set(subgraph['edges'].keys()) == set(slots.keys())
+            if set(subgraph['nodes'].keys()) == set(qnode_ids) and set(subgraph['edges'].keys()) == set(qedge_ids)
         ]
-        await self.store_answers(query_id, job_id, answers, slots)
+        await self.store_answers(query_id, job_id, answers, qnode_ids + qedge_ids)
 
         # publish all nodes to jobs queue
         return await self.queue_jobs(query_id, data, job_id, result_id)

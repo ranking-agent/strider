@@ -1,6 +1,5 @@
 """Graph scoring."""
 import asyncio
-from collections import defaultdict
 from itertools import combinations
 import json
 import logging
@@ -53,7 +52,7 @@ async def get_support(node1, node2, synonyms):
 
 async def count_pubs(*curies):
     """Count pubs shared by curies."""
-    url = f'{OMNICORP_URL}/shared?'  # + '&'.join(f'curie={urllib.parse.quote(curie)}' for curie in curies)
+    url = f'{OMNICORP_URL}/shared?'
     params = {'curie': curies}
     async with httpx.AsyncClient() as client:
         for _ in range(OMNICORP_RETRIES):
@@ -70,7 +69,10 @@ async def count_pubs(*curies):
                     str(err)
                 )
     if response.status_code >= 300:
-        raise RuntimeError(f'The following OmniCorp query returned a bad response:\n{url}\n{params}\n{response.text}')
+        raise RuntimeError(
+            'The following OmniCorp query returned a bad response:\n'
+            f'{url}\n{params}\n{response.text}'
+        )
     return response.json()
 
 
@@ -85,7 +87,7 @@ async def add_edge(curies, index, node_synonyms, laplacian):
     laplacian[j, j] += admittance
 
 
-async def score_graph(graph, slots, support=True):
+async def score_graph(graph, qgraph, support=True):
     """Score graph.
 
     https://en.wikipedia.org/wiki/Resistance_distance#General_sum_rule
@@ -93,11 +95,10 @@ async def score_graph(graph, slots, support=True):
     if not graph['edges']:
         return 0
 
-    kid_to_qids = defaultdict(list)
-    node_synonyms = dict()
-    for node in graph['nodes'].values():
-        kid_to_qids[node['kid']].append(node['qid'])
-        node_synonyms[node['kid']] = node.get('equivalent_identifiers', [])
+    node_synonyms = {
+        node['kid']: node.get('equivalent_identifiers', [])
+        for node in graph['nodes'].values()
+    }
     node_ids = sorted([node['kid'] for node in graph['nodes'].values()])
     num_nodes = len(node_ids)
     laplacian = np.zeros((num_nodes, num_nodes))
@@ -112,13 +113,10 @@ async def score_graph(graph, slots, support=True):
                 laplacian
             ))
     else:
-        for value in slots.values():
-            if 'source_id' not in value:
-                # hopefully this is a qnode
-                continue
+        for qedge in qgraph['edges']:
             try:
-                source = graph['nodes'][value['source_id']]
-                target = graph['nodes'][value['target_id']]
+                source = graph['nodes'][qedge['source_id']]
+                target = graph['nodes'][qedge['target_id']]
             except KeyError:
                 # this is a partial answer and does not include this edge
                 continue
@@ -129,7 +127,7 @@ async def score_graph(graph, slots, support=True):
                 laplacian
             ))
     await asyncio.gather(*awaitables)
-    eigvals = np.linalg.eigvals(laplacian).tolist()
-    eigvals = np.array(sorted(eigvals)[1:])
-    kirchhoff_index = (num_nodes * np.sum(1 / eigvals)).tolist()
-    return 1 / kirchhoff_index
+    # get array of eigenvalues, except for lowest
+    eigvals = np.sort(np.linalg.eigvals(laplacian))[1:]
+    # return 1 / kirchhoff_index
+    return 1 / (num_nodes * np.sum(1 / eigvals)).tolist()
