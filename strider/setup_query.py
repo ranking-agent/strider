@@ -63,8 +63,14 @@ async def execute_query(query_graph, **kwargs):
 
     # setup results DB
     sql = sqlite3.connect('results.db')
-    column_names = ', '.join([f'`{qid}`' for qid in slots] + ['_score', '_timestamp'])
-    columns = ', '.join([f'`{qid}` TEXT' for qid in slots] + ['_score REAL', '_timestamp REAL'])
+    column_names = ', '.join(
+        [f'`{qid}`' for qid in slots]
+        + ['_score', '_timestamp']
+    )
+    columns = ', '.join(
+        [f'`{qid}` TEXT' for qid in slots]
+        + ['_score REAL', '_timestamp REAL']
+    )
     columns += f', UNIQUE({column_names})'
     statements = [
         f'DROP TABLE IF EXISTS `{query_id}`',
@@ -78,12 +84,21 @@ async def execute_query(query_graph, **kwargs):
     seconds = 1
     while True:
         try:
-            connection = await aiormq.connect(f'amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:5672/%2F')
+            connection = await aiormq.connect(
+                'amqp://{0}:{1}@{2}:5672/%2F'.format(
+                    RABBITMQ_USER,
+                    RABBITMQ_PASSWORD,
+                    RABBITMQ_HOST,
+                )
+            )
             break
         except ConnectionError as err:
             if seconds >= 65:
                 raise err
-            LOGGER.debug('Failed to connect to RabbitMQ. Trying again in %d seconds', seconds)
+            LOGGER.debug(
+                'Failed to connect to RabbitMQ. Trying again in %d seconds',
+                seconds,
+            )
             await asyncio.sleep(seconds)
             seconds *= 2
     channel = await connection.channel()

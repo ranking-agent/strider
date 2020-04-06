@@ -62,12 +62,18 @@ class Planner():
             to_visit |= (target_ids - visited)
 
         # make sure we visited everything
-        things = set(node['id'] for node in self.query_nodes) | set(edge['id'] for edge in self.query_edges)
+        things = (
+            set(node['id'] for node in self.query_nodes)
+            | set(edge['id'] for edge in self.query_edges)
+        )
         if visited != things:
             missing = things - visited
+            message = 'The query is not traversable. ' \
+                      'The following nodes/edges cannot be reached: ' \
+                      '{0}'.format(', '.join(missing))
             raise HTTPException(
                 status_code=400,
-                detail=f'The query is not traversable. The following nodes/edges cannot be reached: {", ".join(missing)}'
+                detail=message
             )
 
     async def plan(self):
@@ -76,8 +82,12 @@ class Planner():
         # i.e. steps we could imagine taking through the qgraph
         candidate_steps = defaultdict(list)
         for edge in self.query_edges:
-            candidate_steps[edge['source_id']].append((f'-{edge["id"]}->', edge["target_id"]))
-            candidate_steps[edge['target_id']].append((f'<-{edge["id"]}-', edge["source_id"]))
+            candidate_steps[edge['source_id']].append(
+                (f'-{edge["id"]}->', edge["target_id"])
+            )
+            candidate_steps[edge['target_id']].append(
+                (f'<-{edge["id"]}-', edge["source_id"])
+            )
 
         # evaluate which candidates are realizable
         plan = dict()
@@ -85,7 +95,9 @@ class Planner():
             plan[source_id] = dict()
             for edge_id, target_id in steps:
                 step_id = edge_id + target_id
-                plan[source_id][step_id] = await self.step_to_kps(source_id, edge_id, target_id)
+                plan[source_id][step_id] = await self.step_to_kps(
+                    source_id, edge_id, target_id
+                )
 
         self.validate_traversable(plan)
 
