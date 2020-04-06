@@ -424,11 +424,11 @@ class Fetcher(Worker, RedisMixin):
         """Get subgraphs."""
         subgraph_awaitables = []
         for edge in new_edges:
-            statement = 'MATCH (:`{0}`)-[e {{kid:"{1}", qid:"{2}"}}]->()'.format(
-                query_id, edge['kid'], edge['qid']
-            )
-            statement += '\nCALL strider.getPaths(e) YIELD nodes, edges' \
-                         '\nRETURN nodes, edges'
+            statement = 'MATCH (:`{0}`)-[e {{kid:"{1}", qid:"{2}"}}]->()\n' \
+                        'CALL strider.getPaths(e) YIELD nodes, edges\n' \
+                        'RETURN nodes, edges'.format(
+                            query_id, edge['kid'], edge['qid']
+                        )
             subgraph_awaitables.append(self.neo4j.run_async(statement))
         nested_results = await asyncio.gather(*subgraph_awaitables)
         subgraphs = [
