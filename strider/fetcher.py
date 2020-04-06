@@ -156,7 +156,7 @@ class Fetcher(Worker, RedisMixin):
         jobs = []
         for result in step_results:
             if isinstance(result, Exception):
-                LOGGER.error(result)
+                LOGGER.exception(result)
                 continue
             jobs.extend(result)
         return jobs
@@ -249,7 +249,7 @@ class Fetcher(Worker, RedisMixin):
         jobs = []
         for result in results:
             if isinstance(result, Exception):
-                LOGGER.error(result)
+                LOGGER.exception(result)
                 continue
             jobs.extend(result)
         return jobs
