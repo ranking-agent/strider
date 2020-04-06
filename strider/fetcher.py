@@ -424,7 +424,7 @@ class Fetcher(Worker, RedisMixin):
         """Get subgraphs."""
         subgraph_awaitables = []
         for edge in new_edges:
-            statement = 'MATCH (:`{0}`)-[e:`{0}` {{kid:"{1}", qid:"{2}"}}]->(:`{0}`)'.format(
+            statement = 'MATCH (:`{0}`)-[e {{kid:"{1}", qid:"{2}"}}]->()'.format(
                 query_id, edge['kid'], edge['qid']
             )
             statement += '\nCALL strider.getPaths(e) YIELD nodes, edges' \
