@@ -1,5 +1,5 @@
 """Neo4j Interfaces."""
-from abc import ABC, abstractmethod
+from abc import ABC
 import logging
 from urllib.parse import urlparse
 
@@ -8,36 +8,22 @@ import httpx
 LOGGER = logging.getLogger(__name__)
 
 
-class Neo4jInterface(ABC):
-    """Abstract interface to Neo4j database."""
+class HttpInterface(ABC):
+    """HTTP interface to Neo4j database."""
 
     def __init__(self, url=None, credentials=None):
         """Initialize."""
         url = urlparse(url)
-        self.hostname = url.hostname
-        self.port = url.port
+        self.url = 'http://{0}:{1}/db/data/transaction/commit'.format(
+            url.hostname,
+            url.port,
+        )
         if credentials is not None:
             self.auth = (credentials['username'], credentials['password'])
         else:
             self.auth = None
 
-    @abstractmethod
-    def run(self, statement, *args):
-        """Run statement."""
-
-
-class HttpInterface(Neo4jInterface):
-    """HTTP interface to Neo4j database."""
-
-    def __init__(self, **kwargs):
-        """Initialize."""
-        super().__init__(**kwargs)
-        self.url = 'http://{0}:{1}/db/data/transaction/commit'.format(
-            self.hostname,
-            self.port,
-        )
-
-    def run(self, statement, *args):
+    def run(self, statement):
         """Run statement."""
         response = httpx.post(
             self.url,
