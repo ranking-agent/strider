@@ -6,11 +6,8 @@ import os
 from fastapi import HTTPException
 import httpx
 
-from strider.biolink_model import BiolinkModel
-
 BIOLINK_URL = os.getenv('BIOLINK_URL', 'http://localhost:8144')
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
-BLM = BiolinkModel('https://raw.githubusercontent.com/biolink/biolink-model/master/biolink-model.yaml')
 
 
 class Planner():
