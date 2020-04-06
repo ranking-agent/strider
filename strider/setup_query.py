@@ -62,47 +62,11 @@ async def execute_query(query_graph, **kwargs):
     redis.close()
 
     # setup results DB
-    sql = sqlite3.connect('results.db')
-    column_names = ', '.join(
-        [f'`{qid}`' for qid in slots]
-        + ['_score', '_timestamp']
-    )
-    columns = ', '.join(
-        [f'`{qid}` TEXT' for qid in slots]
-        + ['_score REAL', '_timestamp REAL']
-    )
-    columns += f', UNIQUE({column_names})'
-    statements = [
-        f'DROP TABLE IF EXISTS `{query_id}`',
-        f'CREATE TABLE `{query_id}` ({columns})',
-    ]
-    with sql:
-        for statement in statements:
-            sql.execute(statement)
+    setup_results(query_id, slots)
 
     # create a RabbitMQ connection
-    seconds = 1
-    while True:
-        try:
-            connection = await aiormq.connect(
-                'amqp://{0}:{1}@{2}:5672/%2F'.format(
-                    RABBITMQ_USER,
-                    RABBITMQ_PASSWORD,
-                    RABBITMQ_HOST,
-                )
-            )
-            break
-        except ConnectionError as err:
-            if seconds >= 65:
-                raise err
-            LOGGER.debug(
-                'Failed to connect to RabbitMQ. Trying again in %d seconds',
-                seconds,
-            )
-            await asyncio.sleep(seconds)
-            seconds *= 2
+    connection = await setup_broker()
     channel = await connection.channel()
-    await setup_rabbitmq()
 
     # add a result for each named node
     # add a job for each named node
@@ -123,3 +87,50 @@ async def execute_query(query_graph, **kwargs):
         )
 
     return query_id
+
+
+async def setup_broker():
+    """Set up RabbitMQ message broker."""
+    seconds = 1
+    while True:
+        try:
+            connection = await aiormq.connect(
+                'amqp://{0}:{1}@{2}:5672/%2F'.format(
+                    RABBITMQ_USER,
+                    RABBITMQ_PASSWORD,
+                    RABBITMQ_HOST,
+                )
+            )
+            break
+        except ConnectionError as err:
+            if seconds >= 65:
+                raise err
+            LOGGER.debug(
+                'Failed to connect to RabbitMQ. Trying again in %d seconds',
+                seconds,
+            )
+            await asyncio.sleep(seconds)
+            seconds *= 2
+    await setup_rabbitmq()
+    return connection
+
+
+def setup_results(query_id, slots):
+    """Set up results database (SQLite)."""
+    sql = sqlite3.connect('results.db')
+    column_names = ', '.join(
+        [f'`{qid}`' for qid in slots]
+        + ['_score', '_timestamp']
+    )
+    columns = ', '.join(
+        [f'`{qid}` TEXT' for qid in slots]
+        + ['_score REAL', '_timestamp REAL']
+    )
+    columns += f', UNIQUE({column_names})'
+    statements = [
+        f'DROP TABLE IF EXISTS `{query_id}`',
+        f'CREATE TABLE `{query_id}` ({columns})',
+    ]
+    with sql:
+        for statement in statements:
+            sql.execute(statement)

@@ -15,19 +15,19 @@ async def setup():
     """Set up RabbitMQ."""
     async with httpx.AsyncClient() as client:
         # add strider exchange to RabbitMQ
-        r = await client.put(
+        response = await client.put(
             rf'http://{RABBITMQ_HOST}:15672/api/exchanges/%2f/strider',
             json={"type": "direct", "durable": True},
             auth=(RABBITMQ_USER, RABBITMQ_PASSWORD),
         )
-        assert r.status_code < 300
+        assert response.status_code < 300
         # add jobs queue to RabbitMQ
-        r = await client.put(
+        response = await client.put(
             rf'http://{RABBITMQ_HOST}:15672/api/queues/%2f/jobs',
             json={"durable": True, "arguments": {"x-max-priority": 255}},
             auth=(RABBITMQ_USER, RABBITMQ_PASSWORD),
         )
-        assert r.status_code < 300
+        assert response.status_code < 300
 
 
 if __name__ == "__main__":
