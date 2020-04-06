@@ -74,11 +74,6 @@ class Fetcher(Worker, RedisMixin):
             elif key == 'type':
                 if isinstance(element['type'], str):
                     lineage = self.bmt.ancestors(value) + self.bmt.descendents(value) + [value]
-
-                    # async with httpx.AsyncClient() as client:
-                    #     response = await client.get(f'https://bl-lookup-sri.renci.org/bl/{value}/lineage?version=latest')
-                    # assert response.status_code < 300
-                    # lineage = response.json()
                     if element['type'] not in lineage:
                         raise ValidationError(f'{element["type"]} not in {lineage}')
                 elif isinstance(element['type'], list):
