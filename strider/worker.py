@@ -16,7 +16,7 @@ RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
 
 
-class RedisMixin(ABC):
+class RedisMixin(ABC):  # pylint: disable=too-few-public-methods
     """Mixin to hold a Redis database connection."""
 
     def __init__(self):
@@ -36,17 +36,20 @@ class RedisMixin(ABC):
             except (ConnectionError, OSError) as err:
                 if seconds > 65:
                     raise err
-                LOGGER.debug('Failed to connect to Redis. Trying again in %d seconds', seconds)
+                LOGGER.debug(
+                    'Failed to connect to Redis. Trying again in %d seconds',
+                    seconds,
+                )
                 await asyncio.sleep(seconds)
                 seconds *= 2
 
 
 class Worker(ABC):
-    """Asynchronous worker to consume messages from IN_QUEUE."""
+    """Asynchronous worker to consume messages from input_queue."""
 
     @property
     @abstractmethod
-    def IN_QUEUE(self):
+    def input_queue(self):
         """Name of the queue from which this worker will consume."""
 
     def __init__(self, max_jobs=-1):
@@ -66,12 +69,22 @@ class Worker(ABC):
         seconds = 1
         while True:
             try:
-                self.connection = await aiormq.connect(f'amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}@{RABBITMQ_HOST}:5672/%2F')
+                self.connection = await aiormq.connect(
+                    'amqp://{0}:{1}@{2}:5672/%2F'.format(
+                        RABBITMQ_USER,
+                        RABBITMQ_PASSWORD,
+                        RABBITMQ_HOST,
+                    )
+                )
                 break
             except ConnectionError as err:
                 if seconds >= 65:
                     raise err
-                LOGGER.debug('Failed to connect to RabbitMQ. Trying again in %d seconds', seconds)
+                LOGGER.debug(
+                    'Failed to connect to RabbitMQ. '
+                    'Trying again in %d seconds',
+                    seconds,
+                )
                 await asyncio.sleep(seconds)
                 seconds *= 2
 
@@ -96,12 +109,6 @@ class Worker(ABC):
                 await self.ack(message)
         self.active_jobs -= 1
 
-        # wait_between_comsumes = 1  # seconds
-        # await asyncio.gather(
-        #     self.ack(message, timeout=wait_between_consumes),
-        #     self.on_message(message),
-        # )
-
     async def ack(self, message, timeout=0):
         """Wait for timeout, then ack."""
         if timeout:
@@ -117,6 +124,6 @@ class Worker(ABC):
     async def run(self):
         """Run async RabbitMQ consumer."""
         await self.connect()
-        consume_ok = await self.channel.basic_consume(
-            self.IN_QUEUE, self._on_message
+        await self.channel.basic_consume(
+            self.input_queue, self._on_message
         )

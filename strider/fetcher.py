@@ -26,7 +26,7 @@ class ValidationError(Exception):
 class Fetcher(Worker, RedisMixin):
     """Asynchronous worker to consume jobs and publish results."""
 
-    IN_QUEUE = 'jobs'
+    input_queue = 'jobs'
 
     def __init__(self, *args, **kwargs):
         """Initialize."""
