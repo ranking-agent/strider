@@ -3,7 +3,6 @@ import asyncio
 import json
 import logging
 import os
-import sqlite3
 import time
 import uuid
 
@@ -13,6 +12,7 @@ import uvloop
 
 from strider.query_planner import generate_plan
 from strider.rabbitmq import setup as setup_rabbitmq
+from strider.results import Results
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -28,7 +28,7 @@ async def execute_query(query_graph, **kwargs):
 
     1) Generate execution plan.
     2) Store execution plan in Redis.
-    3) Set up results SQL database.
+    3) Set up results database.
     4) Add named nodes to job queue.
     """
     # generate query execution plan
@@ -62,7 +62,7 @@ async def execute_query(query_graph, **kwargs):
     redis.close()
 
     # setup results DB
-    setup_results(query_id, slots)
+    await setup_results(query_id, slots)
 
     # create a RabbitMQ connection
     connection = await setup_broker()
@@ -115,9 +115,8 @@ async def setup_broker():
     return connection
 
 
-def setup_results(query_id, slots):
-    """Set up results database (SQLite)."""
-    sql = sqlite3.connect('results.db')
+async def setup_results(query_id, slots):
+    """Set up results database."""
     column_names = ', '.join(
         [f'`{qid}`' for qid in slots]
         + ['_score', '_timestamp']
@@ -131,6 +130,6 @@ def setup_results(query_id, slots):
         f'DROP TABLE IF EXISTS `{query_id}`',
         f'CREATE TABLE `{query_id}` ({columns})',
     ]
-    with sql:
+    async with Results() as database:
         for statement in statements:
-            sql.execute(statement)
+            await database.execute(statement)

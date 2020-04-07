@@ -1,17 +1,16 @@
 """Simple ReasonerStdAPI server."""
 import json
 import os
-import sqlite3
 from typing import Dict
 
 import aioredis
-import aiosqlite
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from strider.models import Query, Message
 from strider.setup_query import execute_query, generate_plan
 from strider.scoring import score_graph
+from strider.results import get_db
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
@@ -27,12 +26,6 @@ APP.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-async def get_db():
-    """Get SQLite connection."""
-    async with aiosqlite.connect('results.db') as database:
-        yield database
 
 
 async def get_redis():
@@ -77,8 +70,7 @@ async def get_results(  # pylint: disable=too-many-arguments
             qgraph['nodes'].append(value)
 
     # get column names from results db
-    async with database.execute(f'PRAGMA table_info("{query_id}")') as cursor:
-        columns = [row[1] for row in await cursor.fetchall()]
+    columns = database.get_columns()
 
     kgraph = {
         'nodes': dict(),
@@ -150,17 +142,10 @@ async def extract_results(query_id, since, limit, offset, database):
         statement += f' LIMIT {limit}'
     if offset:
         statement += f' OFFSET {offset}'
-    try:
-        cursor = await database.execute(
-            statement,
-        )
-    except sqlite3.OperationalError as err:
-        if 'no such table' in str(err):
-            raise HTTPException(400, str(err))
-        raise err
+    rows = await database.execute(statement)
     return [
         tuple(json.loads(value) if isinstance(value, str) else value for value in row)
-        for row in await cursor.fetchall()
+        for row in await rows
     ]
 
 

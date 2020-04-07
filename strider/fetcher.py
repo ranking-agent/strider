@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import re
-import sqlite3
 import time
 
 import aiormq
@@ -14,6 +13,7 @@ import httpx
 from strider.neo4j import HttpInterface
 from strider.scoring import score_graph, get_support
 from strider.worker import Worker, RedisMixin
+from strider.results import Results
 
 LOGGER = logging.getLogger(__name__)
 NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
@@ -33,12 +33,12 @@ class Fetcher(Worker, RedisMixin):
         super().__init__(*args, **kwargs)
         self.bmt = BMToolkit()
         self.neo4j = None
-        self.sql = None
+        self.results_db = None
 
     async def setup(self):
         """Set up SQLite, Redis, and Neo4j connections."""
         # SQLite
-        self.sql = sqlite3.connect('results.db')
+        self.results_db = Results()
 
         # Redis
         await self.setup_redis()
@@ -607,8 +607,8 @@ class Fetcher(Worker, RedisMixin):
             [f'`{qid}`' for qid in slots]
             + ['_score', '_timestamp']
         )
-        with self.sql:
-            self.sql.executemany(
+        async with self.results_db as connection:
+            connection.executemany(
                 'INSERT OR IGNORE INTO `{0}` ({1}) VALUES ({2})'.format(
                     query_id,
                     columns,
