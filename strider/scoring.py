@@ -43,7 +43,8 @@ async def get_support(node1, node2, synonyms):
         count_pubs(node1),
         count_pubs(node2),
     )
-    cov = (edge_pubs / NUM_PUBS) - (source_pubs / NUM_PUBS) * (target_pubs / NUM_PUBS)
+    cov = (edge_pubs / NUM_PUBS) \
+        - (source_pubs / NUM_PUBS) * (target_pubs / NUM_PUBS)
     cov = max((cov, 0.0))
     effective_pubs = cov * NUM_PUBS
 

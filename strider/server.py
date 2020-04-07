@@ -44,7 +44,10 @@ async def answer_query(
         support: bool = True,
 ) -> str:
     """Answer biomedical question."""
-    query_id = await execute_query(query.message.query_graph.dict(), support=support)
+    query_id = await execute_query(
+        query.message.query_graph.dict(),
+        support=support
+    )
     return query_id
 
 
@@ -144,7 +147,10 @@ async def extract_results(query_id, since, limit, offset, database):
         statement += f' OFFSET {offset}'
     rows = await database.execute(statement)
     return [
-        tuple(json.loads(value) if isinstance(value, str) else value for value in row)
+        tuple(
+            json.loads(value) if isinstance(value, str) else value
+            for value in row
+        )
         for row in await rows
     ]
 
@@ -164,8 +170,8 @@ async def score_results(
 ) -> Message:
     """Score results."""
     message = query.message.dict()
-    knodes = {
-        knode['id']: knode
+    identifiers = {
+        knode['id']: knode.get('equivalent_identifiers', [])
         for knode in message['knowledge_graph']['nodes']
     }
     for result in message['results']:
@@ -174,7 +180,7 @@ async def score_results(
                 nb['qg_id']: {
                     'qid': nb['qg_id'],
                     'kid': nb['kg_id'],
-                    'equivalent_identifiers': knodes[nb['kg_id']].get('equivalent_identifiers', [])
+                    'equivalent_identifiers': identifiers[nb['kg_id']]
                 }
                 for nb in result['node_bindings']
             },
