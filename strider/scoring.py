@@ -62,7 +62,7 @@ async def count_pubs(*curies):
                     params=params,
                 )
                 break
-            except httpx.exceptions.NetworkError as err:
+            except httpx.NetworkError as err:
                 LOGGER.warning(
                     'Omnicorp network error: curies: %s, %s. Trying again...',
                     json.dumps(curies),

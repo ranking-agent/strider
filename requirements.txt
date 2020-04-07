@@ -3,7 +3,7 @@ aiormq
 aiosqlite
 bmt
 fastapi
-httpx
+httpx==0.12.1
 numpy
 pyyaml
 requests

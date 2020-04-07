@@ -224,7 +224,7 @@ class Fetcher(Worker, RedisMixin):
             }
             try:
                 response = await client.post(endpoint, json=request)
-            except httpx.exceptions.ReadTimeout:
+            except httpx.ReadTimeout:
                 LOGGER.error(
                     "ReadTimeout: endpoint: %s, JSON: %s",
                     endpoint, json.dumps(request)
