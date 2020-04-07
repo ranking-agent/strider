@@ -164,10 +164,6 @@ async def score_results(
 ) -> Message:
     """Score results."""
     message = query.message.dict()
-    slots = {
-        el['id']: el
-        for el in message['query_graph']['nodes'] + message['query_graph']['edges']
-    }
     knodes = {
         knode['id']: knode
         for knode in message['knowledge_graph']['nodes']
@@ -192,6 +188,6 @@ async def score_results(
         }
         result['score'] = await score_graph(
             graph,
-            slots,
+            message['query_graph'],
         )
     return message
