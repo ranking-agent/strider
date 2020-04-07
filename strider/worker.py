@@ -5,9 +5,8 @@ import logging
 import os
 
 import aioredis
-import aiormq
 
-from strider.rabbitmq import setup as setup_rabbitmq
+from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 
 LOGGER = logging.getLogger(__name__)
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
@@ -66,27 +65,7 @@ class Worker(ABC):
             return
 
         # Perform connection
-        seconds = 1
-        while True:
-            try:
-                self.connection = await aiormq.connect(
-                    'amqp://{0}:{1}@{2}:5672/%2F'.format(
-                        RABBITMQ_USER,
-                        RABBITMQ_PASSWORD,
-                        RABBITMQ_HOST,
-                    )
-                )
-                break
-            except ConnectionError as err:
-                if seconds >= 65:
-                    raise err
-                LOGGER.debug(
-                    'Failed to connect to RabbitMQ. '
-                    'Trying again in %d seconds',
-                    seconds,
-                )
-                await asyncio.sleep(seconds)
-                seconds *= 2
+        self.connection = await connect_to_rabbitmq()
 
         # Creating a channel
         self.channel = await self.connection.channel()

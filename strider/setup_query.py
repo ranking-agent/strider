@@ -6,21 +6,17 @@ import os
 import time
 import uuid
 
-import aiormq
 import aioredis
 import uvloop
 
 from strider.query_planner import generate_plan
-from strider.rabbitmq import setup as setup_rabbitmq
+from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 from strider.results import Results
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 LOGGER = logging.getLogger(__name__)
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
-RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
 
 
 async def execute_query(query_graph, **kwargs):
@@ -91,26 +87,7 @@ async def execute_query(query_graph, **kwargs):
 
 async def setup_broker():
     """Set up RabbitMQ message broker."""
-    seconds = 1
-    while True:
-        try:
-            connection = await aiormq.connect(
-                'amqp://{0}:{1}@{2}:5672/%2F'.format(
-                    RABBITMQ_USER,
-                    RABBITMQ_PASSWORD,
-                    RABBITMQ_HOST,
-                )
-            )
-            break
-        except ConnectionError as err:
-            if seconds >= 65:
-                raise err
-            LOGGER.debug(
-                'Failed to connect to RabbitMQ. Trying again in %d seconds',
-                seconds,
-            )
-            await asyncio.sleep(seconds)
-            seconds *= 2
+    connection = await connect_to_rabbitmq()
     await setup_rabbitmq()
     return connection
 

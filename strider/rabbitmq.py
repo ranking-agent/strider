@@ -1,14 +1,42 @@
 """Set up RabbitMQ."""
 import asyncio
+import logging
 import os
 
+import aiormq
 import httpx
 import uvloop
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+LOGGER = logging.getLogger(__name__)
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'localhost')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'localhost')
+
+
+async def connect_to_rabbitmq():
+    """Connect to RabbitMQ."""
+    seconds = 1
+    while True:
+        try:
+            connection = await aiormq.connect(
+                'amqp://{0}:{1}@{2}:5672/%2F'.format(
+                    RABBITMQ_USER,
+                    RABBITMQ_PASSWORD,
+                    RABBITMQ_HOST,
+                )
+            )
+            break
+        except ConnectionError as err:
+            if seconds >= 65:
+                raise err
+            LOGGER.debug(
+                'Failed to connect to RabbitMQ. Trying again in %d seconds',
+                seconds,
+            )
+            await asyncio.sleep(seconds)
+            seconds *= 2
+    return connection
 
 
 async def setup():
