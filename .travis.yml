@@ -6,4 +6,4 @@ install:
   - pip install -r requirements.txt
   - pip install pylint pycodestyle pydocstyle
 script:
-  - pylint --extension-pkg-whitelist=httpx,pydantic strider && pycodestyle strider && pydocstyle strider
+  - pylint --extension-pkg-whitelist=pydantic strider && pycodestyle strider && pydocstyle strider
