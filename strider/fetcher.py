@@ -348,10 +348,10 @@ class Fetcher(Worker, RedisMixin):
         qedge_ids = [qedge['id'] for qedge in qgraph['edges']]
 
         subgraphs = await self.get_subgraphs(query_id, data, new_edges)
-        scores = [
-            await score_graph(subgraph, qgraph, **kwargs)
+        scores = await asyncio.gather(*[
+            score_graph(subgraph, qgraph, **kwargs)
             for subgraph in subgraphs
-        ]
+        ])
 
         # update priorities
         await self.update_priorities(query_id, subgraphs, scores)
