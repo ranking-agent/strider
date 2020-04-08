@@ -14,6 +14,7 @@ from strider.neo4j import HttpInterface
 from strider.scoring import score_graph, get_support
 from strider.worker import Worker, RedisMixin
 from strider.results import Results
+from strider.query import create_query
 
 LOGGER = logging.getLogger(__name__)
 NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
@@ -110,16 +111,16 @@ class Fetcher(Worker, RedisMixin):
         if self.redis is None:
             await self.setup()
         data = json.loads(message.body)
-        query_id = data.pop('query_id')
+        query = await create_query(data.pop('query_id'), self.redis)
         statement = f'''
             CREATE CONSTRAINT
-            ON (n:`{query_id}`)
+            ON (n:`{query.uid}`)
             ASSERT n.kid_qid IS UNIQUE'''
         result = await self.neo4j.run_async(statement)
         options = {
             key: json.loads(value)
             for key, value in (await self.redis.hgetall(
-                f'{query_id}_options'
+                f'{query.uid}_options'
             )).items()
         }
 
@@ -134,10 +135,10 @@ class Fetcher(Worker, RedisMixin):
                 }
                 job_id = f'({data["kid"]}:{data["qid"]})'
                 jobs = await self.process_result(
-                    query_id, job_id, edge_bindings, node_bindings
+                    query, job_id, edge_bindings, node_bindings
                 )
             else:
-                jobs = await self.process_message(query_id, data, **options)
+                jobs = await self.process_message(query, data, **options)
 
             # queue jobs in order of descending priority
             jobs.sort(key=lambda x: x['priority'], reverse=True)
@@ -156,13 +157,13 @@ class Fetcher(Worker, RedisMixin):
             LOGGER.exception(err)
             raise err
 
-    async def process_message(self, query_id, data, **kwargs):
+    async def process_message(self, query, data, **kwargs):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
-        LOGGER.debug("[query %s]: [job %s]: Starting...", query_id, job_id)
+        LOGGER.debug("[query %s]: [job %s]: Starting...", query.uid, job_id)
 
         step_awaitables = (
-            self.take_step(query_id, job_id, data, endpoint, **kwargs)
+            self.take_step(query, job_id, data, endpoint, **kwargs)
             for endpoint in data['endpoints']
         )
         step_results = await asyncio.gather(
@@ -178,7 +179,7 @@ class Fetcher(Worker, RedisMixin):
             jobs.extend(result)
         return jobs
 
-    async def take_step(self, query_id, job_id, data, endpoint, **kwargs):
+    async def take_step(self, query, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
         match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
         if match is None:
@@ -187,9 +188,9 @@ class Fetcher(Worker, RedisMixin):
         target_qid = match[2]
 
         # source, edge, and target specs
-        edge_spec = await self.get_spec(query_id, edge_qid)
-        target_spec = await self.get_spec(query_id, target_qid)
-        source_spec = await self.get_spec(query_id, data['qid'])
+        edge_spec = query.qgraph['edges'][edge_qid]
+        target_spec = query.qgraph['nodes'][target_qid]
+        source_spec = query.qgraph['nodes'][data['qid']]
 
         async with httpx.AsyncClient(timeout=None) as client:
             request = {
@@ -233,23 +234,12 @@ class Fetcher(Worker, RedisMixin):
         assert response.status_code < 300
 
         return await self.process_response(
-            query_id, job_id,
+            query, job_id,
             response.json(),
             **kwargs,
         )
 
-    async def get_spec(self, query_id, thing_qid):
-        """Get specs for slot."""
-        json_string = await self.redis.hget(
-            f'{query_id}_slots',
-            thing_qid,
-            encoding='utf-8'
-        )
-        if json_string is None:
-            raise ValueError(f'{query_id}_slots has no {thing_qid}')
-        return json.loads(json_string)
-
-    async def process_response(self, query_id, job_id, response, **kwargs):
+    async def process_response(self, query, job_id, response, **kwargs):
         """Process response from KP."""
         if response is None:
             return
@@ -273,7 +263,7 @@ class Fetcher(Worker, RedisMixin):
                 for binding in result['node_bindings']
             }
             edge_awaitables.append(self.process_result(
-                query_id, job_id, edge_bindings, node_bindings, **kwargs
+                query, job_id, edge_bindings, node_bindings, **kwargs
             ))
         results = await asyncio.gather(*edge_awaitables)
 
@@ -287,7 +277,7 @@ class Fetcher(Worker, RedisMixin):
 
     async def process_result(
             self,
-            query_id, job_id,
+            query, job_id,
             edge_bindings, node_bindings,
             **kwargs
     ):
@@ -295,7 +285,7 @@ class Fetcher(Worker, RedisMixin):
         # filter out results that are incompatible with qgraph
         try:
             await self.validate_result(
-                query_id, job_id,
+                query, job_id,
                 edge_bindings, node_bindings,
             )
         except ValidationError:
@@ -303,7 +293,7 @@ class Fetcher(Worker, RedisMixin):
 
         # reformat result
         data = {
-            'query_id': query_id,
+            'query_id': query.uid,
             'nodes': [
                 {
                     'qid': key,
@@ -331,30 +321,21 @@ class Fetcher(Worker, RedisMixin):
         }
 
         # store result in Neo4j
-        new_edges = await self.store_result(query_id, data)
+        new_edges = await self.store_result(query, data)
 
         # get subgraphs and scores
-        qgraph = {
-            'nodes': [],
-            'edges': [],
-        }
-        for value in await self.redis.hvals(f'{query_id}_slots'):
-            value = json.loads(value)
-            if 'source_id' in value:
-                qgraph['edges'].append(value)
-            else:
-                qgraph['nodes'].append(value)
-        qnode_ids = [qnode['id'] for qnode in qgraph['nodes']]
-        qedge_ids = [qedge['id'] for qedge in qgraph['edges']]
+        qgraph = query.qgraph
+        qnode_ids = list(qgraph['nodes'])
+        qedge_ids = list(qgraph['edges'])
 
-        subgraphs = await self.get_subgraphs(query_id, data, new_edges)
+        subgraphs = await self.get_subgraphs(query, data, new_edges)
         scores = await asyncio.gather(*[
             score_graph(subgraph, qgraph, **kwargs)
             for subgraph in subgraphs
         ])
 
         # update priorities
-        await self.update_priorities(query_id, subgraphs, scores)
+        await self.update_priorities(query, subgraphs, scores)
 
         # publish answers to the results DB
         answers = [
@@ -366,34 +347,34 @@ class Fetcher(Worker, RedisMixin):
             )
         ]
         await self.store_answers(
-            query_id, job_id,
+            query, job_id,
             answers, qnode_ids + qedge_ids,
         )
 
         # publish all nodes to jobs queue
-        return await self.queue_jobs(query_id, data, job_id)
+        return await self.queue_jobs(query, data, job_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
 
     async def validate_result(
             self,
-            query_id, job_id,
+            query, job_id,
             edge_bindings, node_bindings,
     ):
         """Validate result nodes and edges against qgraph."""
         for qid, edge in edge_bindings.items():
-            edge_spec = await self.get_spec(query_id, qid)
+            edge_spec = query.qgraph['edges'][qid]
             try:
                 await self.validate(edge, edge_spec)
             except ValidationError as err:
                 LOGGER.debug(
                     '[query %s]: [job %s]: Filtered out edge %s: %s',
-                    query_id, job_id, str(edge), err
+                    query.uid, job_id, str(edge), err
                 )
                 raise err
         for qid, node in node_bindings.items():
-            target_spec = await self.get_spec(query_id, qid)
+            target_spec = query.qgraph['nodes'][qid]
             await self.validate(node, target_spec)
 
     async def assign_weights(self, data):
@@ -409,25 +390,25 @@ class Fetcher(Worker, RedisMixin):
             edge['weight'] = num_pubs + 1
         return data['edges']
 
-    async def update_priorities(self, query_id, subgraphs, scores):
+    async def update_priorities(self, query, subgraphs, scores):
         """Update job priorities."""
         # for each subgraph, add its weight to each component node's priority
         for subgraph, score in zip(subgraphs, scores):
             for node in subgraph['nodes'].values():
                 await self.redis.hincrbyfloat(
-                    f'{query_id}_priorities',
+                    f'{query.uid}_priorities',
                     f'({node["qid"]}:{node["kid"]})',
                     score
                 )
 
-    async def get_subgraphs(self, query_id, data, new_edges):
+    async def get_subgraphs(self, query, data, new_edges):
         """Get subgraphs."""
         subgraph_awaitables = []
         for edge in new_edges:
             statement = 'MATCH (:`{0}`)-[e {{kid:"{1}", qid:"{2}"}}]->()\n' \
                         'CALL strider.getPaths(e) YIELD nodes, edges\n' \
                         'RETURN nodes, edges'.format(
-                            query_id, edge['kid'], edge['qid']
+                            query.uid, edge['kid'], edge['qid']
                         )
             subgraph_awaitables.append(self.neo4j.run_async(statement))
         nested_results = await asyncio.gather(*subgraph_awaitables)
@@ -447,15 +428,15 @@ class Fetcher(Worker, RedisMixin):
         })
         return subgraphs
 
-    async def queue_jobs(self, query_id, data, job_id):
+    async def queue_jobs(self, query, data, job_id):
         """Queue jobs from result."""
-        node_steps = await self.get_jobs(query_id, data)
+        node_steps = await self.get_jobs(query, data)
 
         publish_awaitables = []
         for priority, qid, kid, steps in node_steps:
             LOGGER.debug(
                 "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
-                query_id, job_id, qid, kid
+                query.uid, job_id, qid, kid
             )
             for step_id, endpoints in steps.items():
                 # do not retrace your steps
@@ -467,7 +448,7 @@ class Fetcher(Worker, RedisMixin):
                     continue
 
                 job = {
-                    'query_id': query_id,
+                    'query_id': query.uid,
                     'qid': qid,
                     'kid': kid,
                     'step_id': step_id,
@@ -484,12 +465,12 @@ class Fetcher(Worker, RedisMixin):
         await asyncio.gather(*publish_awaitables)
         return []
 
-    async def get_jobs(self, query_id, data):
+    async def get_jobs(self, query, data):
         """Get jobs for data nodes."""
         nodes = [
             (node['qid'], node['kid']) for node in data['nodes']
             if not await self.is_done(
-                query_id,
+                query,
                 qid=node['qid'],
                 kid=node['kid'],
             )
@@ -500,20 +481,20 @@ class Fetcher(Worker, RedisMixin):
 
             # never process the same job twice
             if (
-                    await self.redis.exists(f'{query_id}_done')
-                    and await self.redis.sismember(f'{query_id}_done', job_id)
+                    await self.redis.exists(f'{query.uid}_done')
+                    and await self.redis.sismember(f'{query.uid}_done', job_id)
             ):
                 continue
-            await self.redis.sadd(f'{query_id}_done', job_id)
+            await self.redis.sadd(f'{query.uid}_done', job_id)
 
             priority = min(255, int(float(await self.redis.hget(
-                f'{query_id}_priorities',
+                f'{query.uid}_priorities',
                 job_id
             ))))
 
             # get step(s):
             steps_string = await self.redis.hget(
-                f'{query_id}_plan',
+                f'{query.uid}_plan',
                 qid,
                 encoding='utf-8',
             )
@@ -524,7 +505,7 @@ class Fetcher(Worker, RedisMixin):
             node_steps.append((priority, qid, kid, steps))
         return node_steps
 
-    async def store_result(self, query_id, data):
+    async def store_result(self, query, data):
         """Store result in Neo4j.
 
         Return new edges.
@@ -544,7 +525,7 @@ class Fetcher(Worker, RedisMixin):
             kid = node['kid']
             statement += '\nMERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})'.format(
                 node_vars[kid],
-                query_id,
+                query.uid,
                 kid,
                 qid,
             )
@@ -562,7 +543,7 @@ class Fetcher(Worker, RedisMixin):
             statement += '\nMERGE ({0})-[{1}:`{2}`]->({3})'.format(
                 node_vars[source_id],
                 edge_vars[kid],
-                query_id,
+                query.uid,
                 node_vars[target_id],
             )
             statement += f'\nON CREATE SET {edge_vars[kid]}.new = TRUE'
@@ -581,13 +562,13 @@ class Fetcher(Worker, RedisMixin):
         result = await self.neo4j.run_async(statement)
         return [row['e'] for row in result]
 
-    async def store_answers(self, query_id, job_id, answers, slots):
+    async def store_answers(self, query, job_id, answers, slots):
         """Store answers in sqlite."""
         if not answers:
             return
         rows = []
         start_time = float(await self.redis.get(
-            f'{query_id}_starttime'
+            f'{query.uid}_starttime'
         ))
         for answer, score in answers:
             things = {**answer['nodes'], **answer['edges']}
@@ -598,7 +579,7 @@ class Fetcher(Worker, RedisMixin):
             rows.append(values)
             LOGGER.debug(
                 "[query %s]: [job %s]: Storing answer %s",
-                query_id,
+                query.uid,
                 job_id,
                 str(values),
             )
@@ -610,7 +591,7 @@ class Fetcher(Worker, RedisMixin):
         async with self.results_db as connection:
             connection.executemany(
                 'INSERT OR IGNORE INTO `{0}` ({1}) VALUES ({2})'.format(
-                    query_id,
+                    query.uid,
                     columns,
                     placeholders,
                 ),

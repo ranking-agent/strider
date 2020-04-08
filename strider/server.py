@@ -7,10 +7,11 @@ import aioredis
 from fastapi import Depends, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
-from strider.models import Query, Message
+from strider.models import Query as QueryModel, Message
 from strider.setup_query import execute_query, generate_plan
 from strider.scoring import score_graph
 from strider.results import get_db
+from strider.query import create_query
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
@@ -40,7 +41,7 @@ async def get_redis():
 
 @APP.post('/query', response_model=str, tags=['query'])
 async def answer_query(
-        query: Query,
+        query: QueryModel,
         support: bool = True,
 ) -> str:
     """Answer biomedical question."""
@@ -61,16 +62,8 @@ async def get_results(  # pylint: disable=too-many-arguments
         redis=Depends(get_redis),
 ) -> Message:
     """Get results for a query."""
-    qgraph = {
-        'nodes': [],
-        'edges': [],
-    }
-    for value in await redis.hvals(f'{query_id}_slots'):
-        value = json.loads(value)
-        if 'source_id' in value:
-            qgraph['edges'].append(value)
-        else:
-            qgraph['nodes'].append(value)
+    query = await create_query(query_id, redis)
+    qgraph = query.qgraph
 
     # get column names from results db
     columns = database.get_columns()
@@ -107,14 +100,13 @@ def parse_bindings(bindings, qgraph):
         'node_bindings': [],
         'edge_bindings': [],
     }
-    qedge_ids = [edge['id'] for edge in qgraph['edges']]
     for key, element in bindings.items():
         if key.startswith('_'):
             result[key[1:]] = element
             continue
         kid = element.pop('kid')
         qid = element.pop('qid')
-        if qid in qedge_ids:
+        if qid in qgraph['edges']:
             result['edge_bindings'].append({
                 'qg_id': qid,
                 'kg_id': kid,
@@ -157,7 +149,7 @@ async def extract_results(query_id, since, limit, offset, database):
 
 @APP.post('/plan', response_model=Dict, tags=['query'])
 async def generate_traversal_plan(
-        query: Query,
+        query: QueryModel,
 ) -> Dict:
     """Generate a plan for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
@@ -166,7 +158,7 @@ async def generate_traversal_plan(
 
 @APP.post('/score', response_model=Message, tags=['query'])
 async def score_results(
-        query: Query,
+        query: QueryModel,
 ) -> Message:
     """Score results."""
     message = query.message.dict()

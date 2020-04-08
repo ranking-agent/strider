@@ -15,14 +15,8 @@ class Planner():
 
     def __init__(self, query_graph):
         """Initialize."""
-        self.query_nodes_by_id = {
-            node['id']: node
-            for node in query_graph['nodes']
-        }
-        self.query_edges_by_id = {
-            edge['id']: edge
-            for edge in query_graph['edges']
-        }
+        self.query_nodes_by_id = query_graph['nodes']
+        self.query_edges_by_id = query_graph['edges']
 
     @property
     def query_nodes(self):

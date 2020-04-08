@@ -114,7 +114,7 @@ async def score_graph(graph, qgraph, support=True):
                 laplacian
             ))
     else:
-        for qedge in qgraph['edges']:
+        for qedge in qgraph['edges'].values():
             try:
                 source = graph['nodes'][qedge['source_id']]
                 target = graph['nodes'][qedge['target_id']]
