@@ -117,12 +117,6 @@ class Fetcher(Worker, RedisMixin):
             ON (n:`{query.uid}`)
             ASSERT n.kid_qid IS UNIQUE'''
         result = await self.neo4j.run_async(statement)
-        options = {
-            key: json.loads(value)
-            for key, value in (await self.redis.hgetall(
-                f'{query.uid}_options'
-            )).items()
-        }
 
         try:
             if not data.get('step_id', None):
@@ -138,7 +132,7 @@ class Fetcher(Worker, RedisMixin):
                     query, job_id, edge_bindings, node_bindings
                 )
             else:
-                jobs = await self.process_message(query, data, **options)
+                jobs = await self.process_message(query, data, **query.options)
 
             # queue jobs in order of descending priority
             jobs.sort(key=lambda x: x['priority'], reverse=True)

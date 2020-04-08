@@ -16,10 +16,17 @@ class Query():
         """Initialize."""
         self.uid = uid
         self.qgraph = None
+        self.options = None
 
     async def _init(self, redis):
         """Asynchronously initialize qgraph."""
         self.qgraph = json.loads(await redis.get(f'{self.uid}_qgraph'))
+        self.options = {
+            key: json.loads(value)
+            for key, value in (await redis.hgetall(
+                f'{self.uid}_options'
+            )).items()
+        }
 
     async def get_qgraph(self, redis):
         """Get qgraph."""
