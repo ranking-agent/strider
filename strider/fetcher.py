@@ -12,8 +12,7 @@ import httpx
 
 from strider.neo4j import HttpInterface
 from strider.scoring import score_graph, get_support
-from strider.worker import Worker, RedisMixin
-from strider.results import Results
+from strider.worker import Worker, RedisMixin, SqliteMixin
 from strider.query import create_query
 
 LOGGER = logging.getLogger(__name__)
@@ -24,7 +23,7 @@ class ValidationError(Exception):
     """Invalid node or edge."""
 
 
-class Fetcher(Worker, RedisMixin):
+class Fetcher(Worker, RedisMixin, SqliteMixin):
     """Asynchronous worker to consume jobs and publish results."""
 
     input_queue = 'jobs'
@@ -34,12 +33,11 @@ class Fetcher(Worker, RedisMixin):
         super().__init__(*args, **kwargs)
         self.bmt = BMToolkit()
         self.neo4j = None
-        self.results_db = None
 
     async def setup(self):
         """Set up SQLite, Redis, and Neo4j connections."""
         # SQLite
-        self.results_db = Results()
+        await self.setup_sqlite()
 
         # Redis
         await self.setup_redis()
@@ -582,12 +580,12 @@ class Fetcher(Worker, RedisMixin):
             [f'`{qid}`' for qid in slots]
             + ['_score', '_timestamp']
         )
-        async with self.results_db as connection:
-            connection.executemany(
-                'INSERT OR IGNORE INTO `{0}` ({1}) VALUES ({2})'.format(
-                    query.uid,
-                    columns,
-                    placeholders,
-                ),
-                rows
-            )
+        await self.sqlite.executemany(
+            'INSERT OR IGNORE INTO `{0}` ({1}) VALUES ({2})'.format(
+                query.uid,
+                columns,
+                placeholders,
+            ),
+            rows
+        )
+        await self.sqlite.commit()

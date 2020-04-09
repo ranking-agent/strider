@@ -5,6 +5,7 @@ import logging
 import os
 
 import aioredis
+import aiosqlite
 
 from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 
@@ -13,6 +14,18 @@ REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
+
+
+class SqliteMixin(ABC):  # pylint: disable=too-few-public-methods
+    """Mixin to hold a SQLite database connection."""
+
+    def __init__(self):
+        """Initialize."""
+        self.sqlite = None
+
+    async def setup_sqlite(self):
+        """Set up SQLite connection."""
+        self.sqlite = await aiosqlite.connect('results.db')
 
 
 class RedisMixin(ABC):  # pylint: disable=too-few-public-methods
