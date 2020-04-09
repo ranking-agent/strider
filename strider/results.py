@@ -38,7 +38,7 @@ class Results():
             """Check that a connection is available."""
             if not self.database:
                 raise RuntimeError('No open SQLite connection.')
-            return method(self, *args, **kwargs)
+            return await method(self, *args, **kwargs)
         return wrapper
 
     require_connection = _require_connection.__func__
@@ -59,6 +59,7 @@ class Results():
         """
         try:
             cursor = await self.database.execute(statement)
+            await self.database.commit()
         except sqlite3.OperationalError as err:
             if 'no such table' in str(err):
                 raise HTTPException(400, str(err))
@@ -73,6 +74,7 @@ class Results():
         """
         try:
             cursor = await self.database.executemany(statement, data)
+            await self.database.commit()
         except sqlite3.OperationalError as err:
             if 'no such table' in str(err):
                 raise HTTPException(400, str(err))
