@@ -72,7 +72,7 @@ async def get_results(  # pylint: disable=too-many-arguments
     qgraph = query.qgraph
 
     # get column names from results db
-    columns = database.get_columns()
+    columns = await database.get_columns(query_id)
 
     kgraph = {
         'nodes': dict(),
@@ -88,6 +88,10 @@ async def get_results(  # pylint: disable=too-many-arguments
     kgraph = {
         'nodes': list(kgraph['nodes'].values()),
         'edges': list(kgraph['edges'].values()),
+    }
+    qgraph = {
+        'nodes': list(qgraph['nodes'].values()),
+        'edges': list(qgraph['edges'].values()),
     }
     return {
         'query_graph': qgraph,
@@ -149,7 +153,7 @@ async def extract_results(query_id, since, limit, offset, database):
             json.loads(value) if isinstance(value, str) else value
             for value in row
         )
-        for row in await rows
+        for row in rows
     ]
 
 
