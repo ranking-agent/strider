@@ -1,5 +1,6 @@
 """Simple ReasonerStdAPI server."""
 import json
+import logging
 import os
 from typing import Dict
 
@@ -12,8 +13,11 @@ from strider.setup_query import execute_query, generate_plan
 from strider.scoring import score_graph
 from strider.results import get_db
 from strider.query import create_query
+from strider.util import setup_logging
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+
+LOGGER = logging.getLogger(__name__)
 
 APP = FastAPI(
     title='Strider/ARAGORN/Ranking Agent',
@@ -27,6 +31,8 @@ APP.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+setup_logging()
 
 
 async def get_redis():
