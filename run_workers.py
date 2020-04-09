@@ -7,6 +7,7 @@ import uvloop
 import yaml
 
 from strider.fetcher import Fetcher
+from strider.util import setup_logging
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -26,9 +27,7 @@ async def start():
 
 def main():
     """Run workers."""
-    with open('logging_setup.yml', 'r') as stream:
-        config = yaml.load(stream.read(), Loader=yaml.SafeLoader)
-    logging.config.dictConfig(config)
+    setup_logging()
 
     # start event loop
     loop = asyncio.get_event_loop()
