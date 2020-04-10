@@ -33,6 +33,7 @@ RABBITMQ_USER=murphy
 RABBITMQ_PASSWORD=***
 KPREGISTRY_URL=http://robokop.renci.org:4983
 OMNICORP_URL=http://robokop.renci.org:3210
+BIOLINK_URL=https://bl-lookup-sri.renci.org
 ```
 
 All necessary containers can then be built and started using docker-compose
