@@ -9,7 +9,7 @@ async def create_query(uid, redis):
     return query
 
 
-class Query():
+class Query():  # pylint: disable=too-few-public-methods
     """Query."""
 
     def __init__(self, uid):
@@ -27,17 +27,3 @@ class Query():
                 f'{self.uid}_options'
             )).items()
         }
-
-    async def get_qgraph(self, redis):
-        """Get qgraph."""
-        qgraph = {
-            'nodes': {},
-            'edges': {},
-        }
-        for value in await redis.hvals(f'{self.uid}_slots'):
-            value = json.loads(value)
-            if 'source_id' in value:
-                qgraph['edges'][value['id']] = value
-            else:
-                qgraph['nodes'][value['id']] = value
-        return qgraph
