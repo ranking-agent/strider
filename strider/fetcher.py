@@ -106,25 +106,11 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 }
             }
             job_id = f'({data["kid"]}:{data["qid"]})'
-            jobs = await self.process_result(
+            await self.process_result(
                 query, job_id, edge_bindings, node_bindings
             )
         else:
-            jobs = await self.process_message(query, data, **query.options)
-
-        # queue jobs in order of descending priority
-        jobs.sort(key=lambda x: x['priority'], reverse=True)
-        publish_awaitables = []
-        for job in jobs:
-            priority = job.pop('priority')
-            publish_awaitables.append(self.channel.basic_publish(
-                routing_key='jobs',
-                body=json.dumps(job).encode('utf-8'),
-                properties=aiormq.spec.Basic.Properties(
-                    priority=priority,
-                ),
-            ))
-        await asyncio.gather(*publish_awaitables)
+            await self.process_message(query, data, **query.options)
 
     async def process_message(self, query, data, **kwargs):
         """Process parsed message."""
@@ -140,13 +126,9 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             return_exceptions=True
         )
 
-        jobs = []
         for result in step_results:
             if isinstance(result, Exception):
                 LOGGER.exception(result)
-                continue
-            jobs.extend(result)
-        return jobs
 
     async def take_step(self, query, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
@@ -202,7 +184,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 return []
         assert response.status_code < 300
 
-        return await self.process_response(
+        await self.process_response(
             query, job_id,
             response.json(),
             **kwargs,
@@ -234,15 +216,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             edge_awaitables.append(self.process_result(
                 query, job_id, edge_bindings, node_bindings, **kwargs
             ))
-        results = await asyncio.gather(*edge_awaitables)
-
-        jobs = []
-        for result in results:
-            if isinstance(result, Exception):
-                LOGGER.exception(result)
-                continue
-            jobs.extend(result)
-        return jobs
+        await asyncio.gather(*edge_awaitables)
 
     async def process_result(
             self,
@@ -258,7 +232,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 edge_bindings, node_bindings,
             )
         except ValidationError:
-            return []
+            return
 
         # reformat result
         data = {
@@ -321,7 +295,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         )
 
         # publish all nodes to jobs queue
-        return await self.queue_jobs(query, data, job_id)
+        await self.queue_jobs(query, data, job_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
@@ -432,7 +406,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                     ),
                 ))
         await asyncio.gather(*publish_awaitables)
-        return []
 
     async def get_jobs(self, query, data):
         """Get jobs for data nodes."""
