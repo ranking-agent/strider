@@ -6,14 +6,46 @@ import os
 
 import aioredis
 import aiosqlite
+import httpx
 
+from strider.neo4j import HttpInterface
 from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 
 LOGGER = logging.getLogger(__name__)
+NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
+
+
+class Neo4jMixin(ABC):  # pylint: disable=too-few-public-methods
+    """Mixin to hold a Neo4j database connection."""
+
+    def __init__(self):
+        """Initialize."""
+        self.neo4j = None
+
+    async def setup_neo4j(self):
+        """Set up Neo4j connection."""
+        self.neo4j = HttpInterface(
+            url=f'http://{NEO4J_HOST}:7474',
+        )
+        seconds = 1
+        while True:
+            try:
+                # clear it
+                await self.neo4j.run_async('CALL dbms.procedures()')
+                break
+            except httpx.HTTPError as err:
+                if seconds >= 129:
+                    raise err
+                LOGGER.debug(
+                    'Failed to connect to Neo4j. Trying again in %d seconds',
+                    seconds
+                )
+                await asyncio.sleep(seconds)
+                seconds *= 2
 
 
 class SqliteMixin(ABC):  # pylint: disable=too-few-public-methods

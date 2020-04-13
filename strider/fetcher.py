@@ -10,20 +10,18 @@ import aiormq
 from bmt import Toolkit as BMToolkit
 import httpx
 
-from strider.neo4j import HttpInterface
 from strider.scoring import score_graph, get_support
-from strider.worker import Worker, RedisMixin, SqliteMixin
+from strider.worker import Worker, Neo4jMixin, RedisMixin, SqliteMixin
 from strider.query import create_query
 
 LOGGER = logging.getLogger(__name__)
-NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
 
 
 class ValidationError(Exception):
     """Invalid node or edge."""
 
 
-class Fetcher(Worker, RedisMixin, SqliteMixin):
+class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
     """Asynchronous worker to consume jobs and publish results."""
 
     input_queue = 'jobs'
@@ -43,24 +41,8 @@ class Fetcher(Worker, RedisMixin, SqliteMixin):
         await self.setup_redis()
 
         # Neo4j
-        self.neo4j = HttpInterface(
-            url=f'http://{NEO4J_HOST}:7474',
-        )
-        seconds = 1
-        while True:
-            try:
-                # clear it
-                await self.neo4j.run_async('MATCH (n) DETACH DELETE n')
-                break
-            except httpx.HTTPError as err:
-                if seconds >= 129:
-                    raise err
-                LOGGER.debug(
-                    'Failed to connect to Neo4j. Trying again in %d seconds',
-                    seconds
-                )
-                await asyncio.sleep(seconds)
-                seconds *= 2
+        await self.setup_neo4j()
+        self.neo4j.run_async('MATCH (n) DETACH DELETE n')
 
     async def is_done(self, plan, qid=None, kid=None):
         """Return True iff a job (qid/kid) has already been completed."""
