@@ -16,6 +16,17 @@ from strider.query import create_query
 LOGGER = logging.getLogger(__name__)
 
 
+def log_exception(method):
+    """Wrap method."""
+    async def wrapper(*args, **kwargs):
+        """Log exception encountered in method, then pass."""
+        try:
+            return await method(*args, **kwargs)
+        except Exception as err:  # pylint: disable=broad-except
+            LOGGER.exception(err)
+    return wrapper
+
+
 class ValidationError(Exception):
     """Invalid node or edge."""
 
@@ -121,15 +132,11 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             self.take_step(query, job_id, data, endpoint, **kwargs)
             for endpoint in data['endpoints']
         )
-        step_results = await asyncio.gather(
+        await asyncio.gather(
             *step_awaitables,
-            return_exceptions=True
         )
 
-        for result in step_results:
-            if isinstance(result, Exception):
-                LOGGER.exception(result)
-
+    @log_exception
     async def take_step(self, query, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
         match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
