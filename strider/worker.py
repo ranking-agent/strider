@@ -125,10 +125,17 @@ class Worker(ABC):
         self.active_jobs += 1
         if self.max_jobs > 0 and self.active_jobs < self.max_jobs:
             await self.ack(message)
-            await self.on_message(message)
+            try:
+                await self.on_message(message)
+            except Exception as err:
+                LOGGER.exception(err)
+                raise err
         else:
             try:
                 await self.on_message(message)
+            except Exception as err:
+                LOGGER.exception(err)
+                raise err
             finally:
                 await self.ack(message)
         self.active_jobs -= 1

@@ -2,7 +2,6 @@
 import asyncio
 import json
 import logging
-import os
 import re
 import time
 
@@ -96,40 +95,36 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             CREATE CONSTRAINT
             ON (n:`{query.uid}`)
             ASSERT n.kid_qid IS UNIQUE'''
-        result = await self.neo4j.run_async(statement)
+        await self.neo4j.run_async(statement)
 
-        try:
-            if not data.get('step_id', None):
-                edge_bindings = dict()
-                node_bindings = {
-                    data['qid']: {
-                        'id': data['kid'],
-                        'type': data['type'],
-                    }
+        if not data.get('step_id', None):
+            edge_bindings = dict()
+            node_bindings = {
+                data['qid']: {
+                    'id': data['kid'],
+                    'type': data['type'],
                 }
-                job_id = f'({data["kid"]}:{data["qid"]})'
-                jobs = await self.process_result(
-                    query, job_id, edge_bindings, node_bindings
-                )
-            else:
-                jobs = await self.process_message(query, data, **query.options)
+            }
+            job_id = f'({data["kid"]}:{data["qid"]})'
+            jobs = await self.process_result(
+                query, job_id, edge_bindings, node_bindings
+            )
+        else:
+            jobs = await self.process_message(query, data, **query.options)
 
-            # queue jobs in order of descending priority
-            jobs.sort(key=lambda x: x['priority'], reverse=True)
-            publish_awaitables = []
-            for job in jobs:
-                priority = job.pop('priority')
-                publish_awaitables.append(self.channel.basic_publish(
-                    routing_key='jobs',
-                    body=json.dumps(job).encode('utf-8'),
-                    properties=aiormq.spec.Basic.Properties(
-                        priority=priority,
-                    ),
-                ))
-            await asyncio.gather(*publish_awaitables)
-        except Exception as err:
-            LOGGER.exception(err)
-            raise err
+        # queue jobs in order of descending priority
+        jobs.sort(key=lambda x: x['priority'], reverse=True)
+        publish_awaitables = []
+        for job in jobs:
+            priority = job.pop('priority')
+            publish_awaitables.append(self.channel.basic_publish(
+                routing_key='jobs',
+                body=json.dumps(job).encode('utf-8'),
+                properties=aiormq.spec.Basic.Properties(
+                    priority=priority,
+                ),
+            ))
+        await asyncio.gather(*publish_awaitables)
 
     async def process_message(self, query, data, **kwargs):
         """Process parsed message."""
