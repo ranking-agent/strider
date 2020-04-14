@@ -241,44 +241,30 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         except ValidationError:
             return
 
-        # reformat result
-        data = {
-            'query_id': query.uid,
-            'nodes': [
-                {
-                    'qid': key,
-                    'kid': node['id'],
-                    **{
-                        key: value
-                        for key, value in node.items()
-                        if key != 'id'
-                    },
-                }
-                for key, node in node_bindings.items()
-            ],
-            'edges': [
-                {
-                    'qid': key,
-                    'kid': edge['id'],
-                    **{
-                        key: value
-                        for key, value in edge.items()
-                        if key != 'id'
-                    }
-                }
-                for key, edge in edge_bindings.items()
-            ]
-        }
-
         # store result in Neo4j
-        new_edges = await self.store_result(query, data)
+        new_edges = await self.store_result(
+            query,
+            node_bindings,
+            edge_bindings,
+        )
 
         # get subgraphs and scores
         qgraph = query.qgraph
         qnode_ids = list(qgraph['nodes'])
         qedge_ids = list(qgraph['edges'])
 
-        subgraphs = await self.get_subgraphs(query, data, new_edges)
+        subgraphs = await self.get_subgraphs(
+            query,
+            new_edges,
+        )
+        # in case the answer is just disconnected nodes
+        subgraphs.append({
+            'nodes': {
+                qid: {**node, 'qid': qid, 'kid': node['id']}
+                for qid, node in node_bindings.items()
+            },
+            'edges': {},
+        })
         scores = await asyncio.gather(*[
             score_graph(subgraph, qgraph, **kwargs)
             for subgraph in subgraphs
@@ -302,7 +288,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         )
 
         # publish all nodes to jobs queue
-        await self.queue_jobs(query, data, job_id)
+        await self.queue_jobs(query, node_bindings, edge_bindings, job_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
@@ -351,7 +337,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                     score
                 )
 
-    async def get_subgraphs(self, query, data, new_edges):
+    async def get_subgraphs(self, query, new_edges):
         """Get subgraphs."""
         subgraph_awaitables = []
         for edge in new_edges:
@@ -368,19 +354,11 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             for result in results
         ]
 
-        # in case the answer is just disconnected nodes
-        subgraphs.append({
-            'nodes': {
-                node['qid']: node
-                for node in data['nodes']
-            },
-            'edges': {},
-        })
         return subgraphs
 
-    async def queue_jobs(self, query, data, job_id):
+    async def queue_jobs(self, query, node_bindings, edge_bindings, job_id):
         """Queue jobs from result."""
-        node_steps = await self.get_jobs(query, data)
+        node_steps = await self.get_jobs(query, node_bindings)
 
         publish_awaitables = []
         for priority, qid, kid, steps in node_steps:
@@ -394,7 +372,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 if match is None:
                     raise ValueError(f'Cannot parse step id {step_id}')
                 # edge_qid = match[1]
-                if match[1] in [edge['qid'] for edge in data['edges']]:
+                if match[1] in edge_bindings:
                     continue
 
                 job = {
@@ -414,14 +392,14 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 ))
         await asyncio.gather(*publish_awaitables)
 
-    async def get_jobs(self, query, data):
+    async def get_jobs(self, query, node_bindings):
         """Get jobs for data nodes."""
         nodes = [
-            (node['qid'], node['kid']) for node in data['nodes']
+            (qid, node['id']) for qid, node in node_bindings.items()
             if not await self.is_done(
                 query,
-                qid=node['qid'],
-                kid=node['kid'],
+                qid=qid,
+                kid=node['id'],
             )
         ]
         node_steps = []
@@ -454,39 +432,39 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             node_steps.append((priority, qid, kid, steps))
         return node_steps
 
-    async def store_result(self, query, data):
+    async def store_result(self, query, node_bindings, edge_bindings):
         """Store result in Neo4j.
 
         Return new edges.
         """
         # merge with existing nodes/edge, but update edge weight
         node_vars = {
-            node['kid']: f'n{i:03d}'
-            for i, node in enumerate(data['nodes'])
+            node['id']: f'n{i:03d}'
+            for i, node in enumerate(node_bindings.values())
         }
         edge_vars = {
-            edge['kid']: f'e{i:03d}'
-            for i, edge in enumerate(data['edges'])
+            edge['id']: f'e{i:03d}'
+            for i, edge in enumerate(edge_bindings.values())
         }
         statement = ''
-        for node in data['nodes']:
-            qid = node['qid']
-            kid = node['kid']
+        for qid, node in node_bindings.items():
+            kid = node['id']
             statement += '\nMERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})'.format(
                 node_vars[kid],
                 query.uid,
                 kid,
                 qid,
             )
+            statement += f'\nSET {node_vars[kid]}.qid = "{qid}"'
+            statement += f'\nSET {node_vars[kid]}.kid = "{kid}"'
             for key, value in node.items():
                 statement += '\nSET {0}.{1} = {2}'.format(
                     node_vars[kid],
                     key,
                     json.dumps(value),
                 )
-        for edge in data['edges']:
-            qid = edge['qid']
-            kid = edge['kid']
+        for qid, edge in edge_bindings.items():
+            kid = edge['id']
             source_id = edge['source_id']
             target_id = edge['target_id']
             statement += '\nMERGE ({0})-[{1}:`{2}`]->({3})'.format(
@@ -497,6 +475,8 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             )
             statement += f'\nON CREATE SET {edge_vars[kid]}.new = TRUE'
             for key, value in edge.items():
+                statement += f'\nSET {edge_vars[kid]}.qid = "{qid}"'
+                statement += f'\nSET {edge_vars[kid]}.kid = "{kid}"'
                 statement += '\nSET {0}.{1} = {2}'.format(
                     edge_vars[kid],
                     key,
