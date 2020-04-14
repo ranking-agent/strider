@@ -465,13 +465,11 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 )
         for qid, edge in edge_bindings.items():
             kid = edge['id']
-            source_id = edge['source_id']
-            target_id = edge['target_id']
             statement += '\nMERGE ({0})-[{1}:`{2}`]->({3})'.format(
-                node_vars[source_id],
+                node_vars[edge['source_id']],
                 edge_vars[kid],
                 query.uid,
-                node_vars[target_id],
+                node_vars[edge['target_id']],
             )
             statement += f'\nON CREATE SET {edge_vars[kid]}.new = TRUE'
             for key, value in edge.items():
