@@ -9,7 +9,7 @@ import aiormq
 from bmt import Toolkit as BMToolkit
 import httpx
 
-from strider.scoring import score_graph, get_support
+from strider.scoring import score_graph
 from strider.worker import Worker, Neo4jMixin, RedisMixin, SqliteMixin
 from strider.query import create_query
 
