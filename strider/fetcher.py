@@ -313,19 +313,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             target_spec = query.qgraph['nodes'][qid]
             await self.validate(node, target_spec)
 
-    async def assign_weights(self, data):
-        """Assign weights to edges using OmniCorp."""
-        node_synonyms = {
-            node['kid']: node.get('equivalent_identifiers', [])
-            for node in data['nodes']
-        }
-        for edge in data['edges']:
-            source_id = edge['source_id']
-            target_id = edge['target_id']
-            num_pubs = await get_support(source_id, target_id, node_synonyms)
-            edge['weight'] = num_pubs + 1
-        return data['edges']
-
     async def update_priorities(self, query, subgraphs, scores):
         """Update job priorities."""
         # for each subgraph, add its weight to each component node's priority
