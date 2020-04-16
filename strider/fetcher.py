@@ -284,7 +284,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         ]
         await self.store_answers(
             query, job_id,
-            answers, qnode_ids + qedge_ids,
+            answers,
         )
 
         # publish all nodes to jobs queue
@@ -476,7 +476,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         result = await self.neo4j.run_async(statement)
         return [row['e'] for row in result]
 
-    async def store_answers(self, query, job_id, answers, slots):
+    async def store_answers(self, query, job_id, answers):
         """Store answers in sqlite."""
         if not answers:
             return
@@ -484,6 +484,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         start_time = float(await self.redis.get(
             f'{query.uid}_starttime'
         ))
+        slots = list(query.qgraph['nodes']) + list(query.qgraph['edges'])
         for answer, score in answers:
             things = {**answer['nodes'], **answer['edges']}
             values = (
