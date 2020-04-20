@@ -436,43 +436,43 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         statement = ''
         for qid, node in node_bindings.items():
             kid = node['id']
-            statement += '\nMERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})'.format(
+            statement += 'MERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})\n'.format(
                 node_vars[kid],
                 query.uid,
                 kid,
                 qid,
             )
-            statement += f'\nSET {node_vars[kid]}.qid = "{qid}"'
-            statement += f'\nSET {node_vars[kid]}.kid = "{kid}"'
+            statement += f'SET {node_vars[kid]}.qid = "{qid}"\n'
+            statement += f'SET {node_vars[kid]}.kid = "{kid}"\n'
             for key, value in node.items():
-                statement += '\nSET {0}.{1} = {2}'.format(
+                statement += 'SET {0}.{1} = {2}\n'.format(
                     node_vars[kid],
                     key,
                     json.dumps(value),
                 )
         for qid, edge in edge_bindings.items():
             kid = edge['id']
-            statement += '\nMERGE ({0})-[{1}:`{2}`]->({3})'.format(
+            statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
                 node_vars[edge['source_id']],
                 edge_vars[kid],
                 query.uid,
                 node_vars[edge['target_id']],
             )
-            statement += f'\nON CREATE SET {edge_vars[kid]}.new = TRUE'
+            statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
             for key, value in edge.items():
-                statement += f'\nSET {edge_vars[kid]}.qid = "{qid}"'
-                statement += f'\nSET {edge_vars[kid]}.kid = "{kid}"'
-                statement += '\nSET {0}.{1} = {2}'.format(
+                statement += f'SET {edge_vars[kid]}.qid = "{qid}"\n'
+                statement += f'SET {edge_vars[kid]}.kid = "{kid}"\n'
+                statement += 'SET {0}.{1} = {2}\n'.format(
                     edge_vars[kid],
                     key,
                     json.dumps(value),
                 )
-        statement += '\nWITH [{0}] AS es UNWIND es as e'.format(
+        statement += 'WITH [{0}] AS es UNWIND es as e\n'.format(
             ', '.join(edge_vars.values())
         )
-        statement += '\nWITH e WHERE e.new'
-        statement += '\nREMOVE e.new'
-        statement += '\nRETURN e'
+        statement += 'WITH e WHERE e.new\n'
+        statement += 'REMOVE e.new\n'
+        statement += 'RETURN e'
         result = await self.neo4j.run_async(statement)
         return [row['e'] for row in result]
 
