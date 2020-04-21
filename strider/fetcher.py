@@ -54,13 +54,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         await self.setup_neo4j()
         self.neo4j.run_async('MATCH (n) DETACH DELETE n')
 
-    async def is_done(self, plan, qid=None, kid=None):
-        """Return True iff a job (qid/kid) has already been completed."""
-        return bool(await self.redis.sismember(
-            f'{plan}_done',
-            f'({qid}:{kid})'
-        ))
-
     async def validate(self, element, spec):
         """Validate a node against a query-node specification."""
         for key, value in spec.items():
@@ -318,8 +311,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         # for each subgraph, add its weight to each component node's priority
         for subgraph, score in zip(subgraphs, scores):
             for node in subgraph['nodes'].values():
-                await self.redis.hincrbyfloat(
-                    f'{query.uid}_priorities',
+                await query.update_priority(
                     f'({node["qid"]}:{node["kid"]})',
                     score
                 )
@@ -383,35 +375,21 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         """Get jobs for data nodes."""
         nodes = [
             (qid, node['id']) for qid, node in node_bindings.items()
-            if not await self.is_done(
-                query,
-                qid=qid,
-                kid=node['id'],
-            )
+            if not await query.is_done(f'({qid}:{node["id"]})')
         ]
         node_steps = []
         for qid, kid in nodes:
             job_id = f'({qid}:{kid})'
 
             # never process the same job twice
-            if (
-                    await self.redis.exists(f'{query.uid}_done')
-                    and await self.redis.sismember(f'{query.uid}_done', job_id)
-            ):
+            if await query.is_done(job_id):
                 continue
-            await self.redis.sadd(f'{query.uid}_done', job_id)
+            await query.finish(job_id)
 
-            priority = min(255, int(float(await self.redis.hget(
-                f'{query.uid}_priorities',
-                job_id
-            ))))
+            priority = await query.get_priority(job_id)
 
             # get step(s):
-            steps_string = await self.redis.hget(
-                f'{query.uid}_plan',
-                qid,
-                encoding='utf-8',
-            )
+            steps_string = await query.get_steps(qid)
             try:
                 steps = json.loads(steps_string)
             except TypeError:
@@ -481,9 +459,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         if not answers:
             return
         rows = []
-        start_time = float(await self.redis.get(
-            f'{query.uid}_starttime'
-        ))
+        start_time = await query.get_start_time()
         slots = list(query.qgraph['nodes']) + list(query.qgraph['edges'])
         for answer, score in answers:
             things = {**answer['nodes'], **answer['edges']}
