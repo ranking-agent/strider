@@ -12,6 +12,7 @@ import httpx
 from strider.scoring import score_graph
 from strider.worker import Worker, Neo4jMixin, RedisMixin, SqliteMixin
 from strider.query import create_query
+from strider.result import Result, ValidationError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -25,10 +26,6 @@ def log_exception(method):
         except Exception as err:  # pylint: disable=broad-except
             LOGGER.exception(err)
     return wrapper
-
-
-class ValidationError(Exception):
-    """Invalid node or edge."""
 
 
 class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
@@ -54,37 +51,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         await self.setup_neo4j()
         self.neo4j.run_async('MATCH (n) DETACH DELETE n')
 
-    async def validate(self, element, spec):
-        """Validate a node against a query-node specification."""
-        for key, value in spec.items():
-            if value is None:
-                continue
-            if key == 'curie':
-                if element['id'] != value:
-                    raise ValidationError(f'{element["id"]} != {value}')
-            elif key == 'type':
-                if isinstance(element['type'], str):
-                    lineage = (
-                        self.bmt.ancestors(value)
-                        + self.bmt.descendents(value)
-                        + [value]
-                    )
-                    if element['type'] not in lineage:
-                        raise ValidationError(
-                            f'{element["type"]} not in {lineage}'
-                        )
-                elif isinstance(element['type'], list):
-                    if value not in element['type']:
-                        raise ValidationError(
-                            f'{value} not in {element["type"]}'
-                        )
-                else:
-                    raise ValueError('Type must be a str or list')
-            elif key not in ['id', 'source_id', 'target_id']:
-                if element[key] != value:
-                    raise ValidationError(f'{element[key]} != {value}')
-        return True
-
     async def on_message(self, message):
         """Handle message from jobs queue.
 
@@ -102,16 +68,24 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         await self.neo4j.run_async(statement)
 
         if not data.get('step_id', None):
-            edge_bindings = dict()
-            node_bindings = {
-                data['qid']: {
+            result = {
+                'edge_bindings': [],
+                'node_bindings': [{
+                    'qg_id': data['qid'],
+                    'kg_id': data['kid'],
+                }],
+            }
+            kgraph = {
+                'nodes': {data['kid']: {
                     'id': data['kid'],
                     'type': data['type'],
-                }
+                }},
+                'edges': [],
             }
+            result = Result(result, {'knowledge_graph': kgraph}, self.bmt)
             job_id = f'({data["kid"]}:{data["qid"]})'
             await self.process_result(
-                query, job_id, edge_bindings, node_bindings
+                query, job_id, result,
             )
         else:
             await self.process_message(query, data, **query.options)
@@ -204,45 +178,36 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 for edge in response['knowledge_graph']['edges']
             },
         }
-        knodes = response['knowledge_graph']['nodes']
-        kedges = response['knowledge_graph']['edges']
         # process all edges, in parallel
         edge_awaitables = []
         for result in response['results']:
-            edge_bindings = {
-                binding['qg_id']: kedges[binding['kg_id']]
-                for binding in result['edge_bindings']
-            }
-            node_bindings = {
-                binding['qg_id']: knodes[binding['kg_id']]
-                for binding in result['node_bindings']
-            }
+            result = Result(result, response, self.bmt)
             edge_awaitables.append(self.process_result(
-                query, job_id, edge_bindings, node_bindings, **kwargs
+                query, job_id, result, **kwargs
             ))
         await asyncio.gather(*edge_awaitables)
 
     async def process_result(
             self,
             query, job_id,
-            edge_bindings, node_bindings,
+            result,
             **kwargs
     ):
         """Process individual result from KP."""
         # filter out results that are incompatible with qgraph
         try:
-            await self.validate_result(
-                query, job_id,
-                edge_bindings, node_bindings,
+            result.validate(query)
+        except ValidationError as err:
+            LOGGER.debug(
+                '[query %s]: [job %s]: Filtered out element: %s',
+                query.uid, job_id, err
             )
-        except ValidationError:
             return
 
         # store result in Neo4j
         new_edges = await self.store_result(
             query,
-            node_bindings,
-            edge_bindings,
+            result,
         )
 
         # get subgraphs and scores
@@ -254,7 +219,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         subgraphs.append({
             'nodes': {
                 qid: {**node, 'qid': qid, 'kid': node['id']}
-                for qid, node in node_bindings.items()
+                for qid, node in result.nodes.items()
             },
             'edges': {},
         })
@@ -264,7 +229,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         ])
 
         # publish all nodes to jobs queue
-        await self.queue_jobs(query, node_bindings, edge_bindings, job_id)
+        await self.queue_jobs(query, result, job_id)
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
@@ -282,26 +247,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 query, job_id,
                 subgraph, score,
             )
-
-    async def validate_result(
-            self,
-            query, job_id,
-            edge_bindings, node_bindings,
-    ):
-        """Validate result nodes and edges against qgraph."""
-        for qid, edge in edge_bindings.items():
-            edge_spec = query.qgraph['edges'][qid]
-            try:
-                await self.validate(edge, edge_spec)
-            except ValidationError as err:
-                LOGGER.debug(
-                    '[query %s]: [job %s]: Filtered out edge %s: %s',
-                    query.uid, job_id, str(edge), err
-                )
-                raise err
-        for qid, node in node_bindings.items():
-            target_spec = query.qgraph['nodes'][qid]
-            await self.validate(node, target_spec)
 
     async def update_priorities(self, query, subgraph, score):
         """Update job priorities."""
@@ -331,9 +276,9 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
 
         return subgraphs
 
-    async def queue_jobs(self, query, node_bindings, edge_bindings, job_id):
+    async def queue_jobs(self, query, result, job_id):
         """Queue jobs from result."""
-        node_steps = await self.get_jobs(query, node_bindings)
+        node_steps = await self.get_jobs(query, result.nodes)
 
         publish_awaitables = []
         for priority, qid, kid, steps in node_steps:
@@ -347,7 +292,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 if match is None:
                     raise ValueError(f'Cannot parse step id {step_id}')
                 # edge_qid = match[1]
-                if match[1] in edge_bindings:
+                if match[1] in result.edges:
                     continue
 
                 job = {
@@ -393,7 +338,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             node_steps.append((priority, qid, kid, steps))
         return node_steps
 
-    async def store_result(self, query, node_bindings, edge_bindings):
+    async def store_result(self, query, result):
         """Store result in Neo4j.
 
         Return new edges.
@@ -401,14 +346,14 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         # merge with existing nodes/edge, but update edge weight
         node_vars = {
             node['id']: f'n{i:03d}'
-            for i, node in enumerate(node_bindings.values())
+            for i, node in enumerate(result.nodes.values())
         }
         edge_vars = {
             edge['id']: f'e{i:03d}'
-            for i, edge in enumerate(edge_bindings.values())
+            for i, edge in enumerate(result.edges.values())
         }
         statement = ''
-        for qid, node in node_bindings.items():
+        for qid, node in result.nodes.items():
             kid = node['id']
             statement += 'MERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})\n'.format(
                 node_vars[kid],
@@ -424,7 +369,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                     key,
                     json.dumps(value),
                 )
-        for qid, edge in edge_bindings.items():
+        for qid, edge in result.edges.items():
             kid = edge['id']
             statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
                 node_vars[edge['source_id']],
