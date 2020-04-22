@@ -61,6 +61,9 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             await self.setup()
         data = json.loads(message.body)
         query = await create_query(data.pop('query_id'), self.redis)
+
+        # set up a uniqueness constraint on Neo4j
+        # without this, simultaneous MERGEs will create duplicate nodes
         statement = f'''
             CREATE CONSTRAINT
             ON (n:`{query.uid}`)
