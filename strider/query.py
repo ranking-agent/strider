@@ -49,11 +49,16 @@ class Query():
 
     async def get_steps(self, qid):
         """Get steps for query graph node id."""
-        return await self.redis.hget(
+        steps_string = await self.redis.hget(
             f'{self.uid}_plan',
             qid,
             encoding='utf-8',
         )
+        try:
+            steps = json.loads(steps_string)
+        except TypeError:
+            steps = dict()
+        return steps
 
     async def get_start_time(self):
         """Get start time."""

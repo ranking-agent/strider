@@ -369,11 +369,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             priority = await query.get_priority(job_id)
 
             # get step(s):
-            steps_string = await query.get_steps(qid)
-            try:
-                steps = json.loads(steps_string)
-            except TypeError:
-                steps = dict()
+            steps = await query.get_steps(qid)
             node_steps.append((priority, qid, kid, steps))
         return node_steps
 
