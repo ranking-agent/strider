@@ -205,16 +205,11 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             return
 
         # store result in Neo4j
-        new_edges = await self.store_result(
+        subgraphs = await self.store_result(
             query,
             result,
         )
 
-        # get subgraphs and scores
-        subgraphs = await self.get_subgraphs(
-            query,
-            new_edges,
-        )
         # in case the answer is just disconnected nodes
         subgraphs.append({
             'nodes': {
@@ -256,25 +251,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 f'({node["qid"]}:{node["kid"]})',
                 score
             )
-
-    async def get_subgraphs(self, query, new_edges):
-        """Get subgraphs."""
-        subgraph_awaitables = []
-        for edge in new_edges:
-            statement = 'MATCH (:`{0}`)-[e {{kid:"{1}", qid:"{2}"}}]->()\n' \
-                        'CALL strider.getPaths(e) YIELD nodes, edges\n' \
-                        'RETURN nodes, edges'.format(
-                            query.uid, edge['kid'], edge['qid']
-                        )
-            subgraph_awaitables.append(self.neo4j.run_async(statement))
-        nested_results = await asyncio.gather(*subgraph_awaitables)
-        subgraphs = [
-            result
-            for results in nested_results
-            for result in results
-        ]
-
-        return subgraphs
 
     async def queue_jobs(self, query, result, job_id):
         """Queue jobs from result."""
@@ -390,10 +366,11 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             ', '.join(edge_vars.values())
         )
         statement += 'WITH e WHERE e.new\n'
+        statement += 'CALL strider.getPaths(e) YIELD nodes, edges\n'
         statement += 'REMOVE e.new\n'
-        statement += 'RETURN e'
+        statement += 'RETURN nodes, edges'
         result = await self.neo4j.run_async(statement)
-        return [row['e'] for row in result]
+        return result
 
     async def store_answer(self, query, job_id, answer, score):
         """Store answers in sqlite."""
