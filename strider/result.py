@@ -8,16 +8,14 @@ class ValidationError(Exception):
 class Result():
     """Result."""
 
-    def __init__(self, result, response, bmt):
+    def __init__(self, result, kgraph, bmt):
         """Initialize."""
-        knodes = response['knowledge_graph']['nodes']
-        kedges = response['knowledge_graph']['edges']
         self.edges = {
-            binding['qg_id']: kedges[binding['kg_id']]
+            binding['qg_id']: kgraph['edges'][binding['kg_id']]
             for binding in result['edge_bindings']
         }
         self.nodes = {
-            binding['qg_id']: knodes[binding['kg_id']]
+            binding['qg_id']: kgraph['nodes'][binding['kg_id']]
             for binding in result['node_bindings']
         }
         self.bmt = bmt

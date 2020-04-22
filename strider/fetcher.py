@@ -85,7 +85,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 }},
                 'edges': [],
             }
-            result = Result(result, {'knowledge_graph': kgraph}, self.bmt)
+            result = Result(result, kgraph, self.bmt)
             job_id = f'({data["kid"]}:{data["qid"]})'
             await self.process_result(
                 query, job_id, result,
@@ -184,7 +184,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         # process all edges, in parallel
         edge_awaitables = []
         for result in response['results']:
-            result = Result(result, response, self.bmt)
+            result = Result(result, response['knowledge_graph'], self.bmt)
             edge_awaitables.append(self.process_result(
                 query, job_id, result, **kwargs
             ))
