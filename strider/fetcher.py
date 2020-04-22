@@ -87,7 +87,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             }
             result = Result(result, query.qgraph, kgraph, self.bmt)
             job_id = f'({data["kid"]}:{data["qid"]})'
-            await self.process_result(
+            await self.process_kp_result(
                 query, job_id, result,
             )
         else:
@@ -106,9 +106,9 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             *step_awaitables,
         )
 
-    @log_exception
-    async def take_step(self, query, job_id, data, endpoint, **kwargs):
-        """Call specific endpoint."""
+    @staticmethod
+    def get_kp_request(query, data):
+        """Get request to send to KP."""
         match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
         if match is None:
             raise ValueError(f'Cannot parse step id {data["step_id"]}')
@@ -120,37 +120,35 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         target_spec = query.qgraph['nodes'][target_qid]
         source_spec = query.qgraph['nodes'][data['qid']]
 
-        async with httpx.AsyncClient(timeout=None) as client:
-            request = {
-                "query_graph": {
-                    # "nodes": [
-                    #     source_spec,
-                    #     target_spec,
-                    # ],
-                    # "edges": [
-                    #     edge_spec
-                    # ],
-                    "nodes": [
-                        {
-                            "curie": data['kid'],
-                            "id": source_spec['id'],
-                            "type": source_spec['type'],
-                        },
-                        {
-                            "id": target_spec['id'],
-                            "type": target_spec['type'],
-                        },
-                    ],
-                    "edges": [
-                        {
-                            "id": edge_spec['id'],
-                            "source_id": edge_spec['source_id'],
-                            "target_id": edge_spec['target_id'],
-                            "type": edge_spec['type'],
-                        },
-                    ],
-                }
+        return {
+            "query_graph": {
+                "nodes": [
+                    {
+                        "curie": data['kid'],
+                        "id": source_spec['id'],
+                        "type": source_spec['type'],
+                    },
+                    {
+                        "id": target_spec['id'],
+                        "type": target_spec['type'],
+                    },
+                ],
+                "edges": [
+                    {
+                        "id": edge_spec['id'],
+                        "source_id": edge_spec['source_id'],
+                        "target_id": edge_spec['target_id'],
+                        "type": edge_spec['type'],
+                    },
+                ],
             }
+        }
+
+    @log_exception
+    async def take_step(self, query, job_id, data, endpoint, **kwargs):
+        """Call specific endpoint."""
+        request = self.get_kp_request(query, data)
+        async with httpx.AsyncClient(timeout=None) as client:
             try:
                 response = await client.post(endpoint, json=request)
             except httpx.ReadTimeout:
@@ -161,13 +159,13 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 return []
         assert response.status_code < 300
 
-        await self.process_response(
+        await self.process_kp_response(
             query, job_id,
             response.json(),
             **kwargs,
         )
 
-    async def process_response(self, query, job_id, response, **kwargs):
+    async def process_kp_response(self, query, job_id, response, **kwargs):
         """Process response from KP."""
         if response is None:
             return
@@ -197,12 +195,12 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                     query.uid, job_id, err
                 )
                 continue
-            edge_awaitables.append(self.process_result(
+            edge_awaitables.append(self.process_kp_result(
                 query, job_id, result, **kwargs
             ))
         await asyncio.gather(*edge_awaitables)
 
-    async def process_result(
+    async def process_kp_result(
             self,
             query, job_id,
             result,
@@ -210,7 +208,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
     ):
         """Process individual result from KP."""
         # store result in Neo4j
-        subgraphs = await self.store_result(
+        subgraphs = await self.store_kp_result(
             query,
             result,
         )
@@ -223,6 +221,8 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             },
             'edges': {},
         })
+
+        # process subgraphs
         await asyncio.gather(*[
             self.process_subgraph(query, job_id, subgraph, **kwargs)
             for subgraph in subgraphs
@@ -233,6 +233,64 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
+    
+    async def store_kp_result(self, query, result):
+        """Store result in Neo4j.
+
+        Return new edges.
+        """
+        # merge with existing nodes/edge, but update edge weight
+        node_vars = {
+            node['id']: f'n{i:03d}'
+            for i, node in enumerate(result.nodes.values())
+        }
+        edge_vars = {
+            edge['id']: f'e{i:03d}'
+            for i, edge in enumerate(result.edges.values())
+        }
+        statement = ''
+        for qid, node in result.nodes.items():
+            kid = node['id']
+            statement += 'MERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})\n'.format(
+                node_vars[kid],
+                query.uid,
+                kid,
+                qid,
+            )
+            statement += f'SET {node_vars[kid]}.qid = "{qid}"\n'
+            statement += f'SET {node_vars[kid]}.kid = "{kid}"\n'
+            for key, value in node.items():
+                statement += 'SET {0}.{1} = {2}\n'.format(
+                    node_vars[kid],
+                    key,
+                    json.dumps(value),
+                )
+        for qid, edge in result.edges.items():
+            kid = edge['id']
+            statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
+                node_vars[edge['source_id']],
+                edge_vars[kid],
+                query.uid,
+                node_vars[edge['target_id']],
+            )
+            statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
+            for key, value in edge.items():
+                statement += f'SET {edge_vars[kid]}.qid = "{qid}"\n'
+                statement += f'SET {edge_vars[kid]}.kid = "{kid}"\n'
+                statement += 'SET {0}.{1} = {2}\n'.format(
+                    edge_vars[kid],
+                    key,
+                    json.dumps(value),
+                )
+        statement += 'WITH [{0}] AS es UNWIND es as e\n'.format(
+            ', '.join(edge_vars.values())
+        )
+        statement += 'WITH e WHERE e.new\n'
+        statement += 'CALL strider.getPaths(e) YIELD nodes, edges\n'
+        statement += 'REMOVE e.new\n'
+        statement += 'RETURN nodes, edges'
+        result = await self.neo4j.run_async(statement)
+        return result
 
     async def process_subgraph(self, query, job_id, subgraph, **kwargs):
         """Process subgraph."""
@@ -318,64 +376,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 steps = dict()
             node_steps.append((priority, qid, kid, steps))
         return node_steps
-
-    async def store_result(self, query, result):
-        """Store result in Neo4j.
-
-        Return new edges.
-        """
-        # merge with existing nodes/edge, but update edge weight
-        node_vars = {
-            node['id']: f'n{i:03d}'
-            for i, node in enumerate(result.nodes.values())
-        }
-        edge_vars = {
-            edge['id']: f'e{i:03d}'
-            for i, edge in enumerate(result.edges.values())
-        }
-        statement = ''
-        for qid, node in result.nodes.items():
-            kid = node['id']
-            statement += 'MERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})\n'.format(
-                node_vars[kid],
-                query.uid,
-                kid,
-                qid,
-            )
-            statement += f'SET {node_vars[kid]}.qid = "{qid}"\n'
-            statement += f'SET {node_vars[kid]}.kid = "{kid}"\n'
-            for key, value in node.items():
-                statement += 'SET {0}.{1} = {2}\n'.format(
-                    node_vars[kid],
-                    key,
-                    json.dumps(value),
-                )
-        for qid, edge in result.edges.items():
-            kid = edge['id']
-            statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
-                node_vars[edge['source_id']],
-                edge_vars[kid],
-                query.uid,
-                node_vars[edge['target_id']],
-            )
-            statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
-            for key, value in edge.items():
-                statement += f'SET {edge_vars[kid]}.qid = "{qid}"\n'
-                statement += f'SET {edge_vars[kid]}.kid = "{kid}"\n'
-                statement += 'SET {0}.{1} = {2}\n'.format(
-                    edge_vars[kid],
-                    key,
-                    json.dumps(value),
-                )
-        statement += 'WITH [{0}] AS es UNWIND es as e\n'.format(
-            ', '.join(edge_vars.values())
-        )
-        statement += 'WITH e WHERE e.new\n'
-        statement += 'CALL strider.getPaths(e) YIELD nodes, edges\n'
-        statement += 'REMOVE e.new\n'
-        statement += 'RETURN nodes, edges'
-        result = await self.neo4j.run_async(statement)
-        return result
 
     async def store_answer(self, query, job_id, answer, score):
         """Store answers in sqlite."""
