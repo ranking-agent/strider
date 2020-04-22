@@ -317,41 +317,48 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
 
     async def queue_jobs(self, query, result, job_id):
         """Queue jobs from result."""
-        node_steps = [
-            await query.get_steps(qid, node['id'])
-            for qid, node in result.nodes.items()
-        ]
+        await asyncio.gather(*[
+            self.queue_node_jobs(
+                query,
+                qid,
+                node,
+                job_id,
+                result.edges,
+            ) for qid, node in result.nodes.items()
+        ])
 
+    async def queue_node_jobs(self, query, qid, node, job_id, edges):
+        """Queue jobs from node."""
+        priority, qid, kid, steps = await query.get_steps(qid, node['id'])
+        LOGGER.debug(
+            "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
+            query.uid, job_id, qid, kid
+        )
         publish_awaitables = []
-        for priority, qid, kid, steps in node_steps:
-            LOGGER.debug(
-                "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
-                query.uid, job_id, qid, kid
-            )
-            for step_id, endpoints in steps.items():
-                # do not retrace your steps
-                match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
-                if match is None:
-                    raise ValueError(f'Cannot parse step id {step_id}')
-                # edge_qid = match[1]
-                if match[1] in result.edges:
-                    continue
+        for step_id, endpoints in steps.items():
+            # do not retrace your steps
+            match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
+            if match is None:
+                raise ValueError(f'Cannot parse step id {step_id}')
+            # edge_qid = match[1]
+            if match[1] in edges:
+                continue
 
-                job = {
-                    'query_id': query.uid,
-                    'qid': qid,
-                    'kid': kid,
-                    'step_id': step_id,
-                    'endpoints': endpoints,
-                }
+            job = {
+                'query_id': query.uid,
+                'qid': qid,
+                'kid': kid,
+                'step_id': step_id,
+                'endpoints': endpoints,
+            }
 
-                publish_awaitables.append(self.channel.basic_publish(
-                    routing_key='jobs',
-                    body=json.dumps(job).encode('utf-8'),
-                    properties=aiormq.spec.Basic.Properties(
-                        priority=priority,
-                    ),
-                ))
+            publish_awaitables.append(self.channel.basic_publish(
+                routing_key='jobs',
+                body=json.dumps(job).encode('utf-8'),
+                properties=aiormq.spec.Basic.Properties(
+                    priority=priority,
+                ),
+            ))
         await asyncio.gather(*publish_awaitables)
 
     async def store_answer(self, query, job_id, answer, score):
