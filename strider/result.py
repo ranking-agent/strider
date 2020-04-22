@@ -8,7 +8,7 @@ class ValidationError(Exception):
 class Result():
     """Result."""
 
-    def __init__(self, result, kgraph, bmt):
+    def __init__(self, result, qgraph, kgraph, bmt):
         """Initialize."""
         self.edges = {
             binding['qg_id']: kgraph['edges'][binding['kg_id']]
@@ -19,17 +19,18 @@ class Result():
             for binding in result['node_bindings']
         }
         self.bmt = bmt
+        self.validate(qgraph)
 
-    async def validate(self, query):
+    def validate(self, qgraph):
         """Validate against query."""
         for qid, edge in self.edges.items():
-            edge_spec = query.qgraph['edges'][qid]
-            await self._validate(edge, edge_spec)
+            edge_spec = qgraph['edges'][qid]
+            self._validate(edge, edge_spec)
         for qid, node in self.nodes.items():
-            target_spec = query.qgraph['nodes'][qid]
-            await self._validate(node, target_spec)
+            target_spec = qgraph['nodes'][qid]
+            self._validate(node, target_spec)
 
-    async def _validate(self, element, spec):
+    def _validate(self, element, spec):
         """Validate a node against a query-node specification."""
         for key, value in spec.items():
             if value is None:

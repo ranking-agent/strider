@@ -85,7 +85,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 }},
                 'edges': [],
             }
-            result = Result(result, kgraph, self.bmt)
+            result = Result(result, query.qgraph, kgraph, self.bmt)
             job_id = f'({data["kid"]}:{data["qid"]})'
             await self.process_result(
                 query, job_id, result,
@@ -184,7 +184,19 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         # process all edges, in parallel
         edge_awaitables = []
         for result in response['results']:
-            result = Result(result, response['knowledge_graph'], self.bmt)
+            try:
+                result = Result(
+                    result,
+                    query.qgraph,
+                    response['knowledge_graph'],
+                    self.bmt,
+                )
+            except ValidationError as err:
+                LOGGER.debug(
+                    '[query %s]: [job %s]: Filtered out element: %s',
+                    query.uid, job_id, err
+                )
+                continue
             edge_awaitables.append(self.process_result(
                 query, job_id, result, **kwargs
             ))
@@ -197,16 +209,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             **kwargs
     ):
         """Process individual result from KP."""
-        # filter out results that are incompatible with qgraph
-        try:
-            result.validate(query)
-        except ValidationError as err:
-            LOGGER.debug(
-                '[query %s]: [job %s]: Filtered out element: %s',
-                query.uid, job_id, err
-            )
-            return
-
         # store result in Neo4j
         subgraphs = await self.store_result(
             query,
