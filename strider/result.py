@@ -5,7 +5,7 @@ class ValidationError(Exception):
     """Invalid node or edge."""
 
 
-class Result():
+class Result():  # pylint: disable=too-few-public-methods
     """Result."""
 
     def __init__(self, result, qgraph, kgraph, bmt):

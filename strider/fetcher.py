@@ -233,7 +233,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
-    
+
     async def store_kp_result(self, query, result):
         """Store result in Neo4j.
 
