@@ -317,7 +317,10 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
 
     async def queue_jobs(self, query, result, job_id):
         """Queue jobs from result."""
-        node_steps = await self.get_jobs(query, result.nodes)
+        node_steps = [
+            await query.get_steps(qid, node['id'])
+            for qid, node in result.nodes.items()
+        ]
 
         publish_awaitables = []
         for priority, qid, kid, steps in node_steps:
@@ -350,28 +353,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                     ),
                 ))
         await asyncio.gather(*publish_awaitables)
-
-    async def get_jobs(self, query, node_bindings):
-        """Get jobs for data nodes."""
-        nodes = [
-            (qid, node['id']) for qid, node in node_bindings.items()
-            if not await query.is_done(f'({qid}:{node["id"]})')
-        ]
-        node_steps = []
-        for qid, kid in nodes:
-            job_id = f'({qid}:{kid})'
-
-            # never process the same job twice
-            if await query.is_done(job_id):
-                continue
-            await query.finish(job_id)
-
-            priority = await query.get_priority(job_id)
-
-            # get step(s):
-            steps = await query.get_steps(qid)
-            node_steps.append((priority, qid, kid, steps))
-        return node_steps
 
     async def store_answer(self, query, job_id, answer, score):
         """Store answers in sqlite."""

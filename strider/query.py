@@ -47,8 +47,17 @@ class Query():
             job_id
         ))))
 
-    async def get_steps(self, qid):
+    async def get_steps(self, qid, kid):
         """Get steps for query graph node id."""
+        job_id = f'({qid}:{kid})'
+
+        # never process the same job twice
+        if await self.is_done(job_id):
+            return None, qid, kid, dict()
+        await self.finish(job_id)
+
+        priority = await self.get_priority(job_id)
+
         steps_string = await self.redis.hget(
             f'{self.uid}_plan',
             qid,
@@ -58,7 +67,7 @@ class Query():
             steps = json.loads(steps_string)
         except TypeError:
             steps = dict()
-        return steps
+        return priority, qid, kid, steps
 
     async def get_start_time(self):
         """Get start time."""
