@@ -229,7 +229,15 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         ])
 
         # publish all nodes to jobs queue
-        await self.queue_jobs(query, result, job_id)
+        await asyncio.gather(*[
+            self.queue_node_jobs(
+                query,
+                qid,
+                node['id'],
+                job_id,
+                exclude_qedges=result.edges,
+            ) for qid, node in result.nodes.items()
+        ])
 
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
@@ -315,34 +323,28 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 score
             )
 
-    async def queue_jobs(self, query, result, job_id):
-        """Queue jobs from result."""
-        await asyncio.gather(*[
-            self.queue_node_jobs(
-                query,
-                qid,
-                node,
-                job_id,
-                result.edges,
-            ) for qid, node in result.nodes.items()
-        ])
-
-    async def queue_node_jobs(self, query, qid, node, job_id, edges):
+    async def queue_node_jobs(
+            self,
+            query, qid, kid, job_id,
+            exclude_qedges=None,
+    ):
         """Queue jobs from node."""
-        priority, qid, kid, steps = await query.get_steps(qid, node['id'])
         LOGGER.debug(
             "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
             query.uid, job_id, qid, kid
         )
+        steps = await query.get_steps(qid, kid)
+        priority = await query.get_priority(f'({qid}:{kid})')
         publish_awaitables = []
         for step_id, endpoints in steps.items():
-            # do not retrace your steps
-            match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
-            if match is None:
-                raise ValueError(f'Cannot parse step id {step_id}')
-            # edge_qid = match[1]
-            if match[1] in edges:
-                continue
+            if exclude_qedges:
+                # do not retrace your steps
+                match = re.fullmatch(r'<?-(\w+)->?(\w+)', step_id)
+                if match is None:
+                    raise ValueError(f'Cannot parse step id {step_id}')
+                # edge_qid = match[1]
+                if match[1] in exclude_qedges:
+                    continue
 
             job = {
                 'query_id': query.uid,
