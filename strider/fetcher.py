@@ -169,6 +169,10 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         """Process response from KP."""
         if response is None:
             return
+
+        for node in response['knowledge_graph']['nodes']:
+            node['degree'] = 0.0
+
         response['knowledge_graph'] = {
             'nodes': {
                 node['id']: node
@@ -179,6 +183,24 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 for edge in response['knowledge_graph']['edges']
             },
         }
+
+        # Namdi:
+        # Calculate the degree: the amount of edges coming off the node
+        for edge in response['knowledge_graph']['edges'].values():
+            
+            id_source = edge['source_id']
+            id_target = edge['target_id']
+
+            # how many edges reference this node as a source
+            response['knowledge_graph']['nodes'][id_source]['degree'] += 1
+            
+            # how many edges reference this node as a target
+            response['knowledge_graph']['nodes'][id_target]['degree'] += 1
+
+        # Namdi: 
+        LOGGER.debug('this is response')
+        LOGGER.debug(response)
+
         # process all edges, in parallel
         edge_awaitables = []
         for result in response['results']:
@@ -221,6 +243,8 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             },
             'edges': {},
         })
+
+        LOGGER.debug(subgraphs) # what will show what's coming out of Neo4j and going into score_graph()
 
         # process subgraphs
         await asyncio.gather(*[
@@ -302,6 +326,7 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
 
     async def process_subgraph(self, query, job_id, subgraph, **kwargs):
         """Process subgraph."""
+        
         score = await score_graph(subgraph, query.qgraph, **kwargs)
         await self.update_priorities(query, subgraph, score)
 

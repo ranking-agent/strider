@@ -50,7 +50,6 @@ async def get_support(node1, node2, synonyms):
 
     return effective_pubs
 
-
 async def count_pubs(*curies):
     """Count pubs shared by curies."""
     url = f'{OMNICORP_URL}/shared?'
@@ -77,15 +76,18 @@ async def count_pubs(*curies):
     return response.json()
 
 
-async def add_edge(curies, index, node_synonyms, laplacian):
+async def add_edge(curies, index, node_synonyms, laplacian, degree):
     """Add weighted edge to laplacian."""
     curie1, curie2 = curies
     i, j = index[curie1], index[curie2]
     admittance = 1 + await get_support(curie1, curie2, node_synonyms)
+    admittance /= (degree[curie1] * degree[curie2])
+
     laplacian[i, j] += -admittance
     laplacian[j, i] += -admittance
     laplacian[i, i] += admittance
     laplacian[j, j] += admittance
+
 
 
 async def score_graph(graph, qgraph, support=True):
@@ -100,19 +102,47 @@ async def score_graph(graph, qgraph, support=True):
         node['kid']: node.get('equivalent_identifiers', [])
         for node in graph['nodes'].values()
     }
-    node_ids = sorted([node['kid'] for node in graph['nodes'].values()])
+    # Namdi: all of the node ids in the graph
+    node_ids = sorted([node['kid'] for node in graph['edges'].values()])
+
+    # Namdi edit
+    degree = {node['kid']: node['degree'] for node in graph['nodes'].values()}
+
+    LOGGER.debug(degree)
+    
+    # Namdi: the number of nodes
     num_nodes = len(node_ids)
+    LOGGER.debug('num_nodes: %d', num_nodes)
     laplacian = np.zeros((num_nodes, num_nodes))
+    
+    # Namdi: for a given node_id, return the index of where it was found in the node id list
     index = {node_id: node_ids.index(node_id) for node_id in node_ids}
+
     awaitables = []
+
+    # Namdi: calculate novlety taking the results = graph
+    # Then update the edge wieghts (and edit query() )
+    # results = weight_novelty.query(message, *, exclude_sets=False) 
+    # change to redges_by_id, results = wieght_novlety.query_new(graph, qgraph)
+    # note that, I will be sending only 1 results graph so within query_new
+    # kdx = 0 only. I can ignore this dimension. 
+    # Also, redges_by_id[ (kdx, redge['id']) ] becomes redges_by_id[ (0, redge['id']) ]
+    # eb = redges_by_id[redge_id]['eb']
+    # eb['weight'] -> this is the novelty weights
+    # results -> list of result -> rgraph
+    # redges_by_id: lookup table for (result index, redge id) -> redges
+    # NEED to find a way to find the result edge corresponding to curie1, curie2 from graph. 
+    # I.e, How do I map curie1, curie2 to and redge / edgebinding
     if support:
         for curie1, curie2 in combinations(node_ids, 2):
             awaitables.append(add_edge(
                 (curie1, curie2),
                 index,
                 node_synonyms,
-                laplacian
+                laplacian,
+                degree,
             ))
+            
     else:
         for qedge in qgraph['edges'].values():
             try:
@@ -125,8 +155,10 @@ async def score_graph(graph, qgraph, support=True):
                 (source['kid'], target['kid']),
                 index,
                 node_synonyms,
-                laplacian
+                laplacian,
+                degree,
             ))
+
     await asyncio.gather(*awaitables)
     # get array of eigenvalues, except for lowest
     eigvals = np.sort(np.linalg.eigvals(laplacian))[1:]
