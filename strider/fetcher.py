@@ -184,7 +184,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             },
         }
 
-        # Namdi:
         # Calculate the degree: the amount of edges coming off the node
         for edge in response['knowledge_graph']['edges'].values():
             
@@ -196,10 +195,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             
             # how many edges reference this node as a target
             response['knowledge_graph']['nodes'][id_target]['degree'] += 1
-
-        # Namdi: 
-        LOGGER.debug('this is response')
-        LOGGER.debug(response)
 
         # process all edges, in parallel
         edge_awaitables = []
@@ -243,8 +238,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
             },
             'edges': {},
         })
-
-        LOGGER.debug(subgraphs) # what will show what's coming out of Neo4j and going into score_graph()
 
         # process subgraphs
         await asyncio.gather(*[
