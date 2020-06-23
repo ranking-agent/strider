@@ -9,8 +9,8 @@ import uuid
 import aioredis
 import uvloop
 
+from strider.fetcher import Fetcher
 from strider.query_planner import generate_plan
-from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 from strider.results import Results
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -64,12 +64,9 @@ async def execute_query(qgraph, **kwargs):
     slots = list(qgraph['nodes']) + list(qgraph['edges'])
     await setup_results(query_id, slots)
 
-    # create a RabbitMQ connection
-    connection = await setup_broker()
-    channel = await connection.channel()
-
     # add a result for each named node
     # add a job for each named node
+    queue = asyncio.PriorityQueue()
     for node in qgraph['nodes'].values():
         if 'curie' not in node or node['curie'] is None:
             continue
@@ -81,19 +78,16 @@ async def execute_query(qgraph, **kwargs):
             **node,
         }
         LOGGER.debug("Queueing result %s", job_id)
-        await channel.basic_publish(
-            routing_key='jobs',
-            body=json.dumps(job).encode('utf-8'),
-        )
+        await queue.put_nowait((
+            0,
+            job,
+        ))
+
+    # setup fetcher
+    fetcher = Fetcher(queue, max_jobs=5)
+    await fetcher.run()
 
     return query_id
-
-
-async def setup_broker():
-    """Set up RabbitMQ message broker."""
-    connection = await connect_to_rabbitmq()
-    await setup_rabbitmq()
-    return connection
 
 
 async def setup_results(query_id, slots):

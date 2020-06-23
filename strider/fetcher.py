@@ -5,12 +5,11 @@ import logging
 import re
 import time
 
-import aiormq
 from bmt import Toolkit as BMToolkit
 import httpx
 
 from strider.scoring import score_graph
-from strider.worker import Worker, Neo4jMixin, RedisMixin, SqliteMixin
+from strider.worker import Worker, Neo4jMixin, SqliteMixin
 from strider.query import create_query
 from strider.result import Result, ValidationError
 
@@ -28,7 +27,7 @@ def log_exception(method):
     return wrapper
 
 
-class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
+class Fetcher(Worker, Neo4jMixin, SqliteMixin):
     """Asynchronous worker to consume jobs and publish results."""
 
     input_queue = 'jobs'
@@ -38,18 +37,27 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         super().__init__(*args, **kwargs)
         self.bmt = BMToolkit()
         self.neo4j = None
+        self.query = None
 
-    async def setup(self):
-        """Set up SQLite, Redis, and Neo4j connections."""
+    async def setup(self, qgraph):
+        """Set up SQLite and Neo4j connections."""
         # SQLite
         await self.setup_sqlite()
-
-        # Redis
-        await self.setup_redis()
 
         # Neo4j
         await self.setup_neo4j()
         self.neo4j.run_async('MATCH (n) DETACH DELETE n')
+
+        # initialize query stuff
+        self.query = await create_query(qgraph)
+
+        # set up a uniqueness constraint on Neo4j
+        # without this, simultaneous MERGEs will create duplicate nodes
+        statement = f'''
+            CREATE CONSTRAINT
+            ON (n:`{self.query.uid}`)
+            ASSERT n.kid_qid IS UNIQUE'''
+        await self.neo4j.run_async(statement)
 
     async def on_message(self, message):
         """Handle message from jobs queue.
@@ -57,18 +65,8 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         The message body should be a jsonified dictionary with fields:
         qid, kid, query_id
         """
-        if self.redis is None:
-            await self.setup()
-        data = json.loads(message.body)
-        query = await create_query(data.pop('query_id'), self.redis)
-
-        # set up a uniqueness constraint on Neo4j
-        # without this, simultaneous MERGEs will create duplicate nodes
-        statement = f'''
-            CREATE CONSTRAINT
-            ON (n:`{query.uid}`)
-            ASSERT n.kid_qid IS UNIQUE'''
-        await self.neo4j.run_async(statement)
+        data = message
+        query = self.query
 
         if not data.get('step_id', None):
             result = {
@@ -335,7 +333,6 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
         )
         steps = await query.get_steps(qid, kid)
         priority = await query.get_priority(f'({qid}:{kid})')
-        publish_awaitables = []
         for step_id, endpoints in steps.items():
             if exclude_qedges:
                 # do not retrace your steps
@@ -354,14 +351,10 @@ class Fetcher(Worker, Neo4jMixin, RedisMixin, SqliteMixin):
                 'endpoints': endpoints,
             }
 
-            publish_awaitables.append(self.channel.basic_publish(
-                routing_key='jobs',
-                body=json.dumps(job).encode('utf-8'),
-                properties=aiormq.spec.Basic.Properties(
-                    priority=priority,
-                ),
+            self.queue.put_nowait((
+                priority,
+                job,
             ))
-        await asyncio.gather(*publish_awaitables)
 
     async def store_answer(self, query, job_id, answer, score):
         """Store answers in sqlite."""

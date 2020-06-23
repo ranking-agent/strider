@@ -1,10 +1,15 @@
 """Query object."""
+from collections import defaultdict
 import json
+import time
+import uuid
+
+from strider.query_planner import generate_plan
 
 
-async def create_query(uid, redis):
+async def create_query(qgraph):
     """Create Query."""
-    query = Query(uid, redis)
+    query = Query(qgraph)
     await query._init()  # pylint: disable=protected-access
     return query
 
@@ -12,71 +17,47 @@ async def create_query(uid, redis):
 class Query():
     """Query."""
 
-    def __init__(self, uid, redis):
+    def __init__(self, qgraph, **options):
         """Initialize."""
-        self.uid = uid
-        self.qgraph = None
-        self.options = None
-        self.redis = redis
+        self.uid = str(uuid.uuid4())
+        self.qgraph = qgraph
+        self.options = options
+        self.done = defaultdict(False)
+        self.priorities = defaultdict(0)
+        self.start_time = time.time()
+        self.plan = None
 
     async def _init(self):
-        """Asynchronously initialize qgraph."""
-        self.qgraph = json.loads(await self.redis.get(f'{self.uid}_qgraph'))
-        self.options = {
-            key: json.loads(value)
-            for key, value in (await self.redis.hgetall(
-                f'{self.uid}_options'
-            )).items()
-        }
+        """Generate query plan."""
+        self.plan = await generate_plan(self.qgraph)
 
     async def is_done(self, job_id):
         """Return boolean indicating if a job is completed."""
-        return (
-            await self.redis.exists(f'{self.uid}_done')
-            and await self.redis.sismember(f'{self.uid}_done', job_id)
-        )
+        return self.done[job_id]
 
     async def finish(self, job_id):
         """Mark a job as completed."""
-        await self.redis.sadd(f'{self.uid}_done', job_id)
+        self.done[job_id] = True
 
     async def get_priority(self, job_id):
         """Get priority for job."""
-        return min(255, int(float(await self.redis.hget(
-            f'{self.uid}_priorities',
-            job_id
-        ))))
+        return self.priorities[job_id]
 
     async def get_steps(self, qid, kid):
         """Get steps for query graph node id."""
         job_id = f'({qid}:{kid})'
 
         # never process the same job twice
-        if await self.is_done(job_id):
+        if self.done[job_id]:
             return dict()
         await self.finish(job_id)
 
-        steps_string = await self.redis.hget(
-            f'{self.uid}_plan',
-            qid,
-            encoding='utf-8',
-        )
-        try:
-            steps = json.loads(steps_string)
-        except TypeError:
-            steps = dict()
-        return steps
+        return self.plan[qid]
 
     async def get_start_time(self):
         """Get start time."""
-        return float(await self.redis.get(
-            f'{self.uid}_starttime'
-        ))
+        return self.start_time
 
     async def update_priority(self, job_id, incr):
         """Update priority."""
-        await self.redis.hincrbyfloat(
-            f'{self.uid}_priorities',
-            job_id,
-            incr,
-        )
+        self.priorities[job_id] += incr
