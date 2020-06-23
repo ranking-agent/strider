@@ -6,7 +6,6 @@ import re
 import time
 
 from bmt import Toolkit as BMToolkit
-import httpx
 
 from strider.scoring import score_graph
 from strider.worker import Worker, Neo4jMixin, SqliteMixin
@@ -146,16 +145,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
     async def take_step(self, query, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
         request = self.get_kp_request(query, data)
-        async with httpx.AsyncClient(timeout=None) as client:
-            try:
-                response = await client.post(endpoint, json=request)
-            except httpx.ReadTimeout:
-                LOGGER.error(
-                    "ReadTimeout: endpoint: %s, JSON: %s",
-                    endpoint, json.dumps(request)
-                )
-                return []
-        assert response.status_code < 300
+        await kp_registry.call(endpoint, request)
 
         await self.process_kp_response(
             query, job_id,

@@ -9,6 +9,8 @@ import httpx
 BIOLINK_URL = os.getenv('BIOLINK_URL', 'http://localhost:8144')
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 
+kp_registry = Registry(KPREGISTRY_URL)
+
 
 class Planner():
     """Planner."""
@@ -114,17 +116,7 @@ class Planner():
             edge_types = [f'-{edge_type}->' for edge_type in edge_types]
         else:
             edge_types = [f'<-{edge_type}-' for edge_type in edge_types]
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f'{KPREGISTRY_URL}/search',
-                json={
-                    'source_type': source_types,
-                    'target_type': target_types,
-                    'edge_type': edge_types,
-                }
-            )
-            assert response.status_code < 300
-        return response.json()
+        kp_registry.search(source_types, edge_types, target_types)
 
 
 async def generate_plan(query_graph):
