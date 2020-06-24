@@ -37,6 +37,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         self.bmt = BMToolkit()
         self.neo4j = None
         self.query = None
+        self.uid = kwargs.get('query_id')
 
     async def setup(self, qgraph):
         """Set up SQLite and Neo4j connections."""
@@ -54,7 +55,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         # without this, simultaneous MERGEs will create duplicate nodes
         statement = f'''
             CREATE CONSTRAINT
-            ON (n:`{self.query.uid}`)
+            ON (n:`{self.uid}`)
             ASSERT n.kid_qid IS UNIQUE'''
         await self.neo4j.run_async(statement)
 
@@ -93,7 +94,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
     async def process_message(self, query, data, **kwargs):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
-        LOGGER.debug("[query %s]: [job %s]: Starting...", query.uid, job_id)
+        LOGGER.debug("[query %s]: [job %s]: Starting...", self.uid, job_id)
 
         step_awaitables = (
             self.take_step(query, job_id, data, endpoint, **kwargs)
@@ -180,7 +181,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             except ValidationError as err:
                 LOGGER.debug(
                     '[query %s]: [job %s]: Filtered out element: %s',
-                    query.uid, job_id, err
+                    self.uid, job_id, err
                 )
                 continue
             edge_awaitables.append(self.process_kp_result(
@@ -249,7 +250,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             kid = node['id']
             statement += 'MERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})\n'.format(
                 node_vars[kid],
-                query.uid,
+                self.uid,
                 kid,
                 qid,
             )
@@ -266,7 +267,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
                 node_vars[edge['source_id']],
                 edge_vars[kid],
-                query.uid,
+                self.uid,
                 node_vars[edge['target_id']],
             )
             statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
@@ -319,7 +320,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Queue jobs from node."""
         LOGGER.debug(
             "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
-            query.uid, job_id, qid, kid
+            self.uid, job_id, qid, kid
         )
         steps = await query.get_steps(qid, kid)
         priority = await query.get_priority(f'({qid}:{kid})')
@@ -334,7 +335,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                     continue
 
             job = {
-                'query_id': query.uid,
                 'qid': qid,
                 'kid': kid,
                 'step_id': step_id,
@@ -359,7 +359,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         rows.append(values)
         LOGGER.debug(
             "[query %s]: [job %s]: Storing answer %s",
-            query.uid,
+            self.uid,
             job_id,
             str(values),
         )
@@ -370,7 +370,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         )
         await self.sqlite.executemany(
             'INSERT OR IGNORE INTO `{0}` ({1}) VALUES ({2})'.format(
-                query.uid,
+                self.uid,
                 columns,
                 placeholders,
             ),

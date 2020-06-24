@@ -84,7 +84,11 @@ async def execute_query(qgraph, **kwargs):
         ))
 
     # setup fetcher
-    fetcher = Fetcher(queue, max_jobs=5)
+    fetcher = Fetcher(
+        queue,
+        max_jobs=5,
+        query_id=query_id,
+    )
     await fetcher.run()
 
     return query_id
