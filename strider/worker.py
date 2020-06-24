@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 
-import aioredis
 import aiosqlite
 import httpx
 
@@ -13,7 +12,6 @@ from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 
 LOGGER = logging.getLogger(__name__)
 NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
 RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
 RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
@@ -58,34 +56,6 @@ class SqliteMixin(ABC):  # pylint: disable=too-few-public-methods
     async def setup_sqlite(self):
         """Set up SQLite connection."""
         self.sqlite = await aiosqlite.connect('results.db')
-
-
-class RedisMixin(ABC):  # pylint: disable=too-few-public-methods
-    """Mixin to hold a Redis database connection."""
-
-    def __init__(self):
-        """Initialize."""
-        self.redis = None
-
-    async def setup_redis(self):
-        """Set up Redis connection."""
-        seconds = 1
-        while True:
-            try:
-                self.redis = await aioredis.create_redis_pool(
-                    f'redis://{REDIS_HOST}',
-                    encoding='utf-8'
-                )
-                break
-            except (ConnectionError, OSError) as err:
-                if seconds > 65:
-                    raise err
-                LOGGER.debug(
-                    'Failed to connect to Redis. Trying again in %d seconds',
-                    seconds,
-                )
-                await asyncio.sleep(seconds)
-                seconds *= 2
 
 
 class Worker(ABC):

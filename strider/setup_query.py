@@ -7,7 +7,6 @@ import os
 import time
 import uuid
 
-import aioredis
 import uvloop
 
 from strider.fetcher import Fetcher
@@ -17,16 +16,14 @@ from strider.results import Database
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 LOGGER = logging.getLogger(__name__)
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
 
 async def execute_query(qgraph, **kwargs):
     """Execute a user query.
 
     1) Generate execution plan.
-    2) Store execution plan in Redis.
-    3) Set up results database.
-    4) Add named nodes to job queue.
+    2) Set up results database.
+    3) Add named nodes to job queue.
     """
     # generate query execution plan
     query_id = str(uuid.uuid4())

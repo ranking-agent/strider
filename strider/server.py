@@ -14,8 +14,6 @@ from strider.results import get_db
 from strider.query import create_query
 from strider.util import setup_logging
 
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-
 LOGGER = logging.getLogger(__name__)
 
 APP = FastAPI(
@@ -32,16 +30,6 @@ APP.add_middleware(
 )
 
 setup_logging()
-
-
-async def get_redis():
-    """Get Redis connection."""
-    redis = await aioredis.create_redis_pool(
-        f'redis://{REDIS_HOST}',
-        encoding='utf-8',
-    )
-    yield redis
-    redis.close()
 
 
 @APP.post('/query', response_model=str, tags=['query'])

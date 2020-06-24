@@ -21,12 +21,6 @@ services:
       - '5672:5672'
       - '15672:15672'
   
-  redis:
-    container_name: strider_redis
-    image: redis
-    ports:
-      - '6379:6379'
- 
   strider:
     container_name: strider
     image: strider
@@ -37,7 +31,6 @@ services:
       - RABBITMQ_HOST=strider_rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - REDIS_HOST=strider_redis
       - SUPERVISOR_PORT=${SUPERVISOR_PORT}
       - SUPERVISOR_USER=${SUPERVISOR_USER}
       - SUPERVISOR_PASSWORD=${SUPERVISOR_PASSWORD}
