@@ -1,6 +1,7 @@
 """Query planner."""
 import asyncio
 from collections import defaultdict
+import logging
 import os
 
 from fastapi import HTTPException
@@ -10,6 +11,7 @@ from strider.kp_registry import Registry
 
 BIOLINK_URL = os.getenv('BIOLINK_URL', 'http://localhost:8144')
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
+LOGGER = logging.getLogger(__name__)
 
 
 class Planner():
