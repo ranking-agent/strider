@@ -66,7 +66,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Handle message from jobs queue.
 
         The message body should be a jsonified dictionary with fields:
-        qid, kid, query_id
+        qid, kid
         """
         data = message
         query = self.query
