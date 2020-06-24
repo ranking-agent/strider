@@ -17,8 +17,10 @@ LOGGER = logging.getLogger(__name__)
 class Planner():
     """Planner."""
 
-    def __init__(self, kp_registry):
+    def __init__(self, kp_registry=None):
         """Initialize."""
+        if kp_registry is None:
+            kp_registry = Registry(KPREGISTRY_URL)
         self.kp_registry = kp_registry
 
     def validate_traversable(self, plan, qgraph):
@@ -112,8 +114,6 @@ class Planner():
 
 async def generate_plan(query_graph, kp_registry=None):
     """Generate a query execution plan."""
-    if kp_registry is None:
-        kp_registry = Registry(KPREGISTRY_URL)
     return await Planner(kp_registry).plan(query_graph)
 
 
