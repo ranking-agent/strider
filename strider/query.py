@@ -22,8 +22,8 @@ class Query():
         self.uid = str(uuid.uuid4())
         self.qgraph = qgraph
         self.options = options
-        self.done = defaultdict(False)
-        self.priorities = defaultdict(0)
+        self.done = defaultdict(bool)
+        self.priorities = defaultdict(int)
         self.start_time = time.time()
         self.plan = None
 

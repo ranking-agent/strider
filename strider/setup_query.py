@@ -80,7 +80,7 @@ async def execute_query(qgraph, **kwargs):
             **node,
         }
         LOGGER.debug("Queueing result %s", job_id)
-        await queue.put_nowait((
+        queue.put_nowait((
             0,
             next(counter),
             job,

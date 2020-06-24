@@ -48,7 +48,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
 
         # Neo4j
         await self.setup_neo4j()
-        self.neo4j.run_async('MATCH (n) DETACH DELETE n')
+        await self.neo4j.run_async('MATCH (n) DETACH DELETE n')
 
         # initialize query stuff
         self.query = await create_query(qgraph)
