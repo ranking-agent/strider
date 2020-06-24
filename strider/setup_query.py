@@ -74,10 +74,12 @@ async def execute_query(qgraph, **kwargs):
             continue
         job_id = f'({node["curie"]}:{node["id"]})'
         job = {
-            'query_id': query_id,
-            'qid': node.pop('id'),
-            'kid': node.pop('curie'),
-            **node,
+            'qid': node['id'],
+            'kid': node['curie'],
+            **{
+                key: value for key, value in node.items()
+                if key not in ('id', 'curie')
+            },
         }
         LOGGER.debug("Queueing result %s", job_id)
         queue.put_nowait((
