@@ -350,10 +350,19 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Store answers in sqlite."""
         rows = []
         start_time = await query.get_start_time()
-        slots = list(query.qgraph['nodes']) + list(query.qgraph['edges'])
-        things = {**answer['nodes'], **answer['edges']}
+        slots = (
+            [f'n_{qnode_id}' for qnode_id in query.qgraph['nodes']]
+            + [f'e_{qedge_id}' for qedge_id in query.qgraph['edges']]
+        )
         values = (
-            [json.dumps(things[qid]) for qid in slots]
+            [
+                json.dumps(answer['nodes'][qid])
+                for qid in query.qgraph['nodes']
+            ]
+            + [
+                json.dumps(answer['edges'][qid])
+                for qid in query.qgraph['edges']
+            ]
             + [score, time.time() - start_time]
         )
         rows.append(values)

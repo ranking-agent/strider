@@ -42,7 +42,10 @@ async def execute_query(qgraph, **kwargs):
     }
 
     # setup results DB
-    slots = list(qgraph['nodes']) + list(qgraph['edges'])
+    slots = (
+        [f'n_{qnode_id}' for qnode_id in qgraph['nodes']]
+        + [f'e_{qedge_id}' for qedge_id in qgraph['edges']]
+    )
     await setup_results(query_id, slots)
 
     # add a result for each named node

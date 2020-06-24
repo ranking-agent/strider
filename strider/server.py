@@ -4,7 +4,6 @@ import logging
 import os
 from typing import Dict
 
-import aioredis
 from fastapi import Depends, FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
@@ -65,12 +64,8 @@ async def get_results(  # pylint: disable=too-many-arguments
         limit: int = None,
         offset: int = 0,
         database=Depends(get_db('results.db')),
-        redis=Depends(get_redis),
 ) -> Message:
     """Get results for a query."""
-    query = await create_query(query_id, redis)
-    qgraph = query.qgraph
-
     # get column names from results db
     columns = await database.get_columns(query_id)
 
@@ -80,7 +75,7 @@ async def get_results(  # pylint: disable=too-many-arguments
     }
     results = []
     for row in await extract_results(query_id, since, limit, offset, database):
-        result, _kgraph = parse_bindings(dict(zip(columns, row)), qgraph)
+        result, _kgraph = parse_bindings(dict(zip(columns, row)))
         results.append(result)
         kgraph['nodes'].update(_kgraph['nodes'])
         kgraph['edges'].update(_kgraph['edges'])
@@ -89,18 +84,13 @@ async def get_results(  # pylint: disable=too-many-arguments
         'nodes': list(kgraph['nodes'].values()),
         'edges': list(kgraph['edges'].values()),
     }
-    qgraph = {
-        'nodes': list(qgraph['nodes'].values()),
-        'edges': list(qgraph['edges'].values()),
-    }
     return {
-        'query_graph': qgraph,
         'knowledge_graph': kgraph,
         'results': results
     }
 
 
-def parse_bindings(bindings, qgraph):
+def parse_bindings(bindings):
     """Parse bindings into message format."""
     kgraph = {
         'nodes': dict(),
@@ -116,7 +106,7 @@ def parse_bindings(bindings, qgraph):
             continue
         kid = element.pop('kid')
         qid = element.pop('qid')
-        if qid in qgraph['edges']:
+        if key.startswith('e_'):
             result['edge_bindings'].append({
                 'qg_id': qid,
                 'kg_id': kid,
