@@ -100,6 +100,14 @@ class Worker(ABC):
     async def on_message(self, message):
         """Handle message from results queue."""
 
+    async def _on_message(self, message):
+        """Handle message from results queue."""
+        try:
+            await self.on_message(message)
+        except Exception as err:
+            LOGGER.exception(err)
+            raise
+
     async def consume(self):
         """Consume messages."""
         while True:
@@ -107,7 +115,7 @@ class Worker(ABC):
             _, _, item = await self.queue.get()
 
             # process message
-            await self.on_message(item)
+            await self._on_message(item)
 
             # Notify the queue that the item has been processed
             self.queue.task_done()
