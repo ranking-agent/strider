@@ -92,8 +92,9 @@ async def execute_query(qgraph, **kwargs):
         max_jobs=5,
         counter=counter,
         query_id=query_id,
+        **kwargs,
     )
-    await fetcher.run()
+    await fetcher.run(qgraph)
 
     return query_id
 

@@ -39,6 +39,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         self.neo4j = None
         self.query = None
         self.uid = kwargs.get('query_id')
+        self.kp_registry = kwargs.get('kp_registry', None)
         self.counter = kwargs.get('counter', itertools.count())
 
     async def setup(self, qgraph):
@@ -51,7 +52,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         await self.neo4j.run_async('MATCH (n) DETACH DELETE n')
 
         # initialize query stuff
-        self.query = await create_query(qgraph)
+        self.query = await create_query(qgraph, kp_registry=self.kp_registry)
 
         # set up a uniqueness constraint on Neo4j
         # without this, simultaneous MERGEs will create duplicate nodes

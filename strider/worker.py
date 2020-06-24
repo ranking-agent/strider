@@ -91,7 +91,7 @@ class RedisMixin(ABC):  # pylint: disable=too-few-public-methods
 class Worker(ABC):
     """Asynchronous worker to consume messages from input_queue."""
 
-    def __init__(self, queue, max_jobs=-1):
+    def __init__(self, queue, max_jobs=-1, **kwargs):
         """Initialize."""
         self.queue = queue
         self.max_jobs = max_jobs
@@ -116,9 +116,9 @@ class Worker(ABC):
     async def setup(self, *args):
         """Set up services."""
 
-    async def run(self):
+    async def run(self, *args):
         """Run async RabbitMQ consumer."""
-        await self.setup()
+        await self.setup(*args)
         # schedule the consumers
         # create three worker tasks to process the queue concurrently
         tasks = [

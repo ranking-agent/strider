@@ -7,10 +7,10 @@ import uuid
 from strider.query_planner import generate_plan
 
 
-async def create_query(qgraph):
+async def create_query(qgraph, **kwargs):
     """Create Query."""
     query = Query(qgraph)
-    await query._init()  # pylint: disable=protected-access
+    await query._init(**kwargs)  # pylint: disable=protected-access
     return query
 
 
@@ -27,9 +27,9 @@ class Query():
         self.start_time = time.time()
         self.plan = None
 
-    async def _init(self):
+    async def _init(self, **kwargs):
         """Generate query plan."""
-        self.plan = await generate_plan(self.qgraph)
+        self.plan = await generate_plan(self.qgraph, **kwargs)
 
     async def is_done(self, job_id):
         """Return boolean indicating if a job is completed."""

@@ -6,19 +6,18 @@ import os
 from fastapi import HTTPException
 import httpx
 
+from strider.kp_registry import Registry
+
 BIOLINK_URL = os.getenv('BIOLINK_URL', 'http://localhost:8144')
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
-
-kp_registry = Registry(KPREGISTRY_URL)
 
 
 class Planner():
     """Planner."""
 
-    def __init__(self, query_graph):
+    def __init__(self, kp_registry):
         """Initialize."""
-        self.query_nodes_by_id = query_graph['nodes']
-        self.query_edges_by_id = query_graph['edges']
+        self.kp_registry = kp_registry
 
     def validate_traversable(self, plan, qgraph):
         """Validate that the query graph is traversable by this plan.
@@ -106,12 +105,14 @@ class Planner():
             edge_types = [f'-{edge_type}->' for edge_type in edge_types]
         else:
             edge_types = [f'<-{edge_type}-' for edge_type in edge_types]
-        kp_registry.search(source_types, edge_types, target_types)
+        return await self.kp_registry.search(source_types, edge_types, target_types)
 
 
-async def generate_plan(query_graph):
+async def generate_plan(query_graph, kp_registry=None):
     """Generate a query execution plan."""
-    return await Planner().plan(query_graph)
+    if kp_registry is None:
+        kp_registry = Registry(KPREGISTRY_URL)
+    return await Planner(kp_registry).plan(query_graph)
 
 
 async def expand_bl(concept):
