@@ -62,7 +62,7 @@ class Registry():
             )
             assert response.status_code < 300
 
-    async def search(self, source_type, edge_type, target_type):
+    async def search(self, source_types, edge_types, target_types):
         """Search for KPs matching a pattern."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
