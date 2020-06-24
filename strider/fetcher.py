@@ -3,6 +3,7 @@ import asyncio
 import itertools
 import json
 import logging
+import os
 import re
 import time
 
@@ -12,7 +13,9 @@ from strider.scoring import score_graph
 from strider.worker import Worker, Neo4jMixin, SqliteMixin
 from strider.query import create_query
 from strider.result import Result, ValidationError
+from strider.kp_registry import Registry
 
+KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 LOGGER = logging.getLogger(__name__)
 
 
@@ -39,7 +42,11 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         self.neo4j = None
         self.query = None
         self.uid = kwargs.get('query_id')
-        self.kp_registry = kwargs.get('kp_registry', None)
+
+        kp_registry = kwargs.get('kp_registry', None)
+        if kp_registry is None:
+            kp_registry = Registry(KPREGISTRY_URL)
+        self.kp_registry = kp_registry
         self.counter = kwargs.get('counter', itertools.count())
 
     async def setup(self, qgraph):
