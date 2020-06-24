@@ -1,5 +1,6 @@
 """KP registry."""
 from collections import defaultdict
+import json
 import logging
 
 import aiosqlite
@@ -93,7 +94,8 @@ class Registry():
             except httpx.ReadTimeout:
                 LOGGER.error(
                     "ReadTimeout: endpoint: %s, JSON: %s",
-                    endpoint, json.dumps(request)
+                    url, json.dumps(request)
                 )
                 return []
         assert response.status_code < 300
+        return response
