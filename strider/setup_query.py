@@ -40,26 +40,6 @@ async def execute_query(qgraph, **kwargs):
             for qedge in qgraph['edges']
         }
     }
-    plan = await generate_plan(qgraph)
-
-    # store plan in Redis
-    redis = await aioredis.create_redis_pool(
-        f'redis://{REDIS_HOST}'
-    )
-    await redis.delete(
-        f'{query_id}_qgraph',
-        f'{query_id}_plan',
-        f'{query_id}_priorities',
-        f'{query_id}_done',
-        f'{query_id}_options',
-    )
-    await redis.set(f'{query_id}_starttime', time.time())
-    for key, value in plan.items():
-        await redis.hset(f'{query_id}_plan', key, json.dumps(value))
-    await redis.set(f'{query_id}_qgraph', json.dumps(qgraph))
-    for key, value in kwargs.items():
-        await redis.hset(f'{query_id}_options', key, json.dumps(value))
-    redis.close()
 
     # setup results DB
     slots = list(qgraph['nodes']) + list(qgraph['edges'])
