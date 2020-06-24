@@ -19,7 +19,6 @@ class Query():
 
     def __init__(self, qgraph, **options):
         """Initialize."""
-        self.uid = str(uuid.uuid4())
         self.qgraph = qgraph
         self.options = options
         self.done = defaultdict(bool)
