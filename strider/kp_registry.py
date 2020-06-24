@@ -12,7 +12,7 @@ class Registry():
 
     def __init__(self, url):
         """Initialize."""
-        self.url
+        self.url = url
 
     async def __aenter__(self):
         """Enter context."""
