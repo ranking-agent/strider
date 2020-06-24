@@ -1,5 +1,6 @@
 """async fetcher (worker)."""
 import asyncio
+import itertools
 import json
 import logging
 import re
@@ -38,6 +39,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         self.neo4j = None
         self.query = None
         self.uid = kwargs.get('query_id')
+        self.counter = kwargs.get('counter', itertools.count())
 
     async def setup(self, qgraph):
         """Set up SQLite and Neo4j connections."""
@@ -332,6 +334,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
 
             self.queue.put_nowait((
                 priority,
+                next(self.counter),
                 job,
             ))
 

@@ -1,5 +1,6 @@
 """Example: plan a query."""
 import asyncio
+import itertools
 import json
 import logging
 import os
@@ -67,6 +68,7 @@ async def execute_query(qgraph, **kwargs):
     # add a result for each named node
     # add a job for each named node
     queue = asyncio.PriorityQueue()
+    counter = itertools.count()
     for node in qgraph['nodes'].values():
         if 'curie' not in node or node['curie'] is None:
             continue
@@ -80,6 +82,7 @@ async def execute_query(qgraph, **kwargs):
         LOGGER.debug("Queueing result %s", job_id)
         await queue.put_nowait((
             0,
+            next(counter),
             job,
         ))
 
@@ -87,6 +90,7 @@ async def execute_query(qgraph, **kwargs):
     fetcher = Fetcher(
         queue,
         max_jobs=5,
+        counter=counter,
         query_id=query_id,
     )
     await fetcher.run()
