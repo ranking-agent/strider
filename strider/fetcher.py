@@ -70,11 +70,10 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
 
         if not data.get('step_id', None):
             result = {
-                'edge_bindings': [],
-                'node_bindings': [{
-                    'qg_id': data['qid'],
+                'edge_bindings': dict(),
+                'node_bindings': {data['qid']: [{
                     'kg_id': data['kid'],
-                }],
+                }]},
             }
             kgraph = {
                 'nodes': {data['kid']: {
@@ -158,16 +157,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Process response from KP."""
         if response is None:
             return
-        response['knowledge_graph'] = {
-            'nodes': {
-                node['id']: node
-                for node in response['knowledge_graph']['nodes']
-            },
-            'edges': {
-                edge['id']: edge
-                for edge in response['knowledge_graph']['edges']
-            },
-        }
         # process all edges, in parallel
         edge_awaitables = []
         for result in response['results']:

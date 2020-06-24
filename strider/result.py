@@ -10,13 +10,14 @@ class Result():  # pylint: disable=too-few-public-methods
 
     def __init__(self, result, qgraph, kgraph, bmt):
         """Initialize."""
+        # TODO: use _all_ of the bound elements
         self.edges = {
-            binding['qg_id']: kgraph['edges'][binding['kg_id']]
-            for binding in result['edge_bindings']
+            qg_id: kgraph['edges'][bound_edges[0]['kg_id']]
+            for qg_id, bound_edges in result['edge_bindings'].items()
         }
         self.nodes = {
-            binding['qg_id']: kgraph['nodes'][binding['kg_id']]
-            for binding in result['node_bindings']
+            qg_id: kgraph['nodes'][bound_nodes[0]['kg_id']]
+            for qg_id, bound_nodes in result['node_bindings'].items()
         }
         self.bmt = bmt
         self.validate(qgraph)

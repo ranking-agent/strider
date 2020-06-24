@@ -20,25 +20,15 @@ class Planner():
         self.query_nodes_by_id = query_graph['nodes']
         self.query_edges_by_id = query_graph['edges']
 
-    @property
-    def query_nodes(self):
-        """Get query nodes."""
-        return self.query_nodes_by_id.values()
-
-    @property
-    def query_edges(self):
-        """Get query edges."""
-        return self.query_edges_by_id.values()
-
-    def validate_traversable(self, plan):
+    def validate_traversable(self, plan, qgraph):
         """Validate that the query graph is traversable by this plan.
 
         Raises RuntimeError if not traversable.
         """
         # initialize starting nodes
         to_visit = {
-            node['id']
-            for node in self.query_nodes
+            node_id
+            for node_id, node in qgraph['nodes'].items()
             if 'curie' in node
         }
 
@@ -53,14 +43,14 @@ class Planner():
                 edge_id = step_id.split('-')[1]
                 if not kps:
                     continue
-                target_ids.add(self.query_edges_by_id[edge_id]['target_id'])
+                target_ids.add(qgraph['edges'][edge_id]['target_id'])
                 visited.add(edge_id)
             to_visit |= (target_ids - visited)
 
         # make sure we visited everything
         things = (
-            set(node['id'] for node in self.query_nodes)
-            | set(edge['id'] for edge in self.query_edges)
+            set(qgraph['nodes'])
+            | set(qgraph['edges'])
         )
         if visited != things:
             missing = things - visited
@@ -72,12 +62,12 @@ class Planner():
                 detail=message
             )
 
-    async def plan(self):
+    async def plan(self, qgraph):
         """Generate a query execution plan."""
         # get candidate steps
         # i.e. steps we could imagine taking through the qgraph
         candidate_steps = defaultdict(list)
-        for edge in self.query_edges:
+        for edge in qgraph['edges'].values():
             candidate_steps[edge['source_id']].append(
                 (f'-{edge["id"]}->', edge["target_id"])
             )
@@ -91,19 +81,19 @@ class Planner():
             plan[source_id] = dict()
             for edge_id, target_id in steps:
                 step_id = edge_id + target_id
+                source = qgraph['nodes'][source_id]
+                edge = qgraph['edges'][edge_id.split('-')[1]]
+                target = qgraph['nodes'][target_id]
                 plan[source_id][step_id] = await self.step_to_kps(
-                    source_id, edge_id, target_id
+                    source, edge, target
                 )
 
-        self.validate_traversable(plan)
+        self.validate_traversable(plan, qgraph)
 
         return plan
 
-    async def step_to_kps(self, source_id, edge_id, target_id):
+    async def step_to_kps(self, source, edge, target):
         """Find KP endpoint(s) that enable step."""
-        source = self.query_nodes_by_id[source_id]
-        edge = self.query_edges_by_id[edge_id.split('-')[1]]
-        target = self.query_nodes_by_id[target_id]
         async with httpx.AsyncClient() as client:
             responses = await asyncio.gather(
                 expand_bl(source["type"]),
@@ -112,7 +102,7 @@ class Planner():
             )
             source_types, target_types, edge_types = responses
 
-        if source_id == edge['source_id']:
+        if source['id'] == edge['source_id']:
             edge_types = [f'-{edge_type}->' for edge_type in edge_types]
         else:
             edge_types = [f'<-{edge_type}-' for edge_type in edge_types]
@@ -121,7 +111,7 @@ class Planner():
 
 async def generate_plan(query_graph):
     """Generate a query execution plan."""
-    return await Planner(query_graph).plan()
+    return await Planner().plan(query_graph)
 
 
 async def expand_bl(concept):
