@@ -12,7 +12,7 @@ import uvloop
 
 from strider.fetcher import Fetcher
 from strider.query_planner import generate_plan
-from strider.results import Results
+from strider.results import Database
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -114,6 +114,6 @@ async def setup_results(query_id, slots):
         f'DROP TABLE IF EXISTS `{query_id}`',
         f'CREATE TABLE `{query_id}` ({columns})',
     ]
-    async with Results() as database:
+    async with Database('results.db') as database:
         for statement in statements:
             await database.execute(statement)

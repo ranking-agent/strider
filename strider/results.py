@@ -5,22 +5,27 @@ import aiosqlite
 from fastapi import HTTPException
 
 
-async def get_db():
-    """Get SQLite connection."""
-    async with Results() as database:
-        yield database
+def get_db(*args, **kwargs):
+    """Get dependable."""
+    async def db_dependable():
+        """Get SQLite connection."""
+        async with Database(*args, **kwargs) as database:
+            yield database
+    return db_dependable
 
 
-class Results():
-    """Results store."""
+class Database():
+    """Asynchronous sqlite database context manager."""
 
-    def __init__(self):
+    def __init__(self, database=':memory:'):
         """Initialize."""
+        self.database = database
         self.connection = None
 
     async def __aenter__(self):
         """Enter async context."""
-        self.connection = await aiosqlite.connect('results.db')
+        self.connection = await aiosqlite.connect(self.database)
+        self.connection.row_factory = sqlite3.Row
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):

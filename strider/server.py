@@ -64,7 +64,7 @@ async def get_results(  # pylint: disable=too-many-arguments
         since: float = None,
         limit: int = None,
         offset: int = 0,
-        database=Depends(get_db),
+        database=Depends(get_db('results.db')),
         redis=Depends(get_redis),
 ) -> Message:
     """Get results for a query."""
