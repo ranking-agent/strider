@@ -148,11 +148,11 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
     async def take_step(self, query, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
         request = self.get_kp_request(query, data)
-        await kp_registry.call(endpoint, request)
+        response = await self.kp_registry.call(endpoint, request)
 
         await self.process_kp_response(
             query, job_id,
-            response.json(),
+            response,
             **kwargs,
         )
 
