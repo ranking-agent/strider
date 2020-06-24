@@ -69,6 +69,10 @@ async def count_pubs(*curies):
                     json.dumps(curies),
                     str(err)
                 )
+        else:
+            raise RuntimeError(
+                'Failed to connect to Omnicorp.'
+            )
     if response.status_code >= 300:
         raise RuntimeError(
             'The following OmniCorp query returned a bad response:\n'
