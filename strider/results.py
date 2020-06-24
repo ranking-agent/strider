@@ -16,19 +16,19 @@ class Results():
 
     def __init__(self):
         """Initialize."""
-        self.database = None
+        self.connection = None
 
     async def __aenter__(self):
         """Enter async context."""
-        self.database = await aiosqlite.connect('results.db')
+        self.connection = await aiosqlite.connect('results.db')
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         """Exit async context."""
         # Set self.database to None first to avoid using a closing connection
-        tmp_database = self.database
-        self.database = None
-        await tmp_database.close()
+        tmp_connection = self.connection
+        self.connection = None
+        await tmp_connection.close()
         return
 
     @staticmethod
@@ -36,7 +36,7 @@ class Results():
         """Wrap method."""
         async def wrapper(self, *args, **kwargs):
             """Check that a connection is available."""
-            if not self.database:
+            if not self.connection:
                 raise RuntimeError('No open SQLite connection.')
             return await method(self, *args, **kwargs)
         return wrapper
@@ -47,7 +47,7 @@ class Results():
     async def get_columns(self, query_id):
         """Get columns (qnode/qedge ids)."""
         statement = f'PRAGMA table_info("{query_id}")'
-        async with self.database.execute(statement) as cursor:
+        async with self.connection.execute(statement) as cursor:
             columns = [row[1] for row in await cursor.fetchall()]
         return columns
 
@@ -58,8 +58,8 @@ class Results():
         Return results.
         """
         try:
-            cursor = await self.database.execute(statement)
-            await self.database.commit()
+            cursor = await self.connection.execute(statement)
+            await self.connection.commit()
         except sqlite3.OperationalError as err:
             if 'no such table' in str(err):
                 raise HTTPException(400, str(err))
@@ -73,8 +73,8 @@ class Results():
         Return results.
         """
         try:
-            cursor = await self.database.executemany(statement, data)
-            await self.database.commit()
+            cursor = await self.connection.executemany(statement, data)
+            await self.connection.commit()
         except sqlite3.OperationalError as err:
             if 'no such table' in str(err):
                 raise HTTPException(400, str(err))
