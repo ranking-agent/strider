@@ -104,7 +104,7 @@ class Worker(ABC):
         """Consume messages."""
         while True:
             # wait for an item from the producer
-            _, item = await self.queue.get()
+            _, _, item = await self.queue.get()
 
             # process message
             await self.on_message(item)
