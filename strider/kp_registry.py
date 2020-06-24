@@ -17,6 +17,7 @@ class Registry():
     def __init__(self, url):
         """Initialize."""
         self.url = url
+        self.locals = dict()
 
     async def __aenter__(self):
         """Enter context."""
@@ -46,8 +47,16 @@ class Registry():
             assert response.status_code < 300
         return response.json()
 
-    async def add(self, kps):
+    async def add(self, *kps):
         """Add KP(s)."""
+        kps = {
+            kp.name: await kp.get_operations()
+            for kp in kps
+        }
+        self.locals.update({
+            kp.name: kp
+            for kp in kps
+        })
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f'{self.url}/kps',
@@ -88,6 +97,8 @@ class Registry():
 
     async def call(self, url, request):
         """Call a KP."""
+        if url in self.locals:
+            return await self.locals[url].get_results(request['query_graph'])
         async with httpx.AsyncClient(timeout=None) as client:
             try:
                 response = await client.post(url, json=request)
