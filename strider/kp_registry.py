@@ -109,4 +109,4 @@ class Registry():
                 )
                 return []
         assert response.status_code < 300
-        return response
+        return response.json()
