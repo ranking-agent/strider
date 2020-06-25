@@ -5,5 +5,4 @@ httpx==0.12.1
 numpy
 pyyaml
 git+https://github.com/ranking-agent/reasoner-pydantic#egg=reasoner-pydantic
-requests
 uvicorn
