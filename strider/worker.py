@@ -8,13 +8,9 @@ import aiosqlite
 import httpx
 
 from strider.neo4j import HttpInterface
-from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
 
 LOGGER = logging.getLogger(__name__)
 NEO4J_HOST = os.getenv('NEO4J_HOST', 'localhost')
-RABBITMQ_HOST = os.getenv('RABBITMQ_HOST', 'localhost')
-RABBITMQ_USER = os.getenv('RABBITMQ_USER', 'guest')
-RABBITMQ_PASSWORD = os.getenv('RABBITMQ_PASSWORD', 'guest')
 
 
 class Neo4jMixin(ABC):  # pylint: disable=too-few-public-methods
@@ -95,7 +91,7 @@ class Worker(ABC):
         """Set up services."""
 
     async def run(self, *args):
-        """Run async RabbitMQ consumer."""
+        """Run async consumer."""
         await self.setup(*args)
         # schedule the consumers
         # create three worker tasks to process the queue concurrently
