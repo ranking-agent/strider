@@ -2,5 +2,6 @@
 
 export $(egrep -v '^#' .env | xargs)
 
-# run workers and api server
-supervisord -c ./supervisord.conf
+# run api server
+uvicorn strider.server:APP --host 0.0.0.0 --port 5781
+

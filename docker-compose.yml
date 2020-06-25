@@ -31,9 +31,6 @@ services:
       - RABBITMQ_HOST=strider_rabbitmq
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - SUPERVISOR_PORT=${SUPERVISOR_PORT}
-      - SUPERVISOR_USER=${SUPERVISOR_USER}
-      - SUPERVISOR_PASSWORD=${SUPERVISOR_PASSWORD}
       - KPREGISTRY_URL=${KPREGISTRY_URL}
       - BIOLINK_URL=${BIOLINK_URL}
       - OMNICORP_URL=${OMNICORP_URL}
@@ -41,4 +38,3 @@ services:
       - ./logs:/home/murphy/logs
     ports:
       - '5781:5781'
-      - '${SUPERVISOR_PORT}:${SUPERVISOR_PORT}'
