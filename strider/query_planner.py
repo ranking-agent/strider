@@ -4,7 +4,6 @@ from collections import defaultdict
 import logging
 import os
 
-from fastapi import HTTPException
 import httpx
 
 from strider.kp_registry import Registry
@@ -60,10 +59,7 @@ class Planner():
             message = 'The query is not traversable. ' \
                       'The following nodes/edges cannot be reached: ' \
                       '{0}'.format(', '.join(missing))
-            raise HTTPException(
-                status_code=400,
-                detail=message
-            )
+            raise RuntimeError(message)
 
     async def plan(self, qgraph):
         """Generate a query execution plan."""
