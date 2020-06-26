@@ -49,10 +49,10 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         self.kp_registry = kp_registry
         self.counter = kwargs.get('counter', itertools.count())
 
-    async def setup(self, qgraph):
+    async def setup(self, *args):
         """Set up SQLite and Neo4j connections."""
-        # SQLite
-        await self.setup_sqlite()
+        assert len(args) == 1
+        qgraph = args[0]
 
         # Neo4j
         await self.setup_neo4j()
