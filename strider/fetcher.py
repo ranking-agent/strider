@@ -204,7 +204,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Process individual result from KP."""
         # store result in Neo4j
         subgraphs = await self.store_kp_result(
-            query,
             result,
         )
 
@@ -237,7 +236,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         # black-list any old jobs for these nodes
         # *not necessary if priority only increases
 
-    async def store_kp_result(self, query, result):
+    async def store_kp_result(self, result):
         """Store result in Neo4j.
 
         Return new edges.
