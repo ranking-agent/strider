@@ -378,15 +378,19 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             job_id,
             str(values),
         )
-        placeholders = ', '.join(['?' for _ in range(len(rows[0]))])
-        columns = ', '.join(
+        columns = (
             [f'`{qid}`' for qid in slots]
             + ['_score', '_timestamp']
         )
+        await self.write_sql(columns, rows)
+
+    async def write_sql(self, columns, rows):
+        """Write to SQL database."""
+        placeholders = ', '.join(['?' for _ in range(len(columns))])
         await self.sqlite.executemany(
             'INSERT OR IGNORE INTO `{0}` ({1}) VALUES ({2})'.format(
                 self.uid,
-                columns,
+                ', '.join(columns),
                 placeholders,
             ),
             rows
