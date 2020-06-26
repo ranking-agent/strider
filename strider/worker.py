@@ -53,6 +53,10 @@ class SqliteMixin(ABC):  # pylint: disable=too-few-public-methods
         """Set up SQLite connection."""
         self.sqlite = await aiosqlite.connect('results.db')
 
+    async def teardown_sqlite(self):
+        """Tear down SQLite connection."""
+        await self.sqlite.close()
+
 
 class Worker(ABC):
     """Asynchronous worker to consume messages from input_queue."""
