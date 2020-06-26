@@ -1,12 +1,8 @@
 """KP registry."""
-from collections import defaultdict
 import json
 import logging
 
-import aiosqlite
-from fastapi import HTTPException
 import httpx
-import sqlite3
 
 LOGGER = logging.getLogger(__name__)
 
