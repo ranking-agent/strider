@@ -100,7 +100,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 'edges': [],
             }
             result = Result(result, query.qgraph, kgraph, self.bmt)
-            job_id = f'({data["kid"]}:{data["qid"]})'
+            job_id = f'({data["qid"]})'
             await self.process_kp_result(
                 query, job_id, result,
             )
@@ -230,7 +230,9 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 node['id'],
                 job_id,
                 exclude_qedges=result.edges,
-            ) for qid, node in result.nodes.items()
+            )
+            for qid, node in result.nodes.items()
+            if node['id'] != ':'.join(job_id[1:-1].split(':')[:-1])
         ])
 
         # black-list any old jobs for these nodes
