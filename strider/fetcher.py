@@ -346,7 +346,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             }
 
             self.queue.put_nowait((
-                priority,
+                -priority,
                 next(self.counter),
                 job,
             ))
