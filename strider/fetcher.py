@@ -83,7 +83,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         qid, kid
         """
         data = message
-        query = self.query
 
         if not data.get('step_id', None):
             result = {
@@ -99,29 +98,28 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 }},
                 'edges': [],
             }
-            result = Result(result, query.qgraph, kgraph, self.bmt)
+            result = Result(result, self.query.qgraph, kgraph, self.bmt)
             job_id = f'({data["qid"]})'
             await self.process_kp_result(
-                query, job_id, result,
+                job_id, result,
             )
         else:
-            await self.process_message(query, data, **query.options)
+            await self.process_message(data, **self.query.options)
 
-    async def process_message(self, query, data, **kwargs):
+    async def process_message(self, data, **kwargs):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
         LOGGER.debug("[query %s]: [job %s]: Starting...", self.uid, job_id)
 
         step_awaitables = (
-            self.take_step(query, job_id, data, endpoint, **kwargs)
+            self.take_step(job_id, data, endpoint, **kwargs)
             for endpoint in data['endpoints']
         )
         await asyncio.gather(
             *step_awaitables,
         )
 
-    @staticmethod
-    def get_kp_request(query, data):
+    def get_kp_request(self, data):
         """Get request to send to KP."""
         match = re.fullmatch(r'<?-(\w+)->?(\w+)', data['step_id'])
         if match is None:
@@ -130,9 +128,9 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         target_qid = match[2]
 
         # source, edge, and target specs
-        edge_spec = query.qgraph['edges'][edge_qid]
-        target_spec = query.qgraph['nodes'][target_qid]
-        source_spec = query.qgraph['nodes'][data['qid']]
+        edge_spec = self.query.qgraph['edges'][edge_qid]
+        target_spec = self.query.qgraph['nodes'][target_qid]
+        source_spec = self.query.qgraph['nodes'][data['qid']]
 
         return {
             "query_graph": {
@@ -159,18 +157,18 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         }
 
     @log_exception
-    async def take_step(self, query, job_id, data, endpoint, **kwargs):
+    async def take_step(self, job_id, data, endpoint, **kwargs):
         """Call specific endpoint."""
-        request = self.get_kp_request(query, data)
+        request = self.get_kp_request(data)
         response = await self.kp_registry.call(endpoint, request)
 
         await self.process_kp_response(
-            query, job_id,
+            job_id,
             response,
             **kwargs,
         )
 
-    async def process_kp_response(self, query, job_id, response, **kwargs):
+    async def process_kp_response(self, job_id, response, **kwargs):
         """Process response from KP."""
         if response is None:
             return
@@ -180,7 +178,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             try:
                 result = Result(
                     result,
-                    query.qgraph,
+                    self.query.qgraph,
                     response['knowledge_graph'],
                     self.bmt,
                 )
@@ -191,13 +189,13 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 )
                 continue
             edge_awaitables.append(self.process_kp_result(
-                query, job_id, result, **kwargs
+                job_id, result, **kwargs
             ))
         await asyncio.gather(*edge_awaitables)
 
     async def process_kp_result(
             self,
-            query, job_id,
+            job_id,
             result,
             **kwargs
     ):
@@ -218,14 +216,13 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
 
         # process subgraphs
         await asyncio.gather(*[
-            self.process_subgraph(query, job_id, subgraph, **kwargs)
+            self.process_subgraph(job_id, subgraph, **kwargs)
             for subgraph in subgraphs
         ])
 
         # publish all nodes to jobs queue
         await asyncio.gather(*[
             self.queue_node_jobs(
-                query,
                 qid,
                 node['id'],
                 job_id,
@@ -296,32 +293,32 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         result = await self.neo4j.run_async(statement)
         return result
 
-    async def process_subgraph(self, query, job_id, subgraph, **kwargs):
+    async def process_subgraph(self, job_id, subgraph, **kwargs):
         """Process subgraph."""
-        score = await score_graph(subgraph, query.qgraph, **kwargs)
-        await self.update_priorities(query, subgraph, score)
+        score = await score_graph(subgraph, self.query.qgraph, **kwargs)
+        await self.update_priorities(subgraph, score)
 
         if (
-                set(subgraph['nodes'].keys()) == set(query.qgraph['nodes'])
-                and set(subgraph['edges'].keys()) == set(query.qgraph['edges'])
+                set(subgraph['nodes'].keys()) == set(self.query.qgraph['nodes'])
+                and set(subgraph['edges'].keys()) == set(self.query.qgraph['edges'])
         ):
             await self.store_answer(
-                query, job_id,
+                job_id,
                 subgraph, score,
             )
 
-    async def update_priorities(self, query, subgraph, score):
+    async def update_priorities(self, subgraph, score):
         """Update job priorities."""
         # add the subgraph weight to each node's priority
         for node in subgraph['nodes'].values():
-            await query.update_priority(
+            await self.query.update_priority(
                 f'({node["qid"]}:{node["kid"]})',
                 score
             )
 
     async def queue_node_jobs(
             self,
-            query, qid, kid, job_id,
+            qid, kid, job_id,
             exclude_qedges=None,
     ):
         """Queue jobs from node."""
@@ -329,8 +326,8 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
             self.uid, job_id, qid, kid
         )
-        steps = await query.get_steps(qid, kid)
-        priority = await query.get_priority(f'({qid}:{kid})')
+        steps = await self.query.get_steps(qid, kid)
+        priority = await self.query.get_priority(f'({qid}:{kid})')
         for step_id, endpoints in steps.items():
             if exclude_qedges:
                 # do not retrace your steps
@@ -354,22 +351,22 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 job,
             ))
 
-    async def store_answer(self, query, job_id, answer, score):
+    async def store_answer(self, job_id, answer, score):
         """Store answers in sqlite."""
         rows = []
-        start_time = await query.get_start_time()
+        start_time = await self.query.get_start_time()
         slots = (
-            [f'n_{qnode_id}' for qnode_id in query.qgraph['nodes']]
-            + [f'e_{qedge_id}' for qedge_id in query.qgraph['edges']]
+            [f'n_{qnode_id}' for qnode_id in self.query.qgraph['nodes']]
+            + [f'e_{qedge_id}' for qedge_id in self.query.qgraph['edges']]
         )
         values = (
             [
                 json.dumps(answer['nodes'][qid])
-                for qid in query.qgraph['nodes']
+                for qid in self.query.qgraph['nodes']
             ]
             + [
                 json.dumps(answer['edges'][qid])
-                for qid in query.qgraph['edges']
+                for qid in self.query.qgraph['edges']
             ]
             + [score, time.time() - start_time]
         )
