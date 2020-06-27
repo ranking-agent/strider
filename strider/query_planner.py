@@ -93,13 +93,12 @@ class Planner():
 
     async def step_to_kps(self, source, edge, target):
         """Find KP endpoint(s) that enable step."""
-        async with httpx.AsyncClient() as client:
-            responses = await asyncio.gather(
-                expand_bl(source["type"]),
-                expand_bl(target["type"]),
-                expand_bl(edge["type"])
-            )
-            source_types, target_types, edge_types = responses
+        responses = await asyncio.gather(
+            expand_bl(source["type"]),
+            expand_bl(target["type"]),
+            expand_bl(edge["type"])
+        )
+        source_types, target_types, edge_types = responses
 
         if source['id'] == edge['source_id']:
             edge_types = [f'-{edge_type}->' for edge_type in edge_types]
