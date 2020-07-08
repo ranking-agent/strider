@@ -115,7 +115,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
     async def process_message(self, data, **kwargs):
         """Process parsed message."""
         job_id = f'({data["kid"]}:{data["qid"]}{data["step_id"]})'
-        LOGGER.debug("[query %s]: [job %s]: Starting...", self.uid, job_id)
 
         step_awaitables = (
             self.take_step(job_id, data, endpoint, **kwargs)
@@ -183,6 +182,12 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Process response from KP."""
         if response is None:
             return
+        LOGGER.debug(
+            '[query %s]: [job %s]: Processing %d results...',
+            self.uid,
+            job_id,
+            len(response['results']),
+        )
         # process edges in batches
         batch_size = 100
         for results in batches(response['results'], batch_size):
