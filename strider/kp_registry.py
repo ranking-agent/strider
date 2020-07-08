@@ -7,6 +7,56 @@ import httpx
 LOGGER = logging.getLogger(__name__)
 
 
+async def call_kp(url, request):
+    """Call KP.
+
+    Input request can be a string or JSON-able object.
+    Output is the raw text of the response body.
+    """
+    if not isinstance(request, str):
+        request = json.dumps(request).encode('utf-8')
+    async with httpx.AsyncClient(
+            timeout=None,
+            headers={'Content-Type': 'application/json'},
+    ) as client:
+        try:
+            response = await client.post(url, data=request)
+        except httpx.ReadTimeout:
+            LOGGER.error(
+                "ReadTimeout: endpoint: %s, JSON: %s",
+                url, json.dumps(request)
+            )
+            return []
+    if response.status_code >= 300:
+        LOGGER.error(
+            'KP error (%s):\n'
+            'request:\n%s\n'
+            'response:\n%s',
+            url,
+            request,
+            response.text,
+        )
+        raise RuntimeError('KP call failed.')
+    return response.text
+
+
+def kp_func(
+        url,
+        preferred_prefix=None,
+        in_transformers=None,
+        out_transformers=None,
+):
+    """Generate KP function."""
+    async def func(request):
+        """Call KP with pre- and post-processing."""
+        request = {'message': request}
+        request = json.dumps(request)
+        response = await call_kp(url, request)
+        response = json.loads(response)
+        return response
+    return func
+
+
 class Registry():
     """KP registry."""
 
@@ -41,7 +91,13 @@ class Registry():
                 f'{self.url}/kps/{url}',
             )
             assert response.status_code < 300
-        return response.json()
+        provider = response.json()
+        return kp_func(
+            url,
+            preferred_prefix=provider[5]['details']['preferred_prefix'],
+            in_transformers=provider[5]['details']['in_transformers'],
+            out_transformers=provider[5]['details']['out_transformers'],
+        )
 
     async def add(self, *kps):
         """Add KP(s)."""
@@ -80,7 +136,10 @@ class Registry():
                 }
             )
             assert response.status_code < 300
-        return response.json()
+        return [
+            kp_func(url, **details)
+            for url, details in response.json().items()
+        ]
 
     async def delete_all(self):
         """Delete all KPs."""
@@ -89,20 +148,4 @@ class Registry():
                 f'{self.url}/clear',
             )
             assert response.status_code < 300
-        return response.json()
-
-    async def call(self, url, request):
-        """Call a KP."""
-        if url in self.locals:
-            return await self.locals[url].get_results(request['query_graph'])
-        async with httpx.AsyncClient(timeout=None) as client:
-            try:
-                response = await client.post(url, json=request)
-            except httpx.ReadTimeout:
-                LOGGER.error(
-                    "ReadTimeout: endpoint: %s, JSON: %s",
-                    url, json.dumps(request)
-                )
-                return []
-        assert response.status_code < 300
         return response.json()
