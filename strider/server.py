@@ -94,6 +94,7 @@ def parse_bindings(bindings):
             continue
         kid = element.pop('kid')
         qid = element.pop('qid')
+        element.pop('kid_qid', None)
         if key.startswith('e_'):
             result['edge_bindings'].append({
                 'qg_id': qid,
