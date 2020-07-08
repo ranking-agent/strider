@@ -30,6 +30,12 @@ def log_exception(method):
     return wrapper
 
 
+def batches(arr, num):
+    """Iterate over arr by batches of size n."""
+    for idx in range(0, len(arr), num):
+        yield arr[idx:idx + num]
+
+
 class Fetcher(Worker, Neo4jMixin, SqliteMixin):
     """Asynchronous worker to consume jobs and publish results."""
 
