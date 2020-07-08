@@ -7,6 +7,115 @@ import httpx
 LOGGER = logging.getLogger(__name__)
 
 
+def message_to_list_form(message):
+    """Convert *graph nodes/edges and node/edge bindings to list forms."""
+    if message['results']:
+        message['results'] = [
+            {
+                'node_bindings': [
+                    {
+                        'qg_id': qg_id,
+                        **binding,
+                    }
+                    for qg_id, binding in result['node_bindings'].items()
+                ],
+                'edge_bindings': [
+                    {
+                        'qg_id': qg_id,
+                        **binding,
+                    }
+                    for qg_id, binding in result['edge_bindings'].items()
+                ],
+            } for result in message.get('results', [])
+        ]
+    if message['knowledge_graph']['nodes']:
+        message['knowledge_graph']['nodes'] = [
+            {
+                'id': node['id'],
+                **node,
+            }
+            for node in message['knowledge_graph']['nodes']
+        ]
+    if message['knowledge_graph']['edges']:
+        message['knowledge_graph']['edges'] = [
+            {
+                'id': edge['id'],
+                **edge,
+            }
+            for edge in message['knowledge_graph']['edges']
+        ]
+    return message
+
+
+def message_to_dict_form(message):
+    """Convert *graph nodes/edges and node/edge bindings to dict forms."""
+    if message['results']:
+        message['results'] = [
+            {
+                'node_bindings': {
+                    binding['qg_id']: [binding]
+                    for binding in result['node_bindings']
+                },
+                'edge_bindings': {
+                    binding['qg_id']: [binding]
+                    for binding in result['edge_bindings']
+                },
+            } for result in message.get('results', [])
+        ]
+    if message['knowledge_graph']['nodes']:
+        message['knowledge_graph']['nodes'] = {
+            node['id']: node
+            for node in message['knowledge_graph']['nodes']
+        }
+    if message['knowledge_graph']['edges']:
+        message['knowledge_graph']['edges'] = {
+            edge['id']: edge
+            for edge in message['knowledge_graph']['edges']
+        }
+    return message
+
+
+def fix_qnode(qnode, curie_map):
+    """Replace curie with preferred, if possible."""
+    if 'curie' in qnode:
+        qnode['curie'] = curie_map.get(qnode['curie'], qnode['curie'])
+    return qnode
+
+
+async def prefer(qgraph, prefix):
+    """Translate all pinned qnodes to preferred prefix."""
+    url_base = 'https://nodenormalization-sri.renci.org/get_normalized_nodes'
+    curies = [
+        qnode.get('curie')
+        for qnode in qgraph['nodes']
+        if qnode.get('curie')
+    ]
+    async with httpx.AsyncClient(timeout=None) as client:
+        response = await client.get(
+            url_base,
+            params={'curie': curies},
+        )
+
+    curie_map = dict()
+    for key, value in response.json().items():
+        try:
+            replacement = next(
+                entity['identifier']
+                for entity in value['equivalent_identifiers']
+                if entity['identifier'].startswith(prefix)
+            )
+        except StopIteration:
+            # no preferred replacement
+            continue
+        curie_map[key] = replacement
+
+    qgraph['nodes'] = [
+        fix_qnode(qnode, curie_map)
+        for qnode in qgraph['nodes']
+    ]
+    return qgraph
+
+
 async def call_kp(url, request):
     """Call KP.
 
@@ -50,10 +159,18 @@ def kp_func(
     async def func(request):
         """Call KP with pre- and post-processing."""
         request = {'message': request}
+        request['message']['query_graph'] = await prefer(
+            request['message']['query_graph'],
+            preferred_prefix,
+        )
         request = json.dumps(request)
+        for old, new in in_transformers.items():
+            request = request.replace(old, new)
         response = await call_kp(url, request)
+        for old, new in out_transformers.items():
+            response = response.replace(old, new)
         response = json.loads(response)
-        return response
+        return message_to_dict_form(response)
     return func
 
 
