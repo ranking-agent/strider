@@ -342,6 +342,8 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             exclude_qedges=None,
     ):
         """Queue jobs from node."""
+        if self.query.done[f'({qid}:{kid})']:
+            return
         steps = await self.query.get_steps(qid, kid)
         priority = await self.query.get_priority(f'({qid}:{kid})')
         for step_id, endpoints in steps.items():
