@@ -104,7 +104,11 @@ class Planner():
             edge_types = [f'-{edge_type}->' for edge_type in edge_types]
         else:
             edge_types = [f'<-{edge_type}-' for edge_type in edge_types]
-        return await self.kp_registry.search(source_types, edge_types, target_types)
+        return await self.kp_registry.search(
+            source_types,
+            edge_types,
+            target_types,
+        )
 
 
 async def generate_plan(query_graph, kp_registry=None):
