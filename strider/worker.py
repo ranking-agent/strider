@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 import asyncio
 import logging
 import os
+import sqlite3
 
-import aiosqlite
 import httpx
 
 from strider.neo4j import HttpInterface
