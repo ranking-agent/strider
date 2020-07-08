@@ -80,7 +80,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         # SQLite
         await self.setup_sqlite()
         await super().run(*args)
-        await self.teardown_sqlite()
 
     async def on_message(self, message):
         """Handle message from jobs queue.
