@@ -1,6 +1,7 @@
 """Base Worker class."""
 from abc import ABC, abstractmethod
 import asyncio
+from contextlib import suppress
 import logging
 import os
 import sqlite3
@@ -53,7 +54,7 @@ class SqliteMixin(ABC):  # pylint: disable=too-few-public-methods
         """Set up SQLite connection."""
         self.sqlite = sqlite3.connect('results.db')
 
-    async def teardown_sqlite(self):
+    async def teardown(self, *args):
         """Tear down SQLite connection."""
         self.sqlite.close()
 
@@ -94,6 +95,22 @@ class Worker(ABC):
     async def setup(self, *args):
         """Set up services."""
 
+    async def finish(self, tasks):
+        """Wait for Strider to finish, then tear everything down."""
+        # wait until the consumer has processed all items
+        await self.queue.join()
+        await self.teardown(tasks)
+
+    async def teardown(self, tasks):
+        """Tear down consumers after queue is emptied."""
+        # the consumers are still waiting for items, cancel them
+        for consumer in tasks:
+            consumer.cancel()
+
+        for consumer in tasks:
+            with suppress(asyncio.CancelledError):
+                await consumer
+
     async def run(self, *args):
         """Run async consumer."""
         await self.setup(*args)
@@ -103,8 +120,5 @@ class Worker(ABC):
             asyncio.create_task(self.consume())
             for _ in range(self.max_jobs)
         ]
-        # wait until the consumer has processed all items
-        await self.queue.join()
-        # the consumers are still waiting for items, cancel them
-        for consumer in tasks:
-            consumer.cancel()
+        finish = asyncio.create_task(self.finish(tasks))
+        await finish

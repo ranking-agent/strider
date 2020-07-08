@@ -417,3 +417,12 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             rows
         )
         self.sqlite.commit()
+
+    async def teardown(self, *args):
+        """Tear down."""
+        await Worker.teardown(self, *args)
+        await SqliteMixin.teardown(self, *args)
+        LOGGER.debug(
+            '[query %s]: Done.',
+            self.uid,
+        )
