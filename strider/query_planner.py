@@ -4,11 +4,11 @@ from collections import defaultdict
 import logging
 import os
 
-import httpx
+from bmt import Toolkit as BMToolkit
 
 from strider.kp_registry import Registry
 
-BIOLINK_URL = os.getenv('BIOLINK_URL', 'http://localhost:8144')
+BMT = BMToolkit()
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 LOGGER = logging.getLogger(__name__)
 
@@ -118,10 +118,8 @@ async def generate_plan(query_graph, kp_registry=None):
 
 async def expand_bl(concept):
     """Return lineage of biolink concept."""
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            f'{BIOLINK_URL}/bl/{concept}/lineage?version=custom'
-        )
-    if response.status_code >= 300:
-        return [concept]
-    return response.json()
+    return (
+        BMT.ancestors(concept)
+        + BMT.descendents(concept)
+        + [concept]
+    )
