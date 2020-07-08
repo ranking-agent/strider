@@ -327,10 +327,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             exclude_qedges=None,
     ):
         """Queue jobs from node."""
-        LOGGER.debug(
-            "[query %s]: [job %s]: Queueing job(s) (%s:%s)",
-            self.uid, job_id, qid, kid
-        )
         steps = await self.query.get_steps(qid, kid)
         priority = await self.query.get_priority(f'({qid}:{kid})')
         for step_id, endpoints in steps.items():
@@ -350,6 +346,10 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 'endpoints': endpoints,
             }
 
+            LOGGER.debug(
+                "[query %s]: [job %s]: Queueing job (%s:%s%s) (priority %s)",
+                self.uid, job_id, kid, qid, step_id, str(priority)
+            )
             self.queue.put_nowait((
                 -priority,
                 next(self.counter),
