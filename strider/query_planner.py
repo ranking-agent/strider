@@ -42,9 +42,9 @@ class Planner():
             # remember to visit target nodes
             target_ids = set()
             for step_id, kps in plan.get(source_id, dict()).items():
-                edge_id = step_id.split('-')[1]
                 if not kps:
                     continue
+                edge_id = step_id.split('-')[1]
                 target_ids.add(qgraph['edges'][edge_id]['target_id'])
                 visited.add(edge_id)
             to_visit |= (target_ids - visited)
