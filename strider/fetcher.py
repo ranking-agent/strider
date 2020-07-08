@@ -177,26 +177,31 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Process response from KP."""
         if response is None:
             return
-        # process all edges, in parallel
-        edge_awaitables = []
-        for result in response['results']:
-            try:
-                result = Result(
-                    result,
-                    self.query.qgraph,
-                    response['knowledge_graph'],
-                    self.bmt,
-                )
-            except ValidationError as err:
-                LOGGER.debug(
-                    '[query %s]: [job %s]: Filtered out element: %s',
-                    self.uid, job_id, err
-                )
-                continue
-            edge_awaitables.append(self.process_kp_result(
-                job_id, result, **kwargs
-            ))
-        await asyncio.gather(*edge_awaitables)
+        # process edges in batches
+        batch_size = 100
+        for results in batches(response['results'], batch_size):
+            edge_awaitables = []
+            for result in results:
+                try:
+                    result = Result(
+                        result,
+                        self.query.qgraph,
+                        response['knowledge_graph'],
+                        self.bmt,
+                    )
+                except ValidationError as err:
+                    LOGGER.debug(
+                        '[query %s]: [job %s]: Filtered out element: %s',
+                        self.uid, job_id, err
+                    )
+                    continue
+                edge_awaitables.append(self.process_kp_result(
+                    job_id, result, **kwargs
+                ))
+            await asyncio.gather(
+                *edge_awaitables,
+                return_exceptions=False,
+            )
 
     async def process_kp_result(
             self,
