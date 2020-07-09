@@ -1,7 +1,6 @@
 """Simple ReasonerStdAPI server."""
 import json
 import logging
-import os
 from typing import Dict
 
 from fastapi import Depends, FastAPI
@@ -11,7 +10,6 @@ from reasoner_pydantic import Request, Message
 from strider.setup_query import execute_query, generate_plan
 from strider.scoring import score_graph
 from strider.results import get_db, Database
-from strider.query import create_query
 from strider.util import setup_logging
 
 LOGGER = logging.getLogger(__name__)
