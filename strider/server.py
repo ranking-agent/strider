@@ -3,7 +3,9 @@ import json
 import logging
 from typing import Dict
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+import httpx
 from starlette.middleware.cors import CORSMiddleware
 
 from reasoner_pydantic import Request, Message
@@ -68,6 +70,37 @@ async def async_query(
         wait=False,
     )
     return query_id
+
+
+@APP.post('/ars')
+async def handle_ars(
+        data: Dict,
+):
+    """Handle ARS message."""
+    if data.get('model', None) != 'tr_ars.message':
+        raise HTTPException(
+            status_code=400,
+            detail='Not a valid Translator message',
+        )
+    data = data['fields']
+    if data.get('ref', None) is not None:
+        raise HTTPException(
+            status_code=400,
+            detail='Not head message',
+        )
+    if data.get('data', None) is not None:
+        data = json.loads(data['data'])
+    elif data.get('url', None) is not None:
+        data = httpx.get(data['url'], timeout=60).json()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail='Not a valid tr_ars.message',
+        )
+
+    content = await sync_answer(data)
+    headers = {'tr_ars.message.status': 'A'}
+    return JSONResponse(content=content, headers=headers)
 
 
 @APP.get('/results', response_model=Message)
