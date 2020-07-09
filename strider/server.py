@@ -10,7 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 from reasoner_pydantic import Request, Message
 from strider.setup_query import execute_query, generate_plan
 from strider.scoring import score_graph
-from strider.results import get_db
+from strider.results import get_db, Database
 from strider.query import create_query
 from strider.util import setup_logging
 
@@ -32,15 +32,34 @@ APP.add_middleware(
 setup_logging()
 
 
-@APP.post('/query', response_model=str, tags=['query'])
+@APP.post('/query', response_model=Message, tags=['query'])
 async def answer_query(
+        query: Request,
+        support: bool = True,
+) -> Message:
+    """Answer biomedical question."""
+    query_id = await execute_query(
+        query.message.query_graph.dict(),
+        support=support,
+        wait=True,
+    )
+    async with Database('results.db') as database:
+        return await _get_results(
+            query_id=query_id,
+            database=database,
+        )
+
+
+@APP.post('/aquery', response_model=str, tags=['query'])
+async def asynchronously_answer_query(
         query: Request,
         support: bool = True,
 ) -> str:
     """Answer biomedical question."""
     query_id = await execute_query(
         query.message.query_graph.dict(),
-        support=support
+        support=support,
+        wait=False,
     )
     return query_id
 
@@ -54,6 +73,17 @@ async def get_results(  # pylint: disable=too-many-arguments
         database=Depends(get_db('results.db')),
 ) -> Message:
     """Get results for a query."""
+    return await _get_results(query_id, since, limit, offset, database)
+
+
+async def _get_results(
+        query_id: str,
+        since: float = None,
+        limit: int = None,
+        offset: int = 0,
+        database=None,
+):
+    """Get results."""
     # get column names from results db
     columns = await database.get_columns(query_id)
 

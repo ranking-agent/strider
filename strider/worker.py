@@ -111,7 +111,7 @@ class Worker(ABC):
             with suppress(asyncio.CancelledError):
                 await consumer
 
-    async def run(self, *args):
+    async def run(self, *args, **kwargs):
         """Run async consumer."""
         await self.setup(*args)
         # schedule the consumers
@@ -121,4 +121,5 @@ class Worker(ABC):
             for _ in range(self.max_jobs)
         ]
         finish = asyncio.create_task(self.finish(tasks))
-        await finish
+        if kwargs.get('wait', False):
+            await finish

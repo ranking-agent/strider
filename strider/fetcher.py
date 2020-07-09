@@ -75,11 +75,11 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             ASSERT n.kid_qid IS UNIQUE'''
         await self.neo4j.run_async(statement)
 
-    async def run(self, *args):
+    async def run(self, *args, **kwargs):
         """Run async consumer."""
         # SQLite
         await self.setup_sqlite()
-        await super().run(*args)
+        await super().run(*args, **kwargs)
 
     async def on_message(self, message):
         """Handle message from jobs queue.

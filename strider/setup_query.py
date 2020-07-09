@@ -76,7 +76,7 @@ async def execute_query(qgraph, **kwargs):
         query_id=query_id,
         **kwargs,
     )
-    await fetcher.run(qgraph)
+    await fetcher.run(qgraph, wait=kwargs.get('wait', False))
 
     return query_id
 
