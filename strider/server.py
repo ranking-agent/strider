@@ -31,14 +31,22 @@ setup_logging()
 
 
 @APP.post('/query', response_model=Message, tags=['query'])
-async def answer_query(
+async def sync_query(
         query: Request,
         support: bool = True,
 ) -> Message:
-    """Answer biomedical question."""
-    query_id = await execute_query(
-        query.message.query_graph.dict(),
+    """Handle synchronous query."""
+    return await sync_answer(
+        query.dict(),
         support=support,
+    )
+
+
+async def sync_answer(query: Dict, **kwargs):
+    """Answer biomedical question, synchronously."""
+    query_id = await execute_query(
+        query['message']['query_graph'],
+        **kwargs,
         wait=True,
     )
     async with Database('results.db') as database:
@@ -49,11 +57,11 @@ async def answer_query(
 
 
 @APP.post('/aquery', response_model=str, tags=['query'])
-async def asynchronously_answer_query(
+async def async_query(
         query: Request,
         support: bool = True,
 ) -> str:
-    """Answer biomedical question."""
+    """Handle asynchronous query."""
     query_id = await execute_query(
         query.message.query_graph.dict(),
         support=support,
