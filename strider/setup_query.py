@@ -1,31 +1,29 @@
 """Example: plan a query."""
 import asyncio
+import itertools
 import json
 import logging
 import os
 import time
 import uuid
 
-import aioredis
 import uvloop
 
+from strider.fetcher import Fetcher
 from strider.query_planner import generate_plan
-from strider.rabbitmq import connect_to_rabbitmq, setup as setup_rabbitmq
-from strider.results import Results
+from strider.results import Database
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 LOGGER = logging.getLogger(__name__)
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
 
 async def execute_query(qgraph, **kwargs):
     """Execute a user query.
 
     1) Generate execution plan.
-    2) Store execution plan in Redis.
-    3) Set up results database.
-    4) Add named nodes to job queue.
+    2) Set up results database.
+    3) Add named nodes to job queue.
     """
     # generate query execution plan
     query_id = str(uuid.uuid4())
@@ -39,61 +37,48 @@ async def execute_query(qgraph, **kwargs):
             for qedge in qgraph['edges']
         }
     }
-    plan = await generate_plan(qgraph)
-
-    # store plan in Redis
-    redis = await aioredis.create_redis_pool(
-        f'redis://{REDIS_HOST}'
-    )
-    await redis.delete(
-        f'{query_id}_qgraph',
-        f'{query_id}_plan',
-        f'{query_id}_priorities',
-        f'{query_id}_done',
-        f'{query_id}_options',
-    )
-    await redis.set(f'{query_id}_starttime', time.time())
-    for key, value in plan.items():
-        await redis.hset(f'{query_id}_plan', key, json.dumps(value))
-    await redis.set(f'{query_id}_qgraph', json.dumps(qgraph))
-    for key, value in kwargs.items():
-        await redis.hset(f'{query_id}_options', key, json.dumps(value))
-    redis.close()
 
     # setup results DB
-    slots = list(qgraph['nodes']) + list(qgraph['edges'])
+    slots = (
+        [f'n_{qnode_id}' for qnode_id in qgraph['nodes']]
+        + [f'e_{qedge_id}' for qedge_id in qgraph['edges']]
+    )
     await setup_results(query_id, slots)
-
-    # create a RabbitMQ connection
-    connection = await setup_broker()
-    channel = await connection.channel()
 
     # add a result for each named node
     # add a job for each named node
+    queue = asyncio.PriorityQueue()
+    counter = itertools.count()
     for node in qgraph['nodes'].values():
         if 'curie' not in node or node['curie'] is None:
             continue
         job_id = f'({node["curie"]}:{node["id"]})'
         job = {
-            'query_id': query_id,
-            'qid': node.pop('id'),
-            'kid': node.pop('curie'),
-            **node,
+            'qid': node['id'],
+            'kid': node['curie'],
+            **{
+                key: value for key, value in node.items()
+                if key not in ('id', 'curie')
+            },
         }
         LOGGER.debug("Queueing result %s", job_id)
-        await channel.basic_publish(
-            routing_key='jobs',
-            body=json.dumps(job).encode('utf-8'),
-        )
+        queue.put_nowait((
+            0,
+            next(counter),
+            job,
+        ))
+
+    # setup fetcher
+    fetcher = Fetcher(
+        queue,
+        max_jobs=5,
+        counter=counter,
+        query_id=query_id,
+        **kwargs,
+    )
+    await fetcher.run(qgraph, wait=kwargs.get('wait', False))
 
     return query_id
-
-
-async def setup_broker():
-    """Set up RabbitMQ message broker."""
-    connection = await connect_to_rabbitmq()
-    await setup_rabbitmq()
-    return connection
 
 
 async def setup_results(query_id, slots):
@@ -111,6 +96,6 @@ async def setup_results(query_id, slots):
         f'DROP TABLE IF EXISTS `{query_id}`',
         f'CREATE TABLE `{query_id}` ({columns})',
     ]
-    async with Results() as database:
+    async with Database('results.db') as database:
         for statement in statements:
             await database.execute(statement)

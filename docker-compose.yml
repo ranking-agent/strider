@@ -10,23 +10,7 @@ services:
       - '7687:7687'
     volumes:
       - ./neo4j_plugins/:/var/lib/neo4j/plugins/
-
-  rabbitmq:
-    container_name: strider_rabbitmq
-    image: rabbitmq:3.7.5-management
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD}
-    ports:
-      - '5672:5672'
-      - '15672:15672'
   
-  redis:
-    container_name: strider_redis
-    image: redis
-    ports:
-      - '6379:6379'
- 
   strider:
     container_name: strider
     image: strider
@@ -34,13 +18,6 @@ services:
       context: .
     environment:
       - NEO4J_HOST=strider_neo4j
-      - RABBITMQ_HOST=strider_rabbitmq
-      - RABBITMQ_USER=${RABBITMQ_USER}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - REDIS_HOST=strider_redis
-      - SUPERVISOR_PORT=${SUPERVISOR_PORT}
-      - SUPERVISOR_USER=${SUPERVISOR_USER}
-      - SUPERVISOR_PASSWORD=${SUPERVISOR_PASSWORD}
       - KPREGISTRY_URL=${KPREGISTRY_URL}
       - BIOLINK_URL=${BIOLINK_URL}
       - OMNICORP_URL=${OMNICORP_URL}
@@ -48,4 +25,3 @@ services:
       - ./logs:/home/murphy/logs
     ports:
       - '5781:5781'
-      - '${SUPERVISOR_PORT}:${SUPERVISOR_PORT}'

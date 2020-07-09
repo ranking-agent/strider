@@ -1,21 +1,18 @@
 """Simple ReasonerStdAPI server."""
 import json
 import logging
-import os
 from typing import Dict
 
-import aioredis
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+import httpx
 from starlette.middleware.cors import CORSMiddleware
 
-from strider.models import Query as QueryModel, Message
+from reasoner_pydantic import Request, Message
 from strider.setup_query import execute_query, generate_plan
 from strider.scoring import score_graph
-from strider.results import get_db
-from strider.query import create_query
+from strider.results import get_db, Database
 from strider.util import setup_logging
-
-REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,27 +32,75 @@ APP.add_middleware(
 setup_logging()
 
 
-async def get_redis():
-    """Get Redis connection."""
-    redis = await aioredis.create_redis_pool(
-        f'redis://{REDIS_HOST}',
-        encoding='utf-8',
+@APP.post('/query', response_model=Message, tags=['query'])
+async def sync_query(
+        query: Request,
+        support: bool = True,
+) -> Message:
+    """Handle synchronous query."""
+    return await sync_answer(
+        query.dict(),
+        support=support,
     )
-    yield redis
-    redis.close()
 
 
-@APP.post('/query', response_model=str, tags=['query'])
-async def answer_query(
-        query: QueryModel,
+async def sync_answer(query: Dict, **kwargs):
+    """Answer biomedical question, synchronously."""
+    query_id = await execute_query(
+        query['message']['query_graph'],
+        **kwargs,
+        wait=True,
+    )
+    async with Database('results.db') as database:
+        return await _get_results(
+            query_id=query_id,
+            database=database,
+        )
+
+
+@APP.post('/aquery', response_model=str, tags=['query'])
+async def async_query(
+        query: Request,
         support: bool = True,
 ) -> str:
-    """Answer biomedical question."""
+    """Handle asynchronous query."""
     query_id = await execute_query(
         query.message.query_graph.dict(),
-        support=support
+        support=support,
+        wait=False,
     )
     return query_id
+
+
+@APP.post('/ars')
+async def handle_ars(
+        data: Dict,
+):
+    """Handle ARS message."""
+    if data.get('model', None) != 'tr_ars.message':
+        raise HTTPException(
+            status_code=400,
+            detail='Not a valid Translator message',
+        )
+    data = data['fields']
+    if data.get('ref', None) is not None:
+        raise HTTPException(
+            status_code=400,
+            detail='Not head message',
+        )
+    if data.get('data', None) is not None:
+        data = json.loads(data['data'])
+    elif data.get('url', None) is not None:
+        data = httpx.get(data['url'], timeout=60).json()
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail='Not a valid tr_ars.message',
+        )
+
+    content = await sync_answer(data)
+    headers = {'tr_ars.message.status': 'A'}
+    return JSONResponse(content=content, headers=headers)
 
 
 @APP.get('/results', response_model=Message)
@@ -64,13 +109,20 @@ async def get_results(  # pylint: disable=too-many-arguments
         since: float = None,
         limit: int = None,
         offset: int = 0,
-        database=Depends(get_db),
-        redis=Depends(get_redis),
+        database=Depends(get_db('results.db')),
 ) -> Message:
     """Get results for a query."""
-    query = await create_query(query_id, redis)
-    qgraph = query.qgraph
+    return await _get_results(query_id, since, limit, offset, database)
 
+
+async def _get_results(
+        query_id: str,
+        since: float = None,
+        limit: int = None,
+        offset: int = 0,
+        database=None,
+):
+    """Get results."""
     # get column names from results db
     columns = await database.get_columns(query_id)
 
@@ -80,7 +132,7 @@ async def get_results(  # pylint: disable=too-many-arguments
     }
     results = []
     for row in await extract_results(query_id, since, limit, offset, database):
-        result, _kgraph = parse_bindings(dict(zip(columns, row)), qgraph)
+        result, _kgraph = parse_bindings(dict(zip(columns, row)))
         results.append(result)
         kgraph['nodes'].update(_kgraph['nodes'])
         kgraph['edges'].update(_kgraph['edges'])
@@ -89,18 +141,13 @@ async def get_results(  # pylint: disable=too-many-arguments
         'nodes': list(kgraph['nodes'].values()),
         'edges': list(kgraph['edges'].values()),
     }
-    qgraph = {
-        'nodes': list(qgraph['nodes'].values()),
-        'edges': list(qgraph['edges'].values()),
-    }
     return {
-        'query_graph': qgraph,
         'knowledge_graph': kgraph,
         'results': results
     }
 
 
-def parse_bindings(bindings, qgraph):
+def parse_bindings(bindings):
     """Parse bindings into message format."""
     kgraph = {
         'nodes': dict(),
@@ -116,7 +163,8 @@ def parse_bindings(bindings, qgraph):
             continue
         kid = element.pop('kid')
         qid = element.pop('qid')
-        if qid in qgraph['edges']:
+        element.pop('kid_qid', None)
+        if key.startswith('e_'):
             result['edge_bindings'].append({
                 'qg_id': qid,
                 'kg_id': kid,
@@ -159,7 +207,7 @@ async def extract_results(query_id, since, limit, offset, database):
 
 @APP.post('/plan', response_model=Dict, tags=['query'])
 async def generate_traversal_plan(
-        query: QueryModel,
+        query: Request,
 ) -> Dict:
     """Generate a plan for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
@@ -168,7 +216,7 @@ async def generate_traversal_plan(
 
 @APP.post('/score', response_model=Message, tags=['query'])
 async def score_results(
-        query: QueryModel,
+        query: Request,
 ) -> Message:
     """Score results."""
     message = query.message.dict()

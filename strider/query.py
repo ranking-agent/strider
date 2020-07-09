@@ -1,29 +1,62 @@
 """Query object."""
+from collections import defaultdict
 import json
+import time
+import uuid
+
+from strider.query_planner import generate_plan
 
 
-async def create_query(uid, redis):
+async def create_query(qgraph, **kwargs):
     """Create Query."""
-    query = Query(uid)
-    await query._init(redis)  # pylint: disable=protected-access
+    query = Query(qgraph)
+    await query._init(**kwargs)  # pylint: disable=protected-access
     return query
 
 
-class Query():  # pylint: disable=too-few-public-methods
+class Query():
     """Query."""
 
-    def __init__(self, uid):
+    def __init__(self, qgraph, **options):
         """Initialize."""
-        self.uid = uid
-        self.qgraph = None
-        self.options = None
+        self.qgraph = qgraph
+        self.options = options
+        self.done = defaultdict(bool)
+        self.priorities = defaultdict(int)
+        self.start_time = time.time()
+        self.plan = None
 
-    async def _init(self, redis):
-        """Asynchronously initialize qgraph."""
-        self.qgraph = json.loads(await redis.get(f'{self.uid}_qgraph'))
-        self.options = {
-            key: json.loads(value)
-            for key, value in (await redis.hgetall(
-                f'{self.uid}_options'
-            )).items()
-        }
+    async def _init(self, **kwargs):
+        """Generate query plan."""
+        self.plan = await generate_plan(self.qgraph, **kwargs)
+
+    async def is_done(self, job_id):
+        """Return boolean indicating if a job is completed."""
+        return self.done[job_id]
+
+    async def finish(self, job_id):
+        """Mark a job as completed."""
+        self.done[job_id] = True
+
+    async def get_priority(self, job_id):
+        """Get priority for job."""
+        return self.priorities[job_id]
+
+    async def get_steps(self, qid, kid):
+        """Get steps for query graph node id."""
+        job_id = f'({qid}:{kid})'
+
+        # never process the same job twice
+        if self.done[job_id]:
+            return dict()
+        await self.finish(job_id)
+
+        return self.plan[qid]
+
+    async def get_start_time(self):
+        """Get start time."""
+        return self.start_time
+
+    async def update_priority(self, job_id, incr):
+        """Update priority."""
+        self.priorities[job_id] += incr

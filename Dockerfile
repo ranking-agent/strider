@@ -22,7 +22,6 @@ ADD --chown=murphy:murphy ./setup.py /home/murphy/setup.py
 RUN pip install -e .
 
 # get meta-stuff
-ADD --chown=murphy:murphy ./supervisord.conf /home/murphy/supervisord.conf
 ADD --chown=murphy:murphy ./logging_setup.yml /home/murphy/logging_setup.yml
 ADD --chown=murphy:murphy ./run_workers.py /home/murphy/run_workers.py
 ADD --chown=murphy:murphy ./main.sh /home/murphy/main.sh
