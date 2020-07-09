@@ -54,6 +54,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             kp_registry = Registry(KPREGISTRY_URL)
         self.kp_registry = kp_registry
         self.counter = kwargs.get('counter', itertools.count())
+        self.max_fanout = kwargs.get('max_fanout', 100)
 
     async def setup(self, *args):
         """Set up SQLite and Neo4j connections."""
@@ -181,11 +182,15 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """Process response from KP."""
         if response is None:
             return
+        num_results = len(response['results'])
+        if self.max_fanout >= 0:
+            response['results'] = response['results'][:self.max_fanout]
         LOGGER.debug(
-            '[query %s]: [job %s]: Processing %d results...',
+            '[query %s]: [job %s]: Processing %d of %d results...',
             self.uid,
             job_id,
             len(response['results']),
+            num_results,
         )
         # process edges in batches
         batch_size = 100
