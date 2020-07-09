@@ -225,15 +225,6 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             result,
         )
 
-        # in case the answer is just disconnected nodes
-        subgraphs.append({
-            'nodes': {
-                qid: {**node, 'qid': qid, 'kid': node['id']}
-                for qid, node in result.nodes.items()
-            },
-            'edges': {},
-        })
-
         # process subgraphs
         await asyncio.gather(*[
             self.process_subgraph(job_id, subgraph, **kwargs)
