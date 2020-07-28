@@ -84,6 +84,8 @@ def fix_qnode(qnode, curie_map):
 
 async def prefer(qgraph, prefix):
     """Translate all pinned qnodes to preferred prefix."""
+    if prefix is None:
+        return qgraph
     url_base = 'https://nodenormalization-sri.renci.org/get_normalized_nodes'
     curies = [
         qnode.get('curie')
