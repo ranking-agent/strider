@@ -69,3 +69,14 @@ def setup_logging():
     with open('logging_setup.yml', 'r') as stream:
         config = yaml.load(stream.read(), Loader=yaml.SafeLoader)
     logging.config.dictConfig(config)
+
+
+def includes_dict(obj):
+    """Identify whether a JSON-encodable object includes a dict."""
+    if isinstance(obj, dict):
+        return True
+    if isinstance(obj, (list, tuple)):
+        return any(
+            includes_dict(el) for el in obj
+        )
+    return False

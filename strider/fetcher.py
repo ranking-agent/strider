@@ -14,6 +14,7 @@ from strider.worker import Worker, Neo4jMixin, SqliteMixin
 from strider.query import create_query
 from strider.result import Result, ValidationError
 from strider.kp_registry import Registry
+from strider.util import includes_dict
 
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 LOGGER = logging.getLogger(__name__)
@@ -277,6 +278,8 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             statement += f'SET {node_vars[kid]}.qid = "{qid}"\n'
             statement += f'SET {node_vars[kid]}.kid = "{kid}"\n'
             for key, value in node.items():
+                if includes_dict(value):
+                    continue
                 statement += 'SET {0}.{1} = {2}\n'.format(
                     node_vars[kid],
                     key,
@@ -292,6 +295,8 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             )
             statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
             for key, value in edge.items():
+                if includes_dict(value):
+                    continue
                 statement += f'SET {edge_vars[kid]}.qid = "{qid}"\n'
                 statement += f'SET {edge_vars[kid]}.kid = "{kid}"\n'
                 statement += 'SET {0}.{1} = {2}\n'.format(
