@@ -7,6 +7,7 @@ import os
 from bmt import Toolkit as BMToolkit
 
 from strider.kp_registry import Registry
+from strider.util import snake_case, spaced
 
 BMT = BMToolkit()
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
@@ -118,7 +119,8 @@ async def generate_plan(query_graph, kp_registry=None):
 
 async def expand_bl(concept):
     """Return lineage of biolink concept."""
-    return (
+    concept = spaced(concept)
+    return snake_case(
         BMT.ancestors(concept)
         + BMT.descendents(concept)
         + [concept]
