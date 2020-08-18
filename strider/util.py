@@ -89,3 +89,10 @@ def is_neo4j_prop(obj):
             is_neo4j_primitive_type(el) for el in obj
         )
     return is_neo4j_primitive_type(obj)
+
+
+def ensure_list(arg):
+    """Enclose in list if necessary."""
+    if isinstance(arg, list):
+        return arg
+    return [arg]

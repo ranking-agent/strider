@@ -4,6 +4,8 @@ import logging
 
 import httpx
 
+from strider.util import ensure_list
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -50,18 +52,35 @@ def message_to_list_form(message):
 def message_to_dict_form(message):
     """Convert *graph nodes/edges and node/edge bindings to dict forms."""
     if message['results']:
-        message['results'] = [
-            {
-                'node_bindings': {
-                    binding['qg_id']: [binding]
-                    for binding in result['node_bindings']
-                },
-                'edge_bindings': {
-                    binding['qg_id']: [binding]
-                    for binding in result['edge_bindings']
-                },
-            } for result in message.get('results', [])
-        ]
+        if isinstance(message['results'][0]['node_bindings'], list):
+            message['results'] = [
+                {
+                    'node_bindings': {
+                        binding['qg_id']: [binding]
+                        for binding in result['node_bindings']
+                    },
+                    'edge_bindings': {
+                        binding['qg_id']: [binding]
+                        for binding in result['edge_bindings']
+                    },
+                } for result in message.get('results', [])
+            ]
+        elif not isinstance(
+                list(message['results'][0]['node_bindings'].values())[0],
+                dict
+        ):
+            message['results'] = [
+                {
+                    'node_bindings': {
+                        key: [{'kg_id': el} for el in ensure_list(bindings)]
+                        for key, bindings in result['node_bindings'].items()
+                    },
+                    'edge_bindings': {
+                        key: [{'kg_id': el} for el in ensure_list(bindings)]
+                        for key, bindings in result['edge_bindings'].items()
+                    },
+                } for result in message.get('results', [])
+            ]
     if message['knowledge_graph']['nodes']:
         message['knowledge_graph']['nodes'] = {
             node['id']: node
