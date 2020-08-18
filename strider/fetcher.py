@@ -103,7 +103,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                     'id': data['kid'],
                     'type': data['type'],
                 }},
-                'edges': [],
+                'edges': dict(),
             }
             result = Result(result, self.query.qgraph, kgraph, self.bmt)
             job_id = f'({data["qid"]})'
