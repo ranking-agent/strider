@@ -14,7 +14,7 @@ from strider.worker import Worker, Neo4jMixin, SqliteMixin
 from strider.query import create_query
 from strider.result import Result, ValidationError
 from strider.kp_registry import Registry
-from strider.util import includes_dict
+from strider.util import is_neo4j_prop
 
 KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 LOGGER = logging.getLogger(__name__)
@@ -259,48 +259,51 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
         """
         # merge with existing nodes/edge, but update edge weight
         node_vars = {
-            node['id']: f'n{i:03d}'
-            for i, node in enumerate(result.nodes.values())
+            (node['id'] + '_' + qid): f'n{i:03d}'
+            for i, (qid, node) in enumerate(result.nodes.items())
         }
         edge_vars = {
-            edge['id']: f'e{i:03d}'
-            for i, edge in enumerate(result.edges.values())
+            (edge['id'] + '_' + qid): f'e{i:03d}'
+            for i, (qid, edge) in enumerate(result.edges.items())
         }
         statement = ''
         for qid, node in result.nodes.items():
             kid = node['id']
+            node_var = node_vars[kid + '_' + qid]
             statement += 'MERGE ({0}:`{1}` {{kid_qid:"{2}_{3}"}})\n'.format(
-                node_vars[kid],
+                node_var,
                 self.uid,
                 kid,
                 qid,
             )
-            statement += f'SET {node_vars[kid]}.qid = "{qid}"\n'
-            statement += f'SET {node_vars[kid]}.kid = "{kid}"\n'
+            statement += f'SET {node_var}.qid = "{qid}"\n'
+            statement += f'SET {node_var}.kid = "{kid}"\n'
             for key, value in node.items():
                 if not is_neo4j_prop(value):
                     continue
                 statement += 'SET {0}.{1} = {2}\n'.format(
-                    node_vars[kid],
+                    node_var,
                     key,
                     json.dumps(value),
                 )
-        for qid, edge in result.edges.items():
-            kid = edge['id']
+        for qid, kedge in result.edges.items():
+            qedge = self.query.qgraph['edges'][qid]
+            kid = kedge['id']
+            edge_var = edge_vars[kid + '_' + qid]
             statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
-                node_vars[edge['source_id']],
-                edge_vars[kid],
+                node_vars[kedge['source_id'] + '_' + qedge['source_id']],
+                edge_var,
                 self.uid,
-                node_vars[edge['target_id']],
+                node_vars[kedge['target_id'] + '_' + qedge['target_id']],
             )
-            statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
-            for key, value in edge.items():
+            statement += f'ON CREATE SET {edge_var}.new = TRUE\n'
+            for key, value in kedge.items():
                 if not is_neo4j_prop(value):
                     continue
-                statement += f'SET {edge_vars[kid]}.qid = "{qid}"\n'
-                statement += f'SET {edge_vars[kid]}.kid = "{kid}"\n'
+                statement += f'SET {edge_var}.qid = "{qid}"\n'
+                statement += f'SET {edge_var}.kid = "{kid}"\n'
                 statement += 'SET {0}.{1} = {2}\n'.format(
-                    edge_vars[kid],
+                    edge_var,
                     key,
                     json.dumps(value),
                 )
