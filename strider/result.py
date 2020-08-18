@@ -1,6 +1,8 @@
 """Result."""
 import logging
 
+from strider.util import snake_case, spaced
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -44,9 +46,10 @@ class Result():  # pylint: disable=too-few-public-methods
                     raise ValidationError(f'{element["id"]} != {value}')
             elif key == 'type':
                 if isinstance(element['type'], str):
-                    lineage = (
-                        self.bmt.ancestors(value)
-                        + self.bmt.descendents(value)
+                    concept = spaced(value)
+                    lineage = snake_case(
+                        self.bmt.ancestors(concept)
+                        + self.bmt.descendents(concept)
                         + [value]
                     )
                     if element['type'] not in lineage:
