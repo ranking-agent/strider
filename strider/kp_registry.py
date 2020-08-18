@@ -148,6 +148,7 @@ async def call_kp(url, request):
     async with httpx.AsyncClient(
             timeout=None,
             headers={'Content-Type': 'application/json'},
+            verify=False,
     ) as client:
         try:
             response = await client.post(url, data=request)
