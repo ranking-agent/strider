@@ -50,8 +50,7 @@ class Result():  # pylint: disable=too-few-public-methods
                     lineage = snake_case(
                         self.bmt.ancestors(concept)
                         + self.bmt.descendents(concept)
-                        + [value]
-                    )
+                    ) + [value]
                     if element['type'] not in lineage:
                         raise ValidationError(
                             f'{element["type"]} not in {lineage}'
