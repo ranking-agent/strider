@@ -186,11 +186,13 @@ def kp_func(
             preferred_prefix,
         )
         request = json.dumps(request)
-        for old, new in in_transformers.items():
-            request = request.replace(old, new)
+        if in_transformers is not None:
+            for old, new in in_transformers.items():
+                request = request.replace(old, new)
         response = await call_kp(url, request)
-        for old, new in out_transformers.items():
-            response = response.replace(old, new)
+        if out_transformers is not None:
+            for old, new in out_transformers.items():
+                response = response.replace(old, new)
         response = json.loads(response)
         return message_to_dict_form(response)
     return func
