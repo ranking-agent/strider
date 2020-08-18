@@ -278,7 +278,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             statement += f'SET {node_vars[kid]}.qid = "{qid}"\n'
             statement += f'SET {node_vars[kid]}.kid = "{kid}"\n'
             for key, value in node.items():
-                if includes_dict(value):
+                if not is_neo4j_prop(value):
                     continue
                 statement += 'SET {0}.{1} = {2}\n'.format(
                     node_vars[kid],
@@ -295,7 +295,7 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             )
             statement += f'ON CREATE SET {edge_vars[kid]}.new = TRUE\n'
             for key, value in edge.items():
-                if includes_dict(value):
+                if not is_neo4j_prop(value):
                     continue
                 statement += f'SET {edge_vars[kid]}.qid = "{qid}"\n'
                 statement += f'SET {edge_vars[kid]}.kid = "{kid}"\n'
