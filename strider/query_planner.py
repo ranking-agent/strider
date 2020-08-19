@@ -119,9 +119,10 @@ async def generate_plan(query_graph, kp_registry=None):
 
 async def expand_bl(concept):
     """Return lineage of biolink concept."""
-    concept = spaced(concept)
+    if concept is None:
+        concept = 'named_thing'
+    _concept = spaced(concept)
     return snake_case(
-        BMT.ancestors(concept)
-        + BMT.descendents(concept)
-        + [concept]
-    )
+        BMT.ancestors(_concept)
+        + BMT.descendents(_concept)
+    ) + [concept]
