@@ -68,31 +68,51 @@ class Planner():
         # i.e. steps we could imagine taking through the qgraph
         candidate_steps = defaultdict(list)
         for edge in qgraph['edges'].values():
+            if "provided_by" in edge:
+                allowlist = edge["provided_by"].get("allowlist", None)
+                denylist = edge["provided_by"].get("denylist", None)
+            else:
+                allowlist = denylist = None
             candidate_steps[edge['source_id']].append(
-                (f'-{edge["id"]}->', edge["target_id"])
+                (
+                    f'-{edge["id"]}->',
+                    edge["target_id"],
+                    allowlist,
+                    denylist,
+                )
             )
             candidate_steps[edge['target_id']].append(
-                (f'<-{edge["id"]}-', edge["source_id"])
+                (
+                    f'<-{edge["id"]}-',
+                    edge["source_id"],
+                    allowlist,
+                    denylist,
+                )
             )
 
         # evaluate which candidates are realizable
         plan = dict()
         for source_id, steps in candidate_steps.items():
             plan[source_id] = dict()
-            for edge_id, target_id in steps:
+            for edge_id, target_id, allowlist, denylist in steps:
                 step_id = edge_id + target_id
                 source = qgraph['nodes'][source_id]
                 edge = qgraph['edges'][edge_id.split('-')[1]]
                 target = qgraph['nodes'][target_id]
                 plan[source_id][step_id] = await self.step_to_kps(
-                    source, edge, target
+                    source, edge, target,
+                    allowlist=allowlist, denylist=denylist,
                 )
 
         self.validate_traversable(plan, qgraph)
 
         return plan
 
-    async def step_to_kps(self, source, edge, target):
+    async def step_to_kps(
+            self,
+            source, edge, target,
+            allowlist=None, denylist=None,
+    ):
         """Find KP endpoint(s) that enable step."""
         responses = await asyncio.gather(
             expand_bl(source["type"]),
@@ -109,6 +129,8 @@ class Planner():
             source_types,
             edge_types,
             target_types,
+            allowlist=allowlist,
+            denylist=denylist,
         )
 
 

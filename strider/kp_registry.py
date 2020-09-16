@@ -265,7 +265,11 @@ class Registry():
             )
             assert response.status_code < 300
 
-    async def search(self, source_types, edge_types, target_types):
+    async def search(
+            self,
+            source_types, edge_types, target_types,
+            allowlist=None, denylist=None,
+    ):
         """Search for KPs matching a pattern."""
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -278,8 +282,12 @@ class Registry():
             )
             assert response.status_code < 300
         return [
-            kp_func(url, **details)
-            for url, details in response.json().items()
+            kp_func(**details)
+            for kpid, details in response.json().items()
+            if (
+                (allowlist is None or kpid in allowlist)
+                and (denylist is None or kpid not in denylist)
+            )
         ]
 
     async def delete_all(self):

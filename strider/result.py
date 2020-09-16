@@ -62,7 +62,7 @@ class Result():  # pylint: disable=too-few-public-methods
                         )
                 else:
                     raise ValueError('Type must be a str or list')
-            elif key not in ['id', 'source_id', 'target_id']:
+            elif key not in ['id', 'source_id', 'target_id', 'provided_by']:
                 if element[key] != value:
                     raise ValidationError(f'{element[key]} != {value}')
         return True
