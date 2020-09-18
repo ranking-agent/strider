@@ -10,6 +10,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from reasoner_pydantic import Request, Message
 from strider.setup_query import execute_query, generate_plan
+from strider.query_planner import NoAnswersError
 from strider.scoring import score_graph
 from strider.results import get_db, Database
 from strider.util import setup_logging
@@ -47,11 +48,15 @@ async def sync_query(
 
 async def sync_answer(query: Dict, **kwargs):
     """Answer biomedical question, synchronously."""
-    query_id = await execute_query(
-        query['message']['query_graph'],
-        **kwargs,
-        wait=True,
-    )
+    try:
+        query_id = await execute_query(
+            query['message']['query_graph'],
+            **kwargs,
+            wait=True,
+        )
+    except NoAnswersError as err:
+        LOGGER.warning(str(err))
+        return query['message']
     async with Database('results.db') as database:
         return await _get_results(
             query_id=query_id,

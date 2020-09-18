@@ -14,6 +14,11 @@ KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 LOGGER = logging.getLogger(__name__)
 
 
+class NoAnswersError(Exception):
+    """No answers can be found."""
+    pass
+
+
 class Planner():
     """Planner."""
 
@@ -60,7 +65,7 @@ class Planner():
             message = 'The query is not traversable. ' \
                       'The following nodes/edges cannot be reached: ' \
                       '{0}'.format(', '.join(missing))
-            raise RuntimeError(message)
+            raise NoAnswersError(message)
 
     async def plan(self, qgraph):
         """Generate a query execution plan."""
