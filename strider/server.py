@@ -20,6 +20,7 @@ APP = FastAPI(
     title='Strider/ARAGORN/Ranking Agent',
     description='Translator Autonomous Relay Agent',
     version='1.0.0',
+    terms_of_service='N/A',
 )
 APP.add_middleware(
     CORSMiddleware,
