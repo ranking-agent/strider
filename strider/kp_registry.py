@@ -1,6 +1,8 @@
 """KP registry."""
 import json
 import logging
+import re
+import uuid
 
 import httpx
 
@@ -101,40 +103,102 @@ def fix_qnode(qnode, curie_map):
     return qnode
 
 
-async def prefer(qgraph, prefix):
-    """Translate all pinned qnodes to preferred prefix."""
-    if prefix is None:
-        return qgraph
+def fix_knode(knode, curie_map):
+    """Replace curie with preferred, if possible."""
+    knode['id'] = curie_map.get(knode['id'], knode['id'])
+    return knode
+
+
+def fix_kedge(kedge, curie_map):
+    """Replace curie with preferred, if possible."""
+    kedge['source_id'] = curie_map.get(kedge['source_id'], kedge['source_id'])
+    kedge['target_id'] = curie_map.get(kedge['target_id'], kedge['target_id'])
+    return kedge
+
+
+def fix_result(result, curie_map):
+    """Replace curie with preferred, if possible."""
+    result['node_bindings'] = {
+        qid: curie_map.get(kid, kid)
+        for qid, kid in result['node_bindings'].items()
+    }
+    return result
+
+
+async def get_curie_transformations(message, preferences):
+    """Get CURIE transformations according to CURIE prefix preferences.
+
+    preferences is a map: type -> prefix
+    """
+    preferences = {
+        'chemical_substance': 'CHEBI',
+        **preferences,
+    }
+    curie_map = dict()
     url_base = 'https://nodenormalization-sri.renci.org/get_normalized_nodes'
-    curies = [
-        qnode.get('curie')
-        for qnode in qgraph['nodes']
-        if qnode.get('curie')
-    ]
+    curies = set()
+    if 'query_graph' in message:
+        curies |= {
+            qnode.get('curie')
+            for qnode in message['query_graph']['nodes']
+            if qnode.get('curie', False)
+        }
+    if 'knowledge_graph' in message:
+        curies |= {
+            knode.get('id')
+            for knode in message['knowledge_graph']['nodes']
+        }
     async with httpx.AsyncClient(timeout=None) as client:
         response = await client.get(
             url_base,
-            params={'curie': curies},
+            params={'curie': list(curies)},
         )
 
-    curie_map = dict()
-    for key, value in response.json().items():
+    if response.status_code >= 300:
+        return curie_map
+    for curie, entity in response.json().items():
+        if entity is None:
+            continue
+        for type_ in entity['type']:
+            if type_ in preferences:
+                prefix = preferences[type_]
+                break
+        else:
+            prefix = None
+        if prefix is None:
+            continue
         try:
             replacement = next(
-                entity['identifier']
-                for entity in value['equivalent_identifiers']
-                if entity['identifier'].startswith(prefix)
+                ident['identifier']
+                for ident in entity['equivalent_identifiers']
+                if ident['identifier'].startswith(prefix)
             )
         except StopIteration:
             # no preferred replacement
             continue
-        curie_map[key] = replacement
+        curie_map[curie] = replacement
+    return curie_map
 
-    qgraph['nodes'] = [
+
+def apply_curie_map(message, curie_map):
+    """Translate all pinned qnodes to preferred prefix."""
+    message['query_graph']['nodes'] = [
         fix_qnode(qnode, curie_map)
-        for qnode in qgraph['nodes']
+        for qnode in message['query_graph']['nodes']
     ]
-    return qgraph
+    message['knowledge_graph']['nodes'] = [
+        fix_knode(knode, curie_map)
+        for knode in message['knowledge_graph']['nodes']
+    ]
+    message['knowledge_graph']['edges'] = [
+        fix_kedge(kedge, curie_map)
+        for kedge in message['knowledge_graph']['edges']
+    ]
+    message['results'] = [
+        fix_result(result, curie_map)
+        for result in message['results']
+    ]
+    return message
 
 
 async def call_kp(url, request):
@@ -175,29 +239,63 @@ async def call_kp(url, request):
     return response.text
 
 
+def rand_str():
+    """Generate random string."""
+    return '"' + str(uuid.uuid4()) + '"'
+
+
 def kp_func(
         url,
-        preferred_prefix=None,
+        preferred_prefixes=None,
         in_transformers=None,
         out_transformers=None,
 ):
     """Generate KP function."""
     async def func(request):
         """Call KP with pre- and post-processing."""
+        qgraph = request['query_graph']
         request = {'message': request}
-        request['message']['query_graph'] = await prefer(
-            request['message']['query_graph'],
-            preferred_prefix,
+
+        curie_map = await get_curie_transformations(
+            request['message'],
+            preferred_prefixes,
         )
-        request = json.dumps(request)
+        # request['message'] = apply_curie_map(request['message'], curie_map)
+        in_transformers.update({
+            '"' + old + '"': '"' + new + '"'
+            for old, new in curie_map.items()
+        })
+        out_transformers.update({
+            '"' + new + '"': '"' + old + '"'
+            for old, new in curie_map.items()
+        })
+        request_str = json.dumps(request)
         if in_transformers is not None:
             for old, new in in_transformers.items():
-                request = request.replace(old, new)
-        response = await call_kp(url, request)
+                request_str = re.sub(old, new, request_str)
+        response_str = await call_kp(url, request_str)
         if out_transformers is not None:
             for old, new in out_transformers.items():
-                response = response.replace(old, new)
-        response = json.loads(response)
+                response_str = re.sub(old, new, response_str)
+        try:
+            response = json.loads(response_str)
+        except json.JSONDecodeError:
+            LOGGER.error('"OK" message is not proper JSON: %s', response_str)
+            return {
+                "query_graph": qgraph,
+                "results": [],
+            }
+
+        curie_map = await get_curie_transformations(response, {})
+
+        curie_map['"e0"'] = rand_str()
+        curie_map['"e1"'] = rand_str()
+        curie_map['"e2"'] = rand_str()
+
+        # response = apply_curie_map(response, curie_map)
+        for old, new in curie_map.items():
+            response_str = re.sub(old, new, response_str)
+        response = json.loads(response_str)
         return message_to_dict_form(response)
     return func
 
@@ -239,7 +337,7 @@ class Registry():
         provider = response.json()
         return kp_func(
             url,
-            preferred_prefix=provider[5]['details']['preferred_prefix'],
+            preferred_prefixes=provider[5]['details']['preferred_prefixes'],
             in_transformers=provider[5]['details']['in_transformers'],
             out_transformers=provider[5]['details']['out_transformers'],
         )
