@@ -1,6 +1,6 @@
 aiosqlite==0.13.0
 bmt==0.1.1
-fastapi==0.58.0
+git+git://github.com/patrickkwang/fastapi@tos#egg=fastapi
 httpx==0.12.1
 numpy==1.19.0
 pyyaml==5.3.1

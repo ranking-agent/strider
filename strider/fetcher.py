@@ -214,10 +214,13 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 edge_awaitables.append(self.process_kp_result(
                     job_id, result, **kwargs
                 ))
-            await asyncio.gather(
+            returned = await asyncio.gather(
                 *edge_awaitables,
-                return_exceptions=False,
+                return_exceptions=True,
             )
+            for err in returned:
+                if err is not None:
+                    LOGGER.warning(err)
 
     async def process_kp_result(
             self,
@@ -290,12 +293,25 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
             qedge = self.query.qgraph['edges'][qid]
             kid = kedge['id']
             edge_var = edge_vars[kid + '_' + qid]
-            statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
-                node_vars[kedge['source_id'] + '_' + qedge['source_id']],
-                edge_var,
-                self.uid,
-                node_vars[kedge['target_id'] + '_' + qedge['target_id']],
-            )
+            try:
+                statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
+                    node_vars[kedge['source_id'] + '_' + qedge['source_id']],
+                    edge_var,
+                    self.uid,
+                    node_vars[kedge['target_id'] + '_' + qedge['target_id']],
+                )
+            except KeyError as err1:
+                if 'type' in qedge:
+                    raise err1
+                try:
+                    statement += 'MERGE ({0})-[{1}:`{2}`]->({3})\n'.format(
+                        node_vars[kedge['source_id'] + '_' + qedge['target_id']],
+                        edge_var,
+                        self.uid,
+                        node_vars[kedge['target_id'] + '_' + qedge['source_id']],
+                    )
+                except KeyError as err2:
+                    raise err2
             statement += f'ON CREATE SET {edge_var}.new = TRUE\n'
             for key, value in kedge.items():
                 if not is_neo4j_prop(value):
