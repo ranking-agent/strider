@@ -214,10 +214,13 @@ class Fetcher(Worker, Neo4jMixin, SqliteMixin):
                 edge_awaitables.append(self.process_kp_result(
                     job_id, result, **kwargs
                 ))
-            await asyncio.gather(
+            returned = await asyncio.gather(
                 *edge_awaitables,
-                return_exceptions=False,
+                return_exceptions=True,
             )
+            for err in returned:
+                if err is not None:
+                    LOGGER.warning(err)
 
     async def process_kp_result(
             self,
