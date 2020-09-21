@@ -151,7 +151,11 @@ async def call_kp(url, request):
             verify=False,
     ) as client:
         try:
-            response = await client.post(url, data=request)
+            response = await client.post(
+                url,
+                data=request,
+                timeout=30.0,
+            )
         except httpx.ReadTimeout:
             LOGGER.error(
                 "ReadTimeout: endpoint: %s, JSON: %s",
