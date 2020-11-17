@@ -8,9 +8,9 @@ from fastapi.responses import JSONResponse
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 
-from reasoner_pydantic import Request, Message
-from strider.setup_query import execute_query, generate_plan
-from strider.query_planner import NoAnswersError
+from reasoner_pydantic import Query, Message
+from strider.setup_query import execute_query
+from strider.query_planner import generate_plan, NoAnswersError
 from strider.scoring import score_graph
 from strider.results import get_db, Database
 from strider.util import setup_logging
@@ -36,7 +36,7 @@ setup_logging()
 
 @APP.post('/query', response_model=Message, tags=['query'])
 async def sync_query(
-        query: Request,
+        query: Query,
         support: bool = True,
 ) -> Message:
     """Handle synchronous query."""
@@ -69,7 +69,7 @@ async def sync_answer(query: Dict, **kwargs):
 
 @APP.post('/aquery', response_model=str, tags=['query'])
 async def async_query(
-        query: Request,
+        query: Query,
         support: bool = True,
 ) -> str:
     """Handle asynchronous query."""
@@ -216,7 +216,7 @@ async def extract_results(query_id, since, limit, offset, database):
 
 @APP.post('/plan', response_model=Dict, tags=['query'])
 async def generate_traversal_plan(
-        query: Request,
+        query: Query,
 ) -> Dict:
     """Generate a plan for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
@@ -239,7 +239,7 @@ async def generate_traversal_plan(
 
 @APP.post('/score', response_model=Message, tags=['query'])
 async def score_results(
-        query: Request,
+        query: Query,
 ) -> Message:
     """Score results."""
     message = query.message.dict()
