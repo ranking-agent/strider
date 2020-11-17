@@ -1,16 +1,12 @@
 """Example: plan a query."""
 import asyncio
 import itertools
-import json
 import logging
-import os
-import time
 import uuid
 
 import uvloop
 
 from strider.fetcher import Fetcher
-from strider.query_planner import generate_plan
 from strider.results import Database
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
@@ -63,15 +59,14 @@ async def execute_query(qgraph, **kwargs):
         }
         LOGGER.debug("Queueing result %s", job_id)
         queue.put_nowait((
-            0,
-            next(counter),
+            (0, next(counter)),
             job,
         ))
 
     # setup fetcher
     fetcher = Fetcher(
         queue,
-        max_jobs=5,
+        max_jobs=2,
         counter=counter,
         query_id=query_id,
         **kwargs,
