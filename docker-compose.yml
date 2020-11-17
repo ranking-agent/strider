@@ -1,23 +1,10 @@
 version: '3'
-services:
-  neo4j:
-    container_name: strider_neo4j
-    image: neo4j:3.5.4
-    environment:
-      - NEO4J_AUTH=none
-    ports:
-      - '7474:7474'
-      - '7687:7687'
-    volumes:
-      - ./neo4j_plugins/:/var/lib/neo4j/plugins/
-  
   strider:
     container_name: strider
     image: strider
     build:
       context: .
     environment:
-      - NEO4J_HOST=strider_neo4j
       - KPREGISTRY_URL=${KPREGISTRY_URL}
       - BIOLINK_URL=${BIOLINK_URL}
       - OMNICORP_URL=${OMNICORP_URL}

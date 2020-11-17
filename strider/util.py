@@ -71,26 +71,6 @@ def setup_logging():
     logging.config.dictConfig(config)
 
 
-def is_neo4j_primitive_type(obj):
-    """Identify whether an object is a valid Neo4j primitive type.
-
-    Number (Integer or Float), String, Boolean
-    """
-    return isinstance(obj, (int, float, str, bool))
-
-
-def is_neo4j_prop(obj):
-    """Identify whether an object is a valid Neo4j property value.
-
-    "Property values can only be of primitive types or arrays thereof."
-    """
-    if isinstance(obj, list):
-        return all(
-            is_neo4j_primitive_type(el) for el in obj
-        )
-    return is_neo4j_primitive_type(obj)
-
-
 def ensure_list(arg):
     """Enclose in list if necessary."""
     if isinstance(arg, list):

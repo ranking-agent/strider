@@ -17,12 +17,6 @@ A docker file is included in the base directory and can be used to build the cus
 docker build -t strider .
 ```
 
-Strider utilizes Neo4j as an internal graph cache. This is provided and configured through standard container images and docker-compose. Strider requires a [custom Neo4j plugin](https://github.com/TranslatorIIPrototypes/strider-neo4j) to be placed in the neo4j_plugins directory. A pre-built version of the plugin can be download and saved to the correct location using
-
-```bash
-curl -L https://github.com/TranslatorIIPrototypes/strider-neo4j/releases/download/v1.0.0/strider-1.0.0.jar -o neo4j_plugins/strider-1.0.0.jar
-```
-
 A set of environmental variables must be defined in a `.env` file. Make sure to replace `***` with actual passwords.
 
 ```bash
