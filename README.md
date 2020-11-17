@@ -3,7 +3,7 @@
 
 __A web service and API for Strider, the knowledge-provider querying, answer generating, ranking module of ARAGORN.__
 
-This service accepts a biomedical question as a [Translator reasoner standard message](https://github.com/NCATS-Tangerine/NCATS-ReasonerStdAPI) and asynchronously generates results in the same format.
+This service accepts a biomedical question as a [Translator reasoner standard message](https://github.com/NCATSTranslator/ReasonerAPI) and asynchronously generates results in the same format.
 
 ## Demonstration
 
