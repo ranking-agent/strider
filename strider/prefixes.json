@@ -1,0 +1,33 @@
+{
+    "biolink:Disease": [
+        "MONDO",
+        "DOID",
+        "OMIM",
+        "ORPHANET",
+        "EFO",
+        "UMLS",
+        "MESH",
+        "MEDDRA",
+        "NCIT",
+        "SNOMEDCT",
+        "medgen",
+        "ICD10",
+        "ICD9",
+        "ICD0",
+        "HP",
+        "MP"
+    ],
+    "biolink:ChemicalSubstance": [
+        "CHEBI",
+        "CHEMBL.COMPOUND",
+        "DRUGBANK",
+        "PUBCHEM.COMPOUND",
+        "MESH",
+        "HMDB",
+        "INCHI",
+        "INCHIKEY",
+        "UNII",
+        "KEGG",
+        "gtpo"
+    ]
+}
