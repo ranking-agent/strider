@@ -5,17 +5,13 @@ import logging
 import os
 
 import httpx
+from reasoner_converter.upgrading import upgrade_BiolinkEntity
 from reasoner_pydantic import Message
 
 from .util import post_json
 from .trapi import apply_curie_map, get_curies
 
 LOGGER = logging.getLogger(__name__)
-NORMALIZER_HOST = os.getenv(
-    "NORMALIZER_HOST",
-    # "https://nodenormalization-sri.renci.org",
-    "http://normalizer",
-)
 
 
 class KnowledgePortal():
@@ -80,6 +76,10 @@ class Synonymizer():
     def __init__(self):
         """Initialize."""
         self._data = dict()
+        self.normalizer_host = os.getenv(
+            "NORMALIZER_HOST",
+            "https://nodenormalization-sri.renci.org",
+        )
 
     async def load_message(self, message: Message):
         """Load map for concepts in message."""
@@ -89,7 +89,7 @@ class Synonymizer():
     async def load_curies(self, *curies: list[str]):
         """Load CURIES into map."""
         # get all curie synonyms
-        url_base = f"{NORMALIZER_HOST}/get_normalized_nodes"
+        url_base = f"{self.normalizer_host}/get_normalized_nodes"
         async with httpx.AsyncClient(timeout=None) as client:
             response = await client.get(
                 url_base,
@@ -101,7 +101,10 @@ class Synonymizer():
 
         entities = [
             Entity(
-                entity["category"],
+                [
+                    upgrade_BiolinkEntity(category)
+                    for category in entity["type"]
+                ],
                 [
                     synonym["identifier"]
                     for synonym in entity["equivalent_identifiers"]
@@ -148,6 +151,7 @@ class CURIEMap():
             )
         except StopIteration:
             # no preferred prefixes for these categories
+            LOGGER.warning("Cannot find preferred prefixes for categories")
             return curie
 
         # get CURIE with preferred prefix
@@ -160,6 +164,7 @@ class CURIEMap():
             )
         except StopIteration:
             # no preferred curie with these prefixes
+            LOGGER.warning("Cannot find identifier with a preferred prefix")
             return curie
 
     def get(self, *args):

@@ -26,6 +26,8 @@ from .caching import async_locking_cache
 
 LOGGER = logging.getLogger(__name__)
 
+KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
+
 
 class StriderWorker(Worker):
     """Strider async worker."""
@@ -39,7 +41,7 @@ class StriderWorker(Worker):
         self.plan: list[Step] = None
         self.preferred_prefixes: dict[str, list[str]] = None
         self.qgraph: QueryGraph = None
-        self.registry: Registry = Registry("http://registry")
+        self.registry: Registry = Registry(KPREGISTRY_URL)
         self.results: list[Result] = []
         self.portal: KnowledgePortal = KnowledgePortal()
         super().__init__(*args, **kwargs)
@@ -50,7 +52,7 @@ class StriderWorker(Worker):
     ):
         """Set up."""
         # get preferred prefixes
-        prefixes_json = os.getenv("PREFIXES", None)
+        prefixes_json = os.getenv("PREFIXES", "strider/prefixes.json")
         if prefixes_json:
             with open(prefixes_json, "r") as stream:
                 self.preferred_prefixes = json.load(stream)
