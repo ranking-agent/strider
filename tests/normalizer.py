@@ -70,7 +70,7 @@ def norm_router():
                     }
                     for synonym in synset_mappings[curie]
                 ],
-                "category": category_mappings[curie],
+                "type": category_mappings[curie],
             }
             for curie in curies
         }
