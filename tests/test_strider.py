@@ -17,6 +17,7 @@ with open("tests/data/query_graphs/two_hop.json", "r") as stream:
     QGRAPH = json.load(stream)
 
 os.environ["PREFIXES"] = "tests/data/prefixes.json"
+os.environ["KPREGISTRY_URL"] = "http://registry"
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
