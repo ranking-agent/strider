@@ -1,9 +1,11 @@
 """Simple ReasonerStdAPI server."""
+import asyncio
+import itertools
 import json
 import logging
 from typing import Dict
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -13,11 +15,12 @@ import httpx
 from starlette.middleware.cors import CORSMiddleware
 
 from reasoner_pydantic import Query, Message
-from strider.setup_query import execute_query
-from strider.query_planner import generate_plan, NoAnswersError
-from strider.scoring import score_graph
-from strider.results import get_db, Database
-from strider.util import setup_logging
+
+from .fetcher import StriderWorker
+from .query_planner import generate_plan, NoAnswersError
+from .scoring import score_graph
+from .results import get_db, Database
+from .util import setup_logging
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,10 +42,32 @@ APP.add_middleware(
 
 setup_logging()
 
+EXAMPLE = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n1": {
+                    "id": "CHEBI:136043",
+                    "category": "biolink:ChemicalSubstance",
+                },
+                "n2": {
+                    "category": "biolink:Disease",
+                }
+            },
+            "edges": {
+                "e12": {
+                    "subject": "n1",
+                    "object": "n2",
+                    "predicate": "biolink:treats",
+                }
+            }
+        },
+    }
+}
 
 @APP.post('/query', response_model=Message, tags=['query'])
 async def sync_query(
-        query: Query,
+        query: Query = Body(..., example=EXAMPLE),
         support: bool = True,
 ) -> Message:
     """Handle synchronous query."""
@@ -55,11 +80,22 @@ async def sync_query(
 async def sync_answer(query: Dict, **kwargs):
     """Answer biomedical question, synchronously."""
     try:
-        query_id = await execute_query(
-            query['message']['query_graph'],
-            **kwargs,
-            wait=True,
+        queue = asyncio.PriorityQueue()
+        counter = itertools.count()
+
+        # setup strider
+        strider = StriderWorker(
+            queue,
+            num_workers=2,
+            counter=counter,
         )
+
+        await strider.run(query["message"]["query_graph"], wait=True)
+        return {
+            "query_graph": query["query_graph"],
+            "results": strider.results,
+            "knowledge_graph": strider.kgraph,
+        }
     except NoAnswersError as err:
         LOGGER.warning(str(err))
         return query['message']
