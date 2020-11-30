@@ -4,7 +4,11 @@ import logging
 from typing import Dict
 
 from fastapi import Depends, FastAPI, HTTPException
+from fastapi.openapi.docs import (
+    get_swagger_ui_html,
+)
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 
@@ -22,6 +26,8 @@ APP = FastAPI(
     description='Translator Autonomous Relay Agent',
     version='1.0.0',
     terms_of_service='N/A',
+    docs_url=None,
+    redoc_url=None,
 )
 APP.add_middleware(
     CORSMiddleware,
@@ -122,6 +128,20 @@ async def get_results(  # pylint: disable=too-many-arguments
 ) -> Message:
     """Get results for a query."""
     return await _get_results(query_id, since, limit, offset, database)
+
+
+APP.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@APP.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html():
+    """Customize Swagger UI."""
+    return get_swagger_ui_html(
+        openapi_url=APP.openapi_url,
+        title=APP.title + " - Swagger UI",
+        oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
+        swagger_favicon_url="/static/favicon.png",
+    )
 
 
 async def _get_results(
