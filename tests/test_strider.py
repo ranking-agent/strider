@@ -18,6 +18,7 @@ with open("tests/data/query_graphs/two_hop.json", "r") as stream:
 
 os.environ["PREFIXES"] = "tests/data/prefixes.json"
 os.environ["KPREGISTRY_URL"] = "http://registry"
+os.environ["NORMALIZER_HOST"] = "http://normalizer"
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
