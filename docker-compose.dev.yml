@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  kp-registry:
+    ports:
+      - '4983:4983'
+  strider:
+    volumes:
+      - ./:/home/murphy
+    command: uvicorn strider.server:APP --host 0.0.0.0 --port 5781 --reload
