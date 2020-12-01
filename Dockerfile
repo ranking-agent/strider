@@ -1,4 +1,7 @@
-FROM python:3.8.1-buster
+FROM python:3.9
+
+# Add image info
+LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
 
 # install basic tools
 RUN apt-get update
@@ -13,23 +16,16 @@ RUN useradd -m -u $UID -g $GID -s /bin/bash murphy
 
 # set up requirements
 WORKDIR /home/murphy
-ADD --chown=murphy:murphy ./requirements.txt /home/murphy/requirements.txt
+ADD --chown=murphy:murphy ./requirements.txt .
 RUN pip install -r /home/murphy/requirements.txt
 
-# set up strider
-ADD --chown=murphy:murphy ./strider /home/murphy/strider
-ADD --chown=murphy:murphy ./setup.py /home/murphy/setup.py
-RUN pip install -e .
-
-# get meta-stuff
-ADD --chown=murphy:murphy ./logging_setup.yml /home/murphy/logging_setup.yml
-ADD --chown=murphy:murphy ./run_workers.py /home/murphy/run_workers.py
-ADD --chown=murphy:murphy ./main.sh /home/murphy/main.sh
+# Copy in files
+ADD --chown=murphy:murphy . .
 
 # become murphy
 ENV HOME=/home/murphy
 ENV USER=murphy
 USER murphy
 
-# set up entrypoint
+# set up default command
 CMD ["/home/murphy/main.sh"]
