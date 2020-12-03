@@ -217,6 +217,20 @@ async def generate_traversal_plan(
 ) -> Dict:
     """Generate a plan for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
+
+    query_graph = {
+        'nodes': {
+            qnode['id']: qnode
+            for qnode in query_graph['nodes']
+        },
+        'edges': {
+            qedge['id']: {
+                **qedge,
+                "type": qedge["type"] or "related_to",
+            }
+            for qedge in query_graph['edges']
+        }
+    }
     return await generate_plan(query_graph)
 
 
