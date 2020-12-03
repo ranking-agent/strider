@@ -288,9 +288,10 @@ def kp_func(
 
         curie_map = await get_curie_transformations(response, {})
 
-        curie_map['"e0"'] = rand_str()
-        curie_map['"e1"'] = rand_str()
-        curie_map['"e2"'] = rand_str()
+        if "molepro" in url:
+            curie_map['"e0"'] = rand_str()
+            curie_map['"e1"'] = rand_str()
+            curie_map['"e2"'] = rand_str()
 
         # response = apply_curie_map(response, curie_map)
         for old, new in curie_map.items():
