@@ -256,6 +256,10 @@ def kp_func(
         qgraph = request['query_graph']
         request = {'message': request}
 
+        if "automat" in url:
+            for qedge in qgraph["edges"]:
+                qedge.pop("type", None)
+
         curie_map = await get_curie_transformations(
             request['message'],
             preferred_prefixes,
