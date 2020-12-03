@@ -58,10 +58,13 @@ async def sync_answer(query: Dict, **kwargs):
         LOGGER.warning(str(err))
         return query['message']
     async with Database('results.db') as database:
-        return await _get_results(
-            query_id=query_id,
-            database=database,
-        )
+        return {
+            "query_graph": query['message']['query_graph'],
+            **(await _get_results(
+                query_id=query_id,
+                database=database,
+            ))
+        }
 
 
 @APP.post('/aquery', response_model=str, tags=['query'])
