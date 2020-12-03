@@ -1,4 +1,5 @@
 """Simple ReasonerStdAPI server."""
+import uuid
 import asyncio
 import itertools
 import json
@@ -21,6 +22,7 @@ from .query_planner import generate_plan, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
 from .util import setup_logging
+from .storage import RedisGraph
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,60 +67,57 @@ EXAMPLE = {
     }
 }
 
-@APP.post('/query', response_model=Message, tags=['query'])
-async def sync_query(
-        query: Query = Body(..., example=EXAMPLE),
-        support: bool = True,
-) -> Message:
-    """Handle synchronous query."""
-    return await sync_answer(
-        query.dict(),
-        support=support,
-    )
-
-
-async def sync_answer(query: Dict, **kwargs):
-    """Answer biomedical question, synchronously."""
-    try:
-        queue = asyncio.PriorityQueue()
-        counter = itertools.count()
-
-        # setup strider
-        strider = StriderWorker(
-            queue,
-            num_workers=2,
-            counter=counter,
-        )
-
-        await strider.run(query["message"]["query_graph"], wait=True)
-        return {
-            "query_graph": query["query_graph"],
-            "results": strider.results,
-            "knowledge_graph": strider.kgraph,
+def get_finished_query(qid):
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    kgraph = RedisGraph(f"{qid}:kgraph")
+    results = RedisList(f"{qid}:results")
+    return {
+            "query_graph": qgraph.dict(),
+            "knowledge_graph": kgraph.dict(),
+            "results": results.list(),
         }
-    except NoAnswersError as err:
-        LOGGER.warning(str(err))
-        return query['message']
-    async with Database('results.db') as database:
-        return await _get_results(
-            query_id=query_id,
-            database=database,
-        )
 
+async def process_query(qid):
+    # Set up workers
+    strider = StriderWorker(num_workers=2)
+
+    # Process
+    await strider.run(qid, wait=True)
+
+    # Pull results from redis
+    return get_finished_query(qid)
 
 @APP.post('/aquery', response_model=str, tags=['query'])
 async def async_query(
-        query: Query,
-        support: bool = True,
-) -> str:
-    """Handle asynchronous query."""
-    query_id = await execute_query(
-        query.message.query_graph.dict(),
-        support=support,
-        wait=False,
-    )
-    return query_id
+        query: Query = Body(..., example=EXAMPLE)
+        ) -> str:
+    """Start query processing."""
 
+    # Generate Query ID
+    qid = str(uuid.uuid4())[:8]
+
+    # Save query graph to redis
+    r.set(f"{qid}:qgraph", query.json())
+
+    # Start processing
+    process_query(qid)
+
+    # Return ID
+    return dict(id=query_id)
+
+@APP.post('/query', response_model=Message, tags=['query'])
+async def sync_query(
+        query: Query = Body(..., example=EXAMPLE)
+) -> Message:
+    """Handle synchronous query."""
+    # Generate Query ID
+    qid = str(uuid.uuid4())[:8]
+
+    # Process query and wait for results
+    query_results = await process_query(qid)
+
+    # Return results
+    return query_results
 
 @APP.post('/ars')
 async def handle_ars(

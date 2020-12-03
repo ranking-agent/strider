@@ -31,14 +31,14 @@ class Worker(ABC):
 
     def __init__(
             self,
-            queue: asyncio.PriorityQueue,
             num_workers: int = 1,
             **kwargs,
     ):
         """Initialize."""
-        self.counter = kwargs.get('counter', itertools.count())
         self.num_workers = num_workers
-        self.queue = queue
+
+        self.queue = asyncio.PriorityQueue()
+        self.counter = itertools.count()
 
     @abstractmethod
     async def on_message(self, message):

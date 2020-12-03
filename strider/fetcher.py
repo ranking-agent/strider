@@ -17,40 +17,47 @@ import os
 
 from reasoner_pydantic import QueryGraph, Result
 
-from .kp_registry import Registry
 from .query_planner import generate_plan, Step
 from .compatibility import KnowledgePortal
 from .trapi import merge_messages, merge_results
 from .worker import Worker
 from .caching import async_locking_cache
+from .storage import RedisGraph, RedisList
+from .kp_registry import Registry
 
 LOGGER = logging.getLogger(__name__)
 
+# Initialize registry
 KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
+registry = Registry(KPREGISTRY_URL)
 
 
 class StriderWorker(Worker):
-    """Strider async worker."""
+    """Async worker to process query"""
 
     def __init__(self, *args, **kwargs):
         """Initialize."""
-        self.kgraph: dict[str, dict] = {
-            "nodes": dict(),
-            "edges": dict(),
-        }
         self.plan: list[Step] = None
         self.preferred_prefixes: dict[str, list[str]] = None
         self.qgraph: QueryGraph = None
-        self.registry: Registry = Registry(KPREGISTRY_URL)
         self.results: list[Result] = []
         self.portal: KnowledgePortal = KnowledgePortal()
         super().__init__(*args, **kwargs)
 
     async def setup(
             self,
+            qid: str,
             qgraph: QueryGraph,
     ):
         """Set up."""
+
+        # Set up DB results objects
+        self.kgraph = RedisGraph(f"{qid}:kgraph") 
+        self.results: RedisList(f"{qid}:results")
+
+        # Pull query from Redis
+        query = Query.parse_raw(r.get(f"{qid}:qgraph"))
+
         # get preferred prefixes
         prefixes_json = os.getenv("PREFIXES", "strider/prefixes.json")
         if prefixes_json:
@@ -65,8 +72,8 @@ class StriderWorker(Worker):
             self.preferred_prefixes,
         ))["query_graph"]
 
-        # generate traversal plan
-        plans = await generate_plan(self.qgraph, self.registry)
+        # Generate traversal plan
+        plans = await generate_plan(self.qgraph, registry)
         self.plan = plans[-1]
 
         # add first partial result
@@ -137,8 +144,8 @@ class StriderWorker(Worker):
         )
 
         # process kgraph
-        self.kgraph["nodes"] |= response["knowledge_graph"]["nodes"]
-        self.kgraph["edges"] |= response["knowledge_graph"]["edges"]
+        self.kgraph.nodes.merge(response["knowledge_graph"]["nodes"])
+        self.kgraph.edges.merge(response["knowledge_graph"]["edges"])
 
         # process results
         for new_result in response["results"]:
