@@ -51,7 +51,11 @@ class Planner():
                 if not kps:
                     continue
                 edge_id = step_id.split('-')[1]
-                target_ids.add(qgraph['edges'][edge_id]['target_id'])
+                target_id = ({
+                    qgraph['edges'][edge_id]['target_id'],
+                    qgraph["edges"][edge_id]["source_id"],
+                } - {source_id}).pop()
+                target_ids.add(target_id)
                 visited.add(edge_id)
             to_visit |= (target_ids - visited)
 
