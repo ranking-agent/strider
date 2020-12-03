@@ -8,3 +8,10 @@ services:
     volumes:
       - ./:/home/murphy
     command: uvicorn strider.server:APP --host 0.0.0.0 --port 5781 --reload
+  # Redis debugging UI 
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    ports:
+      - "8081:8081"

@@ -18,3 +18,5 @@ services:
       - ./logs:/home/murphy/logs
     ports:
       - '5781:5781'
+  redis:
+    image: redis
