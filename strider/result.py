@@ -30,10 +30,16 @@ class Result():  # pylint: disable=too-few-public-methods
     def validate(self, qgraph):
         """Validate against query."""
         for qid, edge in self.edges.items():
-            edge_spec = qgraph['edges'][qid]
+            try:
+                edge_spec = qgraph['edges'][qid]
+            except KeyError:
+                raise ValidationError(f"{qid} is not one of the qedge ids")
             self._validate(edge, edge_spec)
         for qid, node in self.nodes.items():
-            target_spec = qgraph['nodes'][qid]
+            try:
+                target_spec = qgraph['nodes'][qid]
+            except KeyError:
+                raise ValidationError(f"{qid} is not one of the qnode ids")
             self._validate(node, target_spec)
 
     def _validate(self, element, spec):
