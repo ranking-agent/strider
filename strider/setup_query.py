@@ -33,7 +33,10 @@ async def execute_query(qgraph, **kwargs):
             for qnode in qgraph['nodes']
         },
         'edges': {
-            qedge['id']: qedge
+            qedge['id']: {
+                **qedge,
+                "type": qedge["type"] or "related_to",
+            }
             for qedge in qgraph['edges']
         }
     }
