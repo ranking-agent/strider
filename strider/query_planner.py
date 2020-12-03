@@ -37,7 +37,7 @@ class Planner():
         to_visit = {
             node_id
             for node_id, node in qgraph['nodes'].items()
-            if 'curie' in node
+            if node.get("curie", None) is not None
         }
 
         # follow plan
