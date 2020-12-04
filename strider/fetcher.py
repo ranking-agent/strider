@@ -47,16 +47,16 @@ class StriderWorker(Worker):
     async def setup(
             self,
             qid: str,
-            qgraph: QueryGraph,
     ):
         """Set up."""
+        print("Setup")
 
         # Set up DB results objects
-        self.kgraph = RedisGraph(f"{qid}:kgraph") 
-        self.results: RedisList(f"{qid}:results")
+        self.kgraph =  RedisGraph(f"{qid}:kgraph") 
+        self.results = RedisList(f"{qid}:results")
 
-        # Pull query from Redis
-        query = Query.parse_raw(r.get(f"{qid}:qgraph"))
+        # Pull query graph from Redis
+        qgraph = RedisGraph(f"{qid}:qgraph").get()
 
         # get preferred prefixes
         prefixes_json = os.getenv("PREFIXES", "strider/prefixes.json")
@@ -142,6 +142,8 @@ class StriderWorker(Worker):
             step,
             result["node_bindings"][step.source][0]["id"],
         )
+
+        print(f"Response from KP: {response}")
 
         # process kgraph
         self.kgraph.nodes.merge(response["knowledge_graph"]["nodes"])

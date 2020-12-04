@@ -6,10 +6,12 @@ import os
 
 import pytest
 
-from strider.fetcher import StriderWorker
+from strider.server import sync_query
 
 from .util import with_translator_overlay
 from .logger import setup_logger
+
+from reasoner_pydantic import Query, Message, QueryGraph
 
 setup_logger()
 
@@ -44,18 +46,18 @@ CTD_PREFIXES = {
 ])
 async def test_strider():
     """Test Strider."""
-    queue = asyncio.PriorityQueue()
-    counter = itertools.count()
 
-    # setup strider
-    strider = StriderWorker(
-        queue,
-        num_workers=2,
-        counter=counter,
-    )
+    # Create query
+    q = Query(
+            message = Message(
+                query_graph = QueryGraph.parse_obj(QGRAPH)
+            )
+        )
 
-    await strider.run(QGRAPH, wait=True)
-    assert strider.results
+    # Run
+    output = await sync_query(q)
+
+    assert output
     print("========================= RESULTS =========================")
-    print(strider.results)
-    print(strider.kgraph)
+    print(output.results)
+    print(output.kgraph)

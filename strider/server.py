@@ -22,7 +22,7 @@ from .query_planner import generate_plan, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
 from .util import setup_logging
-from .storage import RedisGraph
+from .storage import RedisGraph, RedisList
 
 LOGGER = logging.getLogger(__name__)
 
@@ -71,11 +71,11 @@ def get_finished_query(qid):
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
-    return {
-            "query_graph": qgraph.dict(),
-            "knowledge_graph": kgraph.dict(),
-            "results": results.list(),
-        }
+    return Message(
+            query_graph=qgraph.get(),
+            knowledge_graph=kgraph.get(),
+            results=results.get(),
+        )
 
 async def process_query(qid):
     # Set up workers
@@ -97,13 +97,14 @@ async def async_query(
     qid = str(uuid.uuid4())[:8]
 
     # Save query graph to redis
-    r.set(f"{qid}:qgraph", query.json())
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    qgraph.set(query.json()['query_graph'])
 
     # Start processing
     process_query(qid)
 
     # Return ID
-    return dict(id=query_id)
+    return dict(id=qid)
 
 @APP.post('/query', response_model=Message, tags=['query'])
 async def sync_query(
@@ -112,6 +113,12 @@ async def sync_query(
     """Handle synchronous query."""
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
+
+    # Save query graph to redis
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    qgraph.set(
+            query.dict()['message']['query_graph']
+            )
 
     # Process query and wait for results
     query_results = await process_query(qid)
