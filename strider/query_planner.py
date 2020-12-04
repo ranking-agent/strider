@@ -139,6 +139,8 @@ async def generate_plan(
         for key in plan
     } for plan in plans]
 
+    print(f"Plans: {plans}")
+
     # add request templates to steps
     synonymizer = Synonymizer()
     for plan in plans:
