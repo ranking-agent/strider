@@ -3,7 +3,7 @@ import csv
 from typing import List
 
 from fastapi import APIRouter, FastAPI, Query
-from small_kg import nodes_file, synonyms_file
+from small_kg import synonyms_file
 
 
 def generate_category_mappings():
@@ -13,17 +13,12 @@ def generate_category_mappings():
             csvfile,
             delimiter=',',
         )
-        synsets = list(reader)
-    with open(nodes_file, newline="") as csvfile:
-        reader = csv.reader(
-            csvfile,
-            delimiter=',',
-        )
-        nodes = list(reader)
+        data = list(reader)
     node_category_map = {
-        node[0]: [node[1]]
-        for node in nodes
+        row[1]: [row[0]]
+        for row in data
     }
+    synsets = [row[1:] for row in data]
     return {
         curie: node_category_map[synset[0]]
         for synset in synsets
