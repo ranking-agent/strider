@@ -8,7 +8,8 @@ from fastapi import FastAPI
 import httpx
 from kp_registry.routers.kps import registry_router
 from simple_kp.testing import kp_overlay
-from simple_kp.types import CURIEMap
+from simple_kp._types import CURIEMap
+import small_kg
 
 from tests.normalizer import norm_router
 
@@ -64,7 +65,12 @@ async def translator_overlay(origins: list[tuple[str, CURIEMap]]):
         kps = dict()
         for origin, curie_prefixes in origins:
             await stack.enter_async_context(
-                kp_overlay(origin, curie_prefixes=curie_prefixes)
+                kp_overlay(
+                    origin,
+                    curie_prefixes=curie_prefixes,
+                    nodes_file=getattr(small_kg, origin).nodes_file,
+                    edges_file=getattr(small_kg, origin).edges_file,
+                )
             )
 
             async with httpx.AsyncClient() as client:
