@@ -15,6 +15,7 @@ import logging
 import json
 import os
 
+from pythonjsonlogger import jsonlogger
 from reasoner_pydantic import QueryGraph, Result
 
 from .query_planner import generate_plan, Step
@@ -22,10 +23,8 @@ from .compatibility import KnowledgePortal
 from .trapi import merge_messages, merge_results
 from .worker import Worker
 from .caching import async_locking_cache
-from .storage import RedisGraph, RedisList
+from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
-
-LOGGER = logging.getLogger(__name__)
 
 # Initialize registry
 KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
@@ -48,11 +47,21 @@ class StriderWorker(Worker):
             qid: str,
     ):
         """Set up."""
-        print("Setup")
 
         # Set up DB results objects
         self.kgraph =  RedisGraph(f"{qid}:kgraph") 
         self.results = RedisList(f"{qid}:results")
+
+        # Set up logger
+        handler = RedisLogHandler(f"{qid}:log", 1 * 24 * 60 * 60)
+        builtin_fields = ['message', 'levelname', 'asctime', 'lineno']
+        handler.setFormatter(
+                jsonlogger.JsonFormatter(
+                        ' '.join([f'%({f})s' for f in builtin_fields])
+                    )
+                )
+        self.logger = logging.getLogger()
+        self.logger.addHandler(handler)
 
         # Pull query graph from Redis
         qgraph = RedisGraph(f"{qid}:qgraph").get()
@@ -135,14 +144,12 @@ class StriderWorker(Worker):
             return
 
         # execute step
-        LOGGER.debug(result)
-        LOGGER.debug(step)
+        self.logger.debug(result)
+        self.logger.debug(step)
         response = await self.execute_step(
             step,
             result["node_bindings"][step.source][0]["id"],
         )
-
-        print(f"Response from KP: {response}")
 
         # process kgraph
         self.kgraph.nodes.merge(response["knowledge_graph"]["nodes"])
