@@ -13,7 +13,6 @@ from .trapi import apply_curie_map, get_curies
 
 LOGGER = logging.getLogger(__name__)
 
-
 class KnowledgePortal():
     """Knowledge portal."""
 
@@ -56,7 +55,7 @@ class KnowledgePortal():
 
         message = await self.map_prefixes(message, output_prefixes)
 
-        # add_source(message, url)
+        add_source(message, url)
 
         return message
 
@@ -64,7 +63,11 @@ class KnowledgePortal():
 def add_source(message: Message, source: str):
     """Add source annotation to kedges."""
     for kedge in message["knowledge_graph"]["edges"].values():
-        kedge["provenance"] = {"KP": source}
+        kedge['attributes'] = [ dict(
+            name   = 'provenance',
+            type   = 'MetaInformation',
+            value  = source,
+        ) ]
 
 
 Entity = namedtuple("Entity", ["categories", "identifiers"])
