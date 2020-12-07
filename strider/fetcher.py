@@ -16,10 +16,9 @@ import json
 import os
 from datetime import datetime
 
-from pythonjsonlogger import jsonlogger
 from reasoner_pydantic import QueryGraph, Result
 
-from .query_planner import generate_plan, Step
+from .query_planner import generate_plan, Step, NoAnswersError
 from .compatibility import KnowledgePortal
 from .trapi import merge_messages, merge_results
 from .worker import Worker
@@ -34,9 +33,21 @@ registry = Registry(KPREGISTRY_URL)
 class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """
     def format(self, record):
+        
+        # If given a string, convert to dict
+        if isinstance(record.msg, str):
+            record.msg = dict(message = record.msg)
+
         iso_timestamp = datetime.utcfromtimestamp(
                 record.created).isoformat()
+
+        code = None
+        if 'code' in record.msg:
+            code = record.msg['code']
+            del record.msg['code']
+
         return dict(
+                code = code,
                 message = json.dumps(record.msg),
                 level = record.levelname,
                 timestamp = iso_timestamp,
@@ -92,9 +103,13 @@ class StriderWorker(Worker):
             self.preferred_prefixes,
         ))["query_graph"]
 
-        # Generate traversal plan
-        plans = await generate_plan(self.qgraph, registry)
-        self.plan = plans[-1]
+        self.logger.debug("Generating plan")
+        try:
+            # Generate traversal plan
+            plans = await generate_plan(self.qgraph, registry)
+            self.plan = plans[-1]
+        except NoAnswersError:
+            self.logger.error({ 'code': 'QueryNotTraversable' })
 
         # add first partial result
         for qnode_id, qnode in self.qgraph["nodes"].items():
