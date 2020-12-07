@@ -119,6 +119,10 @@ async def async_query(
     # Return ID
     return dict(id=qid)
 
+@APP.post('/results', response_model=Message)
+async def get_results(qid: str) -> Message:
+    return get_finished_query(qid)
+
 @APP.post('/query', response_model=Message, tags=['query'])
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE)
@@ -168,19 +172,6 @@ async def handle_ars(
     content = await sync_answer(data)
     headers = {'tr_ars.message.status': 'A'}
     return JSONResponse(content=content, headers=headers)
-
-
-@APP.get('/results', response_model=Message)
-async def get_results(  # pylint: disable=too-many-arguments
-        query_id: str,
-        since: float = None,
-        limit: int = None,
-        offset: int = 0,
-        database=Depends(get_db('results.db')),
-) -> Message:
-    """Get results for a query."""
-    return await _get_results(query_id, since, limit, offset, database)
-
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")
 

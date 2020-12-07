@@ -1,6 +1,7 @@
 from abc import ABC
 import typing
 import json
+import logging
 
 import redis
 
@@ -65,3 +66,12 @@ class RedisGraph():
     def set(self, v):
         self.nodes.set(v['nodes'])
         self.edges.set(v['edges'])
+
+class RedisLogHandler(logging.Handler):
+    def __init__(self, key: str, expire: int, *args, **kwargs):
+        self.store = RedisList(key)
+        self.store.expire(expire)
+        super().__init__(*args, **kwargs)
+    def emit(self, record):
+        log_entry = self.format(record)
+        self.store.append(log_entry)
