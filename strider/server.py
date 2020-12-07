@@ -16,7 +16,8 @@ from fastapi.staticfiles import StaticFiles
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 
-from reasoner_pydantic import Query, Message
+from reasoner_pydantic import Query, Message, \
+        Response as ReasonerResponse
 
 from .fetcher import StriderWorker
 from .query_planner import generate_plan, NoAnswersError
@@ -74,19 +75,24 @@ store_results_for = os.getenv(
     1 * 24 * 60 * 60,
 )
 
-def get_finished_query(qid):
-    qgraph = RedisGraph(f"{qid}:qgraph")
-    kgraph = RedisGraph(f"{qid}:kgraph")
+def get_finished_query(qid) -> ReasonerResponse:
+    qgraph  = RedisGraph(f"{qid}:qgraph")
+    kgraph  = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
+    logs    = RedisList(f"{qid}:log")
 
     qgraph.expire(store_results_for)
     kgraph.expire(store_results_for)
     results.expire(store_results_for)
+    logs.expire(store_results_for)
 
-    return Message(
-            query_graph=qgraph.get(),
-            knowledge_graph=kgraph.get(),
-            results=list(results.get()),
+    return ReasonerResponse(
+            message = Message(
+                query_graph=qgraph.get(),
+                knowledge_graph=kgraph.get(),
+                results=list(results.get()),
+                ),
+            logs = list(logs.get()),
         )
 
 async def process_query(qid):
@@ -111,7 +117,7 @@ async def async_query(
 
     # Save query graph to redis
     qgraph = RedisGraph(f"{qid}:qgraph")
-    qgraph.set(query.json()['query_graph'])
+    qgraph.set(query.dict()['message']['query_graph'])
 
     # Start processing
     process_query(qid)
@@ -119,14 +125,14 @@ async def async_query(
     # Return ID
     return dict(id=qid)
 
-@APP.post('/results', response_model=Message)
-async def get_results(qid: str) -> Message:
+@APP.post('/query_result', response_model=Message)
+async def get_results(qid: str) -> ReasonerResponse:
     return get_finished_query(qid)
 
-@APP.post('/query', response_model=Message, tags=['query'])
+@APP.post('/query', tags=['query'])
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE)
-) -> Message:
+) -> ReasonerResponse:
     """Handle synchronous query."""
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]

@@ -14,6 +14,7 @@ from collections.abc import Iterable
 import logging
 import json
 import os
+from datetime import datetime
 
 from pythonjsonlogger import jsonlogger
 from reasoner_pydantic import QueryGraph, Result
@@ -29,6 +30,18 @@ from .kp_registry import Registry
 # Initialize registry
 KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
 registry = Registry(KPREGISTRY_URL)
+
+class ReasonerLogEntryFormatter(logging.Formatter):
+    """ Format to match Reasoner API LogEntry """
+    def format(self, record):
+        iso_timestamp = datetime.utcfromtimestamp(
+                record.created).isoformat()
+        return dict(
+                message = json.dumps(record.msg),
+                level = record.levelname,
+                timestamp = iso_timestamp,
+                lineno = record.lineno,
+                )
 
 class StriderWorker(Worker):
     """Async worker to process query"""
@@ -53,15 +66,14 @@ class StriderWorker(Worker):
         self.results = RedisList(f"{qid}:results")
 
         # Set up logger
-        handler = RedisLogHandler(f"{qid}:log", 1 * 24 * 60 * 60)
-        builtin_fields = ['message', 'levelname', 'asctime', 'lineno']
+        handler = RedisLogHandler(f"{qid}:log")
         handler.setFormatter(
-                jsonlogger.JsonFormatter(
-                        ' '.join([f'%({f})s' for f in builtin_fields])
-                    )
+                ReasonerLogEntryFormatter()
                 )
-        self.logger = logging.getLogger()
+        self.logger = logging.getLogger(__name__)
         self.logger.addHandler(handler)
+
+        self.logger.debug("Initialized strider worker")
 
         # Pull query graph from Redis
         qgraph = RedisGraph(f"{qid}:qgraph").get()
@@ -144,8 +156,12 @@ class StriderWorker(Worker):
             return
 
         # execute step
-        self.logger.debug(result)
-        self.logger.debug(step)
+        self.logger.debug({
+                'description' : "Recieved results from KPs",
+                'data' : result,
+                'step' : step,
+                })
+
         response = await self.execute_step(
             step,
             result["node_bindings"][step.source][0]["id"],
