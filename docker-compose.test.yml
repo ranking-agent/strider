@@ -4,4 +4,4 @@ services:
   strider:
     build:
       dockerfile: Dockerfile.test
-    command: pytest
+    command: pytest -s

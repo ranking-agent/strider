@@ -21,6 +21,7 @@ with open("tests/data/query_graphs/two_hop.json", "r") as stream:
 os.environ["PREFIXES"] = "tests/data/prefixes.json"
 os.environ["KPREGISTRY_URL"] = "http://registry"
 os.environ["NORMALIZER_HOST"] = "http://normalizer"
+os.environ["REDIS_HOST"] = 'fakeredis'
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
@@ -36,7 +37,6 @@ CTD_PREFIXES = {
     **DEFAULT_PREFIXES,
     "biolink:Disease": ["DOID"],
 }
-
 
 @pytest.mark.asyncio
 @with_translator_overlay([
@@ -57,7 +57,14 @@ async def test_strider():
     # Run
     output = await sync_query(q)
 
+    print(output.logs)
+
     assert output
+    # Check for any errors in the log
+    assert all(l.level != 'ERROR' for l in output.logs)
+    # Ensure we have some results
+    assert len(output.message.results) > 0
+
     print("========================= RESULTS =========================")
-    print(output.results)
-    print(output.kgraph)
+    print(output.message.results)
+    print(output.message.knowledge_graph)

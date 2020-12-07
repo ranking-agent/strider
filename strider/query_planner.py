@@ -84,6 +84,8 @@ async def generate_plan(
     """Generate a query execution plan."""
     if kp_registry is None:
         kp_registry = Registry(KPREGISTRY_URL)
+
+    kps = await kp_registry.get_all()
     # get candidate steps
     # i.e. steps we could imagine taking through the qgraph
     candidate_steps = defaultdict(list)
@@ -138,8 +140,6 @@ async def generate_plan(
         key: real_steps[key]
         for key in plan
     } for plan in plans]
-
-    print(f"Plans: {plans}")
 
     # add request templates to steps
     synonymizer = Synonymizer()
