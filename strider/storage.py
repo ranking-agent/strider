@@ -1,16 +1,22 @@
 from abc import ABC
+import os
 import typing
 import json
 import logging
 
-import redis
+host = os.getenv('REDIS_HOST', 'redis')
 
-r = redis.Redis(
-        host='redis',
+if host == 'fakeredis':
+    import fakeredis
+    r = fakeredis.FakeRedis()
+else:
+    import redis
+    r = redis.Redis(
+        host=host,
         port=6379,
         encoding="utf-8",
         decode_responses=True,
-        )
+    )
 
 def mapd(f, d):
     """ Map function over dictionary values """
