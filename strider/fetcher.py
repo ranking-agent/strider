@@ -31,7 +31,6 @@ LOGGER = logging.getLogger(__name__)
 KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
 registry = Registry(KPREGISTRY_URL)
 
-
 class StriderWorker(Worker):
     """Async worker to process query"""
 
