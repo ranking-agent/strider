@@ -41,17 +41,23 @@ class ReasonerLogEntryFormatter(logging.Formatter):
         iso_timestamp = datetime.utcfromtimestamp(
                 record.created).isoformat()
 
+        # If given a code, set a code
         code = None
         if 'code' in record.msg:
             code = record.msg['code']
             del record.msg['code']
+
+        # Extra fields go in the message
+        record.msg['line_number'] = record.lineno
+        if record.exc_info:
+            record.msg['exception_info'] = self.formatException(record.exc_info)
 
         return dict(
                 code = code,
                 message = json.dumps(record.msg),
                 level = record.levelname,
                 timestamp = iso_timestamp,
-                lineno = record.lineno,
+
                 )
 
 class StriderWorker(Worker):
@@ -177,10 +183,14 @@ class StriderWorker(Worker):
                 'step' : step,
                 })
 
-        response = await self.execute_step(
-            step,
-            result["node_bindings"][step.source][0]["id"],
-        )
+        try:
+            response = await self.execute_step(
+                step,
+                result["node_bindings"][step.source][0]["id"],
+            )
+        except Exception:
+            self.logger.exception('Failed to execute step')
+            return
 
         # process kgraph
         self.kgraph.nodes.merge(response["knowledge_graph"]["nodes"])

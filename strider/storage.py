@@ -73,5 +73,4 @@ class RedisLogHandler(logging.Handler):
         super().__init__(*args, **kwargs)
     def emit(self, record):
         log_entry = self.format(record)
-        print(f"Log entry: {log_entry}")
         self.store.append(log_entry)
