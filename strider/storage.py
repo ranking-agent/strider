@@ -68,10 +68,10 @@ class RedisGraph():
         self.edges.set(v['edges'])
 
 class RedisLogHandler(logging.Handler):
-    def __init__(self, key: str, expire: int, *args, **kwargs):
+    def __init__(self, key: str, *args, **kwargs):
         self.store = RedisList(key)
-        self.store.expire(expire)
         super().__init__(*args, **kwargs)
     def emit(self, record):
         log_entry = self.format(record)
+        print(f"Log entry: {log_entry}")
         self.store.append(log_entry)
