@@ -56,7 +56,7 @@ class KnowledgePortal():
 
         message = await self.map_prefixes(message, output_prefixes)
 
-        add_source(message, url)
+        # add_source(message, url)
 
         return message
 

@@ -1,3 +1,5 @@
+from abc import ABC
+import typing
 import json
 
 import redis
@@ -13,10 +15,13 @@ def mapd(f, d):
     """ Map function over dictionary values """
     return {k: f(v) for k, v in d.items()}
 
-class RedisHash():
+class RedisValue(ABC):
     def __init__(self, key: str):
         self.key = key
+    def expire(self, when: int):
+        r.expire(self.key, when)
 
+class RedisHash(RedisValue):
     def get(self):
         v = r.hgetall(self.key)
         return mapd(json.loads, v)
@@ -34,10 +39,7 @@ class RedisHash():
                mapping = mapd(json.dumps, v)
                )
 
-class RedisList():
-    def __init__(self, key: str):
-        self.key = key
-
+class RedisList(RedisValue):
     def get(self):
         v = r.lrange(self.key, 0, -1)
         return map(json.loads, v)
@@ -53,6 +55,9 @@ class RedisGraph():
     def __init__(self, key: str):
         self.nodes = RedisHash(key + ':nodes')
         self.edges = RedisHash(key + ':edges')
+    def expire(self, when: int):
+        self.nodes.expire(when)
+        self.edges.expire(when)
     def get(self):
         return dict(
                 nodes = self.nodes.get(),

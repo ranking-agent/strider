@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import json
 import logging
+import os
 from typing import Dict
 
 from fastapi import Body, Depends, FastAPI, HTTPException
@@ -67,14 +68,25 @@ EXAMPLE = {
     }
 }
 
+# How long we are storing results for
+store_results_for = os.getenv(
+    "STORE_RESULTS_FOR",
+    1 * 24 * 60 * 60,
+)
+
 def get_finished_query(qid):
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
+
+    qgraph.expire(store_results_for)
+    kgraph.expire(store_results_for)
+    results.expire(store_results_for)
+
     return Message(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
-            results=results.get(),
+            results=list(results.get()),
         )
 
 async def process_query(qid):
@@ -85,6 +97,7 @@ async def process_query(qid):
     await strider.run(qid, wait=True)
 
     # Pull results from redis
+    # Also starts timer for expiring results
     return get_finished_query(qid)
 
 @APP.post('/aquery', response_model=str, tags=['query'])
