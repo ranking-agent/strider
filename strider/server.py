@@ -75,7 +75,7 @@ store_results_for = os.getenv(
     1 * 24 * 60 * 60,
 )
 
-def get_finished_query(qid) -> ReasonerResponse:
+def get_finished_query(qid: str) -> ReasonerResponse:
     qgraph  = RedisGraph(f"{qid}:qgraph")
     kgraph  = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
@@ -108,7 +108,7 @@ async def process_query(qid):
 
 @APP.post('/aquery', response_model=str, tags=['query'])
 async def async_query(
-        query: Query = Body(..., example=EXAMPLE)
+        query: Query = Body(..., example=EXAMPLE),
         ) -> str:
     """Start query processing."""
 
