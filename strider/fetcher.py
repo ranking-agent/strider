@@ -30,16 +30,18 @@ from .kp_registry import Registry
 KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
 registry = Registry(KPREGISTRY_URL)
 
+
 class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """
+
     def format(self, record):
-        
         # If given a string, convert to dict
         if isinstance(record.msg, str):
-            record.msg = dict(message = record.msg)
+            record.msg = dict(message=record.msg)
 
         iso_timestamp = datetime.utcfromtimestamp(
-                record.created).isoformat()
+            record.created
+        ).isoformat()
 
         # If given a code, set a code
         code = None
@@ -50,15 +52,16 @@ class ReasonerLogEntryFormatter(logging.Formatter):
         # Extra fields go in the message
         record.msg['line_number'] = record.lineno
         if record.exc_info:
-            record.msg['exception_info'] = self.formatException(record.exc_info)
+            record.msg['exception_info'] = self.formatException(
+                record.exc_info
+            )
 
         return dict(
-                code = code,
-                message = json.dumps(record.msg),
-                level = record.levelname,
-                timestamp = iso_timestamp,
-
-                )
+            code=code,
+            message=json.dumps(record.msg),
+            level=record.levelname,
+            timestamp=iso_timestamp,
+        )
 
 class StriderWorker(Worker):
     """Async worker to process query"""
@@ -77,16 +80,15 @@ class StriderWorker(Worker):
             qid: str,
     ):
         """Set up."""
-
         # Set up DB results objects
-        self.kgraph =  RedisGraph(f"{qid}:kgraph") 
+        self.kgraph = RedisGraph(f"{qid}:kgraph")
         self.results = RedisList(f"{qid}:results")
 
         # Set up logger
         handler = RedisLogHandler(f"{qid}:log")
         handler.setFormatter(
-                ReasonerLogEntryFormatter()
-                )
+            ReasonerLogEntryFormatter()
+        )
         self.logger = logging.getLogger(__name__)
         self.logger.addHandler(handler)
 
@@ -115,7 +117,7 @@ class StriderWorker(Worker):
             plans = await generate_plan(self.qgraph, registry)
             self.plan = plans[-1]
         except NoAnswersError:
-            self.logger.error({ 'code': 'QueryNotTraversable' })
+            self.logger.error({"code": "QueryNotTraversable"})
 
         # add first partial result
         for qnode_id, qnode in self.qgraph["nodes"].items():
@@ -178,10 +180,10 @@ class StriderWorker(Worker):
 
         # execute step
         self.logger.debug({
-                'description' : "Recieved results from KPs",
-                'data' : result,
-                'step' : step,
-                })
+            "description": "Recieved results from KPs",
+            "data": result,
+            "step": step,
+        })
 
         try:
             response = await self.execute_step(

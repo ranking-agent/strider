@@ -40,6 +40,7 @@ CTD_PREFIXES = {
     "biolink:Disease": ["DOID"],
 }
 
+
 @pytest.mark.asyncio
 @with_translator_overlay([
     ("ctd", CTD_PREFIXES),
@@ -51,10 +52,10 @@ async def test_strider():
 
     # Create query
     q = Query(
-            message = Message(
-                query_graph = QueryGraph.parse_obj(QGRAPH)
-            )
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
         )
+    )
 
     # Run
     output = await sync_query(q)
