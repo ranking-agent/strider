@@ -7,7 +7,7 @@ import logging
 import os
 from typing import Dict
 
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -108,6 +108,7 @@ async def process_query(qid):
 
 @APP.post('/aquery', tags=['query'])
 async def async_query(
+        background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
         ) -> dict:
     """Start query processing."""
@@ -120,12 +121,12 @@ async def async_query(
     qgraph.set(query.dict()['message']['query_graph'])
 
     # Start processing
-    process_query(qid)
+    background_tasks.add_task(process_query, qid)
 
     # Return ID
     return dict(id=qid)
 
-@APP.post('/query_result', response_model=Message)
+@APP.post('/query_result', response_model=ReasonerResponse)
 async def get_results(qid: str) -> ReasonerResponse:
     print(get_finished_query(qid))
     return get_finished_query(qid)
