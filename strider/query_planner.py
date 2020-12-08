@@ -85,7 +85,6 @@ async def generate_plan(
     if kp_registry is None:
         kp_registry = Registry(KPREGISTRY_URL)
 
-    kps = await kp_registry.get_all()
     # get candidate steps
     # i.e. steps we could imagine taking through the qgraph
     candidate_steps = defaultdict(list)
