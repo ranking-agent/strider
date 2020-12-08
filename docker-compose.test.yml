@@ -1,7 +1,0 @@
-version: '3'
-
-services:
-  strider:
-    build:
-      dockerfile: Dockerfile.test
-    command: pytest -s

@@ -6,6 +6,9 @@ import os
 
 import pytest
 
+# Set redis host before importing
+os.environ["REDIS_HOST"] = "fakeredis"
+
 from strider.server import sync_query
 
 from .util import with_translator_overlay
@@ -21,7 +24,6 @@ with open("tests/data/query_graphs/two_hop.json", "r") as stream:
 os.environ["PREFIXES"] = "tests/data/prefixes.json"
 os.environ["KPREGISTRY_URL"] = "http://registry"
 os.environ["NORMALIZER_HOST"] = "http://normalizer"
-os.environ["REDIS_HOST"] = 'fakeredis'
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],

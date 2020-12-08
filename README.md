@@ -9,25 +9,39 @@ This service accepts a biomedical question as a [Translator reasoner standard me
 
 A live version of the API can be found [here](http://robokop.renci.org:5781/docs).
 
-## Deployment
+## Local Development
 
-A docker file is included in the base directory and can be used to build the customized container
+Docker-compose can be used to quickly set up a locally running version of the app. Once you have installed docker-compose you can run:
 
 ```bash
-docker build -t strider .
+docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 ```
 
-A set of environmental variables must be defined in a `.env` file. Make sure to replace `***` with actual passwords.
+This will start the requisite containers as well as the strider container. Changes made locally will update the container while running. 
+
+## Running tests
+
+Tests can be run through docker for convenience using the provided `Dockerfile.test`:
 
 ```bash
+docker build -t strider-testing -f Dockerfile.test . 
+docker run strider-testing
+```
+
+## Deployment
+
+A docker-compose file is included for easy deployment. To use, you also must set up a .env file to specify URLs for external services. Example:
+
+```
+KPREGISTRY_URL=http://robokop.renci.org:4983
 OMNICORP_URL=http://robokop.renci.org:3210
 BIOLINK_URL=https://bl-lookup-sri.renci.org
 ```
 
-All necessary containers can then be built and started using docker-compose
+After creating this at the root of the repository you can run:
 
 ```bash
-docker-compose up
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 ```
 
 ## Usage

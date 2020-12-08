@@ -47,33 +47,33 @@ APP.add_middleware(
 setup_logging()
 
 EXAMPLE = {
-    "message": {
-        "query_graph": {
-            "nodes": {
-                "n1": {
-                    "id": "CHEBI:136043",
-                    "category": "biolink:ChemicalSubstance",
-                },
-                "n2": {
-                    "category": "biolink:Disease",
-                }
-            },
-            "edges": {
-                "e12": {
-                    "subject": "n1",
-                    "object": "n2",
-                    "predicate": "biolink:treats",
+        "message" : {
+            "query_graph": {
+                "nodes": {
+                    "n0": {
+                        "id": "MONDO:0001056",
+                        "category": "biolink:Disease"
+                        },
+                    "n1": {
+                        "category": "biolink:Disease"
+                        }
+                    },
+                "edges": {
+                    "e01": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicate": "biolink:related_to"
+                        }
+                    }
                 }
             }
-        },
-    }
-}
+        }
 
 # How long we are storing results for
-store_results_for = os.getenv(
+store_results_for = int(os.getenv(
     "STORE_RESULTS_FOR",
     1 * 24 * 60 * 60,
-)
+))
 
 def get_finished_query(qid: str) -> ReasonerResponse:
     qgraph  = RedisGraph(f"{qid}:qgraph")
@@ -106,10 +106,10 @@ async def process_query(qid):
     # Also starts timer for expiring results
     return get_finished_query(qid)
 
-@APP.post('/aquery', response_model=str, tags=['query'])
+@APP.post('/aquery', tags=['query'])
 async def async_query(
         query: Query = Body(..., example=EXAMPLE),
-        ) -> str:
+        ) -> dict:
     """Start query processing."""
 
     # Generate Query ID
@@ -127,6 +127,7 @@ async def async_query(
 
 @APP.post('/query_result', response_model=Message)
 async def get_results(qid: str) -> ReasonerResponse:
+    print(get_finished_query(qid))
     return get_finished_query(qid)
 
 @APP.post('/query', tags=['query'])
