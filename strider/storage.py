@@ -1,6 +1,5 @@
 from abc import ABC
 import os
-import typing
 import json
 import logging
 
@@ -8,7 +7,10 @@ host = os.getenv('REDIS_HOST', 'redis')
 
 if host == 'fakeredis':
     import fakeredis
-    r = fakeredis.FakeRedis()
+    r = fakeredis.FakeRedis(
+            encoding="utf-8",
+            decode_responses=True,
+            )
 else:
     import redis
     r = redis.Redis(
