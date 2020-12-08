@@ -16,8 +16,7 @@ from fastapi.staticfiles import StaticFiles
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 
-from reasoner_pydantic import Query, Message, \
-        Response as ReasonerResponse
+from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
 from .fetcher import StriderWorker
 from .query_planner import generate_plan, NoAnswersError
@@ -47,27 +46,27 @@ APP.add_middleware(
 setup_logging()
 
 EXAMPLE = {
-        "message" : {
-            "query_graph": {
-                "nodes": {
-                    "n0": {
-                        "id": "MONDO:0001056",
-                        "category": "biolink:Disease"
-                        },
-                    "n1": {
-                        "category": "biolink:Disease"
-                        }
-                    },
-                "edges": {
-                    "e01": {
-                        "subject": "n0",
-                        "object": "n1",
-                        "predicate": "biolink:related_to"
-                        }
-                    }
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {
+                    "id": "MONDO:0001056",
+                    "category": "biolink:Disease"
+                },
+                "n1": {
+                    "category": "biolink:Disease"
+                }
+            },
+            "edges": {
+                "e01": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicate": "biolink:related_to"
                 }
             }
         }
+    }
+}
 
 # How long we are storing results for
 store_results_for = int(os.getenv(
@@ -75,11 +74,12 @@ store_results_for = int(os.getenv(
     1 * 24 * 60 * 60,
 ))
 
+
 def get_finished_query(qid: str) -> ReasonerResponse:
-    qgraph  = RedisGraph(f"{qid}:qgraph")
-    kgraph  = RedisGraph(f"{qid}:kgraph")
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    kgraph = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
-    logs    = RedisList(f"{qid}:log")
+    logs = RedisList(f"{qid}:log")
 
     qgraph.expire(store_results_for)
     kgraph.expire(store_results_for)
@@ -87,13 +87,14 @@ def get_finished_query(qid: str) -> ReasonerResponse:
     logs.expire(store_results_for)
 
     return ReasonerResponse(
-            message = Message(
-                query_graph=qgraph.get(),
-                knowledge_graph=kgraph.get(),
-                results=list(results.get()),
-                ),
-            logs = list(logs.get()),
-        )
+        message=Message(
+            query_graph=qgraph.get(),
+            knowledge_graph=kgraph.get(),
+            results=list(results.get()),
+        ),
+        logs=list(logs.get()),
+    )
+
 
 async def process_query(qid):
     # Set up workers
@@ -106,13 +107,13 @@ async def process_query(qid):
     # Also starts timer for expiring results
     return get_finished_query(qid)
 
+
 @APP.post('/aquery', tags=['query'])
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
-        ) -> dict:
+) -> dict:
     """Start query processing."""
-
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
 
@@ -126,10 +127,12 @@ async def async_query(
     # Return ID
     return dict(id=qid)
 
+
 @APP.post('/query_result', response_model=ReasonerResponse)
 async def get_results(qid: str) -> ReasonerResponse:
     print(get_finished_query(qid))
     return get_finished_query(qid)
+
 
 @APP.post('/query', tags=['query'])
 async def sync_query(
@@ -142,14 +145,15 @@ async def sync_query(
     # Save query graph to redis
     qgraph = RedisGraph(f"{qid}:qgraph")
     qgraph.set(
-            query.dict()['message']['query_graph']
-            )
+        query.dict()['message']['query_graph']
+    )
 
     # Process query and wait for results
     query_results = await process_query(qid)
 
     # Return results
     return query_results
+
 
 @APP.post('/ars')
 async def handle_ars(
