@@ -32,7 +32,11 @@ jobs:
           message: |
             <details>
               <summary>Lint Output</summary>
+
+              ```
               ${{ env.LINT_OUTPUT }}
+              ```
+
             </details>
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
