@@ -4,17 +4,16 @@ import itertools
 import json
 import os
 
+from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
 
 # Set redis host before importing
 os.environ["REDIS_HOST"] = "fakeredis"
 
 from strider.server import sync_query
-
-from .util import with_translator_overlay
 from .logger import setup_logger
+from .util import with_translator_overlay
 
-from reasoner_pydantic import Query, Message, QueryGraph
 
 setup_logger()
 
@@ -60,14 +59,12 @@ async def test_strider():
     # Run
     output = await sync_query(q)
 
-    print(output.logs)
-
     assert output
     # Check for any errors in the log
-    assert all(l.level != 'ERROR' for l in output.logs)
+    assert all(l['level'] != 'ERROR' for l in output['logs'])
     # Ensure we have some results
-    assert len(output.message.results) > 0
+    assert len(output['message']['results']) > 0
 
     print("========================= RESULTS =========================")
-    print(output.message.results)
-    print(output.message.knowledge_graph)
+    print(output['message']['results'])
+    print(output['message']['knowledge_graph'])

@@ -75,7 +75,7 @@ store_results_for = int(os.getenv(
 ))
 
 
-def get_finished_query(qid: str) -> ReasonerResponse:
+def get_finished_query(qid: str) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
@@ -86,8 +86,8 @@ def get_finished_query(qid: str) -> ReasonerResponse:
     results.expire(store_results_for)
     logs.expire(store_results_for)
 
-    return ReasonerResponse(
-        message=Message(
+    return dict(
+        message=dict(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
             results=list(results.get()),
@@ -129,7 +129,7 @@ async def async_query(
 
 
 @APP.post('/query_result', response_model=ReasonerResponse)
-async def get_results(qid: str) -> ReasonerResponse:
+async def get_results(qid: str) -> dict:
     print(get_finished_query(qid))
     return get_finished_query(qid)
 
@@ -137,7 +137,7 @@ async def get_results(qid: str) -> ReasonerResponse:
 @APP.post('/query', tags=['query'])
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE)
-) -> ReasonerResponse:
+) -> dict:
     """Handle synchronous query."""
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
