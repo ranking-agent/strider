@@ -5,7 +5,8 @@ venv/
 .DS_Store
 *.egg-info/
 *.db
-logs/
+logs/*
+!logs/.gitkeep
 *.jar
 .env
 *.log
