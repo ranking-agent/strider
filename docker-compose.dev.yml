@@ -13,10 +13,6 @@ services:
     volumes:
       - ./:/home/murphy
     command: --host 0.0.0.0 --port 5781 --reload
-    environment:
-      KPREGISTRY_URL: http://kp-registry:4983 # Locally hosted
-      OMNICORP_URL: http://robokop.renci.org:3210
-      BIOLINK_URL:  https://bl-lookup-sri.renci.org
   # Redis debugging UI 
   redis-commander:
     image: rediscommander/redis-commander:latest

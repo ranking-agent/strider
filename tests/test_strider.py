@@ -7,22 +7,24 @@ import os
 from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
 
-# Set redis host before importing
-os.environ["REDIS_HOST"] = "fakeredis"
-
-from strider.server import sync_query
 from .logger import setup_logger
 from .util import with_translator_overlay
+
+from strider.config import settings
+
+# Switch settings before importing server
+settings.redis_url = "redis://fakeredis"
+settings.prefixes_path = "tests/data/prefixes.json"
+settings.kpregistry_url = "http://registry"
+settings.normalizer_url = "http://normalizer"
+
+from strider.server import sync_query
 
 
 setup_logger()
 
 with open("tests/data/query_graphs/two_hop.json", "r") as stream:
     QGRAPH = json.load(stream)
-
-os.environ["PREFIXES"] = "tests/data/prefixes.json"
-os.environ["KPREGISTRY_URL"] = "http://registry"
-os.environ["NORMALIZER_HOST"] = "http://normalizer"
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
