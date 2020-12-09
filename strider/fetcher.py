@@ -25,10 +25,10 @@ from .worker import Worker
 from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
+from .config import settings
 
 # Initialize registry
-KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
-registry = Registry(KPREGISTRY_URL)
+registry = Registry(settings.kpregistry_url)
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -62,6 +62,7 @@ class ReasonerLogEntryFormatter(logging.Formatter):
             level=record.levelname,
             timestamp=iso_timestamp,
         )
+
 
 class StriderWorker(Worker):
     """Async worker to process query"""
@@ -98,12 +99,8 @@ class StriderWorker(Worker):
         qgraph = RedisGraph(f"{qid}:qgraph").get()
 
         # get preferred prefixes
-        prefixes_json = os.getenv("PREFIXES", "strider/prefixes.json")
-        if prefixes_json:
-            with open(prefixes_json, "r") as stream:
-                self.preferred_prefixes = json.load(stream)
-        else:
-            self.preferred_prefixes = None
+        with open(settings.prefixes_path, "r") as stream:
+            self.preferred_prefixes = json.load(stream)
 
         # fix qgraph
         self.qgraph = (await self.portal.map_prefixes(

@@ -10,6 +10,7 @@ from reasoner_pydantic import Message
 
 from .util import post_json
 from .trapi import apply_curie_map, get_curies
+from .config import settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -80,10 +81,6 @@ class Synonymizer():
     def __init__(self):
         """Initialize."""
         self._data = dict()
-        self.normalizer_host = os.getenv(
-            "NORMALIZER_HOST",
-            "https://nodenormalization-sri.renci.org",
-        )
 
     async def load_message(self, message: Message):
         """Load map for concepts in message."""
@@ -93,7 +90,7 @@ class Synonymizer():
     async def load_curies(self, *curies: list[str]):
         """Load CURIES into map."""
         # get all curie synonyms
-        url_base = f"{self.normalizer_host}/get_normalized_nodes"
+        url_base = f"{settings.normalizer_url}/get_normalized_nodes"
         async with httpx.AsyncClient(timeout=None) as client:
             response = await client.get(
                 url_base,

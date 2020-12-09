@@ -5,6 +5,7 @@ import itertools
 import json
 import logging
 import os
+import pprint
 from typing import Dict
 
 from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks
@@ -24,6 +25,7 @@ from .scoring import score_graph
 from .results import get_db, Database
 from .util import setup_logging
 from .storage import RedisGraph, RedisList
+from .config import settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -43,7 +45,16 @@ APP.add_middleware(
     allow_headers=["*"],
 )
 
+
 setup_logging()
+
+
+@APP.on_event("startup")
+async def print_config():
+    pretty_config = pprint.pformat(
+        settings.dict()
+    )
+    LOGGER.info(f" App Configuration:\n {pretty_config}")
 
 EXAMPLE = {
     "message": {
@@ -68,12 +79,6 @@ EXAMPLE = {
     }
 }
 
-# How long we are storing results for
-store_results_for = int(os.getenv(
-    "STORE_RESULTS_FOR",
-    1 * 24 * 60 * 60,
-))
-
 
 def get_finished_query(qid: str) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph")
@@ -81,10 +86,12 @@ def get_finished_query(qid: str) -> dict:
     results = RedisList(f"{qid}:results")
     logs = RedisList(f"{qid}:log")
 
-    qgraph.expire(store_results_for)
-    kgraph.expire(store_results_for)
-    results.expire(store_results_for)
-    logs.expire(store_results_for)
+    expiration_seconds = int(settings.store_results_for.total_seconds())
+
+    qgraph.expire(expiration_seconds)
+    kgraph.expire(expiration_seconds)
+    results.expire(expiration_seconds)
+    logs.expire(expiration_seconds)
 
     return dict(
         message=dict(
