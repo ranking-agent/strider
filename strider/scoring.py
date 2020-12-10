@@ -9,7 +9,6 @@ import httpx
 import numpy as np
 
 LOGGER = logging.getLogger(__name__)
-OMNICORP_URL = os.getenv('OMNICORP_URL', 'http://localhost:3210')
 OMNICORP_RETRIES = 5
 NUM_PUBS = 27840000
 
@@ -53,7 +52,7 @@ async def get_support(node1, node2, synonyms):
 
 async def count_pubs(*curies):
     """Count pubs shared by curies."""
-    url = f'{OMNICORP_URL}/shared?'
+    url = f'{settings.omnicorp_url}/shared?'
     params = {'curie': curies}
     async with httpx.AsyncClient() as client:
         for _ in range(OMNICORP_RETRIES):

@@ -12,9 +12,9 @@ from strider.kp_registry import Registry
 from strider.util import snake_case, spaced
 from strider.trapi import fix_qgraph
 from strider.compatibility import Synonymizer
+from strider.config import settings
 
 BMT = BMToolkit()
-KPREGISTRY_URL = os.getenv('KPREGISTRY_URL', 'http://localhost:4983')
 LOGGER = logging.getLogger(__name__)
 
 Step = namedtuple("Step", ["source", "edge", "target"])
@@ -83,7 +83,8 @@ async def generate_plan(
 ):
     """Generate a query execution plan."""
     if kp_registry is None:
-        kp_registry = Registry(KPREGISTRY_URL)
+        kp_registry = Registry(settings.kpregistry_url)
+
     # get candidate steps
     # i.e. steps we could imagine taking through the qgraph
     candidate_steps = defaultdict(list)

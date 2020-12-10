@@ -1,20 +1,13 @@
 version: '3'
 
 services:
-  kp-registry:
-    image: ghcr.io/ranking-agent/kp_registry:v0.1.1
-    volumes:
-      - ./data:/home/murphy/data
   strider:
-    container_name: strider
     image: strider
     build:
       context: .
-    environment:
-      - KPREGISTRY_URL=http://kp-registry:4983
-      - BIOLINK_URL=${BIOLINK_URL}
-      - OMNICORP_URL=${OMNICORP_URL}
     volumes:
       - ./logs:/home/murphy/logs
     ports:
       - '5781:5781'
+  redis:
+    image: redis

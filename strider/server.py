@@ -1,11 +1,14 @@
 """Simple ReasonerStdAPI server."""
+import uuid
 import asyncio
 import itertools
 import json
 import logging
+import os
+import pprint
 from typing import Dict
 
-from fastapi import Body, Depends, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -14,13 +17,15 @@ from fastapi.staticfiles import StaticFiles
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 
-from reasoner_pydantic import Query, Message
+from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
 from .fetcher import StriderWorker
 from .query_planner import generate_plan, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
 from .util import setup_logging
+from .storage import RedisGraph, RedisList
+from .config import settings
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,84 +45,121 @@ APP.add_middleware(
     allow_headers=["*"],
 )
 
+
 setup_logging()
+
+
+@APP.on_event("startup")
+async def print_config():
+    pretty_config = pprint.pformat(
+        settings.dict()
+    )
+    LOGGER.info(f" App Configuration:\n {pretty_config}")
 
 EXAMPLE = {
     "message": {
         "query_graph": {
             "nodes": {
-                "n1": {
-                    "id": "CHEBI:136043",
-                    "category": "biolink:ChemicalSubstance",
+                "n0": {
+                    "id": "MONDO:0001056",
+                    "category": "biolink:Disease"
                 },
-                "n2": {
-                    "category": "biolink:Disease",
+                "n1": {
+                    "category": "biolink:Disease"
                 }
             },
             "edges": {
-                "e12": {
-                    "subject": "n1",
-                    "object": "n2",
-                    "predicate": "biolink:treats",
+                "e01": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicate": "biolink:related_to"
                 }
             }
-        },
+        }
     }
 }
 
-@APP.post('/query', response_model=Message, tags=['query'])
-async def sync_query(
-        query: Query = Body(..., example=EXAMPLE),
-        support: bool = True,
-) -> Message:
-    """Handle synchronous query."""
-    return await sync_answer(
-        query.dict(),
-        support=support,
+
+def get_finished_query(qid: str) -> dict:
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    kgraph = RedisGraph(f"{qid}:kgraph")
+    results = RedisList(f"{qid}:results")
+    logs = RedisList(f"{qid}:log")
+
+    expiration_seconds = int(settings.store_results_for.total_seconds())
+
+    qgraph.expire(expiration_seconds)
+    kgraph.expire(expiration_seconds)
+    results.expire(expiration_seconds)
+    logs.expire(expiration_seconds)
+
+    return dict(
+        message=dict(
+            query_graph=qgraph.get(),
+            knowledge_graph=kgraph.get(),
+            results=list(results.get()),
+        ),
+        logs=list(logs.get()),
     )
 
 
-async def sync_answer(query: Dict, **kwargs):
-    """Answer biomedical question, synchronously."""
-    try:
-        queue = asyncio.PriorityQueue()
-        counter = itertools.count()
+async def process_query(qid):
+    # Set up workers
+    strider = StriderWorker(num_workers=2)
 
-        # setup strider
-        strider = StriderWorker(
-            queue,
-            num_workers=2,
-            counter=counter,
-        )
+    # Process
+    await strider.run(qid, wait=True)
 
-        await strider.run(query["message"]["query_graph"], wait=True)
-        return {
-            "query_graph": query["query_graph"],
-            "results": strider.results,
-            "knowledge_graph": strider.kgraph,
-        }
-    except NoAnswersError as err:
-        LOGGER.warning(str(err))
-        return query['message']
-    async with Database('results.db') as database:
-        return await _get_results(
-            query_id=query_id,
-            database=database,
-        )
+    # Pull results from redis
+    # Also starts timer for expiring results
+    return get_finished_query(qid)
 
 
-@APP.post('/aquery', response_model=str, tags=['query'])
+@APP.post('/aquery', tags=['query'])
 async def async_query(
-        query: Query,
-        support: bool = True,
-) -> str:
-    """Handle asynchronous query."""
-    query_id = await execute_query(
-        query.message.query_graph.dict(),
-        support=support,
-        wait=False,
+        background_tasks: BackgroundTasks,
+        query: Query = Body(..., example=EXAMPLE),
+) -> dict:
+    """Start query processing."""
+    # Generate Query ID
+    qid = str(uuid.uuid4())[:8]
+
+    # Save query graph to redis
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    qgraph.set(query.dict()['message']['query_graph'])
+
+    # Start processing
+    background_tasks.add_task(process_query, qid)
+
+    # Return ID
+    return dict(id=qid)
+
+
+@APP.post('/query_result', response_model=ReasonerResponse)
+async def get_results(qid: str) -> dict:
+    print(get_finished_query(qid))
+    return get_finished_query(qid)
+
+
+@APP.post('/query', tags=['query'])
+async def sync_query(
+        query: Query = Body(..., example=EXAMPLE)
+) -> dict:
+    """Handle synchronous query."""
+    # Generate Query ID
+    qid = str(uuid.uuid4())[:8]
+
+    # Save query graph to redis
+    qgraph = RedisGraph(f"{qid}:qgraph")
+    qgraph.set(
+        query.dict()['message']['query_graph']
     )
-    return query_id
+
+    # Process query and wait for results
+    query_results = await process_query(qid)
+
+    # Return results
+    return query_results
 
 
 @APP.post('/ars')
@@ -149,19 +191,6 @@ async def handle_ars(
     content = await sync_answer(data)
     headers = {'tr_ars.message.status': 'A'}
     return JSONResponse(content=content, headers=headers)
-
-
-@APP.get('/results', response_model=Message)
-async def get_results(  # pylint: disable=too-many-arguments
-        query_id: str,
-        since: float = None,
-        limit: int = None,
-        offset: int = 0,
-        database=Depends(get_db('results.db')),
-) -> Message:
-    """Get results for a query."""
-    return await _get_results(query_id, since, limit, offset, database)
-
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")
 

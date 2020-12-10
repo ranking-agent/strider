@@ -1,0 +1,21 @@
+FROM python:3.9
+
+# Add image info
+LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
+
+# set up requirements
+WORKDIR /app
+
+# Normal requirements
+ADD requirements.txt .
+RUN pip install -r requirements.txt
+
+# Test requirements
+ADD requirements-test.txt .
+RUN pip install -r requirements-test.txt
+
+# Copy in files
+ADD . .
+
+# set up default command
+CMD pytest

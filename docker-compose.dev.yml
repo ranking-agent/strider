@@ -1,10 +1,22 @@
 version: '3'
 
 services:
+  # Run our own kp-registry
   kp-registry:
+    image: ghcr.io/ranking-agent/kp_registry:v0.1.1
+    volumes:
+      - ./data:/home/murphy/data
     ports:
       - '4983:4983'
+  # Set up reloading using volume mounts
   strider:
     volumes:
       - ./:/home/murphy
-    command: uvicorn strider.server:APP --host 0.0.0.0 --port 5781 --reload
+    command: --host 0.0.0.0 --port 5781 --reload
+  # Redis debugging UI 
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - "8081:8081"

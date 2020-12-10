@@ -14,50 +14,93 @@ from collections.abc import Iterable
 import logging
 import json
 import os
+from datetime import datetime
 
 from reasoner_pydantic import QueryGraph, Result
 
-from .kp_registry import Registry
-from .query_planner import generate_plan, Step
+from .query_planner import generate_plan, Step, NoAnswersError
 from .compatibility import KnowledgePortal
 from .trapi import merge_messages, merge_results
 from .worker import Worker
 from .caching import async_locking_cache
+from .storage import RedisGraph, RedisList, RedisLogHandler
+from .kp_registry import Registry
+from .config import settings
 
-LOGGER = logging.getLogger(__name__)
+# Initialize registry
+registry = Registry(settings.kpregistry_url)
 
-KPREGISTRY_URL = os.getenv("KPREGISTRY_URL", "http://registry")
+
+class ReasonerLogEntryFormatter(logging.Formatter):
+    """ Format to match Reasoner API LogEntry """
+
+    def format(self, record):
+        # If given a string, convert to dict
+        if isinstance(record.msg, str):
+            record.msg = dict(message=record.msg)
+
+        iso_timestamp = datetime.utcfromtimestamp(
+            record.created
+        ).isoformat()
+
+        # If given a code, set a code
+        code = None
+        if 'code' in record.msg:
+            code = record.msg['code']
+            del record.msg['code']
+
+        # Extra fields go in the message
+        record.msg['line_number'] = record.lineno
+        if record.exc_info:
+            record.msg['exception_info'] = self.formatException(
+                record.exc_info
+            )
+
+        return dict(
+            code=code,
+            message=json.dumps(record.msg),
+            level=record.levelname,
+            timestamp=iso_timestamp,
+        )
 
 
 class StriderWorker(Worker):
-    """Strider async worker."""
+    """Async worker to process query"""
 
     def __init__(self, *args, **kwargs):
         """Initialize."""
-        self.kgraph: dict[str, dict] = {
-            "nodes": dict(),
-            "edges": dict(),
-        }
         self.plan: list[Step] = None
         self.preferred_prefixes: dict[str, list[str]] = None
         self.qgraph: QueryGraph = None
-        self.registry: Registry = Registry(KPREGISTRY_URL)
         self.results: list[Result] = []
         self.portal: KnowledgePortal = KnowledgePortal()
         super().__init__(*args, **kwargs)
 
     async def setup(
             self,
-            qgraph: QueryGraph,
+            qid: str,
     ):
         """Set up."""
+        # Set up DB results objects
+        self.kgraph = RedisGraph(f"{qid}:kgraph")
+        self.results = RedisList(f"{qid}:results")
+
+        # Set up logger
+        handler = RedisLogHandler(f"{qid}:log")
+        handler.setFormatter(
+            ReasonerLogEntryFormatter()
+        )
+        self.logger = logging.getLogger(__name__)
+        self.logger.addHandler(handler)
+
+        self.logger.debug("Initialized strider worker")
+
+        # Pull query graph from Redis
+        qgraph = RedisGraph(f"{qid}:qgraph").get()
+
         # get preferred prefixes
-        prefixes_json = os.getenv("PREFIXES", "strider/prefixes.json")
-        if prefixes_json:
-            with open(prefixes_json, "r") as stream:
-                self.preferred_prefixes = json.load(stream)
-        else:
-            self.preferred_prefixes = None
+        with open(settings.prefixes_path, "r") as stream:
+            self.preferred_prefixes = json.load(stream)
 
         # fix qgraph
         self.qgraph = (await self.portal.map_prefixes(
@@ -65,9 +108,13 @@ class StriderWorker(Worker):
             self.preferred_prefixes,
         ))["query_graph"]
 
-        # generate traversal plan
-        plans = await generate_plan(self.qgraph, self.registry)
-        self.plan = plans[-1]
+        self.logger.debug("Generating plan")
+        try:
+            # Generate traversal plan
+            plans = await generate_plan(self.qgraph, registry)
+            self.plan = plans[-1]
+        except NoAnswersError:
+            self.logger.error({"code": "QueryNotTraversable"})
 
         # add first partial result
         for qnode_id, qnode in self.qgraph["nodes"].items():
@@ -129,16 +176,24 @@ class StriderWorker(Worker):
             return
 
         # execute step
-        LOGGER.debug(result)
-        LOGGER.debug(step)
-        response = await self.execute_step(
-            step,
-            result["node_bindings"][step.source][0]["id"],
-        )
+        self.logger.debug({
+            "description": "Recieved results from KPs",
+            "data": result,
+            "step": step,
+        })
+
+        try:
+            response = await self.execute_step(
+                step,
+                result["node_bindings"][step.source][0]["id"],
+            )
+        except Exception:
+            self.logger.exception('Failed to execute step')
+            return
 
         # process kgraph
-        self.kgraph["nodes"] |= response["knowledge_graph"]["nodes"]
-        self.kgraph["edges"] |= response["knowledge_graph"]["edges"]
+        self.kgraph.nodes.merge(response["knowledge_graph"]["nodes"])
+        self.kgraph.edges.merge(response["knowledge_graph"]["edges"])
 
         # process results
         for new_result in response["results"]:

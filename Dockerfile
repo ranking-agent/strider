@@ -27,5 +27,8 @@ ENV HOME=/home/murphy
 ENV USER=murphy
 USER murphy
 
-# set up default command
-CMD ["/home/murphy/main.sh"]
+# set up base for command
+ENTRYPOINT ["uvicorn", "strider.server:APP"]
+
+# default variables that can be overriden
+CMD [ "--host", "0.0.0.0", "--port", "5781" ]

@@ -1,5 +1,6 @@
 aiosqlite==0.13.0
 aiofiles==0.6.0
+redis==3.5.3
 bmt==0.1.1
 httpx==0.16.1
 numpy==1.18.0
