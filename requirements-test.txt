@@ -1,5 +1,6 @@
 fakeredis==1.4.5
 codecov==2.1.7
+pylint==2.6.0
 pytest==5.4.3
 pytest-asyncio==0.14.0
 pytest-cov==2.10.0

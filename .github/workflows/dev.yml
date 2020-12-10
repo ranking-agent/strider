@@ -1,0 +1,79 @@
+name: 'Pull Request Feedback'
+
+on: 
+  pull_request:
+    types: [review_requested]
+
+jobs:
+  lint:
+    name: Lint code with pylint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      # Cache docker layers for faster build
+      - uses: satackey/action-docker-layer-caching@v0.0.8
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+
+      - name: Build
+        run: docker build -t strider-testing -f Dockerfile.test .
+
+      - name: Run linter and get output
+        run: |
+          echo 'LINT_OUTPUT<<EOF' >> $GITHUB_ENV
+          echo "$(docker run strider-testing pylint strider)" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
+      - name: Report ESLint information as comment on pull request
+        uses: mshick/add-pr-comment@v1
+        with:
+          message: |
+            <details>
+              <summary>Lint Output</summary>
+
+              ```
+              ${{ env.LINT_OUTPUT }}
+              ```
+
+            </details>
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
+          allow-repeats: true
+  test:
+    name: Run pytest
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v2
+
+      # Cache docker layers for faster build
+      - uses: satackey/action-docker-layer-caching@v0.0.8
+        # Ignore the failure of a step and avoid terminating the job.
+        continue-on-error: true
+
+      - name: Build
+        run: docker build -t strider-testing -f Dockerfile.test .
+
+      - name: Run tests and get output
+        run: |
+          echo 'TEST_OUTPUT<<EOF' >> $GITHUB_ENV
+          echo "$(docker run strider-testing)" >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+
+      - name: Report test information as comment on pull request
+        uses: mshick/add-pr-comment@v1
+        with:
+          message: |
+            <details>
+              <summary>Test Output</summary>
+
+              ```
+              ${{ env.TEST_OUTPUT }}
+              ```
+
+            </details>
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
+          allow-repeats: true
