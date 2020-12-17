@@ -7,24 +7,22 @@ import os
 from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
 
-from .logger import setup_logger
-from .util import with_translator_overlay
+from tests.helpers.logger import setup_logger
+from tests.helpers.context import with_translator_overlay
 
 from strider.config import settings
 
 # Switch settings before importing server
 settings.redis_url = "redis://fakeredis"
-settings.prefixes_path = "tests/data/prefixes.json"
-settings.kpregistry_url = "http://registry"
+settings.prefixes_path = "prefixes.json"
+registry_host = "registry"
+settings.kpregistry_url = f"http://{registry_host}"
 settings.normalizer_url = "http://normalizer"
 
 from strider.server import sync_query
 
 
 setup_logger()
-
-with open("tests/data/query_graphs/two_hop.json", "r") as stream:
-    QGRAPH = json.load(stream)
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
@@ -43,13 +41,15 @@ CTD_PREFIXES = {
 
 
 @pytest.mark.asyncio
-@with_translator_overlay([
+@with_translator_overlay(registry_host, [
     ("ctd", CTD_PREFIXES),
     ("hetio", DEFAULT_PREFIXES),
     ("mychem", MYCHEM_PREFIXES),
 ])
 async def test_strider():
     """Test Strider."""
+    with open("ex1_qg.json", "r") as f:
+        QGRAPH = json.load(f)
 
     # Create query
     q = Query(
