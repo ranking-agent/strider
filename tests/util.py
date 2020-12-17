@@ -26,7 +26,7 @@ def with_context(context, *args_, **kwargs_):
 
 
 @asynccontextmanager
-async def registry_overlay(host):
+async def registry_overlay(host, kps):
     """Registry server context manager."""
     async with AsyncExitStack() as stack:
         app = FastAPI()
@@ -37,6 +37,14 @@ async def registry_overlay(host):
         await stack.enter_async_context(
             ASGIAR(app, host=host)
         )
+        # Register KPs passed to the function
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"http://{host}/kps",
+                json=kps
+            )
+            response.raise_for_status()
+
         yield
 
 
@@ -58,9 +66,6 @@ async def translator_overlay(origins: list[tuple[str, CURIEMap]]):
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
             norm_overlay("normalizer")
-        )
-        await stack.enter_async_context(
-            registry_overlay("registry")
         )
         kps = dict()
         for origin, curie_prefixes in origins:
@@ -96,12 +101,10 @@ async def translator_overlay(origins: list[tuple[str, CURIEMap]]):
                 }
             }
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                "http://registry/kps",
-                json=kps
-            )
-            response.raise_for_status()
+        # Start registry context using KPs constructed above
+        await stack.enter_async_context(
+            registry_overlay("registry", kps)
+        )
 
         yield
 
