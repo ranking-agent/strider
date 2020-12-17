@@ -1,0 +1,25 @@
+{
+  "nodes" : {
+    "n0" : {
+      "type" : "biolink:ChemicalSubstance"
+    },
+    "n1" : {
+      "id" : "MONDO:0005737"
+    },
+    "n2" : {
+      "type" : "biolink:Gene"
+    }
+  },
+  "edges" : {
+    "e01" : {
+      "subject" : "n0",
+      "object" : "n1",
+      "predicate" : "biolink:treats"
+    },
+    "e02" : {
+      "subject" : "n0",
+      "object" : "n1",
+      "predicate" : "biolink:regulates"
+    }
+  }
+}
