@@ -3,6 +3,9 @@ import asyncio
 from collections import defaultdict, namedtuple
 import logging
 import os
+import re
+import copy
+import time
 from typing import Callable
 
 from bmt import Toolkit as BMToolkit
@@ -18,6 +21,54 @@ BMT = BMToolkit()
 LOGGER = logging.getLogger(__name__)
 
 Step = namedtuple("Step", ["source", "edge", "target"])
+
+
+def camel_to_snake(s):
+    return re.sub(r'(?<!^)(?=[A-Z])', ' ', s).lower()
+
+
+def snake_to_camel(s):
+    return ''.join(word.title() for word in s.split(' '))
+
+
+def bmt_descendents(concept):
+    """ Wrapped BMT descendents function that does case conversions """
+    prefix = 'biolink:'
+    concept_old_format = camel_to_snake(concept.replace(prefix, ''))
+    descendents_old_format = BMT.descendents(concept_old_format)
+    descendents = [prefix + snake_to_camel(a) for a in descendents_old_format]
+    return [concept] + descendents
+
+
+def permute_qg(qg):
+    permutations = []
+
+    stack = []
+    stack.append(copy.deepcopy(qg))
+
+    while len(stack) > 0:
+        current_qg = stack.pop()
+        # Find next node that needs to be permuted
+        remaining_unbound_nodes = (i for (i, n) in qg['nodes'].items()
+                                   if 'type' in n and isinstance(n['type'], list))
+        next_node_id = next(remaining_unbound_nodes, None)
+        print(f"Next node ID: {next_node_id}")
+        if not next_node_id:
+            # fully permuted
+            permutations.append(current_qg)
+            continue
+        next_node = current_qg['nodes'][next_node_id]
+        print(f"Next node to permute: {next_node}")
+        for t in next_node['type']:
+            permutation_copy = copy.deepcopy(current_qg)
+            # Fix type
+            permutation_copy['nodes'][next_node_id]['type'] = t
+            # Yield
+            permutations.append(permutation_copy)
+            print(f"Adding to stack: {permutation_copy}")
+            # Add to stack
+            stack.append(permutation_copy)
+    return permutations
 
 
 def get_kp_request_template(
@@ -85,7 +136,33 @@ async def generate_plan(
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
 
-    # get candidate steps
+    # Use BMT to convert node types to types + descendents
+    for node in qgraph['nodes'].values():
+        if 'type' not in node:
+            continue
+        print(type(node['type']))
+        if not isinstance(node['type'], list):
+            node['type'] = [node['type']]
+        new_type_list = []
+        for t in node['type']:
+            new_type_list.extend(bmt_descendents(t))
+        node['type'] = new_type_list
+
+    # Same with edges
+    for edge in qgraph['edges'].values():
+        if 'predicate' not in edge:
+            continue
+        if not isinstance(edge['predicate'], list):
+            edge['predicate'] = [edge['predicate']]
+        new_predicate_list = []
+        for t in edge['predicate']:
+            new_predicate_list.extend(bmt_descendents(t))
+        edge['predicate'] = new_predicate_list
+
+    print(f"Expanded query graph: {qgraph}")
+    permuted_qg_list = permute_qg(qgraph)
+    print(f"Permuted query graph: {permuted_qg_list}")
+
     # i.e. steps we could imagine taking through the qgraph
     candidate_steps = defaultdict(list)
     for qedge_id, qedge in qgraph['edges'].items():
