@@ -31,6 +31,19 @@ from .config import settings
 registry = Registry(settings.kpregistry_url)
 
 
+class DurableJSONEncoder(json.JSONEncoder):
+    """                                                                         
+    Fall back to str(obj) if we can't figure out how to serialize the object             
+    """
+
+    def default(self, o):
+        try:
+            json = super().default(o)
+        except TypeError:
+            json = str(o)
+        return json
+
+
 class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """
 
@@ -58,7 +71,10 @@ class ReasonerLogEntryFormatter(logging.Formatter):
 
         return dict(
             code=code,
-            message=json.dumps(record.msg),
+            message=json.dumps(
+                record.msg,
+                cls=DurableJSONEncoder,
+                allow_nan=True),
             level=record.levelname,
             timestamp=iso_timestamp,
         )
@@ -113,6 +129,9 @@ class StriderWorker(Worker):
             # Generate traversal plan
             plans = await generate_plan(self.qgraph, registry)
             self.plan = plans[-1]
+            self.logger.debug({"plan":
+                               [s._asdict() for s in self.plan]
+                               })
         except NoAnswersError:
             self.logger.error({"code": "QueryNotTraversable"})
 
@@ -151,6 +170,12 @@ class StriderWorker(Worker):
             curie,
             list(self.plan[step].values())[0]["preferred_prefixes"]
         )
+
+        self.logger.debug({
+            "description": "Executing step: ",
+            "step": self.plan[step],
+        })
+
         responses = await asyncio.gather(*(
             self.portal.fetch(
                 details["url"],
