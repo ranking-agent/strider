@@ -1,4 +1,5 @@
 """Test Strider."""
+from pathlib import Path
 import asyncio
 import itertools
 import json
@@ -12,9 +13,11 @@ from tests.helpers.context import with_translator_overlay
 
 from strider.config import settings
 
+cwd = Path(__file__).parent
+
 # Switch settings before importing server
 settings.redis_url = "redis://fakeredis"
-settings.prefixes_path = "prefixes.json"
+settings.prefixes_path = cwd / "prefixes.json"
 registry_host = "registry"
 settings.kpregistry_url = f"http://{registry_host}"
 settings.normalizer_url = "http://normalizer"
@@ -48,7 +51,7 @@ CTD_PREFIXES = {
 ])
 async def test_strider():
     """Test Strider."""
-    with open("ex1_qg.json", "r") as f:
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
