@@ -11,7 +11,7 @@ from simple_kp.testing import kp_overlay
 from simple_kp._types import CURIEMap
 import small_kg
 
-from tests.normalizer import norm_router
+from .normalizer import norm_router
 
 
 def with_context(context, *args_, **kwargs_):
@@ -61,7 +61,7 @@ async def norm_overlay(host):
 
 
 @asynccontextmanager
-async def translator_overlay(origins: list[tuple[str, CURIEMap]]):
+async def translator_overlay(registry_host, origins: list[tuple[str, CURIEMap]]):
     """Registry + KPs context manager."""
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
@@ -103,7 +103,7 @@ async def translator_overlay(origins: list[tuple[str, CURIEMap]]):
 
         # Start registry context using KPs constructed above
         await stack.enter_async_context(
-            registry_overlay("registry", kps)
+            registry_overlay(registry_host, kps)
         )
 
         yield

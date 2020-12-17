@@ -1,0 +1,34 @@
+{
+  "kp0" : {
+    "url" : "http://kp0",
+    "operations" : [{
+      "source_type" : "biolink:Drug",
+      "edge_type" : "-treats->",
+      "target_type" : "biolink:Disease"
+    }]
+  },
+  "kp1" : {
+    "url" : "http://kp1",
+    "operations" : [{
+      "source_type" : "biolink:Drug",
+      "edge_type" : "-regulates->",
+      "target_type" : "biolink:Gene"
+    }]
+  },
+  "kp2" : {
+    "url" : "http://kp2",
+    "operations" : [{
+      "source_type" : "biolink:ChemicalSubstance",
+      "edge_type" : "-positively_regulates->",
+      "target_type" : "biolink:GeneOrGeneProduct"
+    }]
+  },
+  "kp3" : {
+    "url" : "http://kp3",
+    "operations" : [{
+      "source_type" : "biolink:ChemicalSubstance",
+      "edge_type" : "-treats->",
+      "target_type" : "biolink:Disease"
+    }]
+  }
+}
