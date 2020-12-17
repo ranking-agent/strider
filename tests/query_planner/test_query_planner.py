@@ -1,11 +1,17 @@
+from pathlib import Path
+import os
 import json
 
 import pytest
 
 from tests.helpers.context import with_registry_overlay
 
-with open("tests/query_planner/ex1_kps.json", "r") as f:
+cwd = Path(__file__).parent
+
+with open(cwd / "ex1_kps.json", "r") as f:
     kps = json.load(f)
+
+print(__file__)
 
 
 @pytest.mark.asyncio
