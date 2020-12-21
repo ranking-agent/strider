@@ -3,7 +3,7 @@
     "url" : "http://kp0",
     "operations" : [{
       "source_type" : "biolink:Drug",
-      "edge_type" : "-treats->",
+      "edge_type" : "-biolink:treats->",
       "target_type" : "biolink:Disease"
     }]
   },
@@ -11,7 +11,7 @@
     "url" : "http://kp1",
     "operations" : [{
       "source_type" : "biolink:Drug",
-      "edge_type" : "-regulates->",
+      "edge_type" : "-biolink:regulates->",
       "target_type" : "biolink:Gene"
     }]
   },
@@ -19,7 +19,7 @@
     "url" : "http://kp2",
     "operations" : [{
       "source_type" : "biolink:ChemicalSubstance",
-      "edge_type" : "-positively_regulates->",
+      "edge_type" : "-biolink:positively_regulates->",
       "target_type" : "biolink:GeneOrGeneProduct"
     }]
   },
@@ -27,7 +27,7 @@
     "url" : "http://kp3",
     "operations" : [{
       "source_type" : "biolink:ChemicalSubstance",
-      "edge_type" : "-treats->",
+      "edge_type" : "-biolink:treats->",
       "target_type" : "biolink:Disease"
     }]
   }
