@@ -7,7 +7,7 @@
       "id" : "MONDO:0005737"
     },
     "n2" : {
-      "type" : "biolink:Gene"
+      "type" : "biolink:GeneOrGeneProduct"
     }
   },
   "edges" : {
