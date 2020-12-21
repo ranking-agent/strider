@@ -12,6 +12,7 @@ from bmt import Toolkit as BMToolkit
 from reasoner_pydantic import QueryGraph, Message
 
 from strider.kp_registry import Registry
+from strider.normalizer import Normalizer
 from strider.util import snake_case, spaced
 from strider.trapi import fix_qgraph
 from strider.compatibility import Synonymizer
@@ -38,6 +39,15 @@ def bmt_descendents(concept):
     descendents_old_format = BMT.descendents(concept_old_format)
     descendents = [prefix + snake_to_camel(a) for a in descendents_old_format]
     return [concept] + descendents
+
+
+def bmt_ancestors(concept):
+    """ Wrapped BMT ancestors function that does case conversions """
+    prefix = 'biolink:'
+    concept_old_format = camel_to_snake(concept.replace(prefix, ''))
+    ancestors_old_format = BMT.ancestors(concept_old_format)
+    ancestors = [prefix + snake_to_camel(a) for a in ancestors_old_format]
+    return [concept] + ancestors
 
 
 def permute_qg(qg):
@@ -140,19 +150,44 @@ def complete_plan(
     return completions
 
 
+def filter_ancestor_types(types):
+    """ Filter out types that are ancestors of other types in the list """
+
+    def is_ancestor(a, b):
+        """ Check if one biolink type is an ancestor of the other """
+        ancestors = bmt_ancestors(b)
+        if a in ancestors:
+            return True
+        return False
+
+    specific_types = ['biolink:NamedThing']
+    for new_type in types:
+        for existing_type_id in range(len(specific_types)):
+            existing_type = specific_types[existing_type_id]
+            if is_ancestor(new_type, existing_type):
+                continue
+            elif is_ancestor(existing_type, new_type):
+                specific_types[existing_type_id] = new_type
+            else:
+                specific_types.append(new_type)
+    return specific_types
+
+
 async def generate_plan(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
+        normalizer: Normalizer = None,
 ):
     """Generate a query execution plan."""
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
+    if normalizer is None:
+        normalizer = Normalizer(settings.normalizer_url)
 
     # Use BMT to convert node types to types + descendents
     for node in qgraph['nodes'].values():
         if 'type' not in node:
             continue
-        print(type(node['type']))
         if not isinstance(node['type'], list):
             node['type'] = [node['type']]
         new_type_list = []
@@ -171,10 +206,21 @@ async def generate_plan(
             new_predicate_list.extend(bmt_descendents(t))
         edge['predicate'] = new_predicate_list
 
-    print(f"Expanded query graph: {qgraph}")
+    # Use node normalizer to add
+    # a type to nodes with a curie
+    for node in qgraph['nodes'].values():
+        if 'id' not in node:
+            continue
+        if not isinstance(node['id'], list):
+            node['id'] = [node['id']]
+
+        # Get full list of types
+        types = await normalizer.get_types(node['id'])
+
+        # Filter types that are ancestors of other types we were given
+        node['type'] = filter_ancestor_types(types)
+
     permuted_qg_list = permute_qg(qgraph)
-    print(f"Permuted query graph: {permuted_qg_list}")
-    print(f"Permuted query graph size: {len(permuted_qg_list)}")
 
     # i.e. steps we could imagine taking through the qgraph
     candidate_steps = defaultdict(list)
@@ -201,6 +247,8 @@ async def generate_plan(
             )
         )
 
+    print(f"Candidate steps: {candidate_steps}")
+
     # evaluate which candidates are realizable
     real_steps = dict()
     for source_id, steps in candidate_steps.items():
@@ -215,6 +263,8 @@ async def generate_plan(
                 kp_registry,
                 allowlist=allowlist, denylist=denylist,
             )
+
+    print(f"Real steps: {candidate_steps}")
 
     # find possible plans
     pinned = [
@@ -250,20 +300,14 @@ async def step_to_kps(
         allowlist=None, denylist=None,
 ):
     """Find KP endpoint(s) that enable step."""
-    source_types, target_types, edge_types = await asyncio.gather(
-        expand_bl(source.get("category", None)),
-        expand_bl(target.get("category", None)),
-        expand_bl(edge.get("predicate", None))
-    )
-
     if source["key"] == edge["subject"]:
-        edge_types = [f'-{edge_type}->' for edge_type in edge_types]
+        edge_types = [f'-{edge_type}->' for edge_type in edge['predicate']]
     else:
-        edge_types = [f'<-{edge_type}-' for edge_type in edge_types]
+        edge_types = [f'<-{edge_type}-' for edge_type in edge['predicate']]
     return await kp_registry.search(
-        source_types,
+        source['type'],
         edge_types,
-        target_types,
+        target['type'],
         allowlist=allowlist,
         denylist=denylist,
     )
