@@ -49,25 +49,37 @@ def permute_qg(qg):
     while len(stack) > 0:
         current_qg = stack.pop()
         # Find next node that needs to be permuted
-        remaining_unbound_nodes = (i for (i, n) in qg['nodes'].items()
+        remaining_unbound_nodes = (i for (i, n) in current_qg['nodes'].items()
                                    if 'type' in n and isinstance(n['type'], list))
         next_node_id = next(remaining_unbound_nodes, None)
-        print(f"Next node ID: {next_node_id}")
-        if not next_node_id:
-            # fully permuted
+
+        # Find next edge that needs to be permuted
+        remaining_unbound_edges = (i for (i, n) in current_qg['edges'].items()
+                                   if isinstance(n['predicate'], list))
+        next_edge_id = next(remaining_unbound_edges, None)
+
+        if next_node_id:
+            # Permute this node and push permutations to stack
+            next_node = current_qg['nodes'][next_node_id]
+            for t in next_node['type']:
+                permutation_copy = copy.deepcopy(current_qg)
+                # Fix type
+                permutation_copy['nodes'][next_node_id]['type'] = t
+                print(f"Adding to stack: {permutation_copy}")
+                # Add to stack
+                stack.append(permutation_copy)
+        elif next_edge_id:
+            # Permute this edge and push permutations to stack
+            next_edge = current_qg['edges'][next_edge_id]
+            for p in next_edge['predicate']:
+                permutation_copy = copy.deepcopy(current_qg)
+                # Fix predicate
+                permutation_copy['edges'][next_edge_id]['predicate'] = p
+                # Add to stack
+                stack.append(permutation_copy)
+        else:
+            # fully permuted, add to results
             permutations.append(current_qg)
-            continue
-        next_node = current_qg['nodes'][next_node_id]
-        print(f"Next node to permute: {next_node}")
-        for t in next_node['type']:
-            permutation_copy = copy.deepcopy(current_qg)
-            # Fix type
-            permutation_copy['nodes'][next_node_id]['type'] = t
-            # Yield
-            permutations.append(permutation_copy)
-            print(f"Adding to stack: {permutation_copy}")
-            # Add to stack
-            stack.append(permutation_copy)
     return permutations
 
 
@@ -162,6 +174,7 @@ async def generate_plan(
     print(f"Expanded query graph: {qgraph}")
     permuted_qg_list = permute_qg(qgraph)
     print(f"Permuted query graph: {permuted_qg_list}")
+    print(f"Permuted query graph size: {len(permuted_qg_list)}")
 
     # i.e. steps we could imagine taking through the qgraph
     candidate_steps = defaultdict(list)
