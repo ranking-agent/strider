@@ -1,7 +1,7 @@
 {
   "nodes" : {
     "n0" : {
-      "type" : "biolink:ChemicalSubstance"
+      "type" : "biolink:MolecularEntity"
     },
     "n1" : {
       "id" : "MONDO:0005737"
