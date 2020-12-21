@@ -222,49 +222,36 @@ async def generate_plan(
 
     permuted_qg_list = permute_qg(qgraph)
 
-    # i.e. steps we could imagine taking through the qgraph
+    kp_lookup_dict = {}
+    # For each edge, ask KP registry for KPs that could solve it
     candidate_steps = defaultdict(list)
-    for qedge_id, qedge in qgraph['edges'].items():
-        if "provided_by" in qedge:
-            allowlist = qedge["provided_by"].get("allowlist", None)
-            denylist = qedge["provided_by"].get("denylist", None)
+    for edge in qgraph['edges'].values():
+        if "provided_by" in edge:
+            allowlist = edge["provided_by"].get("allowlist", None)
+            denylist = edge["provided_by"].get("denylist", None)
         else:
             allowlist = denylist = None
-        candidate_steps[qedge["subject"]].append(
-            (
-                qedge_id,
-                qedge["object"],
-                allowlist,
-                denylist,
-            )
+
+        source = qgraph['nodes'][edge['subject']]
+        target = qgraph['nodes'][edge['object']]
+
+        kp_results = await step_to_kps(
+            source, edge, target,
+            kp_registry,
+            allowlist=allowlist, denylist=denylist,
         )
-        candidate_steps[qedge["object"]].append(
-            (
-                qedge_id,
-                qedge["subject"],
-                allowlist,
-                denylist,
-            )
-        )
+        for kp_name, kp in kp_results.items():
+            for op in kp['operations']:
+                dict_key = Step(op['source_type'],
+                                op['edge_type'], op['target_type'])
+                if dict_key not in kp_lookup_dict:
+                    kp_lookup_dict[dict_key] = []
+                kp_lookup_dict[dict_key].append({
+                    'name': kp_name,
+                    'url': kp['url'],
+                })
 
-    print(f"Candidate steps: {candidate_steps}")
-
-    # evaluate which candidates are realizable
-    real_steps = dict()
-    for source_id, steps in candidate_steps.items():
-        # real_steps[source_id] = dict()
-        for edge_id, target_id, allowlist, denylist in steps:
-            source = {**qgraph['nodes'][source_id], "key": source_id}
-            edge = qgraph['edges'][edge_id]
-            target = qgraph['nodes'][target_id]
-            step = Step(source_id, edge_id, target_id)
-            real_steps[step] = await step_to_kps(
-                source, edge, target,
-                kp_registry,
-                allowlist=allowlist, denylist=denylist,
-            )
-
-    print(f"Real steps: {candidate_steps}")
+    print(f"KP Lookup Dictionary: {kp_lookup_dict}")
 
     # find possible plans
     pinned = [
@@ -300,10 +287,8 @@ async def step_to_kps(
         allowlist=None, denylist=None,
 ):
     """Find KP endpoint(s) that enable step."""
-    if source["key"] == edge["subject"]:
-        edge_types = [f'-{edge_type}->' for edge_type in edge['predicate']]
-    else:
-        edge_types = [f'<-{edge_type}-' for edge_type in edge['predicate']]
+    edge_types = [f'-{edge_type}->' for edge_type in edge['predicate']]
+    print(f"Searching: {source['type']} {target['type']}")
     return await kp_registry.search(
         source['type'],
         edge_types,
