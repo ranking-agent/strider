@@ -12,7 +12,7 @@ from strider.config import settings
 registry_host = "registry"
 settings.kpregistry_url = f"http://{registry_host}"
 
-from strider.query_planner import generate_plan
+from strider.query_planner import generate_plans
 
 
 cwd = Path(__file__).parent
@@ -20,6 +20,15 @@ cwd = Path(__file__).parent
 
 with open(cwd / "ex1_kps.json", "r") as f:
     kps = json.load(f)
+
+DEFAULT_PREFIXES = {
+    "biolink:Disease": ["MONDO", "DOID"],
+    "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+    "biolink:PhenotypicFeature": ["HP"],
+}
+# Add prefixes
+for kp in kps.values():
+    kp['details'] = {'preferred_prefixes': DEFAULT_PREFIXES}
 
 
 @pytest.mark.asyncio
@@ -29,7 +38,7 @@ async def test_ex1():
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    plans = await generate_plan(qg)
+    plans = await generate_plans(qg)
 
     assert plans
 

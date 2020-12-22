@@ -57,12 +57,14 @@ class WrappedBMT():
             return self.prefix + snake_to_camel(s)
 
     def get_descendants(self, concept):
-        """ Wrapped BMT descendents function that does case conversions """
+        """ Wrapped BMT descendants function that does case conversions """
         concept_old_format = self.new_case_to_old_case(concept)
-        descendents_old_format = self.bmt.get_descendants(concept_old_format)
-        descendents = [self.old_case_to_new_case(d)
-                       for d in descendents_old_format]
-        return descendents
+        descendants_old_format = self.bmt.get_descendants(concept_old_format)
+        descendants = [self.old_case_to_new_case(d)
+                       for d in descendants_old_format]
+        if len(descendants) == 0:
+            descendants.append(concept)
+        return descendants
 
     def get_ancestors(self, concept):
         """ Wrapped BMT ancestors function that does case conversions """
@@ -70,6 +72,8 @@ class WrappedBMT():
         ancestors_old_format = self.bmt.get_ancestors(concept_old_format)
         ancestors = [self.old_case_to_new_case(a)
                      for a in ancestors_old_format]
+        if len(ancestors) == 0:
+            ancestors.append(concept)
         return ancestors
 
 

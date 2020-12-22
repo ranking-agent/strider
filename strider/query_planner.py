@@ -24,6 +24,8 @@ WBMT = WrappedBMT(BMT)
 LOGGER = logging.getLogger(__name__)
 
 Step = namedtuple("Step", ["source", "edge", "target"])
+Operation = namedtuple(
+    "Operation", ["source_type", "edge_type", "target_type"])
 
 
 def permute_qg(qg):
@@ -51,7 +53,6 @@ def permute_qg(qg):
                 permutation_copy = copy.deepcopy(current_qg)
                 # Fix type
                 permutation_copy['nodes'][next_node_id]['type'] = t
-                print(f"Adding to stack: {permutation_copy}")
                 # Add to stack
                 stack.append(permutation_copy)
         elif next_edge_id:
@@ -71,26 +72,28 @@ def permute_qg(qg):
 
 def get_kp_request_template(
         qgraph: QueryGraph,
-        step: Step,
+        edge: str,
         curie_map: dict[str, str] = None,
-) -> Callable:
+) -> QueryGraph:
     """Get request to send to KP."""
-    qgraph = fix_qgraph(qgraph, curie_map)
+    included_nodes = [edge['subject'], edge['object']]
+    included_edges = [edge]
 
-    def request(curie: str) -> Message:
-        return {
-            "query_graph": {
-                "nodes": {
-                    step.source: {
-                        **qgraph['nodes'][step.source],
-                        "id": curie,
-                    },
-                    step.target: qgraph['nodes'][step.target],
-                },
-                "edges": {step.edge: qgraph['edges'][step.edge]},
-            },
-        }
-    return request
+    request_qgraph = {
+        "nodes": {
+            key: val for key, val in qgraph['nodes'].items()
+            if key in included_nodes
+        },
+        "edges": {
+            key: val for key, val in qgraph['edges'].items()
+            if key in included_edges
+        },
+    }
+
+    breakpoint()
+
+    request_qgraph = fix_qgraph(request_qgraph, curie_map)
+    return request_qgraph
 
 
 class NoAnswersError(Exception):
@@ -131,7 +134,7 @@ def filter_ancestor_types(types):
 
     def is_ancestor(a, b):
         """ Check if one biolink type is an ancestor of the other """
-        ancestors = bmt_ancestors(b)
+        ancestors = WBMT.get_ancestors(b)
         if a in ancestors:
             return True
         return False
@@ -149,18 +152,25 @@ def filter_ancestor_types(types):
     return specific_types
 
 
-async def generate_plan(
+def get_operation(qg, edge) -> Operation:
+    """ Get the types from an edge in the query graph """
+    return Operation(
+        qg['nodes'][edge['subject']]['type'],
+        edge['predicate'],
+        qg['nodes'][edge['object']]['type'],
+    )
+
+
+async def generate_plans(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
-):
+) -> list[QueryGraph]:
     """Generate a query execution plan."""
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
     if normalizer is None:
         normalizer = Normalizer(settings.normalizer_url)
-
-    breakpoint()
 
     # Use BMT to convert node types to types + descendents
     for node in qgraph['nodes'].values():
@@ -170,7 +180,7 @@ async def generate_plan(
             node['type'] = [node['type']]
         new_type_list = []
         for t in node['type']:
-            new_type_list.extend(bmt_descendents(t))
+            new_type_list.extend(WBMT.get_descendants(t))
         node['type'] = new_type_list
 
     # Same with edges
@@ -181,7 +191,7 @@ async def generate_plan(
             edge['predicate'] = [edge['predicate']]
         new_predicate_list = []
         for t in edge['predicate']:
-            new_predicate_list.extend(bmt_descendents(t))
+            new_predicate_list.extend(WBMT.get_descendants(t))
         edge['predicate'] = new_predicate_list
 
     # Use node normalizer to add
@@ -219,42 +229,49 @@ async def generate_plan(
             allowlist=allowlist, denylist=denylist,
         )
         for kp_name, kp in kp_results.items():
+
+            kp_without_ops = {x: kp[x] for x in kp if x != 'operations'}
+            kp_without_ops['name'] = kp_name
+
             for op in kp['operations']:
-                dict_key = Step(op['source_type'],
-                                op['edge_type'], op['target_type'])
-                if dict_key not in kp_lookup_dict:
-                    kp_lookup_dict[dict_key] = []
-                kp_lookup_dict[dict_key].append({
-                    'name': kp_name,
+                operation = Operation(**op)
+                if operation not in kp_lookup_dict:
+                    kp_lookup_dict[operation] = []
+                kp_lookup_dict[operation].append(kp_without_ops)
+
+    print(f"KP Dictionary: {kp_lookup_dict}")
+    print(f"Possible QGs: {permuted_qg_list}")
+
+    # Run through permutations and save those that are solvable
+    synonymizer = Synonymizer()
+
+    plans = []
+    for current_qg in permuted_qg_list:
+        solvable = True
+        for edge in current_qg['edges'].values():
+            op = get_operation(current_qg, edge)
+            kps_available = kp_lookup_dict.get(op, None)
+            if not kps_available:
+                solvable = False
+                break
+
+            edge['requests'] = []
+
+            for kp in kps_available:
+                # Build a template
+                template = get_kp_request_template(
+                    current_qg,
+                    edge,
+                    synonymizer.map(kp["preferred_prefixes"]),
+                )
+                # Add to edge
+                edge['requests'].append({
+                    'template': template,
                     'url': kp['url'],
                 })
-
-    print(f"KP Lookup Dictionary: {kp_lookup_dict}")
-
-    # find possible plans
-    pinned = [
-        key for key, value in qgraph["nodes"].items()
-        if value.get("id", None) is not None
-    ]
-    plans = complete_plan(real_steps, qgraph, pinned)
-    if not plans:
-        raise NoAnswersError("Cannot traverse query graph using KPs")
-
-    plans = [{
-        key: real_steps[key]
-        for key in plan
-    } for plan in plans]
-
-    # add request templates to steps
-    synonymizer = Synonymizer()
-    for plan in plans:
-        for step, endpoints in plan.items():
-            for _, meta in endpoints.items():
-                meta["request_template"] = get_kp_request_template(
-                    qgraph,
-                    step,
-                    synonymizer.map(meta["preferred_prefixes"]),
-                )
+        if not solvable:
+            continue
+        plans.append(current_qg)
 
     return plans
 
@@ -266,11 +283,15 @@ async def step_to_kps(
 ):
     """Find KP endpoint(s) that enable step."""
     edge_types = [f'-{edge_type}->' for edge_type in edge['predicate']]
-    print(f"Searching: {source['type']}{edge_types}{target['type']}")
-    return await kp_registry.search(
+    response = await kp_registry.search(
         source['type'],
         edge_types,
         target['type'],
         allowlist=allowlist,
         denylist=denylist,
     )
+    # strip arrows from edge
+    for kp in response.values():
+        for op in kp['operations']:
+            op['edge_type'] = op['edge_type'][1:-2]
+    return response
