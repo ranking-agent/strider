@@ -9,6 +9,9 @@
   },
   "kp1" : {
     "url" : "http://kp1",
+	"details" : {
+		"preferred_prefixes" : { "biolink:Disease" : ["MONDO"] }
+	},
     "operations" : [{
       "source_type" : "biolink:Drug",
       "edge_type" : "-biolink:regulates->",
