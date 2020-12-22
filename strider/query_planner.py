@@ -13,74 +13,17 @@ from reasoner_pydantic import QueryGraph, Message
 
 from strider.kp_registry import Registry
 from strider.normalizer import Normalizer
-from strider.util import snake_case, spaced
+from strider.util import WrappedBMT
 from strider.trapi import fix_qgraph
 from strider.compatibility import Synonymizer
 from strider.config import settings
 
 BMT = BMToolkit()
+WBMT = WrappedBMT(BMT)
+
 LOGGER = logging.getLogger(__name__)
 
 Step = namedtuple("Step", ["source", "edge", "target"])
-
-
-def camel_to_snake(s, sep=' '):
-    return re.sub(r'(?<!^)(?=[A-Z])', sep, s).lower()
-
-
-def snake_to_camel(s):
-    return ''.join(word.title() for word in s.split(' '))
-
-
-all_slots = BMT.get_all_slots()
-all_slots_formatted = ['biolink:' + s.replace(' ', '_')
-                       for s in all_slots]
-prefix = 'biolink:'
-
-
-def new_case_to_old_case(s):
-    """
-    Convert new biolink case format (biolink:GeneOrGeneProduct)
-    to old case format (gene or gene product)
-
-    Also works with slots (biolink:related_to -> related to)
-    """
-    s = s.replace(prefix, '')
-    if s in all_slots_formatted:
-        return s.replace('_', ' ')
-    else:
-        return camel_to_snake(s)
-
-
-def old_case_to_new_case(s):
-    """
-    Convert old case format (gene or gene product)
-    to new biolink case format (biolink:GeneOrGeneProduct)
-
-    Also works with slots (related to -> biolink:related_to)
-    """
-    if s in all_slots:
-        return prefix + s.replace(' ', '_')
-    else:
-        return prefix + snake_to_camel(s)
-
-
-def bmt_descendents(concept):
-    """ Wrapped BMT descendents function that does case conversions """
-    concept_old_format = new_case_to_old_case(concept)
-    descendents_old_format = BMT.get_descendants(concept_old_format)
-    descendents = [old_case_to_new_case(d)
-                   for d in descendents_old_format]
-    return descendents
-
-
-def bmt_ancestors(concept):
-    """ Wrapped BMT ancestors function that does case conversions """
-    concept_old_format = new_case_to_old_case(concept)
-    ancestors_old_format = BMT.get_ancestors(concept_old_format)
-    ancestors = [old_case_to_new_case(a)
-                 for a in ancestors_old_format]
-    return ancestors
 
 
 def permute_qg(qg):
@@ -331,14 +274,3 @@ async def step_to_kps(
         allowlist=allowlist,
         denylist=denylist,
     )
-
-
-async def expand_bl(concept):
-    """Return lineage of biolink concept."""
-    if concept is None:
-        concept = 'biolink:NamedThing'
-    _concept = spaced(concept)
-    return snake_case(
-        BMT.ancestors(_concept)
-        + BMT.descendents(_concept)
-    ) + [concept]
