@@ -24,30 +24,63 @@ LOGGER = logging.getLogger(__name__)
 Step = namedtuple("Step", ["source", "edge", "target"])
 
 
-def camel_to_snake(s):
-    return re.sub(r'(?<!^)(?=[A-Z])', ' ', s).lower()
+def camel_to_snake(s, sep=' '):
+    return re.sub(r'(?<!^)(?=[A-Z])', sep, s).lower()
 
 
 def snake_to_camel(s):
     return ''.join(word.title() for word in s.split(' '))
 
 
+all_slots = BMT.get_all_slots()
+all_slots_formatted = ['biolink:' + s.replace(' ', '_')
+                       for s in all_slots]
+prefix = 'biolink:'
+
+
+def new_case_to_old_case(s):
+    """
+    Convert new biolink case format (biolink:GeneOrGeneProduct)
+    to old case format (gene or gene product)
+
+    Also works with slots (biolink:related_to -> related to)
+    """
+    s = s.replace(prefix, '')
+    if s in all_slots_formatted:
+        return s.replace('_', ' ')
+    else:
+        return camel_to_snake(s)
+
+
+def old_case_to_new_case(s):
+    """
+    Convert old case format (gene or gene product)
+    to new biolink case format (biolink:GeneOrGeneProduct)
+
+    Also works with slots (related to -> biolink:related_to)
+    """
+    if s in all_slots:
+        return prefix + s.replace(' ', '_')
+    else:
+        return prefix + snake_to_camel(s)
+
+
 def bmt_descendents(concept):
     """ Wrapped BMT descendents function that does case conversions """
-    prefix = 'biolink:'
-    concept_old_format = camel_to_snake(concept.replace(prefix, ''))
-    descendents_old_format = BMT.descendents(concept_old_format)
-    descendents = [prefix + snake_to_camel(a) for a in descendents_old_format]
-    return [concept] + descendents
+    concept_old_format = new_case_to_old_case(concept)
+    descendents_old_format = BMT.get_descendants(concept_old_format)
+    descendents = [old_case_to_new_case(d)
+                   for d in descendents_old_format]
+    return descendents
 
 
 def bmt_ancestors(concept):
     """ Wrapped BMT ancestors function that does case conversions """
-    prefix = 'biolink:'
-    concept_old_format = camel_to_snake(concept.replace(prefix, ''))
-    ancestors_old_format = BMT.ancestors(concept_old_format)
-    ancestors = [prefix + snake_to_camel(a) for a in ancestors_old_format]
-    return [concept] + ancestors
+    concept_old_format = new_case_to_old_case(concept)
+    ancestors_old_format = BMT.get_ancestors(concept_old_format)
+    ancestors = [old_case_to_new_case(a)
+                 for a in ancestors_old_format]
+    return ancestors
 
 
 def permute_qg(qg):
@@ -184,6 +217,8 @@ async def generate_plan(
     if normalizer is None:
         normalizer = Normalizer(settings.normalizer_url)
 
+    breakpoint()
+
     # Use BMT to convert node types to types + descendents
     for node in qgraph['nodes'].values():
         if 'type' not in node:
@@ -288,7 +323,7 @@ async def step_to_kps(
 ):
     """Find KP endpoint(s) that enable step."""
     edge_types = [f'-{edge_type}->' for edge_type in edge['predicate']]
-    print(f"Searching: {source['type']} {target['type']}")
+    print(f"Searching: {source['type']}{edge_types}{target['type']}")
     return await kp_registry.search(
         source['type'],
         edge_types,
