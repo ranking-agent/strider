@@ -18,7 +18,7 @@
     },
     "e02" : {
       "subject" : "n0",
-      "object" : "n1",
+      "object" : "n2",
       "predicate" : "biolink:regulates"
     }
   }

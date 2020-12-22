@@ -18,7 +18,7 @@
   "kp2" : {
     "url" : "http://kp2",
     "operations" : [{
-      "source_type" : "biolink:ChemicalSubstance",
+      "source_type" : "biolink:MolecularEntity",
       "edge_type" : "-biolink:positively_regulates->",
       "target_type" : "biolink:GeneOrGeneProduct"
     }]
@@ -26,7 +26,7 @@
   "kp3" : {
     "url" : "http://kp3",
     "operations" : [{
-      "source_type" : "biolink:ChemicalSubstance",
+      "source_type" : "biolink:MolecularEntity",
       "edge_type" : "-biolink:treats->",
       "target_type" : "biolink:Disease"
     }]
