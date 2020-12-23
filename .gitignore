@@ -1,6 +1,7 @@
 __pycache__/
 .pytest_cache/
 .vscode/
+.vim/
 venv/
 .DS_Store
 *.egg-info/

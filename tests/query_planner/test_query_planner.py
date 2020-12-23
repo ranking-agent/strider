@@ -64,11 +64,15 @@ async def test_ex1():
     assert len(plans) == 2
 
 
+with open(cwd / "namedthing_kps.json", "r") as f:
+    kps = json.load(f)
+
+
 @pytest.mark.asyncio
 @with_registry_overlay(registry_host, kps)
 async def test_namedthing(caplog):
-    caplog.set_level(logging.DEBUG)
     """ Test NamedThing -related_to-> NamedThing """
+    caplog.set_level(logging.DEBUG)
 
     qg = {
         "nodes": {
@@ -80,4 +84,9 @@ async def test_namedthing(caplog):
         },
     }
 
+    # Based on the biolink hierarchy this should build 1.2 million permutations
+    # and then filter down to the number of operations (4)
     plans = await generate_plans(qg)
+
+    assert plans
+    assert len(plans) == 4
