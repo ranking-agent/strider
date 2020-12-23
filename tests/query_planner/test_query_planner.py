@@ -34,7 +34,25 @@ for kp in kps.values():
 
 @pytest.mark.asyncio
 @with_registry_overlay(registry_host, kps)
+async def test_permute_curies():
+    """ Check that nodes with ID are correctly permuted """
+
+    qg = {
+        "nodes": {"n0": {"id": ["MONDO:0005737", "MONDO:0005738"]}},
+        "edges": {},
+    }
+
+    plans = await generate_plans(qg)
+
+    assert plans
+    # We should have two plans
+    assert len(plans) == 2
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(registry_host, kps)
 async def test_ex1():
+    """ Test first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
@@ -44,3 +62,22 @@ async def test_ex1():
 
     # We should have two valid plans
     assert len(plans) == 2
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(registry_host, kps)
+async def test_namedthing(caplog):
+    caplog.set_level(logging.DEBUG)
+    """ Test NamedThing -related_to-> NamedThing """
+
+    qg = {
+        "nodes": {
+            "n0": {"type": "biolink:NamedThing"},
+            "n1": {"type": "biolink:NamedThing"},
+        },
+        "edges": {
+            "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"}
+        },
+    }
+
+    plans = await generate_plans(qg)
