@@ -299,24 +299,32 @@ async def generate_plans(
     logger.debug(
         "Iterating over QGs to find ones that are solvable")
 
-    # Run through permutations and save those that are solvable
-    synonymizer = Synonymizer()
-    plans = []
-    for current_qg in permuted_qg_list:
-        solvable = True
-        for edge in current_qg['edges'].values():
-            op = get_operation(current_qg, edge)
-            kps_available = operation_kp_map.get(op, None)
-            if not kps_available:
-                solvable = False
-                break
+    # Do this in parallel because there may be many permutations
+    plans = await asyncio.gather(*(
+        validate_and_annotate_qg(qg, operation_kp_map) for qg in permuted_qg_list
+    ))
 
-            edge['request_kps'] = kps_available
-        if not solvable:
-            continue
-        plans.append(current_qg)
+    # Filter invalid plans
+    plans = list(filter(None, plans))
 
     return plans
+
+
+async def validate_and_annotate_qg(
+    qg: QueryGraph,
+    operation_kp_map: dict[Operation, list[dict]],
+) -> QueryGraph:
+    """
+    Check if QG has a valid plan, and if it does,
+    annotate with request_kps
+    """
+    for edge in qg['edges'].values():
+        op = get_operation(qg, edge)
+        kps_available = operation_kp_map.get(op, None)
+        if not kps_available:
+            return False
+        edge['request_kps'] = kps_available
+    return qg
 
 
 async def step_to_kps(
