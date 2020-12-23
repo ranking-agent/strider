@@ -6,7 +6,7 @@ import os
 import re
 import copy
 import time
-from typing import Callable
+from typing import Callable, Generator
 
 from bmt import Toolkit as BMToolkit
 from reasoner_pydantic import QueryGraph, Message
@@ -37,7 +37,7 @@ def find_next_list_property(search_dict, fields_to_check):
     return None, None
 
 
-def permute_qg(qg: QueryGraph) -> list[QueryGraph]:
+def permute_qg(qg: QueryGraph) -> Generator[QueryGraph, None, None]:
     """
     Take in a query graph that has some unbound properties
     and return a list of query graphs where every property is bound
@@ -45,7 +45,6 @@ def permute_qg(qg: QueryGraph) -> list[QueryGraph]:
     Example: If a query graph has ['Disease', 'Gene'] as a type for a node,
     two query graphs will be returned, one with node type Disease and one with type Gene
     """
-    permutations = []
 
     stack = []
     stack.append(copy.deepcopy(qg))
@@ -92,9 +91,7 @@ def permute_qg(qg: QueryGraph) -> list[QueryGraph]:
             continue
 
         # This QG is fully permuted, add to results
-        permutations.append(current_qg)
-
-    return permutations
+        yield current_qg
 
 
 def get_kp_request_template(
@@ -256,9 +253,6 @@ async def generate_plans(
 
     permuted_qg_list = permute_qg(qgraph)
 
-    logger.debug(
-        f"Generated {len(permuted_qg_list)} possible permutations for given query graph")
-
     operation_kp_map = {}
     # For each edge, ask KP registry for KPs that could solve it
 
@@ -299,32 +293,32 @@ async def generate_plans(
     logger.debug(
         "Iterating over QGs to find ones that are solvable")
 
-    # Do this in parallel because there may be many permutations
-    plans = await asyncio.gather(*(
-        validate_and_annotate_qg(qg, operation_kp_map) for qg in permuted_qg_list
-    ))
+    plans = validate_and_annotate_qg_list(
+        permuted_qg_list,
+        operation_kp_map,
+    )
 
-    # Filter invalid plans
-    plans = list(filter(None, plans))
-
-    return plans
+    return [plan async for plan in plans]
 
 
-async def validate_and_annotate_qg(
-    qg: QueryGraph,
+async def validate_and_annotate_qg_list(
+    qg_list: Generator[QueryGraph, None, None],
     operation_kp_map: dict[Operation, list[dict]],
-) -> QueryGraph:
+) -> Generator[QueryGraph, None, None]:
     """
     Check if QG has a valid plan, and if it does,
-    annotate with request_kps
+    annotate with request_kps and yield it
     """
-    for edge in qg['edges'].values():
-        op = get_operation(qg, edge)
-        kps_available = operation_kp_map.get(op, None)
-        if not kps_available:
-            return False
-        edge['request_kps'] = kps_available
-    return qg
+    for qg in qg_list:
+        valid = True
+        for edge in qg['edges'].values():
+            op = get_operation(qg, edge)
+            kps_available = operation_kp_map.get(op, None)
+            if not kps_available:
+                valid = False
+            edge['request_kps'] = kps_available
+        if valid:
+            yield qg
 
 
 async def step_to_kps(

@@ -14,12 +14,12 @@
     "e01" : {
       "subject" : "n0",
       "object" : "n1",
-      "predicate" : "biolink:treats"
+      "predicate" : "biolink:affects"
     },
     "e02" : {
       "subject" : "n0",
       "object" : "n2",
-      "predicate" : "biolink:regulates"
+      "predicate" : "biolink:affects"
     }
   }
 }
