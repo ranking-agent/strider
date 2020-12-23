@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 import json
+import logging
 
 import pytest
 
@@ -34,7 +35,6 @@ for kp in kps.values():
 @pytest.mark.asyncio
 @with_registry_overlay(registry_host, kps)
 async def test_ex1():
-
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
