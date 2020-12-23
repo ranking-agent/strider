@@ -190,14 +190,23 @@ async def generate_plans(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
+        logger: logging.Logger = None,
 ) -> list[QueryGraph]:
-    """Generate a query execution plan."""
+    """
+    Given a query graph, generate a list of query graphs
+    that are solvable, and annotate those with a 'request_kp' property
+    that shows which KPs to contact to get results
+    """
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
     if normalizer is None:
         normalizer = Normalizer(settings.normalizer_url)
+    if logger is None:
+        logger = logging.getLogger(__name__)
 
-    # Use BMT to convert node types to types + descendents
+    logger.debug("Using BMT to get descendants of node and edge types")
+
+    # Use BMT to convert node types to types + descendants
     for node in qgraph['nodes'].values():
         if 'type' not in node:
             continue
@@ -219,6 +228,13 @@ async def generate_plans(
             new_predicate_list.extend(WBMT.get_descendants(t))
         edge['predicate'] = new_predicate_list
 
+    logger.debug({
+        "description": "Expanded query graph with descendants",
+        "expanded_qg": qgraph,
+    })
+
+    logger.debug("Contacting node normalizer to get types for curies")
+
     # Use node normalizer to add
     # a type to nodes with a curie
     for node in qgraph['nodes'].values():
@@ -233,10 +249,24 @@ async def generate_plans(
         # Filter types that are ancestors of other types we were given
         node['type'] = filter_ancestor_types(types)
 
+    logger.debug({
+        "description": "Query graph with types added to curies",
+        "expanded_qg": qgraph,
+    })
+
     permuted_qg_list = permute_qg(qgraph)
 
-    kp_lookup_dict = {}
+    logger.debug(
+        f"Generated {len(permuted_qg_list)} possible permutations for given query graph")
+
+    operation_kp_map = {}
     # For each edge, ask KP registry for KPs that could solve it
+
+    logger.debug(
+        "Contacting KP registry to ask for KPs to solve this query graph")
+
+    # Put the results in a master dictionary so that we can look
+    # them up for each permutation and see which are solvable
     for edge in qgraph['edges'].values():
         if "provided_by" in edge:
             allowlist = edge["provided_by"].get("allowlist", None)
@@ -259,40 +289,29 @@ async def generate_plans(
 
             for op in kp['operations']:
                 operation = Operation(**op)
-                if operation not in kp_lookup_dict:
-                    kp_lookup_dict[operation] = []
-                kp_lookup_dict[operation].append(kp_without_ops)
+                if operation not in operation_kp_map:
+                    operation_kp_map[operation] = []
+                operation_kp_map[operation].append(kp_without_ops)
 
-    print(f"KP Dictionary: {kp_lookup_dict}")
-    print(f"Possible QGs: {permuted_qg_list}")
+    logger.debug(
+        f"Found {len(operation_kp_map)} possible KP operations we can use")
+
+    logger.debug(
+        "Iterating over QGs to find ones that are solvable")
 
     # Run through permutations and save those that are solvable
     synonymizer = Synonymizer()
-
     plans = []
     for current_qg in permuted_qg_list:
         solvable = True
         for edge in current_qg['edges'].values():
             op = get_operation(current_qg, edge)
-            kps_available = kp_lookup_dict.get(op, None)
+            kps_available = operation_kp_map.get(op, None)
             if not kps_available:
                 solvable = False
                 break
 
-            edge['requests'] = []
-
-            for kp in kps_available:
-                # Build a template
-                template = get_kp_request_template(
-                    current_qg,
-                    edge,
-                    synonymizer.map(kp["preferred_prefixes"]),
-                )
-                # Add to edge
-                edge['requests'].append({
-                    'template': template,
-                    'url': kp['url'],
-                })
+            edge['request_kps'] = kps_available
         if not solvable:
             continue
         plans.append(current_qg)
