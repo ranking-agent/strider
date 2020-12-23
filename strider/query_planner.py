@@ -28,7 +28,23 @@ Operation = namedtuple(
     "Operation", ["source_type", "edge_type", "target_type"])
 
 
-def permute_qg(qg):
+def find_next_list_property(search_dict, fields_to_check):
+    """ Find first object in a dictionary where object[field] is a list """
+    for key, val in search_dict.items():
+        for field in fields_to_check:
+            if field in val and isinstance(val[field], list):
+                return key, field
+    return None, None
+
+
+def permute_qg(qg: QueryGraph) -> list[QueryGraph]:
+    """
+    Take in a query graph that has some unbound properties
+    and return a list of query graphs where every property is bound
+
+    Example: If a query graph has ['Disease', 'Gene'] as a type for a node,
+    two query graphs will be returned, one with node type Disease and one with type Gene
+    """
     permutations = []
 
     stack = []
@@ -36,37 +52,48 @@ def permute_qg(qg):
 
     while len(stack) > 0:
         current_qg = stack.pop()
-        # Find next node that needs to be permuted
-        remaining_unbound_nodes = (i for (i, n) in current_qg['nodes'].items()
-                                   if 'type' in n and isinstance(n['type'], list))
-        next_node_id = next(remaining_unbound_nodes, None)
 
-        # Find next edge that needs to be permuted
-        remaining_unbound_edges = (i for (i, n) in current_qg['edges'].items()
-                                   if isinstance(n['predicate'], list))
-        next_edge_id = next(remaining_unbound_edges, None)
+        # Any fields on a node that might need to be permuted
+        node_fields_to_permute = ['type', 'id']
+
+        # Find our next node to permute
+        next_node_id, next_node_field = \
+            find_next_list_property(
+                current_qg['nodes'], node_fields_to_permute)
 
         if next_node_id:
             # Permute this node and push permutations to stack
             next_node = current_qg['nodes'][next_node_id]
-            for t in next_node['type']:
+            for field_value in next_node[next_node_field]:
                 permutation_copy = copy.deepcopy(current_qg)
-                # Fix type
-                permutation_copy['nodes'][next_node_id]['type'] = t
+                # Fix field value
+                permutation_copy['nodes'][next_node_id][next_node_field] = field_value
                 # Add to stack
                 stack.append(permutation_copy)
-        elif next_edge_id:
+            continue
+
+        # Any fields on an edge that might need to be permuted
+        edge_fields_to_permute = ['predicate']
+
+        # Find our next edge to permute
+        next_edge_id, next_edge_field = \
+            find_next_list_property(
+                current_qg['edges'], edge_fields_to_permute)
+
+        if next_edge_id:
             # Permute this edge and push permutations to stack
             next_edge = current_qg['edges'][next_edge_id]
-            for p in next_edge['predicate']:
+            for field_value in next_edge[next_edge_field]:
                 permutation_copy = copy.deepcopy(current_qg)
                 # Fix predicate
-                permutation_copy['edges'][next_edge_id]['predicate'] = p
+                permutation_copy['edges'][next_edge_id][next_edge_field] = field_value
                 # Add to stack
                 stack.append(permutation_copy)
-        else:
-            # fully permuted, add to results
-            permutations.append(current_qg)
+            continue
+
+        # This QG is fully permuted, add to results
+        permutations.append(current_qg)
+
     return permutations
 
 
@@ -89,8 +116,6 @@ def get_kp_request_template(
             if key in included_edges
         },
     }
-
-    breakpoint()
 
     request_qgraph = fix_qgraph(request_qgraph, curie_map)
     return request_qgraph
@@ -212,7 +237,6 @@ async def generate_plans(
 
     kp_lookup_dict = {}
     # For each edge, ask KP registry for KPs that could solve it
-    candidate_steps = defaultdict(list)
     for edge in qgraph['edges'].values():
         if "provided_by" in edge:
             allowlist = edge["provided_by"].get("allowlist", None)
