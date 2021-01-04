@@ -14,7 +14,7 @@
 	},
     "operations" : [{
       "source_type" : "biolink:Drug",
-      "edge_type" : "-biolink:regulates->",
+      "edge_type" : "-biolink:affects->",
       "target_type" : "biolink:Gene"
     }]
   },
@@ -22,7 +22,7 @@
     "url" : "http://kp2",
     "operations" : [{
       "source_type" : "biolink:MolecularEntity",
-      "edge_type" : "-biolink:positively_regulates->",
+      "edge_type" : "-biolink:affects_abundance_of->",
       "target_type" : "biolink:GeneOrGeneProduct"
     }]
   },
