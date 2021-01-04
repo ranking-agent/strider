@@ -183,7 +183,7 @@ def get_operation(qg, edge) -> Operation:
     )
 
 
-async def generate_plans(
+async def find_valid_permutations(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
@@ -203,8 +203,10 @@ async def generate_plans(
 
     logger.debug("Using BMT to get descendants of node and edge types")
 
+    expanded_qg = copy.deepcopy(qgraph)
+
     # Use BMT to convert node types to types + descendants
-    for node in qgraph['nodes'].values():
+    for node in expanded_qg['nodes'].values():
         if 'type' not in node:
             continue
         if not isinstance(node['type'], list):
@@ -215,7 +217,7 @@ async def generate_plans(
         node['type'] = new_type_list
 
     # Same with edges
-    for edge in qgraph['edges'].values():
+    for edge in expanded_qg['edges'].values():
         if 'predicate' not in edge:
             continue
         if not isinstance(edge['predicate'], list):
@@ -227,14 +229,14 @@ async def generate_plans(
 
     logger.debug({
         "description": "Expanded query graph with descendants",
-        "expanded_qg": qgraph,
+        "expanded_qg": expanded_qg,
     })
 
     logger.debug("Contacting node normalizer to get types for curies")
 
     # Use node normalizer to add
     # a type to nodes with a curie
-    for node in qgraph['nodes'].values():
+    for node in expanded_qg['nodes'].values():
         if 'id' not in node:
             continue
         if not isinstance(node['id'], list):
@@ -248,10 +250,10 @@ async def generate_plans(
 
     logger.debug({
         "description": "Query graph with types added to curies",
-        "expanded_qg": qgraph,
+        "expanded_qg": expanded_qg,
     })
 
-    permuted_qg_list = permute_qg(qgraph)
+    permuted_qg_list = permute_qg(expanded_qg)
 
     operation_kp_map = {}
     # For each edge, ask KP registry for KPs that could solve it
@@ -261,15 +263,15 @@ async def generate_plans(
 
     # Put the results in a master dictionary so that we can look
     # them up for each permutation and see which are solvable
-    for edge in qgraph['edges'].values():
+    for edge in expanded_qg['edges'].values():
         if "provided_by" in edge:
             allowlist = edge["provided_by"].get("allowlist", None)
             denylist = edge["provided_by"].get("denylist", None)
         else:
             allowlist = denylist = None
 
-        source = qgraph['nodes'][edge['subject']]
-        target = qgraph['nodes'][edge['object']]
+        source = expanded_qg['nodes'][edge['subject']]
+        target = expanded_qg['nodes'][edge['object']]
 
         kp_results = await step_to_kps(
             source, edge, target,
@@ -293,12 +295,47 @@ async def generate_plans(
     logger.debug(
         "Iterating over QGs to find ones that are solvable")
 
-    plans = validate_and_annotate_qg_list(
+    filtered_qgs = validate_and_annotate_qg_list(
         permuted_qg_list,
         operation_kp_map,
     )
 
-    return [plan async for plan in plans]
+    return [qg async for qg in filtered_qgs]
+
+
+async def generate_plan(
+        qgraph: QueryGraph,
+        kp_registry: Registry = None,
+        normalizer: Normalizer = None,
+        logger: logging.Logger = None,
+) -> dict[Step, list]:
+    """
+    Given a query graph, build a plan that consists of steps
+    and the KPs we need to contact to evaluate those steps
+    """
+
+    filtered_qg_list = await find_valid_permutations(
+        qgraph, kp_registry, normalizer, logger
+    )
+
+    if len(filtered_qg_list) == 0:
+        raise NoAnswersError("Cannot traverse query graph using KPs")
+
+    plan = defaultdict(list)
+    # For each permutation build our list of steps in the plan
+    # information to the original query graph
+    async for current_qg in filtered_qg_list:
+        for edge_id, edge in current_qg['edges'].items():
+            step = Step(edge['subject'], edge_id, edge['object'])
+            op = get_operation(current_qg, edge)
+            # Attach information about types to kp info
+            for kp in operation_kp_map[op]:
+                plan[step].append({
+                    **kp,
+                    **op._asdict(),
+                })
+
+    return plan
 
 
 async def validate_and_annotate_qg_list(
@@ -307,7 +344,7 @@ async def validate_and_annotate_qg_list(
 ) -> Generator[QueryGraph, None, None]:
     """
     Check if QG has a valid plan, and if it does,
-    annotate with request_kps and yield it
+    annotate with KP name
     """
     for qg in qg_list:
         valid = True
@@ -316,7 +353,7 @@ async def validate_and_annotate_qg_list(
             kps_available = operation_kp_map.get(op, None)
             if not kps_available:
                 valid = False
-            edge['request_kps'] = kps_available
+            # edge['request_kps'] = kps_available
         if valid:
             yield qg
 
