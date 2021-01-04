@@ -13,7 +13,7 @@ from strider.config import settings
 registry_host = "registry"
 settings.kpregistry_url = f"http://{registry_host}"
 
-from strider.query_planner import generate_plans
+from strider.query_planner import generate_plan, find_valid_permutations
 
 
 cwd = Path(__file__).parent
@@ -42,7 +42,7 @@ async def test_permute_curies():
         "edges": {},
     }
 
-    plans = await generate_plans(qg)
+    plans = await find_valid_permutations(qg)
 
     assert plans
     # We should have two plans
@@ -51,12 +51,12 @@ async def test_permute_curies():
 
 @pytest.mark.asyncio
 @with_registry_overlay(registry_host, kps)
-async def test_ex1():
+async def test_permute_ex1():
     """ Test first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    plans = await generate_plans(qg)
+    plans = await find_valid_permutations(qg)
 
     assert plans
 
@@ -69,8 +69,9 @@ with open(cwd / "namedthing_kps.json", "r") as f:
 
 
 @pytest.mark.asyncio
+@pytest.mark.longrun  # Don't run by default
 @with_registry_overlay(registry_host, kps)
-async def test_namedthing(caplog):
+async def test_permute_namedthing(caplog):
     """ Test NamedThing -related_to-> NamedThing """
     caplog.set_level(logging.DEBUG)
 
@@ -86,7 +87,20 @@ async def test_namedthing(caplog):
 
     # Based on the biolink hierarchy this should build 1.2 million permutations
     # and then filter down to the number of operations (4)
-    plans = await generate_plans(qg)
+    plans = await find_valid_permutations(qg)
 
     assert plans
     assert len(plans) == 4
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(registry_host, kps)
+async def test_plan_ex1():
+    """ Test that we get a good plan for our first example """
+    with open(cwd / "ex1_qg.json", "r") as f:
+        qg = json.load(f)
+
+    plan = await generate_plan(qg)
+    assert plan
+    # One step per edge
+    assert len(plan.keys()) == len(qg['edges'])
