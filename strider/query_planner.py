@@ -183,6 +183,47 @@ def get_operation(qg, edge) -> Operation:
     )
 
 
+def expand_qg(
+        qg: QueryGraph,
+        logger: logging.Logger) -> QueryGraph:
+    """ 
+    Given a query graph, use the Biolink model to expand categories and predicates
+    to include their descendants.
+    """
+
+    logger.debug("Using BMT to get descendants of node and edge types")
+
+    qg = copy.deepcopy(qg)
+    # Use BMT to convert node categorys to categorys + descendants
+    for node in qg['nodes'].values():
+        if 'category' not in node:
+            continue
+        if not isinstance(node['category'], list):
+            node['category'] = [node['category']]
+        new_category_list = []
+        for t in node['category']:
+            new_category_list.extend(WBMT.get_descendants(t))
+        node['category'] = new_category_list
+
+    # Same with edges
+    for edge in qg['edges'].values():
+        if 'predicate' not in edge:
+            continue
+        if not isinstance(edge['predicate'], list):
+            edge['predicate'] = [edge['predicate']]
+        new_predicate_list = []
+        for t in edge['predicate']:
+            new_predicate_list.extend(WBMT.get_descendants(t))
+        edge['predicate'] = new_predicate_list
+
+    logger.debug({
+        "description": "Expanded query graph with descendants",
+        "qg": qg,
+    })
+
+    return qg
+
+
 async def find_valid_permutations(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
@@ -201,36 +242,7 @@ async def find_valid_permutations(
     if logger is None:
         logger = logging.getLogger(__name__)
 
-    logger.debug("Using BMT to get descendants of node and edge types")
-
-    expanded_qg = copy.deepcopy(qgraph)
-
-    # Use BMT to convert node categorys to categorys + descendants
-    for node in expanded_qg['nodes'].values():
-        if 'category' not in node:
-            continue
-        if not isinstance(node['category'], list):
-            node['category'] = [node['category']]
-        new_category_list = []
-        for t in node['category']:
-            new_category_list.extend(WBMT.get_descendants(t))
-        node['category'] = new_category_list
-
-    # Same with edges
-    for edge in expanded_qg['edges'].values():
-        if 'predicate' not in edge:
-            continue
-        if not isinstance(edge['predicate'], list):
-            edge['predicate'] = [edge['predicate']]
-        new_predicate_list = []
-        for t in edge['predicate']:
-            new_predicate_list.extend(WBMT.get_descendants(t))
-        edge['predicate'] = new_predicate_list
-
-    logger.debug({
-        "description": "Expanded query graph with descendants",
-        "expanded_qg": expanded_qg,
-    })
+    expanded_qg = expand_qg(qgraph, logger)
 
     logger.debug("Contacting node normalizer to get categorys for curies")
 
@@ -300,7 +312,7 @@ async def find_valid_permutations(
         operation_kp_map,
     )
 
-    return [qg async for qg in filtered_qgs]
+    return [qg for qg in filtered_qgs]
 
 
 async def generate_plan(
@@ -338,7 +350,7 @@ async def generate_plan(
     return plan
 
 
-async def validate_and_annotate_qg_list(
+def validate_and_annotate_qg_list(
     qg_list: Generator[QueryGraph, None, None],
     operation_kp_map: dict[Operation, list[dict]],
 ) -> Generator[QueryGraph, None, None]:
