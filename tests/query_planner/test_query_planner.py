@@ -61,8 +61,20 @@ async def test_permute_ex1():
     assert plans
 
     # We should have two valid plans
-    assert len(plans) == 2
+    assert len(plans) == 1
 
+
+@pytest.mark.asyncio
+@with_registry_overlay(registry_host, kps)
+async def test_plan_ex1():
+    """ Test that we get a good plan for our first example """
+    with open(cwd / "ex1_qg.json", "r") as f:
+        qg = json.load(f)
+
+    plan = await generate_plan(qg)
+    assert plan
+    # One step per edge
+    assert len(plan.keys()) == len(qg['edges'])
 
 with open(cwd / "namedthing_kps.json", "r") as f:
     kps = json.load(f)
@@ -91,16 +103,3 @@ async def test_permute_namedthing(caplog):
 
     assert plans
     assert len(plans) == 4
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(registry_host, kps)
-async def test_plan_ex1():
-    """ Test that we get a good plan for our first example """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        qg = json.load(f)
-
-    plan = await generate_plan(qg)
-    assert plan
-    # One step per edge
-    assert len(plan.keys()) == len(qg['edges'])
