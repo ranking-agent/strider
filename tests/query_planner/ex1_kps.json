@@ -22,7 +22,7 @@
     "url" : "http://kp2",
     "operations" : [{
       "source_type" : "biolink:MolecularEntity",
-      "edge_type" : "-biolink:affects_abundance_of->",
+      "edge_type" : "-biolink:decreases_abundance_of->",
       "target_type" : "biolink:GeneOrGeneProduct"
     }]
   },

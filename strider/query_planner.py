@@ -324,15 +324,15 @@ async def generate_plan(
     plan = defaultdict(list)
     # For each permutation build our list of steps in the plan
     # information to the original query graph
-    async for current_qg in filtered_qg_list:
+    for current_qg in filtered_qg_list:
         for edge_id, edge in current_qg['edges'].items():
             step = Step(edge['subject'], edge_id, edge['object'])
             op = get_operation(current_qg, edge)
             # Attach information about types to kp info
-            for kp in operation_kp_map[op]:
+            for kp in edge['request_kps']:
                 plan[step].append({
-                    **kp,
                     **op._asdict(),
+                    **kp,
                 })
 
     return plan
@@ -353,7 +353,7 @@ async def validate_and_annotate_qg_list(
             kps_available = operation_kp_map.get(op, None)
             if not kps_available:
                 valid = False
-            # edge['request_kps'] = kps_available
+            edge['request_kps'] = kps_available
         if valid:
             yield qg
 
