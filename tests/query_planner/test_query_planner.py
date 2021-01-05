@@ -13,7 +13,8 @@ from strider.config import settings
 registry_host = "registry"
 settings.kpregistry_url = f"http://{registry_host}"
 
-from strider.query_planner import generate_plan, find_valid_permutations
+from strider.query_planner import \
+    generate_plan, find_valid_permutations, permute_qg, expand_qg
 
 
 cwd = Path(__file__).parent
@@ -42,16 +43,46 @@ async def test_permute_curies():
         "edges": {},
     }
 
-    plans = await find_valid_permutations(qg)
+    permutations = permute_qg(qg)
 
-    assert plans
+    assert permutations
     # We should have two plans
-    assert len(plans) == 2
+    assert len(list(permutations)) == 2
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(registry_host, kps)
-async def test_permute_ex1():
+async def test_permute_simple(caplog):
+    """ Check that a simple permutation is done correctly using Biolink """
+
+    qg = {
+        "nodes": {
+            "n0": {"category": "biolink:AnatomicalEntity"},  # Three children
+            "n1": {"category": "biolink:Protein"},     # One child
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "predicate": "biolink:affects_abundance_of",  # Two children
+                "object": "n1",
+            },
+        },
+    }
+
+    qg = expand_qg(qg, logging.getLogger())
+    breakpoint()
+    permutations = permute_qg(qg)
+    assert permutations
+
+    # We should have:
+    # 4 * 2 * 3 = 24
+    # permutations
+    assert len(list(permutations)) == 24
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(registry_host, kps)
+async def test_valid_permute_ex1():
     """ Test first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
