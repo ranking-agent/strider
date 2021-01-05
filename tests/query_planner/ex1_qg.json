@@ -1,13 +1,13 @@
 {
   "nodes" : {
     "n0" : {
-      "type" : "biolink:MolecularEntity"
+      "category" : "biolink:MolecularEntity"
     },
     "n1" : {
       "id" : "MONDO:0005737"
     },
     "n2" : {
-      "type" : "biolink:GeneOrGeneProduct"
+      "category" : "biolink:GeneOrGeneProduct"
     }
   },
   "edges" : {
