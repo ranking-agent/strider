@@ -15,6 +15,7 @@ import logging
 import json
 import os
 from datetime import datetime
+import jsonpickle
 
 from reasoner_pydantic import QueryGraph, Result
 
@@ -29,19 +30,6 @@ from .config import settings
 
 # Initialize registry
 registry = Registry(settings.kpregistry_url)
-
-
-class DurableJSONEncoder(json.JSONEncoder):
-    """
-    Fall back to str(obj) if we can't figure out how to serialize the object
-    """
-
-    def default(self, o):
-        try:
-            json = super().default(o)
-        except TypeError:
-            json = str(o)
-        return json
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -71,10 +59,9 @@ class ReasonerLogEntryFormatter(logging.Formatter):
 
         return dict(
             code=code,
-            message=json.dumps(
+            message=jsonpickle.encode(
                 record.msg,
-                cls=DurableJSONEncoder,
-                allow_nan=True),
+            ),
             level=record.levelname,
             timestamp=iso_timestamp,
         )
