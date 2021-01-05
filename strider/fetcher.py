@@ -32,8 +32,8 @@ registry = Registry(settings.kpregistry_url)
 
 
 class DurableJSONEncoder(json.JSONEncoder):
-    """                                                                         
-    Fall back to str(obj) if we can't figure out how to serialize the object             
+    """
+    Fall back to str(obj) if we can't figure out how to serialize the object
     """
 
     def default(self, o):
@@ -85,7 +85,7 @@ class StriderWorker(Worker):
 
     def __init__(self, *args, **kwargs):
         """Initialize."""
-        self.plan: list[Step] = None
+        self.plan: dict[Step, list] = None
         self.preferred_prefixes: dict[str, list[str]] = None
         self.qgraph: QueryGraph = None
         self.results: list[Result] = []
@@ -127,11 +127,8 @@ class StriderWorker(Worker):
         self.logger.debug("Generating plan")
         try:
             # Generate traversal plan
-            plans = await generate_plan(self.qgraph, registry)
-            self.plan = plans[-1]
-            self.logger.debug({"plan":
-                               [s._asdict() for s in self.plan]
-                               })
+            self.plan = await generate_plan(self.qgraph, registry)
+            self.logger.debug({"plan": self.plan})
         except NoAnswersError:
             self.logger.error({"code": "QueryNotTraversable"})
 
@@ -159,7 +156,7 @@ class StriderWorker(Worker):
             if step.edge not in bound_edges
         )
 
-    @async_locking_cache
+    @ async_locking_cache
     async def execute_step(
             self,
             step: Step,
