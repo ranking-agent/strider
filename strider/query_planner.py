@@ -25,7 +25,7 @@ LOGGER = logging.getLogger(__name__)
 
 Step = namedtuple("Step", ["source", "edge", "target"])
 Operation = namedtuple(
-    "Operation", ["source_type", "edge_type", "target_type"])
+    "Operation", ["source_category", "edge_predicate", "target_category"])
 
 
 def find_next_list_property(search_dict, fields_to_check):
@@ -53,7 +53,7 @@ def permute_qg(qg: QueryGraph) -> Generator[QueryGraph, None, None]:
         current_qg = stack.pop()
 
         # Any fields on a node that might need to be permuted
-        node_fields_to_permute = ['type', 'id']
+        node_fields_to_permute = ['category', 'id']
 
         # Find our next node to permute
         next_node_id, next_node_field = \
@@ -177,9 +177,9 @@ def filter_ancestor_types(types):
 def get_operation(qg, edge) -> Operation:
     """ Get the types from an edge in the query graph """
     return Operation(
-        qg['nodes'][edge['subject']]['type'],
+        qg['nodes'][edge['subject']]['category'],
         edge['predicate'],
-        qg['nodes'][edge['object']]['type'],
+        qg['nodes'][edge['object']]['category'],
     )
 
 
@@ -205,16 +205,16 @@ async def find_valid_permutations(
 
     expanded_qg = copy.deepcopy(qgraph)
 
-    # Use BMT to convert node types to types + descendants
+    # Use BMT to convert node categorys to categorys + descendants
     for node in expanded_qg['nodes'].values():
-        if 'type' not in node:
+        if 'category' not in node:
             continue
-        if not isinstance(node['type'], list):
-            node['type'] = [node['type']]
-        new_type_list = []
-        for t in node['type']:
-            new_type_list.extend(WBMT.get_descendants(t))
-        node['type'] = new_type_list
+        if not isinstance(node['category'], list):
+            node['category'] = [node['category']]
+        new_category_list = []
+        for t in node['category']:
+            new_category_list.extend(WBMT.get_descendants(t))
+        node['category'] = new_category_list
 
     # Same with edges
     for edge in expanded_qg['edges'].values():
@@ -232,24 +232,24 @@ async def find_valid_permutations(
         "expanded_qg": expanded_qg,
     })
 
-    logger.debug("Contacting node normalizer to get types for curies")
+    logger.debug("Contacting node normalizer to get categorys for curies")
 
     # Use node normalizer to add
-    # a type to nodes with a curie
+    # a category to nodes with a curie
     for node in expanded_qg['nodes'].values():
-        if 'id' not in node:
+        if not node.get('id'):
             continue
         if not isinstance(node['id'], list):
             node['id'] = [node['id']]
 
-        # Get full list of types
-        types = await normalizer.get_types(node['id'])
+        # Get full list of categorys
+        categories = await normalizer.get_types(node['id'])
 
-        # Filter types that are ancestors of other types we were given
-        node['type'] = filter_ancestor_types(types)
+        # Filter categorys that are ancestors of other categorys we were given
+        node['category'] = filter_ancestor_types(categories)
 
     logger.debug({
-        "description": "Query graph with types added to curies",
+        "description": "Query graph with categorys added to curies",
         "expanded_qg": expanded_qg,
     })
 
@@ -328,7 +328,7 @@ async def generate_plan(
         for edge_id, edge in current_qg['edges'].items():
             step = Step(edge['subject'], edge_id, edge['object'])
             op = get_operation(current_qg, edge)
-            # Attach information about types to kp info
+            # Attach information about categorys to kp info
             for kp in edge['request_kps']:
                 plan[step].append({
                     **op._asdict(),
@@ -364,16 +364,21 @@ async def step_to_kps(
         allowlist=None, denylist=None,
 ):
     """Find KP endpoint(s) that enable step."""
-    edge_types = [f'-{edge_type}->' for edge_type in edge['predicate']]
+    edge_predicates = [
+        f'-{edge_predicate}->' for edge_predicate in edge['predicate']]
     response = await kp_registry.search(
-        source['type'],
-        edge_types,
-        target['type'],
+        source['category'],
+        edge_predicates,
+        target['category'],
         allowlist=allowlist,
         denylist=denylist,
     )
     # strip arrows from edge
+    # rename node type -> category
+    # rename edge type -> predicate
     for kp in response.values():
         for op in kp['operations']:
-            op['edge_type'] = op['edge_type'][1:-2]
+            op['edge_predicate'] = op.pop('edge_type')[1:-2]
+            op['source_category'] = op.pop('source_type')
+            op['target_category'] = op.pop('target_type')
     return response
