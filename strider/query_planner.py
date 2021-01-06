@@ -214,7 +214,16 @@ def expand_qg(
         new_predicate_list = []
         for t in edge['predicate']:
             new_predicate_list.extend(WBMT.get_descendants(t))
-        edge['predicate'] = new_predicate_list
+
+        # For each edge predicate, we also need versions
+        # for -predicate-> and <-predicate-
+        # ltr = left to right
+        new_predicate_list_ltr = \
+            [f'-{p}->' for p in new_predicate_list]
+        new_predicate_list_rtl = \
+            [f'<-{p}-' for p in new_predicate_list]
+
+        edge['predicate'] = new_predicate_list_ltr + new_predicate_list_rtl
 
     logger.debug({
         "description": "Expanded query graph with descendants",
@@ -376,11 +385,9 @@ async def step_to_kps(
         allowlist=None, denylist=None,
 ):
     """Find KP endpoint(s) that enable step."""
-    edge_predicates = [
-        f'-{edge_predicate}->' for edge_predicate in edge['predicate']]
     response = await kp_registry.search(
         source['category'],
-        edge_predicates,
+        edge['predicate'],
         target['category'],
         allowlist=allowlist,
         denylist=denylist,
@@ -390,7 +397,7 @@ async def step_to_kps(
     # rename edge type -> predicate
     for kp in response.values():
         for op in kp['operations']:
-            op['edge_predicate'] = op.pop('edge_type')[1:-2]
+            op['edge_predicate'] = op.pop('edge_type')
             op['source_category'] = op.pop('source_type')
             op['target_category'] = op.pop('target_type')
     return response
