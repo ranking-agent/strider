@@ -2,9 +2,9 @@
   "kp0" : {
     "url" : "http://kp0",
     "operations" : [{
-      "source_type" : "biolink:Drug",
-      "edge_type" : "-biolink:treats->",
-      "target_type" : "biolink:Disease"
+      "source_type" : "biolink:Disease",
+      "edge_type" : "-biolink:treated_by->",
+      "target_type" : "biolink:Drug"
     }]
   },
   "kp1" : {
@@ -29,9 +29,9 @@
   "kp3" : {
     "url" : "http://kp3",
     "operations" : [{
-      "source_type" : "biolink:MolecularEntity",
-      "edge_type" : "-biolink:treats->",
-      "target_type" : "biolink:Disease"
+      "source_type" : "biolink:Disease",
+      "edge_type" : "-biolink:treated_by->",
+      "target_type" : "biolink:MolecularEntity"
     }]
   }
 }
