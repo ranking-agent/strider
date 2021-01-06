@@ -63,21 +63,21 @@ async def test_permute_simple(caplog):
         "edges": {
             "e01": {
                 "subject": "n0",
-                "predicate": "biolink:affects_abundance_of",  # Two children
+                # Two children and two directions
+                "predicate": "biolink:affects_abundance_of",
                 "object": "n1",
             },
         },
     }
 
     qg = expand_qg(qg, logging.getLogger())
-    breakpoint()
     permutations = permute_qg(qg)
     assert permutations
 
     # We should have:
-    # 4 * 2 * 3 = 24
+    # 4 * 2 * 3 * 2 = 24
     # permutations
-    assert len(list(permutations)) == 24
+    assert len(list(permutations)) == 48
 
 
 @pytest.mark.asyncio
