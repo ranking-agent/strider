@@ -324,6 +324,32 @@ async def find_valid_permutations(
     return [qg for qg in filtered_qgs]
 
 
+def dfs(graph, source):
+    path_nodes = [source]
+    path_edges = []
+
+    stack = [source]
+
+    while(len(stack) != 0):
+        s = stack.pop()
+
+        # Build adjacency list
+        adjacent_nodes = []
+        adjacent_edges = []
+
+        for edge_id, edge in graph['edges'].items():
+            if edge['subject'] == s:
+                adjacent_nodes.append(edge['object'])
+                adjacent_edges.append(edge_id)
+
+        for node_id, edge_id in zip(adjacent_nodes, adjacent_edges):
+            stack.append(node_id)
+            path_nodes.append(node_id)
+            path_edges.append(edge_id)
+
+    return path_nodes, path_edges
+
+
 async def generate_plan(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
@@ -339,22 +365,40 @@ async def generate_plan(
         qgraph, kp_registry, normalizer, logger
     )
 
+    # Build a list of pinned nodes
+    pinned_nodes = [
+        key for key, value in qgraph["nodes"].items()
+        if value.get("id", None) is not None
+    ]
+
     if len(filtered_qg_list) == 0:
         raise NoAnswersError("Cannot traverse query graph using KPs")
 
     plan = defaultdict(list)
-    # For each permutation build our list of steps in the plan
-    # information to the original query graph
+
     for current_qg in filtered_qg_list:
-        for edge_id, edge in current_qg['edges'].items():
-            step = Step(edge['subject'], edge_id, edge['object'])
-            op = get_operation(current_qg, edge)
-            # Attach information about categorys to kp info
-            for kp in edge['request_kps']:
-                plan[step].append({
-                    **op._asdict(),
-                    **kp,
-                })
+        # Starting at each pinned node, construct a plan
+        for pinned in pinned_nodes:
+            path_nodes, path_edges = dfs(current_qg, pinned)
+            # If we don't traverse every node we can't use this
+            if set(path_nodes) != set(current_qg['nodes'].keys()):
+                continue
+
+            # Build our list of steps in the plan
+            # information to the original query graph
+            for edge_id in path_edges:
+                edge = current_qg['edges'][edge_id]
+                # Find edges that get us from
+                # There could be multiple edges that need to each
+                # be added as a separate step
+                step = Step(edge['subject'], edge_id, edge['object'])
+                op = get_operation(current_qg, edge)
+                # Attach information about categorys to kp info
+                for kp in edge['request_kps']:
+                    plan[step].append({
+                        **op._asdict(),
+                        **kp,
+                    })
 
     return plan
 
@@ -392,7 +436,6 @@ async def step_to_kps(
         allowlist=allowlist,
         denylist=denylist,
     )
-    # strip arrows from edge
     # rename node type -> category
     # rename edge type -> predicate
     for kp in response.values():
