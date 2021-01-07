@@ -106,6 +106,15 @@ def get_finished_query(qid: str) -> dict:
 async def process_query(qid):
     # Set up workers
     strider = StriderWorker(num_workers=2)
+    await strider.setup(qid)
+
+    # Generate plan
+    try:
+        await strider.generate_plan()
+    except NoAnswersError:
+        # End early with no results
+        # (but we should have log messages)
+        return get_finished_query(qid)
 
     # Process
     await strider.run(qid, wait=True)

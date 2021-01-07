@@ -4,6 +4,7 @@ import asyncio
 import itertools
 import json
 import os
+import httpx
 
 from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
@@ -22,6 +23,7 @@ settings.normalizer_url = "http://normalizer"
 settings.redis_url = "redis://fakeredis"
 
 
+from strider.kp_registry import Registry
 from strider.server import sync_query
 
 
