@@ -5,19 +5,20 @@ import logging
 
 import pytest
 
-from tests.helpers.context import with_registry_overlay
+from tests.helpers.context import \
+    with_registry_overlay, with_norm_overlay
 
-from strider.config import settings
-
-# Switch settings before importing strider things
-registry_host = "registry"
-settings.kpregistry_url = f"http://{registry_host}"
 
 from strider.query_planner import \
     generate_plan, find_valid_permutations, permute_qg, expand_qg
 
+from strider.config import settings
 
 cwd = Path(__file__).parent
+
+# Switch prefix path before importing server
+settings.kpregistry_url = "http://registry"
+settings.normalizer_url = "http://normalizer"
 
 
 def load_kps(fname):
@@ -36,7 +37,7 @@ def load_kps(fname):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(registry_host, [])
+@with_registry_overlay(settings.kpregistry_url, [])
 async def test_permute_curies():
     """ Check that nodes with ID are correctly permuted """
 
@@ -53,7 +54,7 @@ async def test_permute_curies():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(registry_host, [])
+@with_registry_overlay(settings.kpregistry_url, [])
 async def test_permute_simple(caplog):
     """ Check that a simple permutation is done correctly using Biolink """
 
@@ -86,9 +87,9 @@ simple_kp = load_kps("simple_kp.json")
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(registry_host, simple_kp)
+@with_registry_overlay(settings.kpregistry_url, simple_kp)
 async def no_path_from_pinned_node():
-    """ 
+    """
     Check that when we submit a graph where there is a pinned node
     but no path through it that we get no plans back
     """
@@ -113,7 +114,8 @@ ex1_kps = load_kps("ex1_kps.json")
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(registry_host, ex1_kps)
+@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_norm_overlay(settings.normalizer_url)
 async def test_valid_permute_ex1():
     """ Test first example is permuted correctly """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -128,7 +130,8 @@ async def test_valid_permute_ex1():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(registry_host, ex1_kps)
+@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_norm_overlay(settings.normalizer_url)
 async def test_plan_ex1():
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -150,7 +153,7 @@ namedthing_kps = load_kps("namedthing_kps.json")
 
 @pytest.mark.asyncio
 @pytest.mark.longrun  # Don't run by default
-@with_registry_overlay(registry_host, namedthing_kps)
+@with_registry_overlay(settings.kpregistry_url, namedthing_kps)
 async def test_permute_namedthing(caplog):
     """ Test NamedThing -related_to-> NamedThing """
     caplog.set_level(logging.DEBUG)
