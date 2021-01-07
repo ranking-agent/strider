@@ -372,6 +372,13 @@ async def generate_plan(
     ]
 
     if len(filtered_qg_list) == 0:
+        logger.error({
+            "code": "QueryNotTraversable",
+            "message":
+                """
+                    We couldn't find a KP for every edge in your query graph 
+                """
+        })
         raise NoAnswersError("Cannot traverse query graph using KPs")
 
     plan = defaultdict(list)
@@ -382,6 +389,9 @@ async def generate_plan(
             path_nodes, path_edges = dfs(current_qg, pinned)
             # If we don't traverse every node we can't use this
             if set(path_nodes) != set(current_qg['nodes'].keys()):
+                continue
+            # If we don't traverse every edge we can't use this
+            if set(path_edges) != set(current_qg['edges'].keys()):
                 continue
 
             # Build our list of steps in the plan
@@ -399,6 +409,19 @@ async def generate_plan(
                         **op._asdict(),
                         **kp,
                     })
+
+    # No steps in the plan here means we didn't find any permutations where
+    # the plan covers all nodes and edges
+    if len(plan) == 0:
+        logger.error({
+            "code": "QueryNotTraversable",
+            "message":
+                """
+                    We couldn't find any possible plans starting from a pinned node 
+                    that traverse every edge and node in your query graph
+                """
+        })
+        raise NoAnswersError("Cannot traverse query graph using KPs")
 
     return plan
 
