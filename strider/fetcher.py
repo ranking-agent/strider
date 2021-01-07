@@ -111,13 +111,14 @@ class StriderWorker(Worker):
             self.preferred_prefixes,
         ))["query_graph"]
 
+    async def generate_plan(self):
         self.logger.debug("Generating plan")
-        try:
-            # Generate traversal plan
-            self.plan = await generate_plan(self.qgraph, registry)
-            self.logger.debug({"plan": self.plan})
-        except NoAnswersError:
-            self.logger.error({"code": "QueryNotTraversable"})
+        # Generate traversal plan
+        self.plan = await generate_plan(
+            self.qgraph,
+            kp_registry=registry,
+            logger=self.logger)
+        self.logger.debug({"plan": self.plan})
 
         # add first partial result
         for qnode_id, qnode in self.qgraph["nodes"].items():
