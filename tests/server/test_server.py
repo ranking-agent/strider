@@ -15,12 +15,12 @@ from strider.config import settings
 
 cwd = Path(__file__).parent
 
-# Switch settings before importing server
-settings.redis_url = "redis://fakeredis"
+# Switch prefix path before importing server
 settings.prefixes_path = cwd / "prefixes.json"
-registry_host = "registry"
-settings.kpregistry_url = f"http://{registry_host}"
+settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
+settings.redis_url = "redis://fakeredis"
+
 
 from strider.server import sync_query
 
@@ -44,11 +44,14 @@ CTD_PREFIXES = {
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(registry_host, [
-    ("ctd", CTD_PREFIXES),
-    ("hetio", DEFAULT_PREFIXES),
-    ("mychem", MYCHEM_PREFIXES),
-])
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
 async def test_strider():
     """Test Strider."""
     with open(cwd / "ex1_qg.json", "r") as f:

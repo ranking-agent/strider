@@ -1,6 +1,7 @@
 """Test utilities."""
 from contextlib import asynccontextmanager, AsyncExitStack
 from functools import partial, wraps
+from urllib.parse import urlparse
 
 import aiosqlite
 from asgiar import ASGIAR
@@ -12,6 +13,11 @@ from simple_kp._types import CURIEMap
 import small_kg
 
 from .normalizer import norm_router
+
+
+def url_to_host(url):
+    # TODO modify ASGIAR to accept a URL instead of a host
+    return urlparse(url).netloc
 
 
 def with_context(context, *args_, **kwargs_):
@@ -26,7 +32,7 @@ def with_context(context, *args_, **kwargs_):
 
 
 @asynccontextmanager
-async def registry_overlay(host, kps):
+async def registry_overlay(url, kps):
     """Registry server context manager."""
     async with AsyncExitStack() as stack:
         app = FastAPI()
@@ -35,12 +41,12 @@ async def registry_overlay(host, kps):
         )
         app.include_router(registry_router(connection))
         await stack.enter_async_context(
-            ASGIAR(app, host=host)
+            ASGIAR(app, host=url_to_host(url))
         )
         # Register KPs passed to the function
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"http://{host}/kps",
+                f"{url}/kps",
                 json=kps
             )
             response.raise_for_status()
@@ -49,23 +55,26 @@ async def registry_overlay(host, kps):
 
 
 @asynccontextmanager
-async def norm_overlay(host):
+async def norm_overlay(url):
     """Normalizer server context manager."""
     async with AsyncExitStack() as stack:
         app = FastAPI()
         app.include_router(norm_router())
         await stack.enter_async_context(
-            ASGIAR(app, host=host)
+            ASGIAR(app, host=url_to_host(url))
         )
         yield
 
 
 @asynccontextmanager
-async def translator_overlay(registry_host, origins: list[tuple[str, CURIEMap]]):
-    """Registry + KPs context manager."""
+async def translator_overlay(
+        registry_url: str,
+        normalizer_url: str,
+        origins: list[tuple[str, CURIEMap]]):
+    """Registry + KPs + Normalizer context manager."""
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            norm_overlay("normalizer")
+            norm_overlay(normalizer_url)
         )
         kps = dict()
         for origin, curie_prefixes in origins:
@@ -103,7 +112,7 @@ async def translator_overlay(registry_host, origins: list[tuple[str, CURIEMap]])
 
         # Start registry context using KPs constructed above
         await stack.enter_async_context(
-            registry_overlay(registry_host, kps)
+            registry_overlay(registry_url, kps)
         )
 
         yield
@@ -112,3 +121,4 @@ async def translator_overlay(registry_host, origins: list[tuple[str, CURIEMap]])
 with_kp_overlay = partial(with_context, kp_overlay)
 with_registry_overlay = partial(with_context, registry_overlay)
 with_translator_overlay = partial(with_context, translator_overlay)
+with_norm_overlay = partial(with_context, norm_overlay)
