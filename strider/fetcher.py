@@ -21,7 +21,7 @@ from reasoner_pydantic import QueryGraph, Result
 
 from .query_planner import generate_plan, Step, NoAnswersError
 from .compatibility import KnowledgePortal
-from .trapi import merge_messages, merge_results
+from .trapi import merge_messages, merge_results, fix_qgraph
 from .worker import Worker
 from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
@@ -151,24 +151,32 @@ class StriderWorker(Worker):
             curie: str,
     ):
         """Fetch results for step."""
-        curie = await self.portal.map_curie(
-            curie,
-            list(self.plan[step].values())[0]["preferred_prefixes"]
-        )
 
         self.logger.debug({
             "description": "Executing step: ",
             "step": self.plan[step],
         })
 
+        # Get a query graph we can use as the request body
+        kp_request_body = get_kp_request_body(
+            self.qgraph,
+            step.edge,
+        )
+
+        # Set the node ID of the current step to the
+        # given curie
+        kp_request_body['query_graph']['nodes'][step.source]['id'] = curie
+
+        breakpoint()
+
         responses = await asyncio.gather(*(
             self.portal.fetch(
-                details["url"],
-                details["request_template"](curie),
-                details["preferred_prefixes"],
+                kp["url"],
+                kp_request_body,
+                kp["preferred_prefixes"],
                 self.preferred_prefixes,
             )
-            for details in self.plan[step].values()
+            for kp in self.plan[step]
         ))
         return merge_messages(responses)
 
@@ -209,3 +217,27 @@ class StriderWorker(Worker):
         for new_result in response["results"]:
             # queue the results for further processing
             await self.put(merge_results([result, new_result]))
+
+
+def get_kp_request_body(
+        qgraph: QueryGraph,
+        edge: str,
+) -> QueryGraph:
+    """Get request to send to KP."""
+    included_nodes = [
+        qgraph['edges'][edge]['subject'],
+        qgraph['edges'][edge]['object'],
+    ]
+    included_edges = [edge]
+
+    request_qgraph = {
+        "nodes": {
+            key: val for key, val in qgraph['nodes'].items()
+            if key in included_nodes
+        },
+        "edges": {
+            key: val for key, val in qgraph['edges'].items()
+            if key in included_edges
+        },
+    }
+    return {"query_graph": request_qgraph}
