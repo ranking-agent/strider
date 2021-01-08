@@ -94,30 +94,6 @@ def permute_qg(qg: QueryGraph) -> Generator[QueryGraph, None, None]:
         yield current_qg
 
 
-def get_kp_request_template(
-        qgraph: QueryGraph,
-        edge: str,
-        curie_map: dict[str, str] = None,
-) -> QueryGraph:
-    """Get request to send to KP."""
-    included_nodes = [edge['subject'], edge['object']]
-    included_edges = [edge]
-
-    request_qgraph = {
-        "nodes": {
-            key: val for key, val in qgraph['nodes'].items()
-            if key in included_nodes
-        },
-        "edges": {
-            key: val for key, val in qgraph['edges'].items()
-            if key in included_edges
-        },
-    }
-
-    request_qgraph = fix_qgraph(request_qgraph, curie_map)
-    return request_qgraph
-
-
 class NoAnswersError(Exception):
     """No answers can be found."""
 
