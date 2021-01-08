@@ -50,7 +50,7 @@ class KnowledgePortal():
             output_prefixes: dict = None,
     ):
         """Wrap fetch with CURIE mapping(s)."""
-        # request = await self.map_prefixes(request, input_prefixes)
+        request = await self.map_prefixes(request, input_prefixes)
 
         response = await post_json(url, request)
         message = response["message"]

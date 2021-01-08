@@ -54,9 +54,9 @@ CTD_PREFIXES = {
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
-async def test_strider():
+async def test_ex1_two_hop():
     """Test Strider."""
-    with open(cwd / "ex1_qg.json", "r") as f:
+    with open(cwd / "ex1_two_hop.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
