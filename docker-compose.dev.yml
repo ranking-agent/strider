@@ -3,7 +3,7 @@ version: '3'
 services:
   # Run our own kp-registry
   kp-registry:
-    image: ghcr.io/ranking-agent/kp_registry:v0.1.1
+    image: ghcr.io/ranking-agent/kp_registry:v0.2.0
     volumes:
       - ./data:/home/murphy/data
     ports:

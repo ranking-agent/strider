@@ -89,7 +89,6 @@ class Worker(ABC):
 
     async def run(self, *args, wait: bool = False, **kwargs):
         """Run async consumer."""
-        await self.setup(*args)
         # schedule the consumers
         # create max_jobs worker tasks to process the queue concurrently
         tasks = [
