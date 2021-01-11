@@ -98,35 +98,6 @@ class NoAnswersError(Exception):
     """No answers can be found."""
 
 
-def complete_plan(
-        ops: dict[Step, dict],
-        qgraph: QueryGraph,
-        found: list[str],
-        plan: list[Step] = None,
-) -> list[dict[Step, dict]]:
-    """Return all completed plans."""
-    if plan is None:
-        plan = []
-    if len(found) >= len(qgraph["nodes"]) + len(qgraph["edges"]):
-        return [plan]
-    completions = []
-    for source_id in reversed(found):
-        for step, kps in ops.items():
-            if source_id != step.source:
-                continue
-            if not kps:
-                continue
-            if step.edge in found:
-                continue
-            completions.extend(complete_plan(
-                ops,
-                qgraph,
-                found + [step.edge, step.target],
-                plan + [step],
-            ))
-    return completions
-
-
 def filter_ancestor_types(types):
     """ Filter out types that are ancestors of other types in the list """
 

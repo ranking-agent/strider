@@ -167,8 +167,6 @@ class StriderWorker(Worker):
         # given curie
         kp_request_body['query_graph']['nodes'][step.source]['id'] = curie
 
-        breakpoint()
-
         responses = await asyncio.gather(*(
             self.portal.fetch(
                 kp["url"],
