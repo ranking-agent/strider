@@ -1,21 +1,15 @@
 """Query planner."""
-import asyncio
 from collections import defaultdict, namedtuple
 import logging
-import os
-import re
 import copy
-import time
-from typing import Callable, Generator
+from typing import Generator
 
 from bmt import Toolkit as BMToolkit
-from reasoner_pydantic import QueryGraph, Message
+from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
 from strider.normalizer import Normalizer
 from strider.util import WrappedBMT
-from strider.trapi import fix_qgraph
-from strider.compatibility import Synonymizer
 from strider.config import settings
 
 BMT = BMToolkit()
@@ -37,7 +31,7 @@ def find_next_list_property(search_dict, fields_to_check):
     return None, None
 
 
-def permute_qg(qg: QueryGraph) -> Generator[QueryGraph, None, None]:
+def permute_qg(query_graph: QueryGraph) -> Generator[QueryGraph, None, None]:
     """
     Take in a query graph that has some unbound properties
     and return a list of query graphs where every property is bound
@@ -47,7 +41,7 @@ def permute_qg(qg: QueryGraph) -> Generator[QueryGraph, None, None]:
     """
 
     stack = []
-    stack.append(copy.deepcopy(qg))
+    stack.append(copy.deepcopy(query_graph))
 
     while len(stack) > 0:
         current_qg = stack.pop()
@@ -110,30 +104,33 @@ def filter_ancestor_types(types):
 
     specific_types = ['biolink:NamedThing']
     for new_type in types:
-        for existing_type_id in range(len(specific_types)):
+        for existing_type_id, existing_type in enumerate(specific_types):
             existing_type = specific_types[existing_type_id]
             if is_ancestor(new_type, existing_type):
                 continue
-            elif is_ancestor(existing_type, new_type):
+            if is_ancestor(existing_type, new_type):
                 specific_types[existing_type_id] = new_type
             else:
                 specific_types.append(new_type)
     return specific_types
 
 
-def get_operation(qg, edge) -> Operation:
+def get_operation(
+        query_graph: QueryGraph,
+        edge: dict,
+) -> Operation:
     """ Get the types from an edge in the query graph """
     return Operation(
-        qg['nodes'][edge['subject']]['category'],
+        query_graph['nodes'][edge['subject']]['category'],
         edge['predicate'],
-        qg['nodes'][edge['object']]['category'],
+        query_graph['nodes'][edge['object']]['category'],
     )
 
 
 def expand_qg(
         qg: QueryGraph,
         logger: logging.Logger) -> QueryGraph:
-    """ 
+    """
     Given a query graph, use the Biolink model to expand categories and predicates
     to include their descendants.
     """
@@ -180,6 +177,7 @@ def expand_qg(
     return qg
 
 
+# pylint: disable=too-many-locals
 async def find_valid_permutations(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
@@ -268,16 +266,25 @@ async def find_valid_permutations(
         operation_kp_map,
     )
 
-    return [qg for qg in filtered_qgs]
+    return list(filtered_qgs)
 
 
-def dfs(graph, source):
+def dfs(graph, source) -> (list[str], list[str]):
+    """
+    Run depth first search on the graph
+
+    Returns a list of nodes and edges
+    that we traversed.
+    """
     path_nodes = [source]
     path_edges = []
 
     stack = [source]
 
-    while(len(stack) != 0):
+    # The most efficient way to do a depth first search
+    # is with an adjacency list, so we build one here
+
+    while len(stack) != 0:
         s = stack.pop()
 
         # Build adjacency list
@@ -323,7 +330,7 @@ async def generate_plan(
             "code": "QueryNotTraversable",
             "message":
                 """
-                    We couldn't find a KP for every edge in your query graph 
+                    We couldn't find a KP for every edge in your query graph
                 """
         })
         raise NoAnswersError("Cannot traverse query graph using KPs")
@@ -364,7 +371,7 @@ async def generate_plan(
             "code": "QueryNotTraversable",
             "message":
                 """
-                    We couldn't find any possible plans starting from a pinned node 
+                    We couldn't find any possible plans starting from a pinned node
                     that traverse every edge and node in your query graph
                 """
         })
@@ -393,6 +400,7 @@ def validate_and_annotate_qg_list(
             yield qg
 
 
+# pylint: disable=too-many-arguments
 async def step_to_kps(
         source, edge, target,
         kp_registry: Registry,
