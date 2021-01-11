@@ -68,7 +68,7 @@ class Worker(ABC):
             self.queue.task_done()
 
     @abstractmethod
-    async def setup(self, *args):
+    async def setup(self, **kwargs):
         """Set up services."""
 
     async def finish(self, tasks: List[asyncio.Task]):
