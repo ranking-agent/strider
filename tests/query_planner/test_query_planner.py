@@ -10,7 +10,7 @@ from tests.helpers.context import \
 
 
 from strider.query_planner import \
-    generate_plan, find_valid_permutations, permute_qg, expand_qg
+    generate_plan, find_valid_permutations, permute_qg, expand_qg, NoAnswersError
 
 from strider.config import settings
 
@@ -78,7 +78,7 @@ async def test_permute_simple(caplog):
     assert permutations
 
     # We should have:
-    # 4 * 2 * 3 * 2 = 24
+    # 4 * 2 * 3 * 2 = 48
     # permutations
     assert len(list(permutations)) == 48
 
@@ -88,27 +88,64 @@ simple_kp = load_kps("simple_kp.json")
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, simple_kp)
-async def no_path_from_pinned_node():
+@with_norm_overlay(settings.normalizer_url)
+async def test_not_enough_kps():
     """
-    Check that when we submit a graph where there is a pinned node
-    but no path through it that we get no plans back
+    Check we get no plans when we submit a query graph
+    that has edges we can't solve
     """
     qg = {
         "nodes": {
-            "n0": {"id": "MONDO:0005737"},
+            "n0": {"category": "biolink:ExposureEvent"},
             "n1": {"category": "biolink:Drug"},
         },
         "edges": {
             "e01": {
                 "subject": "n0",
-                # Two children and two directions
-                "predicate": "biolink:treats",
                 "object": "n1",
+                "predicate": "biolink:related_to",
             },
         },
     }
-    plan = await generate_plan(qg)
-    assert not plan
+    with pytest.raises(NoAnswersError):
+        await generate_plan(
+            qg,
+            logger=logging.getLogger()
+        )
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, simple_kp)
+@with_norm_overlay(settings.normalizer_url)
+async def test_no_path_from_pinned_node():
+    """
+    Check there is no plan when 
+    we submit a graph where there is a pinned node
+    but no path through it
+    """
+    qg = {
+        "nodes": {
+            "n0": {"id": "MONDO:0005148"},
+            "n1": {"category": "biolink:Drug"},
+        },
+        "edges": {
+            "e01": {
+                "subject": "n1",
+                "predicate": "biolink:treats",
+                "object": "n0",
+            },
+        },
+    }
+    # We should have valid permutations
+    permutations = await find_valid_permutations(qg)
+    assert len(list(permutations))
+
+    # We should not have any plans
+    with pytest.raises(NoAnswersError):
+        await generate_plan(
+            qg,
+            logger=logging.getLogger(),
+        )
 
 ex1_kps = load_kps("ex1_kps.json")
 
@@ -125,7 +162,7 @@ async def test_valid_permute_ex1():
 
     assert plans
 
-    # We should have two valid plans
+    # We should have one valid plan
     assert len(plans) == 1
 
 

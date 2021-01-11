@@ -74,6 +74,9 @@ async def test_ex1_two_hop():
     assert all(l['level'] != 'ERROR' for l in output['logs'])
     # Ensure we have some results
     assert len(output['message']['results']) > 0
+    # Ensure we have a knowledge graph with nodes and edges
+    assert len(output['message']['knowledge_graph']['nodes']) > 0
+    assert len(output['message']['knowledge_graph']['edges']) > 0
 
     print("========================= RESULTS =========================")
     print(output['message']['results'])
