@@ -197,15 +197,15 @@ async def test_permute_namedthing(caplog):
 
     qg = {
         "nodes": {
-            "n0": {"type": "biolink:NamedThing"},
-            "n1": {"type": "biolink:NamedThing"},
+            "n0": {"category": "biolink:NamedThing"},
+            "n1": {"category": "biolink:NamedThing"},
         },
         "edges": {
             "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"}
         },
     }
 
-    # Based on the biolink hierarchy this should build 1.2 million permutations
+    # Based on the biolink hierarchy this should build 2.4 million permutations
     # and then filter down to the number of operations (4)
     plans = await find_valid_permutations(qg)
 
