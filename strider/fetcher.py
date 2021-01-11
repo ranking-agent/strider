@@ -13,15 +13,14 @@ import asyncio
 from collections.abc import Iterable
 import logging
 import json
-import os
 from datetime import datetime
 import jsonpickle
 
 from reasoner_pydantic import QueryGraph, Result
 
-from .query_planner import generate_plan, Step, NoAnswersError
+from .query_planner import generate_plan, Step
 from .compatibility import KnowledgePortal
-from .trapi import merge_messages, merge_results, fix_qgraph
+from .trapi import merge_messages, merge_results
 from .worker import Worker
 from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
@@ -72,13 +71,16 @@ class StriderWorker(Worker):
 
     def __init__(self, *args, **kwargs):
         """Initialize."""
-        self.plan: dict[Step, list] = None
-        self.preferred_prefixes: dict[str, list[str]] = None
-        self.qgraph: QueryGraph = None
+        self.plan: dict[Step, list]
+        self.preferred_prefixes: dict[str, list[str]]
+        self.qgraph: RedisGraph
+        self.kgraph: RedisGraph
+        self.logger: logging.Logger
         self.results: list[Result] = []
         self.portal: KnowledgePortal = KnowledgePortal()
         super().__init__(*args, **kwargs)
 
+    # pylint: disable=arguments-differ
     async def setup(
             self,
             qid: str,
@@ -112,6 +114,13 @@ class StriderWorker(Worker):
         ))["query_graph"]
 
     async def generate_plan(self):
+        """
+        Use the self.qgraph object to generate a plan and store it
+        in the self.plan object.
+
+        Also adds a partial result to the queue so that the
+        run method can be called.
+        """
         self.logger.debug("Generating plan")
         # Generate traversal plan
         self.plan = await generate_plan(
@@ -198,14 +207,10 @@ class StriderWorker(Worker):
             "step": step,
         })
 
-        try:
-            response = await self.execute_step(
-                step,
-                result["node_bindings"][step.source][0]["id"],
-            )
-        except Exception:
-            self.logger.exception('Failed to execute step')
-            return
+        response = await self.execute_step(
+            step,
+            result["node_bindings"][step.source][0]["id"],
+        )
 
         # process kgraph
         self.kgraph.nodes.merge(response["knowledge_graph"]["nodes"])

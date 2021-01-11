@@ -3,7 +3,7 @@ aiofiles==0.6.0
 redis==3.5.3
 bmt==0.4.0
 httpx==0.16.1
-numpy==1.18.0
+numpy==1.19.3
 pyyaml==5.3.1
 uvicorn==0.11.7
 jsonpickle==1.4.2
