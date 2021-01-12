@@ -63,9 +63,9 @@ def norm_router():
                     {
                         "identifier": synonym
                     }
-                    for synonym in synset_mappings[curie]
+                    for synonym in synset_mappings.get(curie, [])
                 ],
-                "type": category_mappings[curie],
+                "type": category_mappings.get(curie, []),
             }
             for curie in curies
         }
