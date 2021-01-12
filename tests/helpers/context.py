@@ -5,7 +5,7 @@ from urllib.parse import urlparse
 
 import aiosqlite
 from asgiar import ASGIAR
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 import httpx
 from kp_registry.routers.kps import registry_router
 from simple_kp.testing import kp_overlay
@@ -60,6 +60,26 @@ async def norm_overlay(url):
     async with AsyncExitStack() as stack:
         app = FastAPI()
         app.include_router(norm_router())
+        await stack.enter_async_context(
+            ASGIAR(app, host=url_to_host(url))
+        )
+        yield
+
+
+@asynccontextmanager
+async def response_overlay(url, response: Response):
+    """
+    Create a router that returns the specified
+    response for all routes
+    """
+    async with AsyncExitStack() as stack:
+        app = FastAPI()
+
+        # pylint: disable=unused-variable disable=unused-argument
+        @app.route('/{path:path}')
+        async def all_paths(path):
+            return response
+
         await stack.enter_async_context(
             ASGIAR(app, host=url_to_host(url))
         )
@@ -122,3 +142,4 @@ with_kp_overlay = partial(with_context, kp_overlay)
 with_registry_overlay = partial(with_context, registry_overlay)
 with_translator_overlay = partial(with_context, translator_overlay)
 with_norm_overlay = partial(with_context, norm_overlay)
+with_response_overlay = partial(with_context, response_overlay)
