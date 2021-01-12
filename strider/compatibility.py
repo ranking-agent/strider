@@ -96,8 +96,8 @@ class Synonymizer():
                 url_base,
                 params={"curie": list(curies)},
             )
-
         if response.status_code >= 300:
+            # TODO: figure out how to handle this
             return
 
         entities = [
