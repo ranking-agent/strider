@@ -97,7 +97,6 @@ class Synonymizer():
                 params={"curie": list(curies)},
             )
 
-        breakpoint()
         if response.status_code >= 300:
             return
 

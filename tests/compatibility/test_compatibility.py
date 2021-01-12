@@ -3,7 +3,7 @@ import pytest
 from fastapi.responses import JSONResponse
 
 from tests.helpers.context import \
-    with_norm_overlay, with_response_overlay
+    with_norm_overlay, with_response_overlay, with_translator_overlay
 
 from strider.config import settings
 
@@ -159,3 +159,69 @@ async def test_normalizer_not_available():
 
     # n0 should be unchanged
     assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
+
+CTD_PREFIXES = {
+    "biolink:Disease": ["MONDO"],
+    "biolink:ChemicalSubstance": ["CHEBI"],
+}
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [("ctd", CTD_PREFIXES)]
+)
+async def test_fetch():
+    """
+    Test that the fetch method converts to and from
+    the specified prefixes when contacting a KP
+    """
+    portal = KnowledgePortal()
+
+    preferred_prefixes = {
+        "biolink:Disease": ["DOID"],
+        "biolink:ChemicalSubstance": ["MESH"],
+    }
+
+    query_graph = {
+        "nodes": {
+            "n0": {
+                "id": "MESH:D008687"
+            },
+            "n1": {
+                "category": "biolink:Disease"
+            },
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+                "predicate": "biolink:treats"
+            }
+        },
+    }
+
+    response = await portal.fetch(
+        url="http://ctd/query",
+        request={"query_graph": query_graph},
+        input_prefixes=CTD_PREFIXES,
+        output_prefixes=preferred_prefixes,
+    )
+
+    allowed_response_prefixes = [
+        prefix for prefix_list in preferred_prefixes.values()
+        for prefix in prefix_list
+    ]
+
+    # Check query graph node prefixes
+    for node in response['query_graph']['nodes'].values():
+        if node.get('id', None):
+            assert any(node['id'].startswith(prefix)
+                       for prefix in allowed_response_prefixes)
+    # Check node binding prefixes
+    for result in response['results']:
+        for binding_list in result['node_bindings'].values():
+            for binding in binding_list:
+                assert any(binding['id'].startswith(prefix)
+                           for prefix in allowed_response_prefixes)
