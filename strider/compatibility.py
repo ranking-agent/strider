@@ -12,15 +12,19 @@ from .util import post_json
 from .trapi import apply_curie_map, get_curies
 from .config import settings
 
-LOGGER = logging.getLogger(__name__)
-
 
 class KnowledgePortal():
     """Knowledge portal."""
 
-    def __init__(self):
+    def __init__(
+            self,
+            logger: logging.Logger = None,
+    ):
         """Initialize."""
-        self.synonymizer = Synonymizer()
+        if not logger:
+            logger = logging.getLogger(__name__)
+        self.logger = logger
+        self.synonymizer = Synonymizer(self.logger)
 
     async def map_prefixes(
             self,
@@ -78,8 +82,12 @@ Entity = namedtuple("Entity", ["categories", "identifiers"])
 class Synonymizer():
     """CURIE synonymizer."""
 
-    def __init__(self):
+    def __init__(
+            self,
+            logger: logging.Logger,
+    ):
         """Initialize."""
+        self.logger = logger
         self._data = dict()
 
     async def load_message(self, message: Message):
@@ -97,7 +105,19 @@ class Synonymizer():
                 params={"curie": list(curies)},
             )
         if response.status_code >= 300:
-            # TODO: figure out how to handle this
+            try:
+                response_json = response.json()
+                if not response_json:
+                    raise ValueError()
+                detail = response_json['detail']
+            except (ValueError, KeyError):
+                self.logger.warning(
+                    f"Failed to contact normalizer, \
+                    status code {response.status_code}. \
+                    Results may be incomplete.")
+                return
+            self.logger.warning(
+                f"Error from normalizer: {detail}")
             return
 
         entities = [
@@ -125,7 +145,7 @@ class Synonymizer():
 
     def map(self, prefixes: dict[str, list[str]]):
         """Generate CURIE map."""
-        return CURIEMap(self, prefixes)
+        return CURIEMap(self, prefixes, self.logger)
 
 
 class CURIEMap():
@@ -135,12 +155,14 @@ class CURIEMap():
             self,
             lookup: Synonymizer,
             prefixes: dict[str, list[str]],
+            logger: logging.Logger
     ):
         """Initialize."""
         self.prefixes = prefixes
         self.lookup = lookup
+        self.logger = logger
 
-    @cache
+    @ cache
     def __getitem__(self, curie):
         """Get preferred curie."""
         categories, identifiers = self.lookup[curie]
@@ -152,7 +174,8 @@ class CURIEMap():
             )
         except StopIteration:
             # no preferred prefixes for these categories
-            LOGGER.warning("Cannot find preferred prefixes for categories")
+            self.logger.warning(
+                "Cannot find preferred prefixes for categories")
             return curie
 
         # get CURIE with preferred prefix
@@ -165,7 +188,8 @@ class CURIEMap():
             )
         except StopIteration:
             # no preferred curie with these prefixes
-            LOGGER.warning("Cannot find identifier with a preferred prefix")
+            self.logger.warning(
+                "Cannot find identifier with a preferred prefix")
             return curie
 
     def get(self, *args):
