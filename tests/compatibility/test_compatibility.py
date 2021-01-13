@@ -1,6 +1,6 @@
 import json
 import pytest
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from tests.helpers.context import \
     with_norm_overlay, with_response_overlay, with_translator_overlay
@@ -58,7 +58,7 @@ async def test_map_prefixes_small_example():
 @with_norm_overlay(settings.normalizer_url)
 async def test_unknown_prefix():
     """
-    Test that if passed an unknown prefix we 
+    Test that if passed an unknown prefix we
     assume it doesn't need to be changed.
     """
     portal = KnowledgePortal()
@@ -118,21 +118,22 @@ async def test_prefix_not_specified():
     assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
 
 
+normalizer_error_no_matches = "No matches found for the specified curie(s)"
+
+
 @pytest.mark.asyncio
 @with_response_overlay(
     settings.normalizer_url,
     JSONResponse(
-        content={"detail": "No matches found for the specified curie(s)"},
+        content={"detail": normalizer_error_no_matches},
         status_code=404
     )
 )
-async def test_normalizer_not_available():
+async def test_normalizer_no_synonyms_available(caplog):
     """
-    Test that if we get an invalid response
-    from the normalizer we make no changes.
-
-    This is the current behavior of the normalizer if
-    we send an unknown node.
+    Test that if we send a node with no synonyms
+    to the normalizer that we continue working and add
+    a warning to the log
     """
     portal = KnowledgePortal()
 
@@ -159,6 +160,52 @@ async def test_normalizer_not_available():
 
     # n0 should be unchanged
     assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
+
+    # The error we recieved from the normalizer should be in the logs
+    assert normalizer_error_no_matches in caplog.text
+
+
+@pytest.mark.asyncio
+@with_response_overlay(
+    settings.normalizer_url,
+    Response(
+        status_code=500,
+        content="Internal server error",
+    )
+)
+async def test_normalizer_not_reachable(caplog):
+    """
+    Test that if the normalizer is completely unavailable we make
+    no changes to the query graph and continue on while adding a
+    a warning to the log
+    """
+    portal = KnowledgePortal()
+
+    preferred_prefixes = {
+        "biolink:Disease": [
+            "MONDO"
+        ]
+    }
+
+    query_graph = {
+        "nodes": {
+            "n0": {
+                "id": "DOID:9352"
+            },
+        },
+        "edges": {
+        },
+    }
+
+    fixed_msg = await portal.map_prefixes(
+        {"query_graph": query_graph},
+        preferred_prefixes,
+    )
+
+    # n0 should be unchanged
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
+
+    assert "Failed to contact normalizer" in caplog.text
 
 CTD_PREFIXES = {
     "biolink:Disease": ["MONDO"],
