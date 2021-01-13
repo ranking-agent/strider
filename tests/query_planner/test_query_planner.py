@@ -1,9 +1,14 @@
 from pathlib import Path
+from functools import partial
 import os
 import json
 import logging
+import itertools
+import random
+import time
 
 import pytest
+from bmt import Toolkit as BMToolkit
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
@@ -11,6 +16,9 @@ from tests.helpers.context import \
 
 from strider.query_planner import \
     generate_plan, find_valid_permutations, permute_qg, expand_qg, NoAnswersError
+
+from strider.util import WrappedBMT
+WBMT = WrappedBMT()
 
 from strider.config import settings
 
@@ -119,7 +127,7 @@ async def test_not_enough_kps():
 @with_norm_overlay(settings.normalizer_url)
 async def test_no_path_from_pinned_node():
     """
-    Check there is no plan when 
+    Check there is no plan when
     we submit a graph where there is a pinned node
     but no path through it
     """
@@ -185,29 +193,68 @@ async def test_plan_ex1():
     assert 'id' in qg['nodes'][step_1.source]
 
 
-namedthing_kps = load_kps("namedthing_kps.json")
+# Generate some KPs using permutations of BMT
+# if we consume all of the KPs, this will create a KP
+# for every operation
+def create_kp(args):
+    source, edge, target = args
+    return {
+        "url": "http://mykp",
+        "operations": [{
+            "source_type": source,
+            "edge_type": f"-{edge}->",
+            "target_type": target,
+        }]
+    }
+
+
+kp_generator = map(
+    create_kp,
+    itertools.product(
+        WBMT.get_descendants('biolink:NamedThing')[:25],
+        WBMT.get_descendants('biolink:related_to')[:10],
+        WBMT.get_descendants('biolink:NamedThing')[:25],
+    )
+)
+
+many_kps = {str(i): kp for i, kp in enumerate(kp_generator)}
+
+
+async def time_and_display(f, msg):
+    """ Time a function and print the time """
+    start_time = time.time()
+    await f()
+    total = time.time() - start_time
+    print("-------------------------------------------")
+    print(f"Total time to {msg}: {total}")
+    print("-------------------------------------------")
 
 
 @pytest.mark.asyncio
-@pytest.mark.longrun  # Don't run by default
-@with_registry_overlay(settings.kpregistry_url, namedthing_kps)
-async def test_permute_namedthing(caplog):
-    """ Test NamedThing -related_to-> NamedThing """
-    caplog.set_level(logging.DEBUG)
+@pytest.mark.longrun
+@with_registry_overlay(settings.kpregistry_url, many_kps)
+@with_norm_overlay(settings.normalizer_url)
+async def test_planning_performance():
+    """
+    Test our performance when planning a very generic query graph
+    with a lot of KPs available.
+    """
 
     qg = {
         "nodes": {
-            "n0": {"category": "biolink:NamedThing"},
+            "n0": {"id": "MONDO:000000"},
             "n1": {"category": "biolink:NamedThing"},
+            "n2": {"category": "biolink:NamedThing"},
+            "n3": {"category": "biolink:NamedThing"},
         },
         "edges": {
-            "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"}
+            "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"},
+            "e12": {"subject": "n1", "object": "n2", "predicate": "biolink:related_to"},
+            "e23": {"subject": "n2", "object": "n3", "predicate": "biolink:related_to"},
         },
     }
 
-    # Based on the biolink hierarchy this should build 2.4 million permutations
-    # and then filter down to the number of operations (4)
-    plans = await find_valid_permutations(qg)
-
-    assert plans
-    assert len(plans) == 4
+    await time_and_display(
+        partial(generate_plan, qg, logger=logging.getLogger()),
+        "generate plan for a generic query graph",
+    )

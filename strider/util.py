@@ -6,6 +6,7 @@ from typing import Callable, Union
 
 import httpx
 import yaml
+from bmt import Toolkit as BMToolkit
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,9 +25,9 @@ class WrappedBMT():
     to provide case conversions to the new format
     """
 
-    def __init__(self, bmt):
-        self.bmt = bmt
-        self.all_slots = bmt.get_all_slots()
+    def __init__(self):
+        self.bmt = BMToolkit()
+        self.all_slots = self.bmt.get_all_slots()
         self.all_slots_formatted = ['biolink:' + s.replace(' ', '_')
                                     for s in self.all_slots]
         self.prefix = 'biolink:'
