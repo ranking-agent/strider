@@ -77,7 +77,7 @@ class StriderWorker(Worker):
         self.kgraph: RedisGraph
         self.logger: logging.Logger
         self.results: list[Result] = []
-        self.portal: KnowledgePortal = KnowledgePortal()
+        self.portal: KnowledgePortal = None
         super().__init__(*args, **kwargs)
 
     # pylint: disable=arguments-differ
@@ -99,6 +99,9 @@ class StriderWorker(Worker):
         self.logger.addHandler(handler)
 
         self.logger.debug("Initialized strider worker")
+
+        if not self.portal:
+            self.portal = KnowledgePortal(self.logger)
 
         # Pull query graph from Redis
         qgraph = RedisGraph(f"{qid}:qgraph").get()
