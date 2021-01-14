@@ -4,7 +4,6 @@ import logging
 import copy
 from typing import Generator
 
-from bmt import Toolkit as BMToolkit
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
@@ -12,8 +11,7 @@ from strider.normalizer import Normalizer
 from strider.util import WrappedBMT
 from strider.config import settings
 
-BMT = BMToolkit()
-WBMT = WrappedBMT(BMT)
+WBMT = WrappedBMT()
 
 LOGGER = logging.getLogger(__name__)
 
@@ -218,13 +216,16 @@ async def find_valid_permutations(
         "expanded_qg": expanded_qg,
     })
 
-    permuted_qg_list = permute_qg(expanded_qg)
-
     operation_kp_map = {}
     # For each edge, ask KP registry for KPs that could solve it
 
     logger.debug(
         "Contacting KP registry to ask for KPs to solve this query graph")
+
+    for node in expanded_qg['nodes'].values():
+        node['filtered_categories'] = set()
+    for edge in expanded_qg['edges'].values():
+        edge['filtered_predicates'] = set()
 
     # Put the results in a master dictionary so that we can look
     # them up for each permutation and see which are solvable
@@ -243,6 +244,15 @@ async def find_valid_permutations(
             kp_registry,
             allowlist=allowlist, denylist=denylist,
         )
+
+        for kp in kp_results.values():
+            for op in kp['operations']:
+                source['filtered_categories'].add(
+                    op['source_category'])
+                target['filtered_categories'].add(
+                    op['target_category'])
+                edge['filtered_predicates'].add(op['edge_predicate'])
+
         for kp_name, kp in kp_results.items():
 
             kp_without_ops = {x: kp[x] for x in kp if x != 'operations'}
@@ -254,11 +264,25 @@ async def find_valid_permutations(
                     operation_kp_map[operation] = []
                 operation_kp_map[operation].append(kp_without_ops)
 
+    # Filter down node categories using those
+    # we have recieved from the KP registry
+    # to limit the number of permutations.
+    #
+    # Also filter edge predicates as well.
+    for node in expanded_qg['nodes'].values():
+        if 'category' not in node:
+            continue
+        node['category'] = list(node.pop('filtered_categories'))
+    for edge in expanded_qg['edges'].values():
+        edge['predicate'] = list(edge.pop('filtered_predicates'))
+
     logger.debug(
         f"Found {len(operation_kp_map)} possible KP operations we can use")
 
     logger.debug(
         "Iterating over QGs to find ones that are solvable")
+
+    permuted_qg_list = permute_qg(expanded_qg)
 
     filtered_qgs = validate_and_annotate_qg_list(
         permuted_qg_list,

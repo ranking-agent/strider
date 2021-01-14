@@ -1,12 +1,17 @@
 from pathlib import Path
+from functools import partial
 import os
+import math
 import json
 import logging
+import random
 
 import pytest
+from bmt import Toolkit as BMToolkit
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
+from tests.helpers.utils import generate_kps, time_and_display
 
 
 from strider.query_planner import \
@@ -19,6 +24,8 @@ cwd = Path(__file__).parent
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
+
+LOGGER = logging.getLogger()
 
 
 def load_kps(fname):
@@ -119,7 +126,7 @@ async def test_not_enough_kps():
 @with_norm_overlay(settings.normalizer_url)
 async def test_no_path_from_pinned_node():
     """
-    Check there is no plan when 
+    Check there is no plan when
     we submit a graph where there is a pinned node
     but no path through it
     """
@@ -185,29 +192,58 @@ async def test_plan_ex1():
     assert 'id' in qg['nodes'][step_1.source]
 
 
-namedthing_kps = load_kps("namedthing_kps.json")
+@ pytest.mark.asyncio
+@ pytest.mark.longrun
+@ with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
+@ with_norm_overlay(settings.normalizer_url)
+async def test_planning_performance_generic_qg():
+    """
+    Test our performance when planning a very generic query graph.
 
-
-@pytest.mark.asyncio
-@pytest.mark.longrun  # Don't run by default
-@with_registry_overlay(settings.kpregistry_url, namedthing_kps)
-async def test_permute_namedthing(caplog):
-    """ Test NamedThing -related_to-> NamedThing """
-    caplog.set_level(logging.DEBUG)
+    This is a use case we hopefully don't encounter very much.
+    """
 
     qg = {
         "nodes": {
-            "n0": {"category": "biolink:NamedThing"},
+            "n0": {"id": "MONDO:0005737"},
             "n1": {"category": "biolink:NamedThing"},
+            "n2": {"category": "biolink:NamedThing"},
         },
         "edges": {
-            "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"}
+            "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"},
+            "e12": {"subject": "n1", "object": "n2", "predicate": "biolink:related_to"},
         },
     }
 
-    # Based on the biolink hierarchy this should build 2.4 million permutations
-    # and then filter down to the number of operations (4)
-    plans = await find_valid_permutations(qg)
+    await time_and_display(
+        partial(generate_plan, qg, logger=logging.getLogger()),
+        "generate plan for a generic query graph (1000 kps)",
+    )
 
-    assert plans
-    assert len(plans) == 4
+
+@ pytest.mark.asyncio
+@ pytest.mark.longrun
+@ with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
+@ with_norm_overlay(settings.normalizer_url)
+async def test_planning_performance_typical_example():
+    """
+    Test our performance when planning a more typical query graph
+    (modeled after a COP) with a lot of KPs available.
+
+    We should be able to do better on performance using our filtering methods.
+    """
+
+    with open(cwd / "ex2_qg.json", "r") as f:
+        qg = json.load(f)
+
+    async def testable_generate_plan():
+        # We might not actually find a path which is fine
+        try:
+            await generate_plan(qg, logger=logging.getLogger())
+        except Exception:
+            pass
+
+    await time_and_display(
+        testable_generate_plan,
+        "generate plan for a typical query graph (50k KPs)",
+    )
