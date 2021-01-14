@@ -24,7 +24,7 @@ settings.redis_url = "redis://fakeredis"
 
 
 from strider.kp_registry import Registry
-from strider.server import sync_query
+from strider.server import sync_query, generate_traversal_plan
 
 
 setup_logger()
@@ -54,8 +54,8 @@ CTD_PREFIXES = {
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
-async def test_ex1_two_hop():
-    """Test Strider."""
+async def test_solve_ex1_two_hop():
+    """Test solving the ex1_two_hop query graph"""
     with open(cwd / "ex1_two_hop.json", "r") as f:
         QGRAPH = json.load(f)
 
@@ -81,3 +81,34 @@ async def test_ex1_two_hop():
     print("========================= RESULTS =========================")
     print(output['message']['results'])
     print(output['message']['knowledge_graph'])
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
+async def test_plan_ex1_two_hop():
+    """Test /plan endpoint"""
+    with open(cwd / "ex1_two_hop.json", "r") as f:
+        QGRAPH = json.load(f)
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await generate_traversal_plan(q)
+
+    assert output
+
+    # Two steps in the plan each with KPs to contact
+    assert len(output[('n0', 'e01', 'n1')]) == 2
+    assert len(output[('n1', 'e12', 'n2')]) == 1
