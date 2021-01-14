@@ -1,24 +1,21 @@
 from pathlib import Path
 from functools import partial
 import os
+import math
 import json
 import logging
-import itertools
 import random
-import time
 
 import pytest
 from bmt import Toolkit as BMToolkit
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
+from tests.helpers.utils import generate_kps, time_and_display
 
 
 from strider.query_planner import \
     generate_plan, find_valid_permutations, permute_qg, expand_qg, NoAnswersError
-
-from strider.util import WrappedBMT
-WBMT = WrappedBMT()
 
 from strider.config import settings
 
@@ -27,6 +24,8 @@ cwd = Path(__file__).parent
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
+
+LOGGER = logging.getLogger()
 
 
 def load_kps(fname):
@@ -193,51 +192,15 @@ async def test_plan_ex1():
     assert 'id' in qg['nodes'][step_1.source]
 
 
-# Generate some KPs using permutations of BMT
-# if we consume all of the KPs, this will create a KP
-# for every operation
-def create_kp(args):
-    source, edge, target = args
-    return {
-        "url": "http://mykp",
-        "operations": [{
-            "source_type": source,
-            "edge_type": f"-{edge}->",
-            "target_type": target,
-        }]
-    }
-
-
-kp_generator = map(
-    create_kp,
-    itertools.product(
-        WBMT.get_descendants('biolink:NamedThing')[:25],
-        WBMT.get_descendants('biolink:related_to')[:10],
-        WBMT.get_descendants('biolink:NamedThing')[:25],
-    )
-)
-
-many_kps = {str(i): kp for i, kp in enumerate(kp_generator)}
-
-
-async def time_and_display(f, msg):
-    """ Time a function and print the time """
-    start_time = time.time()
-    await f()
-    total = time.time() - start_time
-    print("\n-------------------------------------------")
-    print(f"Total time to {msg}: {total:.2f}s")
-    print("-------------------------------------------")
-
-
-@pytest.mark.asyncio
-@pytest.mark.longrun
-@with_registry_overlay(settings.kpregistry_url, many_kps)
-@with_norm_overlay(settings.normalizer_url)
-async def test_planning_performance():
+@ pytest.mark.asyncio
+@ pytest.mark.longrun
+@ with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
+@ with_norm_overlay(settings.normalizer_url)
+async def test_planning_performance_generic_qg():
     """
-    Test our performance when planning a very generic query graph
-    with a lot of KPs available.
+    Test our performance when planning a very generic query graph.
+
+    This is a use case we hopefully don't encounter very much.
     """
 
     qg = {
@@ -245,16 +208,42 @@ async def test_planning_performance():
             "n0": {"id": "MONDO:0005737"},
             "n1": {"category": "biolink:NamedThing"},
             "n2": {"category": "biolink:NamedThing"},
-            "n3": {"category": "biolink:NamedThing"},
         },
         "edges": {
             "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"},
             "e12": {"subject": "n1", "object": "n2", "predicate": "biolink:related_to"},
-            "e23": {"subject": "n2", "object": "n3", "predicate": "biolink:related_to"},
         },
     }
 
     await time_and_display(
         partial(generate_plan, qg, logger=logging.getLogger()),
-        "generate plan for a generic query graph",
+        "generate plan for a generic query graph (1000 kps)",
+    )
+
+
+@ pytest.mark.asyncio
+@ pytest.mark.longrun
+@ with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
+@ with_norm_overlay(settings.normalizer_url)
+async def test_planning_performance_typical_example():
+    """
+    Test our performance when planning a more typical query graph
+    (modeled after a COP) with a lot of KPs available.
+
+    We should be able to do better on performance using our filtering methods.
+    """
+
+    with open(cwd / "ex2_qg.json", "r") as f:
+        qg = json.load(f)
+
+    async def testable_generate_plan():
+        # We might not actually find a path which is fine
+        try:
+            await generate_plan(qg, logger=logging.getLogger())
+        except Exception:
+            pass
+
+    await time_and_display(
+        testable_generate_plan,
+        "generate plan for a typical query graph (50k KPs)",
     )
