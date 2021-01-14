@@ -5,6 +5,7 @@ import itertools
 import json
 import logging
 import os
+import enum
 import pprint
 from typing import Dict
 
@@ -23,9 +24,9 @@ from .fetcher import StriderWorker
 from .query_planner import generate_plan, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
-from .util import setup_logging
 from .storage import RedisGraph, RedisList
 from .config import settings
+from .logging import LogLevelEnum
 
 LOGGER = logging.getLogger(__name__)
 
@@ -44,9 +45,6 @@ APP.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-setup_logging()
 
 
 @APP.on_event("startup")
@@ -80,7 +78,10 @@ EXAMPLE = {
 }
 
 
-def get_finished_query(qid: str) -> dict:
+def get_finished_query(
+        qid: str,
+        log_level: str,
+) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
@@ -93,17 +94,27 @@ def get_finished_query(qid: str) -> dict:
     results.expire(expiration_seconds)
     logs.expire(expiration_seconds)
 
+    # pylint: disable=protected-access
+    levelno = logging._nameToLevel[log_level]
+    # pylint: disable=protected-access
+    filtered_logs = [
+        log for log in logs.get() if logging._nameToLevel[log['level']] >= levelno
+    ]
+
     return dict(
         message=dict(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
             results=list(results.get()),
         ),
-        logs=list(logs.get()),
+        logs=filtered_logs,
     )
 
 
-async def process_query(qid):
+async def process_query(
+        qid: str,
+        log_level: str,
+):
     # Set up workers
     strider = StriderWorker(num_workers=2)
     await strider.setup(qid)
@@ -114,20 +125,21 @@ async def process_query(qid):
     except NoAnswersError:
         # End early with no results
         # (but we should have log messages)
-        return get_finished_query(qid)
+        return get_finished_query(qid, log_level)
 
     # Process
     await strider.run(qid, wait=True)
 
     # Pull results from redis
     # Also starts timer for expiring results
-    return get_finished_query(qid)
+    return get_finished_query(qid, log_level)
 
 
 @APP.post('/aquery', tags=['query'])
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
+        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Start query processing."""
     # Generate Query ID
@@ -138,21 +150,25 @@ async def async_query(
     qgraph.set(query.dict()['message']['query_graph'])
 
     # Start processing
-    background_tasks.add_task(process_query, qid)
+    background_tasks.add_task(process_query, qid, log_level)
 
     # Return ID
     return dict(id=qid)
 
 
 @APP.post('/query_result', response_model=ReasonerResponse)
-async def get_results(qid: str) -> dict:
-    print(get_finished_query(qid))
-    return get_finished_query(qid)
+async def get_results(
+        qid: str,
+        log_level: LogLevelEnum = LogLevelEnum.ERROR,
+) -> dict:
+    """ Get results for a running or finished query """
+    return get_finished_query(qid, log_level)
 
 
 @APP.post('/query', tags=['query'])
 async def sync_query(
-        query: Query = Body(..., example=EXAMPLE)
+        query: Query = Body(..., example=EXAMPLE),
+        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Handle synchronous query."""
     # Generate Query ID
@@ -165,7 +181,7 @@ async def sync_query(
     )
 
     # Process query and wait for results
-    query_results = await process_query(qid)
+    query_results = await process_query(qid, log_level)
 
     # Return results
     return query_results
