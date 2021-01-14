@@ -129,7 +129,8 @@ def get_operation(
 
 def expand_qg(
         qg: QueryGraph,
-        logger: logging.Logger) -> QueryGraph:
+        logger: logging.Logger = LOGGER
+) -> QueryGraph:
     """
     Given a query graph, use the Biolink model to expand categories and predicates
     to include their descendants.
@@ -182,7 +183,7 @@ async def find_valid_permutations(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
-        logger: logging.Logger = None,
+        logger: logging.Logger = LOGGER,
 ) -> list[QueryGraph]:
     """
     Given a query graph, generate a list of query graphs
@@ -193,8 +194,6 @@ async def find_valid_permutations(
         kp_registry = Registry(settings.kpregistry_url)
     if normalizer is None:
         normalizer = Normalizer(settings.normalizer_url)
-    if logger is None:
-        logger = logging.getLogger(__name__)
 
     expanded_qg = expand_qg(qgraph, logger)
 
@@ -308,12 +307,14 @@ async def generate_plan(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
-        logger: logging.Logger = None,
+        logger: logging.Logger = LOGGER,
 ) -> dict[Step, list]:
     """
     Given a query graph, build a plan that consists of steps
     and the KPs we need to contact to evaluate those steps
     """
+
+    logger.debug("Generating plan for query graph")
 
     filtered_qg_list = await find_valid_permutations(
         qgraph, kp_registry, normalizer, logger
