@@ -56,8 +56,23 @@ class KnowledgePortal():
         """Wrap fetch with CURIE mapping(s)."""
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
 
-        response = await post_json(url, request)
-        message = response["message"]
+        try:
+            response = await post_json(url, request)
+            message = response["message"]
+        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            # Log error
+            self.logger.error({
+                "message": "Error contacting KP",
+                "url": url,
+                "request": request,
+                "response": e.response.text,
+                "error": str(e),
+            })
+            # Continue processing with an empty response object
+            message = {}
+            message['query_graph'] = request['message']['query_graph']
+            message['knowledge_graph'] = {'nodes': {}, 'edges': {}}
+            message['results'] = []
 
         message = await self.map_prefixes(message, output_prefixes)
 

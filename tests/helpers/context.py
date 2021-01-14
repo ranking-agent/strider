@@ -76,7 +76,7 @@ async def response_overlay(url, response: Response):
         app = FastAPI()
 
         # pylint: disable=unused-variable disable=unused-argument
-        @app.route('/{path:path}')
+        @app.api_route('/{path:path}', methods=["GET", "POST", "PUT", "DELETE"])
         async def all_paths(path):
             return response
 
