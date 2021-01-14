@@ -5,6 +5,7 @@ import itertools
 import json
 import logging
 import os
+import enum
 import pprint
 from typing import Dict
 
@@ -26,6 +27,7 @@ from .results import get_db, Database
 from .util import setup_logging
 from .storage import RedisGraph, RedisList
 from .config import settings
+from .logging import LogLevelEnum
 
 LOGGER = logging.getLogger(__name__)
 
@@ -49,7 +51,7 @@ APP.add_middleware(
 setup_logging()
 
 
-@APP.on_event("startup")
+@ APP.on_event("startup")
 async def print_config():
     pretty_config = pprint.pformat(
         settings.dict()
@@ -80,7 +82,10 @@ EXAMPLE = {
 }
 
 
-def get_finished_query(qid: str) -> dict:
+def get_finished_query(
+        qid: str,
+        log_level: str = "NOTSET"
+) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
     results = RedisList(f"{qid}:results")
@@ -93,17 +98,27 @@ def get_finished_query(qid: str) -> dict:
     results.expire(expiration_seconds)
     logs.expire(expiration_seconds)
 
+    # pylint: disable=protected-access
+    levelno = logging._nameToLevel[log_level]
+    # pylint: disable=protected-access
+    filtered_logs = [
+        log for log in logs.get() if logging._nameToLevel[log['level']] >= levelno
+    ]
+
     return dict(
         message=dict(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
-            results=list(results.get()),
+            results=filtered_logs,
         ),
         logs=list(logs.get()),
     )
 
 
-async def process_query(qid):
+async def process_query(
+        qid: str,
+        log_level: str,
+):
     # Set up workers
     strider = StriderWorker(num_workers=2)
     await strider.setup(qid)
@@ -121,10 +136,10 @@ async def process_query(qid):
 
     # Pull results from redis
     # Also starts timer for expiring results
-    return get_finished_query(qid)
+    return get_finished_query(qid, log_level)
 
 
-@APP.post('/aquery', tags=['query'])
+@ APP.post('/aquery', tags=['query'])
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
@@ -144,15 +159,16 @@ async def async_query(
     return dict(id=qid)
 
 
-@APP.post('/query_result', response_model=ReasonerResponse)
+@ APP.post('/query_result', response_model=ReasonerResponse)
 async def get_results(qid: str) -> dict:
     print(get_finished_query(qid))
     return get_finished_query(qid)
 
 
-@APP.post('/query', tags=['query'])
+@ APP.post('/query', tags=['query'])
 async def sync_query(
-        query: Query = Body(..., example=EXAMPLE)
+        query: Query = Body(..., example=EXAMPLE),
+        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Handle synchronous query."""
     # Generate Query ID
@@ -171,7 +187,7 @@ async def sync_query(
     return query_results
 
 
-@APP.post('/ars')
+@ APP.post('/ars')
 async def handle_ars(
         data: Dict,
 ):
@@ -204,7 +220,7 @@ async def handle_ars(
 APP.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-@APP.get("/docs", include_in_schema=False)
+@ APP.get("/docs", include_in_schema=False)
 async def custom_swagger_ui_html():
     """Customize Swagger UI."""
     return get_swagger_ui_html(
@@ -305,7 +321,7 @@ async def extract_results(query_id, since, limit, offset, database):
     ]
 
 
-@APP.post('/plan', response_model=Dict, tags=['query'])
+@ APP.post('/plan', response_model=Dict, tags=['query'])
 async def generate_traversal_plan(
         query: Query,
 ) -> Dict:
@@ -314,7 +330,7 @@ async def generate_traversal_plan(
     return await generate_plan(query_graph)
 
 
-@APP.post('/score', response_model=Message, tags=['query'])
+@ APP.post('/score', response_model=Message, tags=['query'])
 async def score_results(
         query: Query,
 ) -> Message:

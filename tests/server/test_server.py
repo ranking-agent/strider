@@ -92,6 +92,31 @@ async def test_solve_ex1_two_hop():
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
+async def test_log_level_param():
+    """Test that changing the log level given to """
+    with open(cwd / "ex1_two_hop.json", "r") as f:
+        QGRAPH = json.load(f)
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
 async def test_plan_ex1_two_hop():
     """Test /plan endpoint"""
     with open(cwd / "ex1_two_hop.json", "r") as f:
