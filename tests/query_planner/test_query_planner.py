@@ -225,8 +225,8 @@ async def time_and_display(f, msg):
     start_time = time.time()
     await f()
     total = time.time() - start_time
-    print("-------------------------------------------")
-    print(f"Total time to {msg}: {total}")
+    print("\n-------------------------------------------")
+    print(f"Total time to {msg}: {total:.2f}s")
     print("-------------------------------------------")
 
 
@@ -242,7 +242,7 @@ async def test_planning_performance():
 
     qg = {
         "nodes": {
-            "n0": {"id": "MONDO:000000"},
+            "n0": {"id": "MONDO:0005737"},
             "n1": {"category": "biolink:NamedThing"},
             "n2": {"category": "biolink:NamedThing"},
             "n3": {"category": "biolink:NamedThing"},
