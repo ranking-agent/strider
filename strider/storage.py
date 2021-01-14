@@ -45,6 +45,8 @@ class RedisHash(RedisValue):
 
     def set(self, v: dict):
         r.delete(self.key)
+        if not len(v):
+            return
         r.hset(
             self.key,
             mapping=mapd(json.dumps, v)
@@ -55,6 +57,8 @@ class RedisHash(RedisValue):
         return json.load(v)
 
     def merge(self, v: dict):
+        if not len(v):
+            return
         r.hset(
             self.key,
             mapping=mapd(json.dumps, v)

@@ -57,9 +57,9 @@ CTD_PREFIXES = {
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
-async def test_solve_ex1_two_hop():
-    """Test solving the ex1_two_hop query graph"""
-    with open(cwd / "ex1_two_hop.json", "r") as f:
+async def test_solve_ex1():
+    """Test solving the ex1 query graph"""
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
@@ -97,7 +97,7 @@ async def test_solve_ex1_two_hop():
     ])
 async def test_log_level_param():
     """Test that changing the log level given to sync_query changes the output """
-    with open(cwd / "ex1_two_hop.json", "r") as f:
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
@@ -127,7 +127,7 @@ async def test_log_level_param():
     ])
 async def test_plan_ex1():
     """Test /plan endpoint"""
-    with open(cwd / "ex1_two_hop.json", "r") as f:
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
@@ -145,3 +145,47 @@ async def test_plan_ex1():
     # Two steps in the plan each with KPs to contact
     assert len(output[('n0', 'e01', 'n1')]) == 2
     assert len(output[('n1', 'e12', 'n2')]) == 1
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
+# Override one KP with an invalid response
+@with_response_overlay(
+    "http://mychem/query",
+    Response(
+        status_code=500,
+        content="Internal server error",
+    )
+)
+async def test_kp_unavailable():
+    """
+    Test that when a KP is unavailable we add a message to
+    the log but continue running
+    """
+    with open(cwd / "ex1_qg.json", "r") as f:
+        QGRAPH = json.load(f)
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+
+    # Check that we stored the error
+    assert 'Error contacting KP' in output['logs'][0]['message']
+    assert 'Internal server error' in output['logs'][0]['message']
+    # Ensure we have results from the other KPs
+    assert len(output['message']['knowledge_graph']['nodes']) > 0
+    assert len(output['message']['knowledge_graph']['edges']) > 0
+    assert len(output['message']['results']) > 0

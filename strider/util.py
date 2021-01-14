@@ -1,14 +1,10 @@
 """General utilities."""
-import logging
-import logging.config
 import re
 from typing import Callable, Union
 
 import httpx
 import yaml
 from bmt import Toolkit as BMToolkit
-
-LOGGER = logging.getLogger(__name__)
 
 
 def camel_to_snake(s, sep=' '):
@@ -85,23 +81,8 @@ async def post_json(url, request):
             url,
             json=request,
         )
-        if response.status_code >= 300:
-            raise KPError(
-                "{}\n{}\n\x1b[31m{} Error:\x1b[0m {}".format(
-                    url,
-                    str(request),
-                    response.status_code,
-                    response.text,
-                )
-            )
-        LOGGER.debug(
-            "%s\n%s\n\x1b[32m%d Success:\x1b[0m %s",
-            url,
-            str(request),
-            response.status_code,
-            response.text,
-        )
-    return response.json()
+        response.raise_for_status()
+        return response.json()
 
 
 class KPError(Exception):
