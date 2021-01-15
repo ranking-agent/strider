@@ -16,7 +16,7 @@ import json
 from datetime import datetime
 import jsonpickle
 
-from reasoner_pydantic import QueryGraph, Result
+from reasoner_pydantic import QueryGraph, Result, Response
 
 from .query_planner import generate_plan, Step
 from .compatibility import KnowledgePortal
@@ -177,7 +177,7 @@ class StriderWorker(Worker):
 
         # Set the node ID of the current step to the
         # given curie
-        kp_request_body['query_graph']['nodes'][step.source]['id'] = curie
+        kp_request_body['message']['query_graph']['nodes'][step.source]['id'] = curie
 
         responses = await asyncio.gather(*(
             self.portal.fetch(
@@ -228,7 +228,7 @@ class StriderWorker(Worker):
 def get_kp_request_body(
         qgraph: QueryGraph,
         edge: str,
-) -> QueryGraph:
+) -> Response:
     """Get request to send to KP."""
     included_nodes = [
         qgraph['edges'][edge]['subject'],
@@ -246,4 +246,4 @@ def get_kp_request_body(
             if key in included_edges
         },
     }
-    return {"query_graph": request_qgraph}
+    return {"message": {"query_graph": request_qgraph}}
