@@ -98,8 +98,6 @@ class StriderWorker(Worker):
         self.logger = logging.getLogger(__name__)
         self.logger.addHandler(handler)
 
-        self.logger.debug("Initialized strider worker")
-
         if not self.portal:
             self.portal = KnowledgePortal(self.logger)
 
@@ -115,6 +113,11 @@ class StriderWorker(Worker):
             {"query_graph": qgraph},
             self.preferred_prefixes,
         ))["query_graph"]
+
+        self.logger.debug({
+            "message": "Initialized strider worker",
+            "fixed_qgraph": self.qgraph,
+        })
 
     async def generate_plan(self):
         """
@@ -165,7 +168,7 @@ class StriderWorker(Worker):
         """Fetch results for step."""
 
         self.logger.debug({
-            "description": "Executing step: ",
+            "message": "Executing step: ",
             "step": self.plan[step],
         })
 
@@ -205,7 +208,7 @@ class StriderWorker(Worker):
 
         # execute step
         self.logger.debug({
-            "description": "Recieved results from KPs",
+            "message": "Recieved results from KPs",
             "data": result,
             "step": step,
         })

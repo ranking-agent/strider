@@ -24,7 +24,6 @@ from .fetcher import StriderWorker
 from .query_planner import generate_plan, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
-from .util import setup_logging
 from .storage import RedisGraph, RedisList
 from .config import settings
 from .logging import LogLevelEnum
@@ -46,9 +45,6 @@ APP.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-setup_logging()
 
 
 @ APP.on_event("startup")
@@ -84,7 +80,7 @@ EXAMPLE = {
 
 def get_finished_query(
         qid: str,
-        log_level: str = "NOTSET"
+        log_level: str,
 ) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
@@ -109,9 +105,9 @@ def get_finished_query(
         message=dict(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
-            results=filtered_logs,
+            results=list(results.get()),
         ),
-        logs=list(logs.get()),
+        logs=filtered_logs,
     )
 
 
@@ -129,7 +125,7 @@ async def process_query(
     except NoAnswersError:
         # End early with no results
         # (but we should have log messages)
-        return get_finished_query(qid)
+        return get_finished_query(qid, log_level)
 
     # Process
     await strider.run(qid, wait=True)

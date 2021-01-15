@@ -350,6 +350,11 @@ async def generate_plan(
         if value.get("id", None) is not None
     ]
 
+    logger.debug({
+        "message": "Found pinned nodes",
+        "pinned_nodes": pinned_nodes,
+    })
+
     if len(filtered_qg_list) == 0:
         logger.error({
             "code": "QueryNotTraversable",

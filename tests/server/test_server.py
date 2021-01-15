@@ -5,12 +5,16 @@ import itertools
 import json
 import os
 import httpx
+from fastapi.responses import Response
 
 from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
 
 from tests.helpers.logger import setup_logger
-from tests.helpers.context import with_translator_overlay
+from tests.helpers.context import \
+    with_translator_overlay, with_registry_overlay, \
+    with_norm_overlay, with_response_overlay
+from tests.helpers.utils import load_kps
 
 from strider.config import settings
 
@@ -54,9 +58,9 @@ CTD_PREFIXES = {
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
-async def test_solve_ex1_two_hop():
-    """Test solving the ex1_two_hop query graph"""
-    with open(cwd / "ex1_two_hop.json", "r") as f:
+async def test_solve_ex1():
+    """Test solving the ex1 query graph"""
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
@@ -93,8 +97,42 @@ async def test_solve_ex1_two_hop():
         ("mychem", MYCHEM_PREFIXES),
     ])
 async def test_log_level_param():
-    """Test that changing the log level given to """
-    with open(cwd / "ex1_two_hop.json", "r") as f:
+    """Test that changing the log level given to sync_query changes the output """
+    with open(cwd / "ex1_qg.json", "r") as f:
+        QGRAPH = json.load(f)
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Check there are no debug logs
+    output = await sync_query(q, 'INFO')
+    assert not any(l['level'] == 'DEBUG' for l in output['logs'])
+
+    # Check there are now debug logs
+    output = await sync_query(q, 'DEBUG')
+    assert any(l['level'] == 'DEBUG' for l in output['logs'])
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, load_kps(cwd / "ex2_kps.json"))
+@with_norm_overlay(settings.normalizer_url)
+@with_response_overlay(
+    "http://kp1/query",
+    Response(
+        status_code=500,
+        content="Internal server error",
+    )
+)
+async def test_kp_unavailable():
+    """
+    Test that when a KP is unavailable we add a message to
+    the log
+    """
+    with open(cwd / "ex2_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
@@ -117,9 +155,9 @@ async def test_log_level_param():
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
-async def test_plan_ex1_two_hop():
+async def test_plan_ex1():
     """Test /plan endpoint"""
-    with open(cwd / "ex1_two_hop.json", "r") as f:
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query

@@ -57,6 +57,7 @@ class KnowledgePortal():
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
 
         response = await post_json(url, request)
+
         message = response["message"]
 
         message = await self.map_prefixes(message, output_prefixes)
