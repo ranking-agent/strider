@@ -54,7 +54,7 @@ class KnowledgePortal():
             output_prefixes: dict = None,
     ):
         """Wrap fetch with CURIE mapping(s)."""
-        request = await self.map_prefixes(request, input_prefixes)
+        request['message'] = await self.map_prefixes(request['message'], input_prefixes)
 
         response = await post_json(url, request)
         message = response["message"]
@@ -131,7 +131,7 @@ class Synonymizer():
                     for synonym in entity["equivalent_identifiers"]
                 ],
             )
-            for entity in response.json().values()
+            for entity in response.json().values() if entity
         ]
         self._data |= {
             curie: entity
