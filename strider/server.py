@@ -143,6 +143,7 @@ async def process_query(
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
+        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Start query processing."""
     # Generate Query ID
@@ -153,16 +154,19 @@ async def async_query(
     qgraph.set(query.dict()['message']['query_graph'])
 
     # Start processing
-    background_tasks.add_task(process_query, qid)
+    background_tasks.add_task(process_query, qid, log_level)
 
     # Return ID
     return dict(id=qid)
 
 
 @ APP.post('/query_result', response_model=ReasonerResponse)
-async def get_results(qid: str) -> dict:
-    print(get_finished_query(qid))
-    return get_finished_query(qid)
+async def get_results(
+        qid: str,
+        log_level: LogLevelEnum = LogLevelEnum.ERROR,
+) -> dict:
+    """ Get results for a running or finished query """
+    return get_finished_query(qid, log_level)
 
 
 @ APP.post('/query', tags=['query'])
@@ -181,7 +185,7 @@ async def sync_query(
     )
 
     # Process query and wait for results
-    query_results = await process_query(qid)
+    query_results = await process_query(qid, log_level)
 
     # Return results
     return query_results
