@@ -80,7 +80,7 @@ class WrappedBMT():
 
 async def post_json(url, request):
     """Make post request."""
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(verify=False, timeout=None) as client:
         response = await client.post(
             url,
             json=request,

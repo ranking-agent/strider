@@ -251,7 +251,7 @@ async def test_fetch():
 
     response = await portal.fetch(
         url="http://ctd/query",
-        request={"query_graph": query_graph},
+        request={"message": {"query_graph": query_graph}},
         input_prefixes=CTD_PREFIXES,
         output_prefixes=preferred_prefixes,
     )
