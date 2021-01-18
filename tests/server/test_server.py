@@ -13,7 +13,7 @@ import pytest
 from tests.helpers.logger import setup_logger
 from tests.helpers.context import \
     with_translator_overlay, with_registry_overlay, \
-    with_norm_overlay, with_response_overlay
+    with_norm_overlay, with_response_overlay, with_kp_overlay
 from tests.helpers.utils import load_kps
 
 from strider.config import settings
@@ -118,10 +118,17 @@ async def test_log_level_param():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, load_kps(cwd / "ex2_kps.json"))
-@with_norm_overlay(settings.normalizer_url)
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
+# Override one KP with an invalid response
 @with_response_overlay(
-    "http://kp0/query",
+    "http://mychem/query",
     Response(
         status_code=500,
         content="Internal server error",
@@ -132,7 +139,7 @@ async def test_kp_unavailable():
     Test that when a KP is unavailable we add a message to
     the log but continue running
     """
-    with open(cwd / "ex2_qg.json", "r") as f:
+    with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
     # Create query
@@ -145,7 +152,12 @@ async def test_kp_unavailable():
     # Run
     output = await sync_query(q)
 
+    # Check that we stored the error
     assert 'Error contacting KP' in output['logs'][0]['message']
+    # Ensure we have results from the other KPs
+    assert len(output['message']['knowledge_graph']['nodes']) > 0
+    assert len(output['message']['knowledge_graph']['edges']) > 0
+    assert len(output['message']['results']) > 0
 
 
 @pytest.mark.asyncio

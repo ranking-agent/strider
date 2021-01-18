@@ -177,6 +177,7 @@ def expand_qg(
 
 
 # pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
 async def find_valid_permutations(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
