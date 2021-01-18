@@ -130,7 +130,7 @@ async def test_log_level_param():
 async def test_kp_unavailable():
     """
     Test that when a KP is unavailable we add a message to
-    the log
+    the log but continue running
     """
     with open(cwd / "ex2_qg.json", "r") as f:
         QGRAPH = json.load(f)
@@ -144,6 +144,8 @@ async def test_kp_unavailable():
 
     # Run
     output = await sync_query(q)
+
+    assert 'Error contacting KP' in output['logs'][0]['message']
 
 
 @pytest.mark.asyncio
