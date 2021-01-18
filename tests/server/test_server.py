@@ -121,7 +121,7 @@ async def test_log_level_param():
 @with_registry_overlay(settings.kpregistry_url, load_kps(cwd / "ex2_kps.json"))
 @with_norm_overlay(settings.normalizer_url)
 @with_response_overlay(
-    "http://kp1/query",
+    "http://kp0/query",
     Response(
         status_code=500,
         content="Internal server error",
