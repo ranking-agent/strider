@@ -126,49 +126,6 @@ async def test_log_level_param():
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
-# Override one KP with an invalid response
-@with_response_overlay(
-    "http://mychem/query",
-    Response(
-        status_code=500,
-        content="Internal server error",
-    )
-)
-async def test_kp_unavailable():
-    """
-    Test that when a KP is unavailable we add a message to
-    the log but continue running
-    """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
-
-    # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
-
-    # Run
-    output = await sync_query(q)
-
-    # Check that we stored the error
-    assert 'Error contacting KP' in output['logs'][0]['message']
-    # Ensure we have results from the other KPs
-    assert len(output['message']['knowledge_graph']['nodes']) > 0
-    assert len(output['message']['knowledge_graph']['edges']) > 0
-    assert len(output['message']['results']) > 0
-
-
-@pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
-    settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
 async def test_plan_ex1():
     """Test /plan endpoint"""
     with open(cwd / "ex1_qg.json", "r") as f:
