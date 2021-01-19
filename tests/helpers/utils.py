@@ -1,7 +1,23 @@
 import itertools
 import time
+import json
 from strider.util import WrappedBMT
 WBMT = WrappedBMT()
+
+
+def load_kps(fpath):
+    """ Load KPs from a file for use in a test """
+    with open(fpath, "r") as f:
+        kps = json.load(f)
+    DEFAULT_PREFIXES = {
+        "biolink:Disease": ["MONDO", "DOID"],
+        "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+        "biolink:PhenotypicFeature": ["HP"],
+    }
+    # Add prefixes
+    for kp in kps.values():
+        kp['details'] = {'preferred_prefixes': DEFAULT_PREFIXES}
+    return kps
 
 
 def create_kp(args):
