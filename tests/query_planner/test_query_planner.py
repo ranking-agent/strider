@@ -11,7 +11,7 @@ from bmt import Toolkit as BMToolkit
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import generate_kps, time_and_display
+from tests.helpers.utils import load_kps, generate_kps, time_and_display
 
 
 from strider.query_planner import \
@@ -26,21 +26,6 @@ settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 
 LOGGER = logging.getLogger()
-
-
-def load_kps(fname):
-    """ Load KPs from a file for use in a test """
-    with open(cwd / fname, "r") as f:
-        kps = json.load(f)
-    DEFAULT_PREFIXES = {
-        "biolink:Disease": ["MONDO", "DOID"],
-        "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
-        "biolink:PhenotypicFeature": ["HP"],
-    }
-    # Add prefixes
-    for kp in kps.values():
-        kp['details'] = {'preferred_prefixes': DEFAULT_PREFIXES}
-    return kps
 
 
 @pytest.mark.asyncio
@@ -90,7 +75,7 @@ async def test_permute_simple(caplog):
     assert len(list(permutations)) == 48
 
 
-simple_kp = load_kps("simple_kp.json")
+simple_kp = load_kps(cwd / "simple_kp.json")
 
 
 @pytest.mark.asyncio
@@ -154,7 +139,7 @@ async def test_no_path_from_pinned_node():
             logger=logging.getLogger(),
         )
 
-ex1_kps = load_kps("ex1_kps.json")
+ex1_kps = load_kps(cwd / "ex1_kps.json")
 
 
 @pytest.mark.asyncio
