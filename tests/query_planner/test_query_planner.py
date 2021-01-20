@@ -11,7 +11,8 @@ from bmt import Toolkit as BMToolkit
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import load_kps, generate_kps, time_and_display
+from tests.helpers.utils import load_kps, generate_kps, \
+    time_and_display, query_graph_from_string
 
 
 from strider.query_planner import \
@@ -175,6 +176,52 @@ async def test_plan_ex1():
     # at a pinned node
     step_1 = next(iter(plan.keys()))
     assert 'id' in qg['nodes'][step_1.source]
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_norm_overlay(settings.normalizer_url)
+async def test_invalid_two_pinned_nodes():
+    """
+    Test Pinned -> Unbound + Pinned
+    This should be valid because we only care about
+    a path from a pinned node to all unbound nodes.
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005737 ))
+        n1(( category biolink:Drug ))
+	n2(( id MONDO:0011122 ))
+        n0-- biolink:treated_by -->n1
+        """
+    )
+
+    plan = await generate_plan(qg)
+    assert plan
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_norm_overlay(settings.normalizer_url)
+async def test_invalid_two_disconnected_components():
+    """ 
+    Test Pinned -> Unbound + Pinned -> Unbound
+    This should be invalid because there is no path from
+    a pinned node to all unbound nodes.
+    """
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005737 ))
+        n1(( category biolink:Drug ))
+	n2(( id MONDO:0011122 ))
+        n3(( category biolink:Drug ))
+        n2-- biolink:treated_by -->n3
+        """
+    )
+
+    plan = await generate_plan(qg)
+    assert plan
 
 
 @ pytest.mark.asyncio
