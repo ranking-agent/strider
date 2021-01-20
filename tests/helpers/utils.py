@@ -1,6 +1,8 @@
 import itertools
 import time
 import json
+import re
+import inspect
 from strider.util import WrappedBMT
 WBMT = WrappedBMT()
 
@@ -52,6 +54,44 @@ def generate_kps(qty):
     )
 
     return {str(i): kp for i, kp in enumerate(kp_generator) if i < qty}
+
+
+def query_graph_from_string(s):
+    """
+    Parse a query graph from Mermaid flowchart syntax.
+    Useful for writing examples in tests.
+
+    Syntax information can be found here:
+    https://mermaid-js.github.io/mermaid/#/flowchart
+
+    You can use this site to preview a query graph:
+    https://mermaid-js.github.io/mermaid-live-editor/
+    """
+
+    # This usually comes from triple quoted strings
+    # so we use inspect.cleandoc to remove leading indentation
+    s = inspect.cleandoc(s)
+
+    node_re = r"(?P<id>.*)\(\( (?P<key>.*) (?P<val>.*) \)\)"
+    edge_re = r"(?P<src>.*)-- (?P<predicate>.*) -->(?P<target>.*)"
+    qg = {"nodes": {}, "edges": {}}
+    for line in s.splitlines():
+        match_node = re.search(node_re, line)
+        match_edge = re.search(edge_re, line)
+        if match_node:
+            qg['nodes'][match_node.group('id')] = {
+                match_node.group('key'): match_node.group('val')
+            }
+        elif match_edge:
+            edge_id = match_edge.group('src') + match_edge.group('target')
+            qg['edges'][edge_id] = {
+                "subject": match_edge.group('src'),
+                "object": match_edge.group('target'),
+                "predicate": match_edge.group('target'),
+            }
+        else:
+            raise ValueError(f"Invalid line: {line}")
+    return qg
 
 
 async def time_and_display(f, msg):
