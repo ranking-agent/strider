@@ -1,0 +1,10 @@
+{
+  "kp0" : {
+    "url" : "http://kp0",
+    "operations" : [{
+      "source_type" : "biolink:Disease",
+      "edge_type"   : "-biolink:treated_by->",
+      "target_type" : "biolink:Drug"
+    }]
+  }
+}

@@ -87,7 +87,7 @@ def query_graph_from_string(s):
             qg['edges'][edge_id] = {
                 "subject": match_edge.group('src'),
                 "object": match_edge.group('target'),
-                "predicate": match_edge.group('target'),
+                "predicate": match_edge.group('predicate'),
             }
         else:
             raise ValueError(f"Invalid line: {line}")
