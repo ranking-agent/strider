@@ -267,12 +267,18 @@ async def find_valid_permutations(
     # Filter down node categories using those
     # we have recieved from the KP registry
     # to limit the number of permutations.
-    #
-    # Also filter edge predicates as well.
-    for node in expanded_qg['nodes'].values():
+
+    # We only filter nodes that are touching at least one edge ("connected")
+    connected_nodes = []
+    for edge in expanded_qg['edges'].values():
+        connected_nodes.append(edge['subject'])
+        connected_nodes.append(edge['object'])
+    for node in connected_nodes:
         if 'category' not in node:
             continue
         node['category'] = list(node.pop('filtered_categories'))
+
+    # Also filter edge predicates as well
     for edge in expanded_qg['edges'].values():
         edge['predicate'] = list(edge.pop('filtered_predicates'))
 
@@ -366,8 +372,10 @@ async def generate_plans(
         # Starting at each pinned node, construct a plan
         for pinned in pinned_nodes:
             path_nodes, path_edges = dfs(current_qg, pinned)
-            # If we don't traverse every node we can't use this
-            if set(path_nodes) != set(current_qg['nodes'].keys()):
+            # If we don't traverse every unbound node we can't use this
+            unbound_nodes = [
+                nid for nid, node in current_qg['nodes'].items() if 'id' not in node]
+            if set(unbound_nodes) > set(path_nodes):
                 continue
             # If we don't traverse every edge we can't use this
             if set(path_edges) != set(current_qg['edges'].keys()):

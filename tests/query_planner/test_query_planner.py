@@ -77,6 +77,7 @@ async def test_permute_simple(caplog):
 
 
 simple_kp = load_kps(cwd / "simple_kp.json")
+treated_by_kp = load_kps(cwd / "treated_by_kp.json")
 
 
 @pytest.mark.asyncio
@@ -178,7 +179,7 @@ async def test_plan_ex1():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_registry_overlay(settings.kpregistry_url, treated_by_kp)
 @with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_pinned_nodes():
     """
@@ -189,20 +190,19 @@ async def test_invalid_two_pinned_nodes():
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005737 ))
+        n0(( id MONDO:0005148 ))
         n1(( category biolink:Drug ))
-	n2(( id MONDO:0011122 ))
         n0-- biolink:treated_by -->n1
+	n2(( id MONDO:0011122 ))
         """
     )
 
     plans = await generate_plans(qg)
-    plan = plans[0]
-    assert plan
+    assert len(plans) == 1
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_registry_overlay(settings.kpregistry_url, treated_by_kp)
 @with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_disconnected_components():
     """ 
@@ -214,6 +214,7 @@ async def test_invalid_two_disconnected_components():
         """
         n0(( id MONDO:0005737 ))
         n1(( category biolink:Drug ))
+        n0-- biolink:treated_by -->n1
 	n2(( id MONDO:0011122 ))
         n3(( category biolink:Drug ))
         n2-- biolink:treated_by -->n3
@@ -221,8 +222,7 @@ async def test_invalid_two_disconnected_components():
     )
 
     plans = await generate_plans(qg)
-    plan = plans[0]
-    assert plan
+    assert len(plans) == 0
 
 
 @ pytest.mark.asyncio
