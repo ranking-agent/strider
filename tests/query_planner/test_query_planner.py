@@ -204,6 +204,29 @@ async def test_invalid_two_pinned_nodes():
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, treated_by_kp)
 @with_norm_overlay(settings.normalizer_url)
+async def test_unbound_unconnected_node():
+    """
+    Test Pinned -> Unbound + Unbound
+    This should be invalid because there is no path
+    to the unbound node
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n0-- biolink:treated_by -->n1
+        n2(( category biolink:PhenotypicFeature ))
+        """
+    )
+
+    plans = await generate_plans(qg)
+    assert len(plans) == 0
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, treated_by_kp)
+@with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_disconnected_components():
     """ 
     Test Pinned -> Unbound + Pinned -> Unbound
