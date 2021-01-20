@@ -8,7 +8,7 @@ import httpx
 from reasoner_converter.upgrading import upgrade_BiolinkEntity
 from reasoner_pydantic import Message
 
-from .util import post_json
+from .util import post_json, remove_null_values
 from .trapi import apply_curie_map, get_curies
 from .config import settings
 
@@ -55,6 +55,7 @@ class KnowledgePortal():
     ):
         """Wrap fetch with CURIE mapping(s)."""
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
+        request = remove_null_values(request)
 
         try:
             response = await post_json(url, request)
