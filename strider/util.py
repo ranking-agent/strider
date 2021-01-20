@@ -205,3 +205,20 @@ def graph_to_dict_form(graph):
 def deduplicate_by(elements: list, fcn: Callable):
     """De-duplicate list via a function of each element."""
     return list(dict((fcn(element), element) for element in elements).values())
+
+
+def remove_null_values(obj):
+    """Remove null values from all dicts in JSON-able object."""
+    if isinstance(obj, dict):
+        return {
+            key: remove_null_values(value)
+            for key, value in obj.items()
+            if value is not None
+        }
+    elif isinstance(obj, list):
+        return [
+            remove_null_values(el)
+            for el in obj
+        ]
+    else:
+        return obj
