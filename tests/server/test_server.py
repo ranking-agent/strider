@@ -139,12 +139,13 @@ async def test_plan_ex1():
 
     # Run
     output = await generate_traversal_plan(q)
-
     assert output
 
+    plan = output[0]
+
     # Two steps in the plan each with KPs to contact
-    assert len(output[('n0', 'e01', 'n1')]) == 2
-    assert len(output[('n1', 'e12', 'n2')]) == 1
+    assert len(plan[('n0', 'e01', 'n1')]) == 2
+    assert len(plan[('n1', 'e12', 'n2')]) == 1
 
 
 @pytest.mark.asyncio

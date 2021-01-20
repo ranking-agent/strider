@@ -21,7 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
 from .fetcher import StriderWorker
-from .query_planner import generate_plan, NoAnswersError
+from .query_planner import generate_plans, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
 from .storage import RedisGraph, RedisList
@@ -324,10 +324,10 @@ async def extract_results(query_id, since, limit, offset, database):
 @APP.post('/plan', response_model=Dict, tags=['query'])
 async def generate_traversal_plan(
         query: Query,
-) -> Dict:
-    """Generate a plan for traversing knowledge providers."""
+) -> list[Dict]:
+    """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
-    return await generate_plan(query_graph)
+    return await generate_plans(query_graph)
 
 
 @APP.post('/score', response_model=Message, tags=['query'])
