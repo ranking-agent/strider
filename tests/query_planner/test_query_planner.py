@@ -16,7 +16,7 @@ from tests.helpers.utils import load_kps, generate_kps, \
 
 
 from strider.query_planner import \
-    generate_plan, find_valid_permutations, permute_qg, expand_qg, NoAnswersError
+    generate_plans, find_valid_permutations, permute_qg, expand_qg, NoAnswersError
 
 from strider.config import settings
 
@@ -100,11 +100,11 @@ async def test_not_enough_kps():
             },
         },
     }
-    with pytest.raises(NoAnswersError):
-        await generate_plan(
-            qg,
-            logger=logging.getLogger()
-        )
+    plans = await generate_plans(
+        qg,
+        logger=logging.getLogger()
+    )
+    assert len(plans) == 0
 
 
 @pytest.mark.asyncio
@@ -133,12 +133,11 @@ async def test_no_path_from_pinned_node():
     permutations = await find_valid_permutations(qg)
     assert len(list(permutations))
 
-    # We should not have any plans
-    with pytest.raises(NoAnswersError):
-        await generate_plan(
-            qg,
-            logger=logging.getLogger(),
-        )
+    plans = await generate_plans(
+        qg,
+        logger=logging.getLogger(),
+    )
+    assert len(plans) == 0
 
 ex1_kps = load_kps(cwd / "ex1_kps.json")
 
@@ -167,8 +166,8 @@ async def test_plan_ex1():
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    plan = await generate_plan(qg)
-    assert plan
+    plans = await generate_plans(qg)
+    plan = plans[0]
     # One step per edge
     assert len(plan.keys()) == len(qg['edges'])
 
@@ -197,7 +196,8 @@ async def test_invalid_two_pinned_nodes():
         """
     )
 
-    plan = await generate_plan(qg)
+    plans = await generate_plans(qg)
+    plan = plans[0]
     assert plan
 
 
@@ -220,7 +220,8 @@ async def test_invalid_two_disconnected_components():
         """
     )
 
-    plan = await generate_plan(qg)
+    plans = await generate_plans(qg)
+    plan = plans[0]
     assert plan
 
 
@@ -248,7 +249,7 @@ async def test_planning_performance_generic_qg():
     }
 
     await time_and_display(
-        partial(generate_plan, qg, logger=logging.getLogger()),
+        partial(generate_plans, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
     )
 
@@ -268,14 +269,10 @@ async def test_planning_performance_typical_example():
     with open(cwd / "ex2_qg.json", "r") as f:
         qg = json.load(f)
 
-    async def testable_generate_plan():
-        # We might not actually find a path which is fine
-        try:
-            await generate_plan(qg, logger=logging.getLogger())
-        except Exception:
-            pass
+    async def testable_generate_plans():
+        await generate_plans(qg, logger=logging.getLogger())
 
     await time_and_display(
-        testable_generate_plan,
+        testable_generate_plans,
         "generate plan for a typical query graph (50k KPs)",
     )

@@ -327,14 +327,14 @@ def dfs(graph, source) -> (list[str], list[str]):
     return path_nodes, path_edges
 
 
-async def generate_plan(
+async def generate_plans(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
         logger: logging.Logger = LOGGER,
-) -> dict[Step, list]:
+) -> list[dict[Step, list]]:
     """
-    Given a query graph, build a plan that consists of steps
+    Given a query graph, build plans that consists of steps
     and the KPs we need to contact to evaluate those steps
     """
 
@@ -358,9 +358,9 @@ async def generate_plan(
                     We couldn't find a KP for every edge in your query graph
                 """
         })
-        raise NoAnswersError("Cannot traverse query graph using KPs")
+        return []
 
-    plan = defaultdict(list)
+    plans = []
 
     for current_qg in filtered_qg_list:
         # Starting at each pinned node, construct a plan
@@ -375,6 +375,7 @@ async def generate_plan(
 
             # Build our list of steps in the plan
             # information to the original query graph
+            plan = defaultdict(list)
             for edge_id in path_edges:
                 edge = current_qg['edges'][edge_id]
                 # Find edges that get us from
@@ -388,21 +389,19 @@ async def generate_plan(
                         **op._asdict(),
                         **kp,
                     })
+            plans.append(plan)
 
-    # No steps in the plan here means we didn't find any permutations where
-    # the plan covers all nodes and edges
-    if len(plan) == 0:
+    if len(plans) == 0:
         logger.error({
             "code": "QueryNotTraversable",
             "message":
-                """
-                    We couldn't find any possible plans starting from a pinned node
-                    that traverse every edge and node in your query graph
-                """
+            """
+                We couldn't find any possible plans starting from a pinned node
+                that traverse every edge and node in your query graph
+            """
         })
-        raise NoAnswersError("Cannot traverse query graph using KPs")
 
-    return plan
+    return plans
 
 
 def validate_and_annotate_qg_list(

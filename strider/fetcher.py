@@ -18,7 +18,7 @@ import jsonpickle
 
 from reasoner_pydantic import QueryGraph, Result, Response
 
-from .query_planner import generate_plan, Step
+from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
 from .trapi import merge_messages, merge_results
 from .worker import Worker
@@ -126,10 +126,16 @@ class StriderWorker(Worker):
         """
         self.logger.debug("Generating plan")
         # Generate traversal plan
-        self.plan = await generate_plan(
+        plans = await generate_plans(
             self.qgraph,
             kp_registry=registry,
             logger=self.logger)
+
+        if len(plans) == 0:
+            raise NoAnswersError("Cannot traverse query graph using KPs")
+
+        self.plan = plans[0]
+
         self.logger.debug({"plan": self.plan})
 
         # add first partial result
