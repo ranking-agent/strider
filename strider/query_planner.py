@@ -372,12 +372,10 @@ async def generate_plans(
         # Starting at each pinned node, construct a plan
         for pinned in pinned_nodes:
             path_nodes, path_edges = dfs(current_qg, pinned)
-            all_nodes = current_qg['nodes'].keys()
-            bound_nodes = [
-                nid for nid, node in current_qg['nodes'].items() if 'id' in node]
 
-            # path_nodes + bound_nodes must cover all nodes in the graph
-            if set(bound_nodes) | set(path_nodes) != all_nodes:
+            all_nodes = current_qg['nodes'].keys()
+            # path_nodes + pinned_nodes must cover all nodes in the graph
+            if set(pinned_nodes) | set(path_nodes) != all_nodes:
                 continue
 
             # If we don't traverse every edge we can't use this
