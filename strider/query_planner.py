@@ -357,7 +357,7 @@ async def generate_plans(
     ]
 
     if len(filtered_qg_list) == 0:
-        logger.error({
+        logger.warning({
             "code": "QueryNotTraversable",
             "message":
                 """
@@ -401,7 +401,7 @@ async def generate_plans(
             plans.append(plan)
 
     if len(plans) == 0:
-        logger.error({
+        logger.warning({
             "code": "QueryNotTraversable",
             "message":
             """
