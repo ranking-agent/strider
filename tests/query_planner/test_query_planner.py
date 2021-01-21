@@ -51,20 +51,13 @@ async def test_permute_curies():
 async def test_permute_simple(caplog):
     """ Check that a simple permutation is done correctly using Biolink """
 
-    qg = {
-        "nodes": {
-            "n0": {"category": "biolink:AnatomicalEntity"},  # Three children
-            "n1": {"category": "biolink:Protein"},     # One child
-        },
-        "edges": {
-            "e01": {
-                "subject": "n0",
-                # Two children
-                "predicate": "biolink:affects_abundance_of",
-                "object": "n1",
-            },
-        },
-    }
+    qg = query_graph_from_string(
+        """
+        n0(( category biolink:AnatomicalEntity ))
+        n1(( category biolink:Protein ))
+        n0-- biolink:affects_abundance_of -->n1
+        """
+    )
 
     qg = expand_qg(qg, logging.getLogger())
     permutations = permute_qg(qg)
@@ -81,26 +74,26 @@ treated_by_kp = load_kps(cwd / "treated_by_kp.json")
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, simple_kp)
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Drug -biolink:treats-> biolink:Disease
+    """
+))
 @with_norm_overlay(settings.normalizer_url)
 async def test_not_enough_kps():
     """
     Check we get no plans when we submit a query graph
     that has edges we can't solve
     """
-    qg = {
-        "nodes": {
-            "n0": {"category": "biolink:ExposureEvent"},
-            "n1": {"category": "biolink:Drug"},
-        },
-        "edges": {
-            "e01": {
-                "subject": "n0",
-                "object": "n1",
-                "predicate": "biolink:related_to",
-            },
-        },
-    }
+
+    qg = query_graph_from_string(
+        """
+        n0(( category biolink:ExposureEvent ))
+        n1(( category biolink:Drug ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
     plans = await generate_plans(
         qg,
         logger=logging.getLogger()
@@ -109,7 +102,11 @@ async def test_not_enough_kps():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, simple_kp)
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Drug -biolink:treats-> biolink:Disease
+    """
+))
 @with_norm_overlay(settings.normalizer_url)
 async def test_no_path_from_pinned_node():
     """
@@ -117,19 +114,15 @@ async def test_no_path_from_pinned_node():
     we submit a graph where there is a pinned node
     but no path through it
     """
-    qg = {
-        "nodes": {
-            "n0": {"id": "MONDO:0005148"},
-            "n1": {"category": "biolink:Drug"},
-        },
-        "edges": {
-            "e01": {
-                "subject": "n1",
-                "predicate": "biolink:treats",
-                "object": "n0",
-            },
-        },
-    }
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n1-- biolink:treats -->n0
+        """
+    )
+
     # We should have valid permutations
     permutations = await find_valid_permutations(qg)
     assert len(list(permutations))
@@ -206,7 +199,11 @@ async def test_plan_ex1():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, treated_by_kp)
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    """
+))
 @with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_pinned_nodes():
     """
@@ -229,7 +226,11 @@ async def test_invalid_two_pinned_nodes():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, treated_by_kp)
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    """
+))
 @with_norm_overlay(settings.normalizer_url)
 async def test_unbound_unconnected_node():
     """
@@ -252,7 +253,11 @@ async def test_unbound_unconnected_node():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, treated_by_kp)
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    """
+))
 @with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_disconnected_components():
     """ 
@@ -286,18 +291,15 @@ async def test_planning_performance_generic_qg():
     This is a use case we hopefully don't encounter very much.
     """
 
-    qg = {
-        "nodes": {
-            "n0": {"id": "MONDO:0005737"},
-            "n1": {"category": "biolink:NamedThing"},
-            "n2": {"category": "biolink:NamedThing"},
-        },
-        "edges": {
-            "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"},
-            "e12": {"subject": "n1", "object": "n2", "predicate": "biolink:related_to"},
-        },
-    }
-
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005737 ))
+        n1(( category biolink:NamedThing ))
+        n2(( category biolink:NamedThing ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        """
+    )
     await time_and_display(
         partial(generate_plans, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
