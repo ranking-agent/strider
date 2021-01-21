@@ -132,7 +132,8 @@ class StriderWorker(Worker):
             logger=self.logger)
 
         if len(plans) == 0:
-            raise NoAnswersError("Cannot traverse query graph using KPs")
+            self.logger.error("Could not find a plan to traverse query graph")
+            raise NoAnswersError()
 
         self.plan = plans[0]
 
