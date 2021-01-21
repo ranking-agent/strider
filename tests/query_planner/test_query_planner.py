@@ -276,10 +276,10 @@ async def test_invalid_two_disconnected_components():
     assert len(plans) == 0
 
 
-@ pytest.mark.asyncio
-@ pytest.mark.longrun
-@ with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
-@ with_norm_overlay(settings.normalizer_url)
+@pytest.mark.asyncio
+@pytest.mark.longrun
+@with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
+@with_norm_overlay(settings.normalizer_url)
 async def test_planning_performance_generic_qg():
     """
     Test our performance when planning a very generic query graph.
@@ -302,10 +302,10 @@ async def test_planning_performance_generic_qg():
     )
 
 
-@ pytest.mark.asyncio
-@ pytest.mark.longrun
-@ with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
-@ with_norm_overlay(settings.normalizer_url)
+@pytest.mark.asyncio
+@pytest.mark.longrun
+@with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
+@with_norm_overlay(settings.normalizer_url)
 async def test_planning_performance_typical_example():
     """
     Test our performance when planning a more typical query graph
