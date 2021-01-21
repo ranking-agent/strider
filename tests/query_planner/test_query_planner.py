@@ -59,7 +59,7 @@ async def test_permute_simple(caplog):
         "edges": {
             "e01": {
                 "subject": "n0",
-                # Two children and two directions
+                # Two children
                 "predicate": "biolink:affects_abundance_of",
                 "object": "n1",
             },
@@ -71,9 +71,9 @@ async def test_permute_simple(caplog):
     assert permutations
 
     # We should have:
-    # 4 * 2 * 3 * 2 = 48
+    # 4 * 2 * 3 = 24
     # permutations
-    assert len(list(permutations)) == 48
+    assert len(list(permutations)) == 24
 
 
 simple_kp = load_kps(cwd / "simple_kp.json")
