@@ -150,7 +150,7 @@ async def test_no_path_from_pinned_node():
 @with_norm_overlay(settings.normalizer_url)
 async def test_solve_reverse_edge():
     """
-    Test that we can solve a simple query graph 
+    Test that we can solve a simple query graph
     where we have to traverse an edge in the opposite
     direction of one that was given
     """

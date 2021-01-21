@@ -19,6 +19,8 @@ Step = namedtuple("Step", ["source", "edge", "target"])
 Operation = namedtuple(
     "Operation", ["source_category", "edge_predicate", "target_category"])
 
+REVERSE_EDGE_SUFFIX = '.reverse'
+
 
 def find_next_list_property(search_dict, fields_to_check):
     """ Find first object in a dictionary where object[field] is a list """
@@ -195,7 +197,7 @@ async def find_valid_permutations(
         # Swap subject and object
         reverse_edge['subject'], reverse_edge['object'] = \
             reverse_edge['object'], reverse_edge['subject']
-        reverse_edges[f"{edge_id}-reverse"] = reverse_edge
+        reverse_edges[f"{edge_id}{REVERSE_EDGE_SUFFIX}"] = reverse_edge
 
         # Assign directionality to forward edge
         edge['predicate'] = [f"-{p}->" for p in edge['predicate']]
@@ -409,8 +411,8 @@ async def generate_plans(
 
                 # Reverse edges don't actually exist, so the steps in the plan
                 # should just refer to the forward edges
-                if edge_id.endswith('-reverse'):
-                    edge_id = edge_id.replace('-reverse', '')
+                if edge_id.endswith(REVERSE_EDGE_SUFFIX):
+                    edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
 
                 step = Step(edge['subject'], edge_id, edge['object'])
                 # Attach information about categorys to kp info
