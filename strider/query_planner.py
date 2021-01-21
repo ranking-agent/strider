@@ -186,20 +186,19 @@ async def find_valid_permutations(
 
     expanded_qg = expand_qg(qgraph, logger)
 
-    breakpoint()
-
     reverse_edges = {}
     # Add reverse edges so that we can traverse edges in both directions
     for edge_id, edge in expanded_qg['edges'].items():
         reverse_edge = edge.copy()
-        reverse_edge['predicate'] = f"<-{edge['predicate']}-"
+        reverse_edge['predicate'] = [
+            f"<-{p}-" for p in reverse_edge['predicate']]
         # Swap subject and object
         reverse_edge['subject'], reverse_edge['object'] = \
             reverse_edge['object'], reverse_edge['subject']
         reverse_edges[f"{edge_id}-reverse"] = reverse_edge
 
         # Assign directionality to forward edge
-        edge['predicate'] = f"-{edge['predicate']}->"
+        edge['predicate'] = [f"-{p}->" for p in edge['predicate']]
 
     # Insert reverse edges
     expanded_qg['edges'] |= reverse_edges
@@ -278,11 +277,12 @@ async def find_valid_permutations(
     # to limit the number of permutations.
 
     # We only filter nodes that are touching at least one edge ("connected")
-    connected_nodes = []
+    connected_nodes = set()
     for edge in expanded_qg['edges'].values():
-        connected_nodes.append(edge['subject'])
-        connected_nodes.append(edge['object'])
-    for node in connected_nodes:
+        connected_nodes.add(edge['subject'])
+        connected_nodes.add(edge['object'])
+    for node_id in connected_nodes:
+        node = expanded_qg['nodes'][node_id]
         if 'category' not in node:
             continue
         node['category'] = list(node.pop('filtered_categories'))
@@ -290,6 +290,10 @@ async def find_valid_permutations(
     # Also filter edge predicates as well
     for edge in expanded_qg['edges'].values():
         edge['predicate'] = list(edge.pop('filtered_predicates'))
+
+    # Remove edges with no predicates
+    expanded_qg['edges'] = {k: edge for k, edge in expanded_qg['edges'].items()
+                            if len(edge['predicate']) > 0}
 
     logger.debug(
         f"Found {len(operation_kp_map)} possible KP operations we can use")
@@ -335,6 +339,8 @@ def dfs(graph, source) -> (list[str], list[str]):
                 adjacent_edges.append(edge_id)
 
         for node_id, edge_id in zip(adjacent_nodes, adjacent_edges):
+            if edge_id in path_edges:
+                continue
             stack.append(node_id)
             path_nodes.append(node_id)
             path_edges.append(edge_id)
@@ -399,8 +405,14 @@ async def generate_plans(
                 # Find edges that get us from
                 # There could be multiple edges that need to each
                 # be added as a separate step
-                step = Step(edge['subject'], edge_id, edge['object'])
                 op = get_operation(current_qg, edge)
+
+                # Reverse edges don't actually exist, so the steps in the plan
+                # should just refer to the forward edges
+                if edge_id.endswith('-reverse'):
+                    edge_id = edge_id.replace('-reverse', '')
+
+                step = Step(edge['subject'], edge_id, edge['object'])
                 # Attach information about categorys to kp info
                 for kp in edge['request_kps']:
                     plan[step].append({
