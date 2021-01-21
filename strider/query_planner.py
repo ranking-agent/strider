@@ -157,16 +157,7 @@ def expand_qg(
         new_predicate_list = []
         for t in edge['predicate']:
             new_predicate_list.extend(WBMT.get_descendants(t))
-
-        # For each edge predicate, we also need versions
-        # for -predicate-> and <-predicate-
-        # ltr = left to right
-        new_predicate_list_ltr = \
-            [f'-{p}->' for p in new_predicate_list]
-        new_predicate_list_rtl = \
-            [f'<-{p}-' for p in new_predicate_list]
-
-        edge['predicate'] = new_predicate_list_ltr + new_predicate_list_rtl
+        edge['predicate'] = new_predicate_list
 
     logger.debug({
         "description": "Expanded query graph with descendants",
@@ -194,6 +185,24 @@ async def find_valid_permutations(
         normalizer = Normalizer(settings.normalizer_url)
 
     expanded_qg = expand_qg(qgraph, logger)
+
+    breakpoint()
+
+    reverse_edges = {}
+    # Add reverse edges so that we can traverse edges in both directions
+    for edge_id, edge in expanded_qg['edges'].items():
+        reverse_edge = edge.copy()
+        reverse_edge['predicate'] = f"<-{edge['predicate']}-"
+        # Swap subject and object
+        reverse_edge['subject'], reverse_edge['object'] = \
+            reverse_edge['object'], reverse_edge['subject']
+        reverse_edges[f"{edge_id}-reverse"] = reverse_edge
+
+        # Assign directionality to forward edge
+        edge['predicate'] = f"-{edge['predicate']}->"
+
+    # Insert reverse edges
+    expanded_qg['edges'] |= reverse_edges
 
     logger.debug("Contacting node normalizer to get categorys for curies")
 
