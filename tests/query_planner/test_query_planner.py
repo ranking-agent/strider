@@ -193,7 +193,7 @@ async def test_invalid_two_pinned_nodes():
         n0(( id MONDO:0005148 ))
         n1(( category biolink:Drug ))
         n0-- biolink:treated_by -->n1
-	n2(( id MONDO:0011122 ))
+        n2(( id MONDO:0011122 ))
         """
     )
 
@@ -238,7 +238,7 @@ async def test_invalid_two_disconnected_components():
         n0(( id MONDO:0005737 ))
         n1(( category biolink:Drug ))
         n0-- biolink:treated_by -->n1
-	n2(( id MONDO:0011122 ))
+        n2(( id MONDO:0011122 ))
         n3(( category biolink:Drug ))
         n2-- biolink:treated_by -->n3
         """
