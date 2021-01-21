@@ -94,6 +94,33 @@ def query_graph_from_string(s):
     return qg
 
 
+def kps_from_string(s):
+    """
+    Converts a simple KP operation from a string format to JSON
+
+    Example:
+    kp0 biolink:ChemicalSubstance -biolink:treats-> biolink:Disease
+
+    """
+    s = inspect.cleandoc(s)
+    kp_re = r"(?P<name>.*) (?P<src>.*) (?P<predicate>.*) (?P<target>.*)"
+    kps = {}
+    for line in s.splitlines():
+        match_kp = re.search(kp_re, line)
+        if not match_kp:
+            raise ValueError(f"Invalid line: {line}")
+        name = match_kp.group('name')
+        kps[name] = {
+            "url": f"http://{name}",
+            "operations": [{
+                "source_type": match_kp.group('src'),
+                "edge_type": match_kp.group('predicate'),
+                "target_type": match_kp.group('target'),
+            }]
+        }
+    return kps
+
+
 async def time_and_display(f, msg):
     """ Time a function and print the time """
     start_time = time.time()
