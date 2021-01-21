@@ -12,7 +12,7 @@ from bmt import Toolkit as BMToolkit
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
 from tests.helpers.utils import load_kps, generate_kps, \
-    time_and_display, query_graph_from_string
+    time_and_display, query_graph_from_string, kps_from_string
 
 
 from strider.query_planner import \
@@ -139,6 +139,33 @@ async def test_no_path_from_pinned_node():
         logger=logging.getLogger(),
     )
     assert len(plans) == 0
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease <-biolink:treats- biolink:Drug
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_solve_reverse_edge():
+    """
+    Test that we can solve a simple query graph 
+    where we have to traverse an edge in the opposite
+    direction of one that was given
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n1-- biolink:treats -->n0
+        """
+    )
+
+    plans = await generate_plans(qg)
+    assert len(plans) == 1
+
 
 ex1_kps = load_kps(cwd / "ex1_kps.json")
 
