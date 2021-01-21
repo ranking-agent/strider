@@ -197,7 +197,7 @@ async def find_valid_permutations(
         # Swap subject and object
         reverse_edge['subject'], reverse_edge['object'] = \
             reverse_edge['object'], reverse_edge['subject']
-        reverse_edges[f"{edge_id}{REVERSE_EDGE_SUFFIX}"] = reverse_edge
+        reverse_edges[edge_id + REVERSE_EDGE_SUFFIX] = reverse_edge
 
         # Assign directionality to forward edge
         edge['predicate'] = [f"-{p}->" for p in edge['predicate']]
