@@ -69,10 +69,6 @@ async def test_permute_simple(caplog):
     assert len(list(permutations)) == 24
 
 
-simple_kp = load_kps(cwd / "simple_kp.json")
-treated_by_kp = load_kps(cwd / "treated_by_kp.json")
-
-
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
