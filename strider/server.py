@@ -34,7 +34,7 @@ APP = FastAPI(
     title='Strider/ARAGORN/Ranking Agent',
     description='Translator Autonomous Relay Agent',
     version='1.0.0',
-    terms_of_service='N/A',
+    terms_of_service="http://robokop.renci.org:7055/tos?service_long=Strider&provider_long=the%20Renaissance%20Computing%20Institute&provider_short=RENCI",
     docs_url=None,
     redoc_url=None,
     servers=[{"url": f"{settings.server_url}"}],
