@@ -37,6 +37,7 @@ APP = FastAPI(
     terms_of_service='N/A',
     docs_url=None,
     redoc_url=None,
+    servers=[{"url": f"{settings.server_url}"}],
 )
 APP.add_middleware(
     CORSMiddleware,
