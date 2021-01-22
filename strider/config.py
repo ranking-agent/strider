@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     redis_url: RedisDsn = "redis://redis"
     prefixes_path: FilePath = "strider/prefixes.json"
     store_results_for: timedelta = timedelta(days=7)
+    server_url: AnyUrl = "http://robokop.renci.org:5781"
 
 
 settings = Settings()
