@@ -35,7 +35,8 @@ A docker-compose file is included for easy deployment. To use, you also must set
 ```
 KPREGISTRY_URL=http://robokop.renci.org:4983
 OMNICORP_URL=http://robokop.renci.org:3210
-BIOLINK_URL=https://bl-lookup-sri.renci.org
+REDIS_URL=redis://localhost
+SERVER_URL=https://robokop.renci.org:5781
 ```
 
 After creating this at the root of the repository you can run:
