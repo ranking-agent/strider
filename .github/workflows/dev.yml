@@ -26,21 +26,21 @@ jobs:
           echo "$(docker run strider-testing pylint strider)" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
 
-      - name: Report ESLint information as comment on pull request
-        uses: mshick/add-pr-comment@v1
-        with:
-          message: |
-            <details>
-              <summary>Lint Output</summary>
+#     - name: Report ESLint information as comment on pull request
+#       uses: mshick/add-pr-comment@v1
+#       with:
+#         message: |
+#           <details>
+#             <summary>Lint Output</summary>
 
-              ```
-              ${{ env.LINT_OUTPUT }}
-              ```
+#             ```
+#             ${{ env.LINT_OUTPUT }}
+#             ```
 
-            </details>
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
-          allow-repeats: true
+#           </details>
+#         repo-token: ${{ secrets.GITHUB_TOKEN }}
+#         repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
+#         allow-repeats: true
   test:
     name: Run pytest
     runs-on: ubuntu-latest
@@ -62,18 +62,18 @@ jobs:
           echo "$(docker run strider-testing)" >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
 
-      - name: Report test information as comment on pull request
-        uses: mshick/add-pr-comment@v1
-        with:
-          message: |
-            <details>
-              <summary>Test Output</summary>
+#     - name: Report test information as comment on pull request
+#       uses: mshick/add-pr-comment@v1
+#       with:
+#         message: |
+#           <details>
+#             <summary>Test Output</summary>
 
-              ```
-              ${{ env.TEST_OUTPUT }}
-              ```
+#             ```
+#             ${{ env.TEST_OUTPUT }}
+#             ```
 
-            </details>
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
-          allow-repeats: true
+#           </details>
+#         repo-token: ${{ secrets.GITHUB_TOKEN }}
+#         repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
+#         allow-repeats: true
