@@ -96,6 +96,7 @@ class StriderWorker(Worker):
             ReasonerLogEntryFormatter()
         )
         self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
 
         self.logger.debug("Initialized strider worker")
