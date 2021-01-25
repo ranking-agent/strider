@@ -122,6 +122,33 @@ async def test_solve_missing_predicate():
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
+async def test_solve_missing_category():
+    """Test solving the ex1 query graph, in which one of the categories is missing. """
+    with open(cwd / "ex1_qg.json", "r") as f:
+        QGRAPH = json.load(f)
+
+    del QGRAPH['nodes']['n0']['category']
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
 async def test_log_level_param():
     """Test that changing the log level given to sync_query changes the output """
     with open(cwd / "ex1_qg.json", "r") as f:

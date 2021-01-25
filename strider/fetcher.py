@@ -116,10 +116,16 @@ class StriderWorker(Worker):
             {"query_graph": qgraph},
             self.preferred_prefixes,
         ))["query_graph"]
+
         # Fill in missing predicates with most general term
         for eid, edge in self.qgraph['edges'].items():
             if ('predicate' not in edge) or (edge['predicate'] is None):
                 edge['predicate'] = 'biolink:related_to'
+
+        # Fill in missing categories with most general term
+        for node in self.qgraph['nodes'].values():
+            if ('category' not in node) or (node['category'] is None):
+                node['category'] = 'biolink:NamedThing'
 
     async def generate_plan(self):
         """
