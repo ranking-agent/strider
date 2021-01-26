@@ -1,4 +1,7 @@
+import logging
 import httpx
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Normalizer():
@@ -13,6 +16,12 @@ class Normalizer():
                 params=dict(curie=curies)
             )
         types = []
+        if response.status_code >= 300:
+            LOGGER.warning(
+                f"Received {response.status_code} response from normalizer: "
+                + response.text
+            )
+            return types
         for c in curies:
             types.extend(response.json()[c]['type'])
         return types
