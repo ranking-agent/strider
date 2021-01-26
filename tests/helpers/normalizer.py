@@ -48,6 +48,20 @@ def norm_router():
     synset_mappings = generate_synset_mappings()
     category_mappings = generate_category_mappings()
 
+    def normalize_one(curie):
+        """Get normalizer response for CURIE."""
+        if curie not in synset_mappings:
+            return None
+        return {
+            "equivalent_identifiers": [
+                {
+                    "identifier": synonym
+                }
+                for synonym in synset_mappings.get(curie, [])
+            ],
+            "type": category_mappings.get(curie, []),
+        }
+
     @router.get("/get_normalized_nodes")
     async def normalize(
             curies: List[str] = Query(
@@ -58,15 +72,7 @@ def norm_router():
     ):
         """Return synset for each curie."""
         return {
-            curie: {
-                "equivalent_identifiers": [
-                    {
-                        "identifier": synonym
-                    }
-                    for synonym in synset_mappings.get(curie, [])
-                ],
-                "type": category_mappings.get(curie, []),
-            }
+            curie: normalize_one(curie)
             for curie in curies
         }
 
