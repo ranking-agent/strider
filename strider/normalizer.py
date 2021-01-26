@@ -22,6 +22,7 @@ class Normalizer():
                 + response.text
             )
             return types
+        results = response.json()
         for c in curies:
-            types.extend(response.json()[c]['type'])
+            types.extend(results[c]['type'])
         return types
