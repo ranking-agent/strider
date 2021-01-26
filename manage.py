@@ -41,16 +41,16 @@ def coverage(extra_args):
     Run tests in docker, copy out a coverage report,
     and display in browser
     """
-    command = """\
+    command = f"""\
     docker rm strider-testing || true
     docker build -t strider-testing \
                  -f Dockerfile.test .
     docker run --name strider-testing strider-testing \
-            pytest --cov strider/ --cov-report html
+            pytest --cov strider/ --cov-report html {extra_args}
     docker cp strider-testing:/app/htmlcov /tmp/strider-cov/
     open /tmp/strider-cov/index.html
     """
-    run_command(command + extra_args)
+    run_command(command)
 
 
 def main():
