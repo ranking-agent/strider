@@ -218,8 +218,12 @@ async def find_valid_permutations(
         # Get full list of categorys
         categories = await normalizer.get_types(node['id'])
 
-        # Filter categorys that are ancestors of other categorys we were given
-        node['category'] = filter_ancestor_types(categories)
+        if categories:
+            # Filter categorys that are ancestors of other categorys we were given
+            node['category'] = filter_ancestor_types(categories)
+        elif "category" not in node:
+            node["category"] = []
+
 
     logger.debug({
         "description": "Query graph with categorys added to curies",
