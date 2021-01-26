@@ -40,3 +40,19 @@ def setup_logger():
     handler.setLevel(logging.DEBUG)
     handler.setFormatter(ColoredFormatter())
     logger.addHandler(handler)
+
+
+def assert_no_level(logger, allowed_level, exceptions=0):
+    """
+    Check that the logger has no records greater than
+    the allowed level.
+
+    Also has a parameter to specify the number of exceptions
+    to the rule (number of records that will be ignored).
+    """
+    total = 0
+    for record in logger.records:
+        if record.levelno >= allowed_level:
+            total += 1
+        if total > exceptions:
+            raise Exception(f"Invalid Log Record: {record}")
