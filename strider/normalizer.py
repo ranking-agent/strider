@@ -24,5 +24,7 @@ class Normalizer():
             return types
         results = response.json()
         for c in curies:
+            if results[c] is None:
+                continue
             types.extend(results[c]['type'])
         return types
