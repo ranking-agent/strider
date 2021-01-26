@@ -335,3 +335,39 @@ async def test_planning_performance_typical_example():
         testable_generate_plans,
         "generate plan for a typical query graph (50k KPs)",
     )
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_bad_norm():
+    """
+    Test that the pinned node "XXX:123" that the normalizer does not know
+    is still handled correctly based on the provided category.
+    """
+
+    qg = {
+        "nodes": {
+            "n0": {
+                "id": "XXX:123",
+                "category": "biolink:Disease"
+            },
+            "n1": {
+                "category": "biolink:Drug"
+            }
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+                "predicate": "biolink:treated_by"
+            }
+        }
+    }
+
+    plans = await generate_plans(qg)
+    assert len(plans) == 1
