@@ -11,7 +11,19 @@ A live version of the API can be found [here](http://robokop.renci.org:5781/docs
 
 ## Local Development
 
-Docker-compose can be used to quickly set up a locally running version of the app. Once you have installed docker-compose you can run:
+### Management Script
+
+The codebase comes with a zero-dependency python management script that can be used to automate basic local development tasks. Make sure you have docker and docker-compose installed and then run:
+
+```bash
+python3 manage.py dev # starts server accessible at 5781
+python3 manage.py test # run tests
+python3 manage.py coverage # run tests, open coverage report in browser
+```
+
+### Without Management Script
+
+The management script is a simple alias for docker-compose commands. To run a dev environment without it you can use:
 
 ```bash
 docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
@@ -19,14 +31,7 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 This will start the requisite containers as well as the strider container. Changes made locally will update the container while running. 
 
-## Running tests
-
-Tests can be run through docker for convenience using the provided `Dockerfile.test`:
-
-```bash
-docker build -t strider-testing -f Dockerfile.test . 
-docker run strider-testing
-```
+You can also run tests and coverage reports withou the management script. Check the `manage.py` file for instructions on how to do this.
 
 ## Deployment
 
