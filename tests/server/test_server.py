@@ -48,6 +48,16 @@ CTD_PREFIXES = {
 }
 
 
+def assert_no_warnings_trapi(resp):
+    """
+    Check for any errors or warnings in the log of a trapi response
+    """
+    invalid_levels = ['WARNING', 'ERROR', 'CRITICAL']
+    for log in resp['logs']:
+        if log['level'] in invalid_levels:
+            raise Exception(f"Invalid log record: {log}")
+
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -73,13 +83,12 @@ async def test_solve_ex1():
     output = await sync_query(q)
 
     assert output
-    # Check for any errors in the log
-    assert all(l['level'] != 'ERROR' for l in output['logs'])
     # Ensure we have some results
     assert len(output['message']['results']) > 0
     # Ensure we have a knowledge graph with nodes and edges
     assert len(output['message']['knowledge_graph']['nodes']) > 0
     assert len(output['message']['knowledge_graph']['edges']) > 0
+    assert_no_warnings_trapi(output)
 
     print("========================= RESULTS =========================")
     print(output['message']['results'])
@@ -111,6 +120,7 @@ async def test_solve_missing_predicate():
 
     # Run
     output = await sync_query(q)
+    assert_no_warnings_trapi(output)
 
 
 @pytest.mark.asyncio
