@@ -294,7 +294,7 @@ async def test_invalid_two_disconnected_components(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_bad_norm():
+async def test_bad_norm(caplog):
     """
     Test that the pinned node "XXX:123" that the normalizer does not know
     is still handled correctly based on the provided category.
@@ -320,6 +320,14 @@ async def test_bad_norm():
     }
 
     plans = await generate_plans(qg)
+    assert any(
+        (
+            record.levelname == "WARNING"
+            and record.message == "Normalizer knows nothing about XXX:123"
+        )
+        for record in caplog.records
+    )
+
     assert len(plans) == 1
 
 
