@@ -13,6 +13,7 @@ from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
 from tests.helpers.utils import load_kps, generate_kps, \
     time_and_display, query_graph_from_string, kps_from_string
+from tests.helpers.logger import assert_no_level
 
 
 from strider.query_planner import \
@@ -31,7 +32,7 @@ LOGGER = logging.getLogger()
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, [])
-async def test_permute_curies():
+async def test_permute_curies(caplog):
     """ Check that nodes with ID are correctly permuted """
 
     qg = {
@@ -44,6 +45,7 @@ async def test_permute_curies():
     assert permutations
     # We should have two plans
     assert len(list(permutations)) == 2
+    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
@@ -67,6 +69,7 @@ async def test_permute_simple(caplog):
     # 4 * 2 * 3 = 24
     # permutations
     assert len(list(permutations)) == 24
+    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
@@ -76,7 +79,7 @@ async def test_permute_simple(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_not_enough_kps():
+async def test_not_enough_kps(caplog):
     """
     Check we get no plans when we submit a query graph
     that has edges we can't solve
@@ -95,6 +98,7 @@ async def test_not_enough_kps():
         logger=logging.getLogger()
     )
     assert len(plans) == 0
+    assert_no_level(caplog, logging.WARNING, 1)
 
 
 @pytest.mark.asyncio
@@ -104,7 +108,7 @@ async def test_not_enough_kps():
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_no_path_from_pinned_node():
+async def test_no_path_from_pinned_node(caplog):
     """
     Check there is no plan when
     we submit a graph where there is a pinned node
@@ -128,6 +132,7 @@ async def test_no_path_from_pinned_node():
         logger=logging.getLogger(),
     )
     assert len(plans) == 0
+    assert_no_level(caplog, logging.WARNING, 1)
 
 
 @pytest.mark.asyncio
@@ -137,7 +142,7 @@ async def test_no_path_from_pinned_node():
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_solve_reverse_edge():
+async def test_solve_reverse_edge(caplog):
     """
     Test that we can solve a simple query graph
     where we have to traverse an edge in the opposite
@@ -154,6 +159,7 @@ async def test_solve_reverse_edge():
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
+    assert_no_level(caplog, logging.WARNING)
 
 
 ex1_kps = load_kps(cwd / "ex1_kps.json")
@@ -162,7 +168,7 @@ ex1_kps = load_kps(cwd / "ex1_kps.json")
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, ex1_kps)
 @with_norm_overlay(settings.normalizer_url)
-async def test_valid_permute_ex1():
+async def test_valid_permute_ex1(caplog):
     """ Test first example is permuted correctly """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
@@ -173,12 +179,13 @@ async def test_valid_permute_ex1():
 
     # We should have one valid plan
     assert len(plans) == 1
+    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, ex1_kps)
 @with_norm_overlay(settings.normalizer_url)
-async def test_plan_ex1():
+async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
@@ -192,6 +199,7 @@ async def test_plan_ex1():
     # at a pinned node
     step_1 = next(iter(plan.keys()))
     assert 'id' in qg['nodes'][step_1.source]
+    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
@@ -201,7 +209,7 @@ async def test_plan_ex1():
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_invalid_two_pinned_nodes():
+async def test_invalid_two_pinned_nodes(caplog):
     """
     Test Pinned -> Unbound + Pinned
     This should be valid because we only care about
@@ -219,6 +227,7 @@ async def test_invalid_two_pinned_nodes():
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
+    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
@@ -228,7 +237,7 @@ async def test_invalid_two_pinned_nodes():
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_unbound_unconnected_node():
+async def test_unbound_unconnected_node(caplog):
     """
     Test Pinned -> Unbound + Unbound
     This should be invalid because there is no path
@@ -246,6 +255,7 @@ async def test_unbound_unconnected_node():
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
+    assert_no_level(caplog, logging.WARNING, 1)
 
 
 @pytest.mark.asyncio
@@ -255,7 +265,7 @@ async def test_unbound_unconnected_node():
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_invalid_two_disconnected_components():
+async def test_invalid_two_disconnected_components(caplog):
     """ 
     Test Pinned -> Unbound + Pinned -> Unbound
     This should be invalid because there is no path from
@@ -274,6 +284,7 @@ async def test_invalid_two_disconnected_components():
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
+    assert_no_level(caplog, logging.WARNING, 1)
 
 
 @pytest.mark.asyncio
