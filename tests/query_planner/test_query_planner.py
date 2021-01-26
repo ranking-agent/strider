@@ -273,7 +273,7 @@ async def test_invalid_two_disconnected_components(caplog):
     """
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005737 ))
+        n0(( id MONDO:0005148 ))
         n1(( category biolink:Drug ))
         n0-- biolink:treated_by -->n1
         n2(( id MONDO:0011122 ))
