@@ -16,9 +16,9 @@ A live version of the API can be found [here](http://robokop.renci.org:5781/docs
 The codebase comes with a zero-dependency python management script that can be used to automate basic local development tasks. Make sure you have docker and docker-compose installed and then run:
 
 ```bash
-python3 manage.py dev # starts server accessible at 5781
-python3 manage.py test # run tests
-python3 manage.py coverage # run tests, open coverage report in browser
+./manage.py dev # starts server accessible at 5781
+./manage.py test # run tests
+./manage.py coverage # run tests, open coverage report in browser
 ```
 
 ### Without Management Script
