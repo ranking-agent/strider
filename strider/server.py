@@ -6,6 +6,7 @@ import json
 import logging
 import os
 import enum
+from pathlib import Path
 import pprint
 from typing import Dict
 
@@ -13,10 +14,12 @@ from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
 from starlette.middleware.cors import CORSMiddleware
+import yaml
 
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
@@ -31,14 +34,35 @@ from .logging import LogLevelEnum
 LOGGER = logging.getLogger(__name__)
 
 APP = FastAPI(
-    title='Strider/ARAGORN/Ranking Agent',
-    description='Translator Autonomous Relay Agent',
-    version='1.0.0',
-    terms_of_service="http://robokop.renci.org:7055/tos?service_long=Strider&provider_long=the%20Renaissance%20Computing%20Institute&provider_short=RENCI",
     docs_url=None,
     redoc_url=None,
-    servers=[{"url": f"{settings.server_url}"}],
 )
+
+
+def custom_openapi():
+    """Build custom OpenAPI schema."""
+    if APP.openapi_schema:
+        return APP.openapi_schema
+
+    extra_info_file = Path(__file__).parent / "openapi-info.yml"
+
+    with open(extra_info_file) as stream:
+        extra_info = yaml.load(stream, Loader=yaml.SafeLoader)
+
+    openapi_schema = get_openapi(
+        title="",
+        version="",
+        servers=[{"url": f"{settings.server_url}"}],
+        routes=APP.routes
+    )
+
+    openapi_schema["info"] |= extra_info
+
+    APP.openapi_schema = openapi_schema
+    return APP.openapi_schema
+
+
+APP.openapi = custom_openapi
 APP.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
