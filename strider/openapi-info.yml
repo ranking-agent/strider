@@ -1,0 +1,13 @@
+contact:
+  email: patrick@covar.com
+  name: Patrick Wang
+  x-id: 'https://github.com/patrickkwang'
+  x-role: responsible developer
+description: Translator Autonomous Relay Agent
+termsOfService: 'http://robokop.renci.org:7055/tos?service_long=Strider&provider_long=the%20Renaissance%20Computing%20Institute&provider_short=RENCI'
+title: Strider
+version: '1.0.0'
+x-translator:
+  component: ARA
+  team:
+  - Ranking Agent
