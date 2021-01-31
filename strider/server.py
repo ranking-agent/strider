@@ -84,18 +84,18 @@ EXAMPLE = {
         "query_graph": {
             "nodes": {
                 "n0": {
-                    "id": "MONDO:0001056",
+                    "id": "MONDO:0005148",
                     "category": "biolink:Disease"
                 },
                 "n1": {
-                    "category": "biolink:Disease"
+                    "category": "biolink:PhenotypicFeature"
                 }
             },
             "edges": {
                 "e01": {
                     "subject": "n0",
                     "object": "n1",
-                    "predicate": "biolink:related_to"
+                    "predicate": "biolink:has_phenotype"
                 }
             }
         }
