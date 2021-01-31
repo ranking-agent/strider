@@ -53,6 +53,14 @@ def custom_openapi():
         title="",
         version="",
         servers=[{"url": f"{settings.server_url}"}],
+        tags=[
+            {
+                "name": "translator",
+            },
+            {
+                "name": "reasoner",
+            }
+        ],
         routes=APP.routes
     )
 
@@ -160,7 +168,7 @@ async def process_query(
     return get_finished_query(qid, log_level)
 
 
-@APP.post('/aquery', tags=['query'])
+@APP.post('/aquery')
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
@@ -190,7 +198,7 @@ async def get_results(
     return get_finished_query(qid, log_level)
 
 
-@APP.post('/query', tags=['query'])
+@APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
         log_level: LogLevelEnum = LogLevelEnum.ERROR,
@@ -346,7 +354,7 @@ async def extract_results(query_id, since, limit, offset, database):
     ]
 
 
-@APP.post('/plan', response_model=Dict, tags=['query'])
+@APP.post('/plan', response_model=Dict)
 async def generate_traversal_plan(
         query: Query,
 ) -> list[Dict]:
@@ -355,7 +363,7 @@ async def generate_traversal_plan(
     return await generate_plans(query_graph)
 
 
-@APP.post('/score', response_model=Message, tags=['query'])
+@APP.post('/score', response_model=Message)
 async def score_results(
         query: Query,
 ) -> Message:
