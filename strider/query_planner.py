@@ -31,7 +31,7 @@ def find_next_list_property(search_dict, fields_to_check):
     return None, None
 
 
-def permute_qg(query_graph: QueryGraph) -> Generator[QueryGraph, None, None]:
+def permute_og(operation_graph: dict) -> Generator[dict, None, None]:
     """
     Take in a query graph that has some unbound properties
     and return a list of query graphs where every property is bound
@@ -41,7 +41,7 @@ def permute_qg(query_graph: QueryGraph) -> Generator[QueryGraph, None, None]:
     """
 
     stack = []
-    stack.append(copy.deepcopy(query_graph))
+    stack.append(copy.deepcopy(operation_graph))
 
     while len(stack) > 0:
         current_qg = stack.pop()
@@ -116,25 +116,28 @@ def filter_ancestor_types(types):
 
 
 def get_operation(
-        query_graph: QueryGraph,
+        operation_graph: dict,
         edge: dict,
 ) -> Operation:
     """ Get the types from an edge in the query graph """
     return Operation(
-        query_graph['nodes'][edge['subject']]['category'],
+        operation_graph['nodes'][edge['source']]['category'],
         edge['predicate'],
-        query_graph['nodes'][edge['object']]['category'],
+        operation_graph['nodes'][edge['target']]['category'],
     )
 
 
-def expand_qg(
+async def expand_qg(
         qg: QueryGraph,
-        logger: logging.Logger = LOGGER
+        logger: logging.Logger = LOGGER,
+        normalizer: Normalizer = None,
 ) -> QueryGraph:
     """
     Given a query graph, use the Biolink model to expand categories and predicates
-    to include their descendants.
+    to include their descendants. Also get categories for pinned nodes.
     """
+    if normalizer is None:
+        normalizer = Normalizer(settings.normalizer_url)
 
     logger.debug("Using BMT to get descendants of node and edge types")
 
@@ -166,50 +169,12 @@ def expand_qg(
         "qg": qg,
     })
 
-    return qg
-
-
-# pylint: disable=too-many-locals
-async def find_valid_permutations(
-        qgraph: QueryGraph,
-        kp_registry: Registry = None,
-        normalizer: Normalizer = None,
-        logger: logging.Logger = LOGGER,
-) -> list[QueryGraph]:
-    """
-    Given a query graph, generate a list of query graphs
-    that are solvable, and annotate those with a 'request_kp' property
-    that shows which KPs to contact to get results
-    """
-    if kp_registry is None:
-        kp_registry = Registry(settings.kpregistry_url)
-    if normalizer is None:
-        normalizer = Normalizer(settings.normalizer_url)
-
-    expanded_qg = expand_qg(qgraph, logger)
-
-    reverse_edges = {}
-    # Add reverse edges so that we can traverse edges in both directions
-    for edge_id, edge in expanded_qg['edges'].items():
-        reverse_edge = edge.copy()
-        reverse_edge['predicate'] = [
-            f"<-{p}-" for p in reverse_edge['predicate']]
-        # Swap subject and object
-        reverse_edge['subject'], reverse_edge['object'] = \
-            reverse_edge['object'], reverse_edge['subject']
-        reverse_edges[edge_id + REVERSE_EDGE_SUFFIX] = reverse_edge
-
-        # Assign directionality to forward edge
-        edge['predicate'] = [f"-{p}->" for p in edge['predicate']]
-
-    # Insert reverse edges
-    expanded_qg['edges'] |= reverse_edges
 
     logger.debug("Contacting node normalizer to get categorys for curies")
 
     # Use node normalizer to add
     # a category to nodes with a curie
-    for node in expanded_qg['nodes'].values():
+    for node in qg['nodes'].values():
         if not node.get('id'):
             continue
         if not isinstance(node['id'], list):
@@ -224,48 +189,36 @@ async def find_valid_permutations(
         elif "category" not in node:
             node["category"] = []
 
+    return qg
 
-    logger.debug({
-        "description": "Query graph with categorys added to curies",
-        "expanded_qg": expanded_qg,
-    })
+
+async def get_operation_kp_map(
+        operation_graph,
+        kp_registry: Registry = None,
+) -> dict[Operation, list[dict]]:
+    """Put the results in a master dictionary so that we can look
+    them up for each permutation and see which are solvable
+    """
+    if kp_registry is None:
+        kp_registry = Registry(settings.kpregistry_url)
 
     operation_kp_map = {}
-    # For each edge, ask KP registry for KPs that could solve it
 
-    logger.debug(
-        "Contacting KP registry to ask for KPs to solve this query graph")
-
-    for node in expanded_qg['nodes'].values():
-        node['filtered_categories'] = set()
-    for edge in expanded_qg['edges'].values():
-        edge['filtered_predicates'] = set()
-
-    # Put the results in a master dictionary so that we can look
-    # them up for each permutation and see which are solvable
-    for edge in expanded_qg['edges'].values():
+    for edge in operation_graph['edges'].values():
         if "provided_by" in edge:
             allowlist = edge["provided_by"].get("allowlist", None)
             denylist = edge["provided_by"].get("denylist", None)
         else:
             allowlist = denylist = None
 
-        source = expanded_qg['nodes'][edge['subject']]
-        target = expanded_qg['nodes'][edge['object']]
+        source = operation_graph['nodes'][edge['source']]
+        target = operation_graph['nodes'][edge['target']]
 
         kp_results = await step_to_kps(
             source, edge, target,
             kp_registry,
             allowlist=allowlist, denylist=denylist,
         )
-
-        for kp in kp_results.values():
-            for op in kp['operations']:
-                source['filtered_categories'].add(
-                    op['source_category'])
-                target['filtered_categories'].add(
-                    op['target_category'])
-                edge['filtered_predicates'].add(op['edge_predicate'])
 
         for kp_name, kp in kp_results.items():
 
@@ -277,6 +230,57 @@ async def find_valid_permutations(
                 if operation not in operation_kp_map:
                     operation_kp_map[operation] = []
                 operation_kp_map[operation].append(kp_without_ops)
+    return operation_kp_map
+
+
+async def qg_to_og(
+        qgraph,
+        logger: logging.Logger = logging.getLogger(),
+        reverse: bool = True,
+):
+    """Convert query graph to operation graph."""
+    ograph = {
+        "nodes": copy.deepcopy(qgraph["nodes"]),
+        "edges": dict(),
+    }
+    # Add reverse edges so that we can traverse edges in both directions
+    for edge_id, edge in qgraph["edges"].items():
+        ograph["edges"][edge_id] = {
+            "source": edge["subject"],
+            "predicate": [f"-{p}->" for p in edge["predicate"]],
+            "target": edge["object"],
+        }
+        if reverse:
+            ograph["edges"][edge_id + REVERSE_EDGE_SUFFIX] = {
+                "source": edge["object"],
+                "predicate": [f"<-{p}-" for p in edge["predicate"]],
+                "target": edge["subject"],
+            }
+
+    return ograph
+
+
+async def filter_categories_predicates(operation_graph, operation_kp_map):
+    """Filter out categories and predicates that cannot be found using KPs."""
+    for node in operation_graph['nodes'].values():
+        node['filtered_categories'] = set()
+    for edge in operation_graph['edges'].values():
+        edge['filtered_predicates'] = set()
+
+    for edge in operation_graph['edges'].values():
+
+        source = operation_graph['nodes'][edge['source']]
+        target = operation_graph['nodes'][edge['target']]
+
+        for op in operation_kp_map:
+            if (
+                    op.source_category in source["category"]
+                    and op.target_category in target["category"]
+                    and op.edge_predicate in edge["predicate"]
+            ):
+                source['filtered_categories'].add(op.source_category)
+                target['filtered_categories'].add(op.target_category)
+                edge['filtered_predicates'].add(op.edge_predicate)
 
     # Filter down node categories using those
     # we have recieved from the KP registry
@@ -284,21 +288,49 @@ async def find_valid_permutations(
 
     # We only filter nodes that are touching at least one edge ("connected")
     connected_nodes = set()
-    for edge in expanded_qg['edges'].values():
-        connected_nodes.add(edge['subject'])
-        connected_nodes.add(edge['object'])
+    for edge in operation_graph['edges'].values():
+        connected_nodes.add(edge['source'])
+        connected_nodes.add(edge['target'])
     for node_id in connected_nodes:
-        node = expanded_qg['nodes'][node_id]
+        node = operation_graph['nodes'][node_id]
         if 'category' not in node:
             continue
         node['category'] = list(node.pop('filtered_categories'))
 
     # Also filter edge predicates as well
-    for edge in expanded_qg['edges'].values():
+    for edge in operation_graph['edges'].values():
         edge['predicate'] = list(edge.pop('filtered_predicates'))
+    return None
+
+
+# pylint: disable=too-many-locals
+async def find_valid_permutations(
+        operation_graph,
+        kp_registry: Registry = None,
+        logger: logging.Logger = LOGGER,
+) -> list[dict]:
+    """
+    Given a query graph, generate a list of query graphs
+    that are solvable, and annotate those with a 'request_kp' property
+    that shows which KPs to contact to get results
+    """
+
+    logger.debug({
+        "description": "Query graph with categorys added to curies",
+        "expanded_qg": operation_graph,
+    })
+
+    # For each edge, ask KP registry for KPs that could solve it
+
+    logger.debug(
+        "Contacting KP registry to ask for KPs to solve this query graph")
+
+    operation_kp_map = await get_operation_kp_map(operation_graph, kp_registry)
+
+    await filter_categories_predicates(operation_graph, operation_kp_map)
 
     # Remove edges with no predicates
-    expanded_qg['edges'] = {k: edge for k, edge in expanded_qg['edges'].items()
+    operation_graph['edges'] = {k: edge for k, edge in operation_graph['edges'].items()
                             if len(edge['predicate']) > 0}
 
     logger.debug(
@@ -307,17 +339,17 @@ async def find_valid_permutations(
     logger.debug(
         "Iterating over QGs to find ones that are solvable")
 
-    permuted_qg_list = permute_qg(expanded_qg)
+    permuted_og_list = permute_og(operation_graph)
 
-    filtered_qgs = validate_and_annotate_qg_list(
-        permuted_qg_list,
+    filtered_qgs = validate_and_annotate_og_list(
+        permuted_og_list,
         operation_kp_map,
     )
 
     return list(filtered_qgs)
 
 
-def dfs(graph, source) -> (list[str], list[str]):
+def dfs(operation_graph, source) -> (list[str], list[str]):
     """
     Run depth first search on the graph
 
@@ -339,9 +371,9 @@ def dfs(graph, source) -> (list[str], list[str]):
         adjacent_nodes = []
         adjacent_edges = []
 
-        for edge_id, edge in graph['edges'].items():
-            if edge['subject'] == s:
-                adjacent_nodes.append(edge['object'])
+        for edge_id, edge in operation_graph['edges'].items():
+            if edge['source'] == s:
+                adjacent_nodes.append(edge['target'])
                 adjacent_edges.append(edge_id)
 
         for node_id, edge_id in zip(adjacent_nodes, adjacent_edges):
@@ -367,8 +399,10 @@ async def generate_plans(
 
     logger.debug("Generating plan for query graph")
 
-    filtered_qg_list = await find_valid_permutations(
-        qgraph, kp_registry, normalizer, logger
+    expanded_qg = await expand_qg(qgraph, logger, normalizer)
+    operation_graph = await qg_to_og(expanded_qg, logger)
+    filtered_og_list = await find_valid_permutations(
+        operation_graph, kp_registry, logger
     )
 
     # Build a list of pinned nodes
@@ -377,7 +411,7 @@ async def generate_plans(
         if value.get("id", None) is not None
     ]
 
-    if len(filtered_qg_list) == 0:
+    if len(filtered_og_list) == 0:
         logger.warning({
             "code": "QueryNotTraversable",
             "message":
@@ -389,36 +423,36 @@ async def generate_plans(
 
     plans = []
 
-    for current_qg in filtered_qg_list:
+    for current_og in filtered_og_list:
         # Starting at each pinned node, construct a plan
         for pinned in pinned_nodes:
-            path_nodes, path_edges = dfs(current_qg, pinned)
+            path_nodes, path_edges = dfs(current_og, pinned)
 
-            all_nodes = current_qg['nodes'].keys()
+            all_nodes = current_og['nodes'].keys()
             # path_nodes + pinned_nodes must cover all nodes in the graph
             if set(pinned_nodes) | set(path_nodes) != all_nodes:
                 continue
 
             # If we don't traverse every edge we can't use this
-            if set(path_edges) != set(current_qg['edges'].keys()):
+            if set(path_edges) != set(current_og['edges'].keys()):
                 continue
 
             # Build our list of steps in the plan
             # information to the original query graph
             plan = defaultdict(list)
             for edge_id in path_edges:
-                edge = current_qg['edges'][edge_id]
+                edge = current_og['edges'][edge_id]
                 # Find edges that get us from
                 # There could be multiple edges that need to each
                 # be added as a separate step
-                op = get_operation(current_qg, edge)
+                op = get_operation(current_og, edge)
 
                 # Reverse edges don't actually exist, so the steps in the plan
                 # should just refer to the forward edges
                 if edge_id.endswith(REVERSE_EDGE_SUFFIX):
                     edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
 
-                step = Step(edge['subject'], edge_id, edge['object'])
+                step = Step(edge['source'], edge_id, edge['target'])
                 # Attach information about categorys to kp info
                 for kp in edge['request_kps']:
                     plan[step].append({
@@ -440,24 +474,24 @@ async def generate_plans(
     return plans
 
 
-def validate_and_annotate_qg_list(
-    qg_list: Generator[QueryGraph, None, None],
+def validate_and_annotate_og_list(
+    og_list: Generator[dict, None, None],
     operation_kp_map: dict[Operation, list[dict]],
-) -> Generator[QueryGraph, None, None]:
+) -> Generator[dict, None, None]:
     """
     Check if QG has a valid plan, and if it does,
     annotate with KP name
     """
-    for qg in qg_list:
+    for og in og_list:
         valid = True
-        for edge in qg['edges'].values():
-            op = get_operation(qg, edge)
+        for edge in og['edges'].values():
+            op = get_operation(og, edge)
             kps_available = operation_kp_map.get(op, None)
             if not kps_available:
                 valid = False
             edge['request_kps'] = kps_available
         if valid:
-            yield qg
+            yield og
 
 
 # pylint: disable=too-many-arguments
