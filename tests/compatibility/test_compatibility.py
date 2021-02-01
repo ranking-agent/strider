@@ -33,10 +33,10 @@ async def test_map_prefixes_small_example():
     query_graph = {
         "nodes": {
             "n0": {
-                "id": "DOID:9352"
+                "id": ["DOID:9352"]
             },
             "n1": {
-                "id": "MONDO:0005148"
+                "id": ["MONDO:0005148"]
             },
         },
         "edges": {
@@ -49,9 +49,9 @@ async def test_map_prefixes_small_example():
     )
 
     # n0 should be converted to the correct prefix
-    assert fixed_msg['query_graph']['nodes']['n0']['id'] == "MONDO:0005148"
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["MONDO:0005148"]
     # There should be no change to n1
-    assert fixed_msg['query_graph']['nodes']['n1']['id'] == "MONDO:0005148"
+    assert fixed_msg['query_graph']['nodes']['n1']['id'] == ["MONDO:0005148"]
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_unknown_prefix():
     query_graph = {
         "nodes": {
             "n0": {
-                "id": "UNKNOWN:000000"
+                "id": ["UNKNOWN:000000"]
             },
         },
         "edges": {
@@ -85,7 +85,7 @@ async def test_unknown_prefix():
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['id'] == "UNKNOWN:000000"
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["UNKNOWN:000000"]
 
 
 @pytest.mark.asyncio
@@ -102,7 +102,7 @@ async def test_prefix_not_specified():
     query_graph = {
         "nodes": {
             "n0": {
-                "id": "DOID:9352"
+                "id": ["DOID:9352"]
             },
         },
         "edges": {
@@ -115,7 +115,7 @@ async def test_prefix_not_specified():
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["DOID:9352"]
 
 
 normalizer_error_no_matches = "No matches found for the specified curie(s)"
@@ -146,7 +146,7 @@ async def test_normalizer_no_synonyms_available(caplog):
     query_graph = {
         "nodes": {
             "n0": {
-                "id": "DOID:9352"
+                "id": ["DOID:9352"]
             },
         },
         "edges": {
@@ -159,7 +159,7 @@ async def test_normalizer_no_synonyms_available(caplog):
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["DOID:9352"]
 
     # The error we recieved from the normalizer should be in the logs
     assert normalizer_error_no_matches in caplog.text
@@ -190,7 +190,7 @@ async def test_normalizer_not_reachable(caplog):
     query_graph = {
         "nodes": {
             "n0": {
-                "id": "DOID:9352"
+                "id": ["DOID:9352"]
             },
         },
         "edges": {
@@ -203,7 +203,7 @@ async def test_normalizer_not_reachable(caplog):
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['id'] == "DOID:9352"
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["DOID:9352"]
 
     assert "Failed to contact normalizer" in caplog.text
 
@@ -234,7 +234,7 @@ async def test_fetch():
     query_graph = {
         "nodes": {
             "n0": {
-                "id": "MESH:D008687"
+                "id": ["MESH:D008687"]
             },
             "n1": {
                 "category": "biolink:Disease"
@@ -264,8 +264,13 @@ async def test_fetch():
     # Check query graph node prefixes
     for node in response['query_graph']['nodes'].values():
         if node.get('id', None):
-            assert any(node['id'].startswith(prefix)
-                       for prefix in allowed_response_prefixes)
+            assert all(
+                any(
+                    curie.startswith(prefix)
+                    for prefix in allowed_response_prefixes
+                )
+                for curie in node['id']
+            )
     # Check node binding prefixes
     for result in response['results']:
         for binding_list in result['node_bindings'].values():

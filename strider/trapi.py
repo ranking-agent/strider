@@ -108,7 +108,7 @@ def fix_qnode(qnode: QNode, curie_map: dict[str, str]) -> QNode:
     if not qnode.get("id", None):
         return qnode
 
-    fixed_ids = [curie_map.get(curie) for curie in qnode['id']]
+    fixed_ids = [curie_map.get(curie, curie) for curie in qnode['id']]
     qnode = {
         **qnode,
         "id": fixed_ids,
