@@ -198,7 +198,7 @@ async def get_results(
     return get_finished_query(qid, log_level)
 
 
-@APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
+@APP.post('/query', tags=['reasoner'])
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
         log_level: LogLevelEnum = LogLevelEnum.ERROR,
