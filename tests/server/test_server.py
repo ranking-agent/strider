@@ -63,9 +63,9 @@ def assert_no_warnings_trapi(resp):
     settings.kpregistry_url,
     settings.normalizer_url,
     [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
+        ("ctd", CTD_PREFIXES, True, True),
+        ("hetio", DEFAULT_PREFIXES, True, True),
+        ("mychem", MYCHEM_PREFIXES, True, True),
     ])
 async def test_solve_ex1():
     """Test solving the ex1 query graph"""
@@ -100,9 +100,9 @@ async def test_solve_ex1():
     settings.kpregistry_url,
     settings.normalizer_url,
     [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
+        ("ctd", CTD_PREFIXES, True, True),
+        ("hetio", DEFAULT_PREFIXES, True, True),
+        ("mychem", MYCHEM_PREFIXES, True, True),
     ])
 async def test_solve_missing_predicate():
     """Test solving the ex1 query graph, in which one of the predicates is missing. """
@@ -128,9 +128,9 @@ async def test_solve_missing_predicate():
     settings.kpregistry_url,
     settings.normalizer_url,
     [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
+        ("ctd", CTD_PREFIXES, True, True),
+        ("hetio", DEFAULT_PREFIXES, True, True),
+        ("mychem", MYCHEM_PREFIXES, True, True),
     ])
 async def test_solve_missing_category():
     """Test solving the ex1 query graph, in which one of the categories is missing. """
@@ -155,9 +155,9 @@ async def test_solve_missing_category():
     settings.kpregistry_url,
     settings.normalizer_url,
     [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
+        ("ctd", CTD_PREFIXES, True, True),
+        ("hetio", DEFAULT_PREFIXES, True, True),
+        ("mychem", MYCHEM_PREFIXES, True, True),
     ])
 async def test_log_level_param():
     """Test that changing the log level given to sync_query changes the output """
@@ -185,9 +185,9 @@ async def test_log_level_param():
     settings.kpregistry_url,
     settings.normalizer_url,
     [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
+        ("ctd", CTD_PREFIXES, True, True),
+        ("hetio", DEFAULT_PREFIXES, True, True),
+        ("mychem", MYCHEM_PREFIXES, True, True),
     ])
 async def test_plan_ex1():
     """Test /plan endpoint"""
@@ -217,9 +217,9 @@ async def test_plan_ex1():
     settings.kpregistry_url,
     settings.normalizer_url,
     [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
+        ("ctd", CTD_PREFIXES, True, True),
+        ("hetio", DEFAULT_PREFIXES, True, True),
+        ("mychem", MYCHEM_PREFIXES, True, True),
     ])
 # Override one KP with an invalid response
 @with_response_overlay(

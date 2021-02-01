@@ -217,7 +217,7 @@ CTD_PREFIXES = {
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [("ctd", CTD_PREFIXES)]
+    [("ctd", CTD_PREFIXES, True, True)]
 )
 async def test_fetch():
     """
