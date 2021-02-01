@@ -230,7 +230,10 @@ class StriderWorker(Worker):
 
         response = await self.execute_step(
             step,
-            result["node_bindings"][step.source][0]["id"],
+            # Use a frozen set because it is hashable
+            frozenset(
+                result["node_bindings"][step.source][0]["id"]
+            ),
         )
 
         # process kgraph
