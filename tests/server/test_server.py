@@ -159,6 +159,65 @@ async def test_solve_missing_category():
         ("hetio", DEFAULT_PREFIXES),
         ("mychem", MYCHEM_PREFIXES),
     ])
+async def test_multiple_ids():
+    """
+    Test solving a query graph where there are
+    multiple curies provided
+    in the pinned node.
+    """
+    chemical_substance_ids = ["CHEBI:6801", "CHEBI:47612"]
+
+    QGRAPH = {
+        "nodes": {
+            "n0": {
+                "category": "biolink:ChemicalSubstance",
+                "id": chemical_substance_ids,
+            },
+            "n1": {
+                "category": "biolink:Disease"
+            },
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+                "predicate": "biolink:treats"
+            },
+        }
+    }
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert output
+    # Ensure we have some results
+    assert len(output['message']['results']) > 0
+
+    # Ensure knowledge_graph has both nodes we asked for
+    knowledge_graph_node_ids = \
+        output['message']['knowledge_graph']['nodes'].keys()
+    assert set(chemical_substance_ids).issubset(set(knowledge_graph_node_ids))
+
+    # Ensure we have edges
+    assert len(output['message']['knowledge_graph']['edges']) > 0
+    assert_no_warnings_trapi(output)
+
+
+@ pytest.mark.asyncio
+@ with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    [
+        ("ctd", CTD_PREFIXES),
+        ("hetio", DEFAULT_PREFIXES),
+        ("mychem", MYCHEM_PREFIXES),
+    ])
 async def test_log_level_param():
     """Test that changing the log level given to sync_query changes the output """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -180,8 +239,8 @@ async def test_log_level_param():
     assert any(l['level'] == 'DEBUG' for l in output['logs'])
 
 
-@pytest.mark.asyncio
-@with_translator_overlay(
+@ pytest.mark.asyncio
+@ with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
     [
@@ -212,8 +271,8 @@ async def test_plan_ex1():
     assert len(plan[('n1', 'e12', 'n2')]) == 1
 
 
-@pytest.mark.asyncio
-@with_translator_overlay(
+@ pytest.mark.asyncio
+@ with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
     [
@@ -222,7 +281,7 @@ async def test_plan_ex1():
         ("mychem", MYCHEM_PREFIXES),
     ])
 # Override one KP with an invalid response
-@with_response_overlay(
+@ with_response_overlay(
     "http://mychem/query",
     Response(
         status_code=500,
