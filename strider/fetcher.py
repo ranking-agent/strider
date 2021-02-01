@@ -150,18 +150,18 @@ class StriderWorker(Worker):
 
         self.logger.debug({"plan": self.plan})
 
-        # add first partial result
+        # add partial results for each curie that we are given
         for qnode_id, qnode in self.qgraph["nodes"].items():
-            if "id" not in qnode or qnode["id"] is None:
+            if not qnode.get("id", False):
                 continue
-            result = {
-                "node_bindings": {
-                    qnode_id: [{"id": qnode["id"]}]
-                },
-                "edge_bindings": {},
-            }
-            await self.put(result)
-            break
+            for curie in qnode["id"]:
+                result = {
+                    "node_bindings": {
+                        qnode_id: [{"id": curie}]
+                    },
+                    "edge_bindings": {},
+                }
+                await self.put(result)
 
     def next_step(
             self,
@@ -195,7 +195,8 @@ class StriderWorker(Worker):
 
         # Set the node ID of the current step to the
         # given curie
-        kp_request_body['message']['query_graph']['nodes'][step.source]['id'] = curie
+        kp_request_body['message']['query_graph']['nodes'][step.source]['id'] = \
+            [curie]
 
         responses = await asyncio.gather(*(
             self.portal.fetch(
@@ -230,10 +231,7 @@ class StriderWorker(Worker):
 
         response = await self.execute_step(
             step,
-            # Use a frozen set because it is hashable
-            frozenset(
-                result["node_bindings"][step.source][0]["id"]
-            ),
+            result["node_bindings"][step.source][0]["id"],
         )
 
         # process kgraph
