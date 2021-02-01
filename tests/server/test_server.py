@@ -150,8 +150,8 @@ async def test_solve_missing_category():
     output = await sync_query(q)
 
 
-@ pytest.mark.asyncio
-@ with_translator_overlay(
+@pytest.mark.asyncio
+@with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
     [
@@ -180,8 +180,8 @@ async def test_log_level_param():
     assert any(l['level'] == 'DEBUG' for l in output['logs'])
 
 
-@ pytest.mark.asyncio
-@ with_translator_overlay(
+@pytest.mark.asyncio
+@with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
     [
@@ -212,8 +212,8 @@ async def test_plan_ex1():
     assert len(plan[('n1', 'e12', 'n2')]) == 1
 
 
-@ pytest.mark.asyncio
-@ with_translator_overlay(
+@pytest.mark.asyncio
+@with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
     [
@@ -222,7 +222,7 @@ async def test_plan_ex1():
         ("mychem", MYCHEM_PREFIXES),
     ])
 # Override one KP with an invalid response
-@ with_response_overlay(
+@with_response_overlay(
     "http://mychem/query",
     Response(
         status_code=500,
