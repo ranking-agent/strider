@@ -58,11 +58,10 @@ def get_curies(message: Message) -> list[str]:
     """
     curies = set()
     if 'query_graph' in message:
-        curies |= {
-            qnode.get("id")
-            for qnode in message['query_graph']['nodes'].values()
-            if qnode.get("id", False)
-        }
+        for qnode in message['query_graph']['nodes'].values():
+            qnode_id = qnode.get("id", False)
+            if qnode_id:
+                curies.update(qnode_id)
     if 'knowledge_graph' in message:
         curies |= set(message['knowledge_graph']['nodes'])
     return curies
@@ -106,14 +105,13 @@ def fix_qgraph(qgraph: QueryGraph, curie_map: dict[str, str]) -> QueryGraph:
 
 def fix_qnode(qnode: QNode, curie_map: dict[str, str]) -> QNode:
     """Replace curie with preferred, if possible."""
-    qnode_id = (
-        curie_map.get(qnode["id"], qnode["id"])
-        if "id" in qnode
-        else None
-    )
+    if not qnode.get("id", None):
+        return qnode
+
+    fixed_ids = [curie_map.get(curie) for curie in qnode['id']]
     qnode = {
         **qnode,
-        "id": qnode_id,
+        "id": fixed_ids,
     }
     return qnode
 
