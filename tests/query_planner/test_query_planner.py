@@ -17,7 +17,8 @@ from tests.helpers.logger import assert_no_level
 
 
 from strider.query_planner import \
-    generate_plans, find_valid_permutations, permute_qg, expand_qg, NoAnswersError
+    generate_plans, find_valid_permutations, permute_og, expand_qg, qg_to_og, \
+    NoAnswersError, qg_to_og
 
 from strider.config import settings
 
@@ -40,7 +41,7 @@ async def test_permute_curies(caplog):
         "edges": {},
     }
 
-    permutations = permute_qg(qg)
+    permutations = permute_og(qg)
 
     assert permutations
     # We should have two plans
@@ -61,8 +62,9 @@ async def test_permute_simple(caplog):
         """
     )
 
-    qg = expand_qg(qg, logging.getLogger())
-    permutations = permute_qg(qg)
+    qg = await expand_qg(qg, logging.getLogger())
+    operation_graph = await qg_to_og(qg, reverse=False)
+    permutations = permute_og(operation_graph)
     assert permutations
 
     # We should have:
@@ -124,7 +126,9 @@ async def test_no_path_from_pinned_node(caplog):
     )
 
     # We should have valid permutations
-    permutations = await find_valid_permutations(qg)
+    expanded_qg = await expand_qg(qg)
+    operation_graph = await qg_to_og(expanded_qg)
+    permutations = await find_valid_permutations(operation_graph)
     assert len(list(permutations))
 
     plans = await generate_plans(
@@ -173,7 +177,9 @@ async def test_valid_permute_ex1(caplog):
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    plans = await find_valid_permutations(qg)
+    expanded_qg = await expand_qg(qg)
+    operation_graph = await qg_to_og(expanded_qg)
+    plans = await find_valid_permutations(operation_graph)
 
     assert plans
 
