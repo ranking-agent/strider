@@ -5,6 +5,6 @@ pytest==5.4.3
 pytest-asyncio==0.14.0
 pytest-cov==2.10.0
 git+git://github.com/TranslatorIIPrototypes/kp_registry@v1.0
-git+git://github.com/ranking-agent/simple-kp@master
+git+git://github.com/ranking-agent/simple-kp@v1.0.1
 git+git://github.com/patrickkwang/small-kg@main
 git+git://github.com/patrickkwang/asgiar@main
