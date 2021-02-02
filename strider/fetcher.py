@@ -157,7 +157,10 @@ class StriderWorker(Worker):
             for curie in qnode["id"]:
                 result = {
                     "node_bindings": {
-                        qnode_id: [{"id": curie}]
+                        qnode_id: [{
+                            "id": curie,
+                            "category": qnode["category"][0],
+                        }]
                     },
                     "edge_bindings": {},
                 }
@@ -179,6 +182,7 @@ class StriderWorker(Worker):
             self,
             step: Step,
             curie: str,
+            category: str = None,
     ):
         """Fetch results for step."""
 
@@ -201,6 +205,7 @@ class StriderWorker(Worker):
                 self.preferred_prefixes,
             )
             for kp in self.plan[step]
+            if category is not None and kp["source_category"] == category
         ))
         return merge_messages(responses)
 
@@ -227,6 +232,7 @@ class StriderWorker(Worker):
         response = await self.execute_step(
             step,
             result["node_bindings"][step.source][0]["id"],
+            category=result["node_bindings"][step.source][0].get("category", None),
         )
 
         # process kgraph
@@ -236,6 +242,9 @@ class StriderWorker(Worker):
         # process results
         for new_result in response["results"]:
             # queue the results for further processing
+            for nbs in new_result["node_bindings"].values():
+                for nb in nbs:
+                    nb["category"] = response["knowledge_graph"]["nodes"][nb["id"]]["category"]
             await self.put(merge_results([result, new_result]))
 
 
