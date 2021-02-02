@@ -250,17 +250,16 @@ class StriderWorker(Worker):
 
 def get_kp_request_body(
         qgraph: QueryGraph,
-        edge: str,
         curie: str,
         step: Step,
         kp: dict,
 ) -> Response:
     """Get request to send to KP."""
     included_nodes = [
-        qgraph['edges'][edge]['subject'],
-        qgraph['edges'][edge]['object'],
+        qgraph['edges'][step.edge]['subject'],
+        qgraph['edges'][step.edge]['object'],
     ]
-    included_edges = [edge]
+    included_edges = [step.edge]
 
     request_qgraph = {
         "nodes": {
