@@ -461,6 +461,14 @@ async def generate_plans(
                     })
             plans.append(plan)
 
+    # collapse plans
+    unique_map = defaultdict(lambda: defaultdict(list))
+    for plan in plans:
+        key = tuple(plan.keys())
+        for step, kps in plan.items():
+            unique_map[key][step].extend(kps)
+    plans = list(unique_map.values())
+
     if len(plans) == 0:
         logger.warning({
             "code": "QueryNotTraversable",
