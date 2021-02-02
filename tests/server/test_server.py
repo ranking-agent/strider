@@ -310,3 +310,95 @@ async def test_kp_unavailable():
     assert len(output['message']['knowledge_graph']['nodes']) > 0
     assert len(output['message']['knowledge_graph']['edges']) > 0
     assert len(output['message']['results']) > 0
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd": """
+        CHEBI:34253(( category biolink:ChemicalSubstance ))
+        NCBIGene:xxx(( category biolink:Gene ))
+        NCBIGene:yyy(( category biolink:Gene ))
+        CHEBI:34253-- predicate biolink:interacts_with -->NCBIGene:xxx
+        CHEBI:34253-- predicate biolink:directly_interacts_with -->NCBIGene:yyy
+        """,
+    },
+)
+async def test_issue_63():
+    """Test issue #63."""
+    qgraph = {
+        "nodes": {
+            "a": {
+                "category": "biolink:ChemicalSubstance",
+                "id": "CHEBI:34253"
+            },
+            "b": {
+                "category": "biolink:Gene"
+            }
+        },
+        "edges": {
+            "ab": {
+                "subject": "a",
+                "object": "b",
+                "predicate": "biolink:interacts_with"
+            }
+        }
+    }
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(qgraph)
+        )
+    )
+
+    # Run
+    output = await sync_query(q, log_level="DEBUG")
+    assert len(output["message"]["results"]) == 2
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd": """
+        CHEBI:34253(( category biolink:ChemicalSubstance ))
+        NCBIGene:yyy(( category biolink:Gene ))
+        CHEBI:34253-- predicate biolink:directly_interacts_with -->NCBIGene:yyy
+        """,
+    },
+)
+async def test_subpredicate():
+    """Test sub-predicate query."""
+    qgraph = {
+        "nodes": {
+            "a": {
+                "category": "biolink:ChemicalSubstance",
+                "id": "CHEBI:34253"
+            },
+            "b": {
+                "category": "biolink:Gene"
+            }
+        },
+        "edges": {
+            "ab": {
+                "subject": "a",
+                "object": "b",
+                "predicate": "biolink:interacts_with"
+            }
+        }
+    }
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(qgraph)
+        )
+    )
+
+    # Run
+    output = await sync_query(q, log_level="DEBUG")
+    assert output["message"]["results"]
