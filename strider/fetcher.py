@@ -14,6 +14,7 @@ from collections.abc import Iterable
 import logging
 import json
 from datetime import datetime
+from typing import Optional
 import jsonpickle
 
 from reasoner_pydantic import QueryGraph, Result, Response
@@ -182,7 +183,7 @@ class StriderWorker(Worker):
             self,
             step: Step,
             curie: str,
-            category: str = None,
+            category: Optional[str],
     ):
         """Fetch results for step."""
 
@@ -196,7 +197,6 @@ class StriderWorker(Worker):
                 kp["url"],
                 get_kp_request_body(
                     self.qgraph,
-                    step.edge,
                     curie,
                     step,
                     kp,

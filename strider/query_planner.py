@@ -310,9 +310,9 @@ async def find_valid_permutations(
         logger: logging.Logger = LOGGER,
 ) -> list[dict]:
     """
-    Given a query graph, generate a list of query graphs
+    Given an operation graph, generate a list of operation graphs
     that are solvable, and annotate those with a 'request_kp' property
-    that shows which KPs to contact to get results
+    that shows which KPs to contact to get results.
     """
 
     logger.debug({
@@ -487,7 +487,7 @@ def validate_and_annotate_og_list(
     operation_kp_map: dict[Operation, list[dict]],
 ) -> Generator[dict, None, None]:
     """
-    Check if QG has a valid plan, and if it does,
+    Check if operation graph has a valid plan, and if it does,
     annotate with KP name
     """
     for og in og_list:
