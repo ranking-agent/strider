@@ -341,12 +341,12 @@ async def find_valid_permutations(
 
     permuted_og_list = permute_og(operation_graph)
 
-    filtered_qgs = validate_and_annotate_og_list(
+    filtered_ogs = validate_and_annotate_og_list(
         permuted_og_list,
         operation_kp_map,
     )
 
-    return list(filtered_qgs)
+    return list(filtered_ogs)
 
 
 def dfs(operation_graph, source) -> (list[str], list[str]):
