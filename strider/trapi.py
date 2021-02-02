@@ -59,9 +59,8 @@ def get_curies(message: Message) -> list[str]:
     curies = set()
     if 'query_graph' in message:
         for qnode in message['query_graph']['nodes'].values():
-            qnode_id = qnode.get("id", False)
-            if qnode_id:
-                curies.update(qnode_id)
+            if qnode_id := qnode.get("id", False):
+                curies |= set(qnode_id)
     if 'knowledge_graph' in message:
         curies |= set(message['knowledge_graph']['nodes'])
     return curies
