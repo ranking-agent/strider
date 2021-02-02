@@ -326,8 +326,8 @@ async def test_kp_unavailable():
         """,
     },
 )
-async def test_issue_63():
-    """Test issue #63."""
+async def test_predicate_fanout():
+    """Test that all predicate descendants are explored."""
     qgraph = {
         "nodes": {
             "a": {
@@ -372,7 +372,7 @@ async def test_issue_63():
     },
 )
 async def test_subpredicate():
-    """Test sub-predicate query."""
+    """Test that KPs are sent the correct predicate subclasses."""
     qgraph = {
         "nodes": {
             "a": {
