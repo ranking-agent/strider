@@ -217,7 +217,14 @@ CTD_PREFIXES = {
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [("ctd", CTD_PREFIXES)]
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """
+    }
 )
 async def test_fetch():
     """

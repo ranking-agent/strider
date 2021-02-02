@@ -90,20 +90,18 @@ async def response_overlay(url, response: Response):
 async def translator_overlay(
         registry_url: str,
         normalizer_url: str,
-        origins: list[tuple[str, CURIEMap]]):
+        origins: dict[str, str]):
     """Registry + KPs + Normalizer context manager."""
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
             norm_overlay(normalizer_url)
         )
         kps = dict()
-        for origin, curie_prefixes in origins:
+        for origin, data_string in origins.items():
             await stack.enter_async_context(
                 kp_overlay(
                     origin,
-                    curie_prefixes=curie_prefixes,
-                    nodes_file=getattr(small_kg, origin).nodes_file,
-                    edges_file=getattr(small_kg, origin).edges_file,
+                    data=data_string,
                 )
             )
 

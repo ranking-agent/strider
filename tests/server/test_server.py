@@ -62,11 +62,17 @@ def assert_no_warnings_trapi(resp):
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    }
+)
 async def test_solve_ex1():
     """Test solving the ex1 query graph"""
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -99,11 +105,17 @@ async def test_solve_ex1():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    }
+)
 async def test_solve_missing_predicate():
     """Test solving the ex1 query graph, in which one of the predicates is missing. """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -127,11 +139,17 @@ async def test_solve_missing_predicate():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    }
+)
 async def test_solve_missing_category():
     """Test solving the ex1 query graph, in which one of the categories is missing. """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -154,11 +172,17 @@ async def test_solve_missing_category():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    }
+)
 async def test_log_level_param():
     """Test that changing the log level given to sync_query changes the output """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -184,11 +208,27 @@ async def test_log_level_param():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "hetio":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "mychem":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    }
+)
 async def test_plan_ex1():
     """Test /plan endpoint"""
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -216,11 +256,27 @@ async def test_plan_ex1():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    [
-        ("ctd", CTD_PREFIXES),
-        ("hetio", DEFAULT_PREFIXES),
-        ("mychem", MYCHEM_PREFIXES),
-    ])
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "mychem":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """,
+        "hetio":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """,
+    }
+)
 # Override one KP with an invalid response
 @with_response_overlay(
     "http://mychem/query",
