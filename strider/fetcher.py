@@ -187,21 +187,16 @@ class StriderWorker(Worker):
             "step": self.plan[step],
         })
 
-        # Get a query graph we can use as the request body
-        kp_request_body = get_kp_request_body(
-            self.qgraph,
-            step.edge,
-        )
-
-        # Set the node ID of the current step to the
-        # given curie
-        kp_request_body['message']['query_graph']['nodes'][step.source]['id'] = \
-            [curie]
-
         responses = await asyncio.gather(*(
             self.portal.fetch(
                 kp["url"],
-                kp_request_body,
+                get_kp_request_body(
+                    self.qgraph,
+                    step.edge,
+                    curie,
+                    step,
+                    kp,
+                ),
                 kp["preferred_prefixes"],
                 self.preferred_prefixes,
             )
@@ -247,6 +242,9 @@ class StriderWorker(Worker):
 def get_kp_request_body(
         qgraph: QueryGraph,
         edge: str,
+        curie: str,
+        step: Step,
+        kp: dict,
 ) -> Response:
     """Get request to send to KP."""
     included_nodes = [
@@ -265,4 +263,10 @@ def get_kp_request_body(
             if key in included_edges
         },
     }
+
+    request_qgraph['nodes'][step.source]['id'] = [curie]
+    predicate = kp["edge_predicate"].split("-")[1]
+    request_qgraph['edges'][step.edge]['predicate'] = [predicate]
+    request_qgraph['nodes'][step.source]['category'] = [kp["source_category"]]
+    request_qgraph['nodes'][step.target]['category'] = [kp["target_category"]]
     return {"message": {"query_graph": request_qgraph}}
