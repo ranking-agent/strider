@@ -128,12 +128,9 @@ async def test_no_reverse_edge_in_plan(caplog):
         """
     )
 
-    log = logging.getLogger()
-    log.setLevel(logging.DEBUG)
-
     plans = await generate_plans(
         qg,
-        logger=log,
+        logger=logging.getLogger(),
     )
     plan = plans[0]
 
