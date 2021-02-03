@@ -402,3 +402,57 @@ async def test_subpredicate():
     # Run
     output = await sync_query(q, log_level="DEBUG")
     assert output["message"]["results"]
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "mychem":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:xxx(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:related_to -->HP:xxx
+        """,
+        "hetio":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:yyy
+            HP:yyy(( category biolink:PhenotypicFeature ))
+        """,
+    }
+)
+async def test_mutability_bug():
+    """
+    Test that qgraph is not mutated between KP calls.
+    """
+    qg = {
+        'nodes': {
+            'n0': {
+                'id': ['MONDO:0005148'],
+                'category': ["biolink:Disease"],
+            },
+            'n1': {
+                'category': ['biolink:PhenotypicFeature'],
+            },
+        },
+        'edges': {
+            'n0n1': {
+                'subject': 'n0',
+                'object': 'n1',
+                'predicate': ['biolink:related_to'],
+            },
+        }
+    }
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(qg)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert len(output["message"]["results"]) == 2
