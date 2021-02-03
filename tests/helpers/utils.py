@@ -110,14 +110,16 @@ def kps_from_string(s):
         if not match_kp:
             raise ValueError(f"Invalid line: {line}")
         name = match_kp.group('name')
-        kps[name] = {
-            "url": f"http://{name}",
-            "operations": [{
-                "source_type": match_kp.group('src'),
-                "edge_type": match_kp.group('predicate'),
-                "target_type": match_kp.group('target'),
-            }]
-        }
+        if name not in kps:
+            kps[name] = {
+                "url": f"http://{name}",
+                "operations": [],
+            }
+        kps[name]['operations'].append({
+            "source_type": match_kp.group('src'),
+            "edge_type": match_kp.group('predicate'),
+            "target_type": match_kp.group('target'),
+        })
     return kps
 
 
