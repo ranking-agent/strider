@@ -272,9 +272,9 @@ def get_kp_request_body(
         },
     }
 
-    request_qgraph['nodes'][step.source]['id'] = [curie]
+    request_qgraph['nodes'][step.source]['id'] = curie
     predicate = kp["edge_predicate"].split("-")[1]
-    request_qgraph['edges'][step.edge]['predicate'] = [predicate]
-    request_qgraph['nodes'][step.source]['category'] = [kp["source_category"]]
-    request_qgraph['nodes'][step.target]['category'] = [kp["target_category"]]
+    request_qgraph['edges'][step.edge]['predicate'] = predicate
+    request_qgraph['nodes'][step.source]['category'] = kp["source_category"]
+    request_qgraph['nodes'][step.target]['category'] = kp["target_category"]
     return {"message": {"query_graph": request_qgraph}}
