@@ -169,7 +169,6 @@ async def expand_qg(
         "qg": qg,
     })
 
-
     logger.debug("Contacting node normalizer to get categorys for curies")
 
     # Use node normalizer to add
@@ -331,7 +330,7 @@ async def find_valid_permutations(
 
     # Remove edges with no predicates
     operation_graph['edges'] = {k: edge for k, edge in operation_graph['edges'].items()
-                            if len(edge['predicate']) > 0}
+                                if len(edge['predicate']) > 0}
 
     logger.debug(
         f"Found {len(operation_kp_map)} possible KP operations we can use")
@@ -354,7 +353,8 @@ def dfs(operation_graph, source) -> (list[str], list[str]):
     Run depth first search on the graph
 
     Returns a list of nodes and edges
-    that we traversed.
+    that we traversed. Will not go back to
+    previously visited nodes or edges.
     """
     path_nodes = [source]
     path_edges = []
@@ -378,6 +378,8 @@ def dfs(operation_graph, source) -> (list[str], list[str]):
 
         for node_id, edge_id in zip(adjacent_nodes, adjacent_edges):
             if edge_id in path_edges:
+                continue
+            if node_id in path_nodes:
                 continue
             stack.append(node_id)
             path_nodes.append(node_id)
@@ -433,8 +435,18 @@ async def generate_plans(
             if set(pinned_nodes) | set(path_nodes) != all_nodes:
                 continue
 
-            # If we don't traverse every edge we can't use this
-            if set(path_edges) != set(current_og['edges'].keys()):
+            # If we don't traverse every edge either in the forward
+            # or reverse direction we can't use this
+            path_edges_with_reverse = set()
+            for edge_id in path_edges:
+                # Remove suffix
+                edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
+                path_edges_with_reverse.add(edge_id)
+                path_edges_with_reverse.add(edge_id + REVERSE_EDGE_SUFFIX)
+            if not all(
+                    graph_edge in path_edges_with_reverse
+                    for graph_edge in set(current_og['edges'].keys())
+            ):
                 continue
 
             # Build our list of steps in the plan
