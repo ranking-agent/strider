@@ -370,7 +370,7 @@ async def generate_traversal_plan(
     for plan in plans:
         plans_stringified_keys.append(
             {
-                f"{step.source}-{step.edge}->{step.target}": v
+                f"{step.source}-{step.edge}-{step.target}": v
                 for step, v in plan.items()
             }
         )
