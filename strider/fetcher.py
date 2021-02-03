@@ -263,11 +263,11 @@ def get_kp_request_body(
 
     request_qgraph = {
         "nodes": {
-            key: val for key, val in qgraph['nodes'].items()
+            key: val.copy() for key, val in qgraph['nodes'].items()
             if key in included_nodes
         },
         "edges": {
-            key: val for key, val in qgraph['edges'].items()
+            key: val.copy() for key, val in qgraph['edges'].items()
             if key in included_edges
         },
     }
