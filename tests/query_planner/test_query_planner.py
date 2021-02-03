@@ -106,6 +106,42 @@ async def test_not_enough_kps(caplog):
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
+    kp0 biolink:Disease -biolink:related_to-> biolink:Drug
+    kp0 biolink:Disease <-biolink:related_to- biolink:Drug
+    kp0 biolink:Drug <-biolink:related_to- biolink:Disease
+    kp0 biolink:Drug -biolink:related_to-> biolink:Disease
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_no_reverse_edge_in_plan(caplog):
+    """
+    Check that we don't include
+    both reverse and forward edges in plan even
+    if we have KPs that can solve both
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    plans = await generate_plans(
+        qg,
+        logger=logging.getLogger(),
+    )
+    plan = plans[0]
+
+    # One step in plan
+    assert len(plan) == 1
+    assert_no_level(caplog, logging.WARNING, 1)
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
     kp0 biolink:Drug -biolink:treats-> biolink:Disease
     """
 ))
