@@ -8,7 +8,6 @@ import os
 import enum
 from pathlib import Path
 import pprint
-from typing import Dict
 
 from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks
 from fastapi.openapi.docs import (
@@ -227,7 +226,7 @@ async def sync_query(
 
 @APP.post('/ars')
 async def handle_ars(
-        data: Dict,
+        data: dict,
 ):
     """Handle ARS message."""
     if data.get('model', None) != 'tr_ars.message':
@@ -359,13 +358,23 @@ async def extract_results(query_id, since, limit, offset, database):
     ]
 
 
-@APP.post('/plan', response_model=Dict)
+@APP.post('/plan', response_model=list[dict])
 async def generate_traversal_plan(
         query: Query,
-) -> list[Dict]:
+) -> list[dict]:
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
-    return await generate_plans(query_graph)
+    plans = await generate_plans(query_graph)
+
+    plans_stringified_keys = []
+    for plan in plans:
+        plans_stringified_keys.append(
+            {
+                f"{step.source}-{step.edge}-{step.target}": v
+                for step, v in plan.items()
+            }
+        )
+    return plans_stringified_keys
 
 
 @APP.post('/score', response_model=Message)

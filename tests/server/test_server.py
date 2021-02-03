@@ -245,11 +245,14 @@ async def test_plan_ex1():
     output = await generate_traversal_plan(q)
     assert output
 
+    # Check that output is JSON serializeable
+    json.dumps(output)
+
     plan = output[0]
 
     # Two steps in the plan each with KPs to contact
-    assert len(plan[('n0', 'e01', 'n1')]) == 2
-    assert len(plan[('n1', 'e12', 'n2')]) == 1
+    assert len(plan['n0-e01-n1']) == 2
+    assert len(plan['n1-e12-n2']) == 1
 
 
 @pytest.mark.asyncio
