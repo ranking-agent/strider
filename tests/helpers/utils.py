@@ -79,9 +79,11 @@ def query_graph_from_string(s):
         match_node = re.search(node_re, line)
         match_edge = re.search(edge_re, line)
         if match_node:
-            qg['nodes'][match_node.group('id')] = {
-                match_node.group('key'): match_node.group('val')
-            }
+            node_id = match_node.group('id')
+            if node_id not in qg['nodes']:
+                qg['nodes'][node_id] = {}
+            qg['nodes'][node_id][match_node.group('key')] = \
+                match_node.group('val')
         elif match_edge:
             edge_id = match_edge.group('src') + match_edge.group('target')
             qg['edges'][edge_id] = {
