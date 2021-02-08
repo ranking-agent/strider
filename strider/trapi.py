@@ -15,14 +15,18 @@ def merge_messages(messages: list[Message]) -> Message:
     for message in messages:
         knodes |= message["knowledge_graph"]["nodes"]
         kedges |= message["knowledge_graph"]["edges"]
-        results.extend(message["results"])
+        for result in message["results"]:
+            # Use pydantic model so that we can deduplicate
+            result_pydantic = Result.parse_obj(result)
+            if result_pydantic not in results:
+                results.append(result_pydantic)
     return {
         "query_graph": messages[0]["query_graph"],
         "knowledge_graph": {
             "nodes": knodes,
             "edges": kedges
         },
-        "results": results
+        "results": [r.dict() for r in results]
     }
 
 
