@@ -258,8 +258,6 @@ def get_kp_request_body(
         curie: str,
         step: Step,
         kp: dict,
-
-
 ) -> Response:
     """Get request to send to KP."""
     included_nodes = [
