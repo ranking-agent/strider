@@ -27,6 +27,7 @@ from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
+from .util import ensure_list
 
 # Initialize registry
 registry = Registry(settings.kpregistry_url)
@@ -121,12 +122,12 @@ class StriderWorker(Worker):
         # Fill in missing predicates with most general term
         for eid, edge in self.qgraph['edges'].items():
             if ('predicate' not in edge) or (edge['predicate'] is None):
-                edge['predicate'] = 'biolink:related_to'
+                edge['predicate'] = ['biolink:related_to']
 
         # Fill in missing categories with most general term
         for node in self.qgraph['nodes'].values():
             if ('category' not in node) or (node['category'] is None):
-                node['category'] = 'biolink:NamedThing'
+                node['category'] = ['biolink:NamedThing']
 
     async def generate_plan(self):
         """
@@ -205,7 +206,7 @@ class StriderWorker(Worker):
                 self.preferred_prefixes,
             )
             for kp in self.plan[step]
-            if category is not None and kp["source_category"] == category
+            if kp["source_category"] in category
         ))
         return merge_messages(responses)
 
@@ -229,10 +230,14 @@ class StriderWorker(Worker):
             "step": step,
         })
 
+        category_list = ensure_list(
+            result["node_bindings"][step.source][0].get("category", [])
+        )
+
         response = await self.execute_step(
             step,
             result["node_bindings"][step.source][0]["id"],
-            category=result["node_bindings"][step.source][0].get("category", None),
+            category=tuple(category_list),
         )
 
         # process kgraph
@@ -253,6 +258,8 @@ def get_kp_request_body(
         curie: str,
         step: Step,
         kp: dict,
+
+
 ) -> Response:
     """Get request to send to KP."""
     included_nodes = [

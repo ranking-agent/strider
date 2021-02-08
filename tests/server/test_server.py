@@ -14,6 +14,7 @@ from tests.helpers.logger import setup_logger
 from tests.helpers.context import \
     with_translator_overlay, with_registry_overlay, \
     with_norm_overlay, with_response_overlay
+from tests.helpers.utils import query_graph_from_string
 
 from strider.config import settings
 
@@ -99,6 +100,50 @@ async def test_solve_ex1():
     print("========================= RESULTS =========================")
     print(output['message']['results'])
     print(output['message']['knowledge_graph'])
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148(( category biolink:DiseaseOrPhenotypicFeature ))
+            MONDO:0005148(( category biolink:Disease ))
+        """
+    }
+)
+async def test_duplicate_results():
+    """
+    Some KPs will advertise multiple operations from the biolink hierarchy.
+
+    Test that we filter out duplicate results if we
+    contact the KP multiple times.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:DiseaseOrPhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert_no_warnings_trapi(output)
+
+    assert len(output['message']['results']) == 1
 
 
 @pytest.mark.asyncio
