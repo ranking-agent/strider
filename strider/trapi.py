@@ -1,10 +1,27 @@
 """TRAPI utilities."""
 from collections import defaultdict
+from collections.abc import Callable
 
 from reasoner_pydantic import Message, Result, QNode, Node, Edge
 from reasoner_pydantic.qgraph import QueryGraph
 
 from .util import deduplicate_by
+
+
+def result_hash(result):
+    """
+    Given a results object, generate a hashable value that
+    can be used for comparison.
+    """
+    node_bindings_information = frozenset(
+        (key, frozenset(bound["id"] for bound in value))
+        for key, value in result["node_bindings"].items()
+    )
+    edge_bindings_information = frozenset(
+        (key, frozenset(bound["id"] for bound in value))
+        for key, value in result["edge_bindings"].items()
+    )
+    return (node_bindings_information, edge_bindings_information)
 
 
 def merge_messages(messages: list[Message]) -> Message:
@@ -15,18 +32,18 @@ def merge_messages(messages: list[Message]) -> Message:
     for message in messages:
         knodes |= message["knowledge_graph"]["nodes"]
         kedges |= message["knowledge_graph"]["edges"]
-        for result in message["results"]:
-            # Use pydantic model so that we can deduplicate
-            result_pydantic = Result.parse_obj(result)
-            if result_pydantic not in results:
-                results.append(result_pydantic)
+
+        results.extend(message["results"])
+
+    results_deduplicated = deduplicate_by(results, result_hash)
+
     return {
         "query_graph": messages[0]["query_graph"],
         "knowledge_graph": {
             "nodes": knodes,
             "edges": kedges
         },
-        "results": [r.dict() for r in results]
+        "results": results_deduplicated
     }
 
 
