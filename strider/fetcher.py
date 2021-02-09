@@ -86,6 +86,7 @@ class StriderWorker(Worker):
     async def setup(
             self,
             qid: str,
+            log_level: int,
     ):
         """Set up."""
         # Set up DB results objects
@@ -98,7 +99,7 @@ class StriderWorker(Worker):
             ReasonerLogEntryFormatter()
         )
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(log_level)
         self.logger.addHandler(handler)
 
         self.logger.debug("Initialized strider worker")

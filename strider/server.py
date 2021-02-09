@@ -113,7 +113,6 @@ EXAMPLE = {
 
 def get_finished_query(
         qid: str,
-        log_level: str,
 ) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph")
     kgraph = RedisGraph(f"{qid}:kgraph")
@@ -127,20 +126,13 @@ def get_finished_query(
     results.expire(expiration_seconds)
     logs.expire(expiration_seconds)
 
-    # pylint: disable=protected-access
-    levelno = logging._nameToLevel[log_level]
-    # pylint: disable=protected-access
-    filtered_logs = [
-        log for log in logs.get() if logging._nameToLevel[log['level']] >= levelno
-    ]
-
     return dict(
         message=dict(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
             results=list(results.get()),
         ),
-        logs=filtered_logs,
+        logs=list(logs.get()),
     )
 
 
@@ -148,9 +140,12 @@ async def process_query(
         qid: str,
         log_level: str,
 ):
+    # pylint: disable=protected-access
+    level_number = logging._nameToLevel[log_level]
+
     # Set up workers
     strider = StriderWorker(num_workers=2)
-    await strider.setup(qid)
+    await strider.setup(qid, level_number)
 
     # Generate plan
     try:
@@ -158,14 +153,14 @@ async def process_query(
     except NoAnswersError:
         # End early with no results
         # (but we should have log messages)
-        return get_finished_query(qid, log_level)
+        return get_finished_query(qid)
 
     # Process
     await strider.run(qid, wait=True)
 
     # Pull results from redis
     # Also starts timer for expiring results
-    return get_finished_query(qid, log_level)
+    return get_finished_query(qid)
 
 
 @APP.post('/aquery')
@@ -195,10 +190,9 @@ async def async_query(
 @APP.post('/query_result', response_model=ReasonerResponse)
 async def get_results(
         qid: str,
-        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """ Get results for a running or finished query """
-    return get_finished_query(qid, log_level)
+    return get_finished_query(qid)
 
 
 @APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
