@@ -60,6 +60,12 @@ class KnowledgePortal():
         try:
             response = await post_json(url, request)
             message = response["message"]
+            self.logger.debug({
+                "message": "Received response from KP",
+                "url": url,
+                "request": request,
+                "response": response,
+            })
         except (httpx.RequestError, httpx.HTTPStatusError) as e:
             # Log error
             self.logger.error({
@@ -191,7 +197,7 @@ class CURIEMap():
         except StopIteration:
             # no preferred prefixes for these categories
             self.logger.warning(
-                "Cannot find preferred prefixes for categories")
+                f"Could not find preferred prefixes for at least one of: {categories}")
             return curie
 
         # get CURIE with preferred prefix
