@@ -32,10 +32,12 @@ class Worker(ABC):
     def __init__(
             self,
             num_workers: int = 1,
+            logger: logging.Logger = LOGGER,
             **kwargs,
     ):
         """Initialize."""
         self.num_workers = num_workers
+        self.logger = logger
 
         self.queue = asyncio.PriorityQueue()
         self.counter = itertools.count()
@@ -49,11 +51,10 @@ class Worker(ABC):
         try:
             await self.on_message(message)
         except Exception as err:
-            LOGGER.exception(
-                "Aborted processing of %s due to error: %s",
-                message,
-                str(err),
-            )
+            self.logger.exception({
+                "message": "Aborted processing of queue item due to exception",
+                "queue_item": message,
+            })
 
     async def consume(self):
         """Consume messages."""
