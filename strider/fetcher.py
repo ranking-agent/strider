@@ -21,7 +21,7 @@ from reasoner_pydantic import QueryGraph, Result, Response
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
-from .trapi import merge_messages, merge_results
+from .trapi import merge_messages, merge_results, expand_qg
 from .worker import Worker
 from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
@@ -74,7 +74,6 @@ class StriderWorker(Worker):
     def __init__(self, *args, **kwargs):
         """Initialize."""
         self.plan: dict[Step, list]
-        self.expanded_qg: dict[str, dict]
         self.preferred_prefixes: dict[str, list[str]]
         self.qgraph: RedisGraph
         self.kgraph: RedisGraph
@@ -121,15 +120,8 @@ class StriderWorker(Worker):
             self.preferred_prefixes,
         ))["query_graph"]
 
-        # Fill in missing predicates with most general term
-        for eid, edge in self.qgraph['edges'].items():
-            if ('predicate' not in edge) or (edge['predicate'] is None):
-                edge['predicate'] = ['biolink:related_to']
-
-        # Fill in missing categories with most general term
-        for node in self.qgraph['nodes'].values():
-            if ('category' not in node) or (node['category'] is None):
-                node['category'] = ['biolink:NamedThing']
+        # Expand the query graph using the biolink model hierarchies
+        self.qgraph = await expand_qg(self.qgraph, self.logger)
 
     async def generate_plan(self):
         """
@@ -141,7 +133,7 @@ class StriderWorker(Worker):
         """
         self.logger.debug("Generating plan")
         # Generate traversal plan
-        plans, self.expanded_qg = await generate_plans(
+        plans = await generate_plans(
             self.qgraph,
             kp_registry=registry,
             logger=self.logger)
@@ -155,7 +147,7 @@ class StriderWorker(Worker):
         self.logger.debug({"plan": self.plan})
 
         # add partial results for each curie that we are given
-        for qnode_id, qnode in self.expanded_qg["nodes"].items():
+        for qnode_id, qnode in self.qgraph["nodes"].items():
             if not qnode.get("id", False):
                 continue
             for curie in qnode["id"]:

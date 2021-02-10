@@ -17,8 +17,10 @@ from tests.helpers.logger import assert_no_level
 
 
 from strider.query_planner import \
-    generate_plans, find_valid_permutations, permute_og, expand_qg, qg_to_og, \
-    NoAnswersError, qg_to_og
+    generate_plans, find_valid_permutations, \
+    permute_og, qg_to_og, \
+    NoAnswersError
+from strider.trapi import expand_qg
 
 from strider.config import settings
 
@@ -95,7 +97,7 @@ async def test_not_enough_kps(caplog):
         """
     )
 
-    plans, _ = await generate_plans(
+    plans = await generate_plans(
         qg,
         logger=logging.getLogger()
     )
@@ -128,7 +130,7 @@ async def test_no_reverse_edge_in_plan(caplog):
         """
     )
 
-    plans, _ = await generate_plans(
+    plans = await generate_plans(
         qg,
         logger=logging.getLogger(),
     )
@@ -167,7 +169,7 @@ async def test_no_path_from_pinned_node(caplog):
     permutations = await find_valid_permutations(operation_graph)
     assert len(list(permutations))
 
-    plans, _ = await generate_plans(
+    plans = await generate_plans(
         qg,
         logger=logging.getLogger(),
     )
@@ -197,7 +199,7 @@ async def test_solve_reverse_edge(caplog):
         """
     )
 
-    plans, _ = await generate_plans(qg)
+    plans = await generate_plans(qg)
     assert len(plans) == 1
     assert_no_level(caplog, logging.WARNING)
 
@@ -232,7 +234,7 @@ async def test_plan_ex1(caplog):
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    plans, _ = await generate_plans(qg)
+    plans = await generate_plans(qg)
     plan = plans[0]
     # One step per edge
     assert len(plan.keys()) == len(qg['edges'])
@@ -267,7 +269,7 @@ async def test_invalid_two_pinned_nodes(caplog):
         """
     )
 
-    plans, _ = await generate_plans(qg)
+    plans = await generate_plans(qg)
     assert len(plans) == 1
     assert_no_level(caplog, logging.WARNING)
 
@@ -295,7 +297,7 @@ async def test_unbound_unconnected_node(caplog):
         """
     )
 
-    plans, _ = await generate_plans(qg)
+    plans = await generate_plans(qg)
     assert len(plans) == 0
     assert_no_level(caplog, logging.WARNING, 1)
 
@@ -324,7 +326,7 @@ async def test_invalid_two_disconnected_components(caplog):
         """
     )
 
-    plans, _ = await generate_plans(qg)
+    plans = await generate_plans(qg)
     assert len(plans) == 0
     assert_no_level(caplog, logging.WARNING, 1)
 
@@ -361,7 +363,7 @@ async def test_bad_norm(caplog):
         }
     }
 
-    plans, _ = await generate_plans(qg)
+    plans = await generate_plans(qg)
     assert any(
         (
             record.levelname == "WARNING"

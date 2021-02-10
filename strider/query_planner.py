@@ -7,11 +7,8 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.normalizer import Normalizer
 from strider.util import WrappedBMT
 from strider.config import settings
-
-WBMT = WrappedBMT()
 
 LOGGER = logging.getLogger(__name__)
 
@@ -92,29 +89,6 @@ class NoAnswersError(Exception):
     """No answers can be found."""
 
 
-def filter_ancestor_types(types):
-    """ Filter out types that are ancestors of other types in the list """
-
-    def is_ancestor(a, b):
-        """ Check if one biolink type is an ancestor of the other """
-        ancestors = WBMT.get_ancestors(b)
-        if a in ancestors:
-            return True
-        return False
-
-    specific_types = ['biolink:NamedThing']
-    for new_type in types:
-        for existing_type_id, existing_type in enumerate(specific_types):
-            existing_type = specific_types[existing_type_id]
-            if is_ancestor(new_type, existing_type):
-                continue
-            if is_ancestor(existing_type, new_type):
-                specific_types[existing_type_id] = new_type
-            else:
-                specific_types.append(new_type)
-    return specific_types
-
-
 def get_operation(
         operation_graph: dict,
         edge: dict,
@@ -125,70 +99,6 @@ def get_operation(
         edge['predicate'],
         operation_graph['nodes'][edge['target']]['category'],
     )
-
-
-async def expand_qg(
-        qg: QueryGraph,
-        logger: logging.Logger = LOGGER,
-        normalizer: Normalizer = None,
-) -> QueryGraph:
-    """
-    Given a query graph, use the Biolink model to expand categories and predicates
-    to include their descendants. Also get categories for pinned nodes.
-    """
-    if normalizer is None:
-        normalizer = Normalizer(settings.normalizer_url)
-
-    logger.debug("Using BMT to get descendants of node and edge types")
-
-    qg = copy.deepcopy(qg)
-    # Use BMT to convert node categorys to categorys + descendants
-    for node in qg['nodes'].values():
-        if 'category' not in node:
-            continue
-        if not isinstance(node['category'], list):
-            node['category'] = [node['category']]
-        new_category_list = []
-        for t in node['category']:
-            new_category_list.extend(WBMT.get_descendants(t))
-        node['category'] = new_category_list
-
-    # Same with edges
-    for edge in qg['edges'].values():
-        if 'predicate' not in edge:
-            continue
-        if not isinstance(edge['predicate'], list):
-            edge['predicate'] = [edge['predicate']]
-        new_predicate_list = []
-        for t in edge['predicate']:
-            new_predicate_list.extend(WBMT.get_descendants(t))
-        edge['predicate'] = new_predicate_list
-
-    logger.debug({
-        "description": "Expanded query graph with descendants",
-        "qg": qg,
-    })
-
-    logger.debug("Contacting node normalizer to get categorys for curies")
-
-    # Use node normalizer to add
-    # a category to nodes with a curie
-    for node in qg['nodes'].values():
-        if not node.get('id'):
-            continue
-        if not isinstance(node['id'], list):
-            node['id'] = [node['id']]
-
-        # Get full list of categorys
-        categories = await normalizer.get_types(node['id'])
-
-        if categories:
-            # Filter categorys that are ancestors of other categorys we were given
-            node['category'] = filter_ancestor_types(categories)
-        elif "category" not in node:
-            node["category"] = []
-
-    return qg
 
 
 async def get_operation_kp_map(
@@ -314,11 +224,6 @@ async def find_valid_permutations(
     that shows which KPs to contact to get results.
     """
 
-    logger.debug({
-        "description": "Query graph with categorys added to curies",
-        "expanded_qg": operation_graph,
-    })
-
     # For each edge, ask KP registry for KPs that could solve it
 
     logger.debug(
@@ -391,7 +296,6 @@ def dfs(operation_graph, source) -> (list[str], list[str]):
 async def generate_plans(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
-        normalizer: Normalizer = None,
         logger: logging.Logger = LOGGER,
 ) -> (list[dict[Step, list]], dict[str, dict]):
     """
@@ -404,8 +308,7 @@ async def generate_plans(
 
     logger.debug("Generating plan for query graph")
 
-    expanded_qg = await expand_qg(qgraph, logger, normalizer)
-    operation_graph = await qg_to_og(expanded_qg, logger)
+    operation_graph = await qg_to_og(qgraph, logger)
     filtered_og_list = await find_valid_permutations(
         operation_graph, kp_registry, logger
     )
@@ -424,7 +327,7 @@ async def generate_plans(
                     We couldn't find a KP for every edge in your query graph
                 """
         })
-        return [], {}
+        return []
 
     plans = []
 
@@ -494,7 +397,7 @@ async def generate_plans(
             """
         })
 
-    return plans, expanded_qg
+    return plans
 
 
 def validate_and_annotate_og_list(

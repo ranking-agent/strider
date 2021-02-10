@@ -1,11 +1,17 @@
 """TRAPI utilities."""
 from collections import defaultdict
 from collections.abc import Callable
+import copy
+import logging
 
 from reasoner_pydantic import Message, Result, QNode, Node, Edge
 from reasoner_pydantic.qgraph import QueryGraph
 
-from .util import deduplicate_by
+from strider.util import deduplicate_by, WrappedBMT
+from strider.normalizer import Normalizer
+from strider.config import settings
+
+WBMT = WrappedBMT()
 
 
 def result_hash(result):
@@ -171,3 +177,101 @@ def fix_result(result: Result, curie_map: dict[str, str]) -> Result:
         for qnode_id, node_bindings in result['node_bindings'].items()
     }
     return result
+
+
+def filter_ancestor_types(types):
+    """ Filter out types that are ancestors of other types in the list """
+
+    def is_ancestor(a, b):
+        """ Check if one biolink type is an ancestor of the other """
+        ancestors = WBMT.get_ancestors(b)
+        if a in ancestors:
+            return True
+        return False
+
+    specific_types = ['biolink:NamedThing']
+    for new_type in types:
+        for existing_type_id, existing_type in enumerate(specific_types):
+            existing_type = specific_types[existing_type_id]
+            if is_ancestor(new_type, existing_type):
+                continue
+            if is_ancestor(existing_type, new_type):
+                specific_types[existing_type_id] = new_type
+            else:
+                specific_types.append(new_type)
+    return specific_types
+
+
+async def expand_qg(
+        qg: QueryGraph,
+        logger: logging.Logger = logging.getLogger(),
+        normalizer: Normalizer = None,
+) -> QueryGraph:
+    """
+    Given a query graph, use the Biolink model to expand categories and predicates
+    to include their descendants. Also get categories for pinned nodes.
+    """
+    qg = copy.deepcopy(qg)
+
+    if normalizer is None:
+        normalizer = Normalizer(settings.normalizer_url)
+
+    # Fill in missing predicates with most general term
+    for eid, edge in qg['edges'].items():
+        if ('predicate' not in edge) or (edge['predicate'] is None):
+            edge['predicate'] = 'biolink:related_to'
+
+    # Fill in missing categories with most general term
+    for node in qg['nodes'].values():
+        if ('category' not in node) or (node['category'] is None):
+            node['category'] = 'biolink:NamedThing'
+
+    logger.debug("Using BMT to get descendants of node and edge types")
+
+    # Use BMT to convert node categorys to categorys + descendants
+    for node in qg['nodes'].values():
+        if 'category' not in node:
+            continue
+        if not isinstance(node['category'], list):
+            node['category'] = [node['category']]
+        new_category_list = []
+        for t in node['category']:
+            new_category_list.extend(WBMT.get_descendants(t))
+        node['category'] = new_category_list
+
+    # Same with edges
+    for edge in qg['edges'].values():
+        if 'predicate' not in edge:
+            continue
+        if not isinstance(edge['predicate'], list):
+            edge['predicate'] = [edge['predicate']]
+        new_predicate_list = []
+        for t in edge['predicate']:
+            new_predicate_list.extend(WBMT.get_descendants(t))
+        edge['predicate'] = new_predicate_list
+
+    logger.debug({
+        "description": "Expanded query graph with descendants",
+        "qg": qg,
+    })
+
+    logger.debug("Contacting node normalizer to get categorys for curies")
+
+    # Use node normalizer to add
+    # a category to nodes with a curie
+    for node in qg['nodes'].values():
+        if not node.get('id'):
+            continue
+        if not isinstance(node['id'], list):
+            node['id'] = [node['id']]
+
+        # Get full list of categorys
+        categories = await normalizer.get_types(node['id'])
+
+        if categories:
+            # Filter categorys that are ancestors of other categorys we were given
+            node['category'] = filter_ancestor_types(categories)
+        elif "category" not in node:
+            node["category"] = []
+
+    return qg
