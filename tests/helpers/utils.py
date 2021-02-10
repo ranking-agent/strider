@@ -1,3 +1,4 @@
+from collections import defaultdict
 import itertools
 import time
 import json
@@ -139,17 +140,12 @@ def normalizer_data_from_string(s):
     # so we use inspect.cleandoc to remove leading indentation
     s = inspect.cleandoc(s)
 
-    category_mappings = {}
-    synset_mappings = {}
+    category_mappings = defaultdict(list)
+    synset_mappings = defaultdict(list)
     for line in s.splitlines():
         tokens = line.split(" ")
 
         curie = tokens[0]
-        if curie not in category_mappings:
-            category_mappings[curie] = []
-        if curie not in synset_mappings:
-            synset_mappings[curie] = []
-
         action = tokens[1]
         line_data = tokens[2:]
         if action == 'categories':
