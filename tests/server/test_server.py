@@ -150,7 +150,7 @@ async def test_duplicate_results():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
-    {
+    kp_data={
         "ctd":
         """
             CHEBI:6801(( category biolink:ChemicalSubstance ))

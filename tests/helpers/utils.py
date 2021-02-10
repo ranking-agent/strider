@@ -125,6 +125,44 @@ def kps_from_string(s):
     return kps
 
 
+def node_normalizer_data_from_string(s):
+    """
+    Parse data for node normalizer from string. Useful for tests.
+
+    Basic syntax:
+
+    MONDO:0005737 categories biolink:Disease
+    MONDO:0005737 synonyms   DOID:4325 ORPHANET:319218
+    """
+
+    # This usually comes from triple quoted strings
+    # so we use inspect.cleandoc to remove leading indentation
+    s = inspect.cleandoc(s)
+
+    node_re = r"(?P<id>.*)\(\( (?P<key>.*) (?P<val>.*) \)\)"
+    edge_re = r"(?P<src>.*)-- (?P<predicate>.*) -->(?P<target>.*)"
+    qg = {"nodes": {}, "edges": {}}
+    for line in s.splitlines():
+        match_node = re.search(node_re, line)
+        match_edge = re.search(edge_re, line)
+        if match_node:
+            node_id = match_node.group('id')
+            if node_id not in qg['nodes']:
+                qg['nodes'][node_id] = {}
+            qg['nodes'][node_id][match_node.group('key')] = \
+                match_node.group('val')
+        elif match_edge:
+            edge_id = match_edge.group('src') + match_edge.group('target')
+            qg['edges'][edge_id] = {
+                "subject": match_edge.group('src'),
+                "object": match_edge.group('target'),
+                "predicate": match_edge.group('predicate'),
+            }
+        else:
+            raise ValueError(f"Invalid line: {line}")
+    return qg
+
+
 async def time_and_display(f, msg):
     """ Time a function and print the time """
     start_time = time.time()
