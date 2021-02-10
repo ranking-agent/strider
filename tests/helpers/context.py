@@ -13,6 +13,7 @@ from simple_kp._types import CURIEMap
 import small_kg
 
 from .normalizer import norm_router
+from .utils import normalizer_data_from_string
 
 
 def url_to_host(url):
@@ -57,14 +58,17 @@ async def registry_overlay(url, kps):
 @asynccontextmanager
 async def norm_overlay(
     url: str,
-    normalizer_data: dict[str, dict] = {},
+    normalizer_data: str = "",
 ):
     """Normalizer server context manager."""
+
+    normalizer_data_dict = normalizer_data_from_string(normalizer_data)
+
     async with AsyncExitStack() as stack:
         app = FastAPI()
         app.include_router(norm_router(
-            synset_mappings=normalizer_data.get('synset_mappings', None),
-            category_mappings=normalizer_data.get('category_mappings', None),
+            synset_mappings=normalizer_data_dict['synset_mappings'],
+            category_mappings=normalizer_data_dict['category_mappings'],
         ))
         await stack.enter_async_context(
             ASGIAR(app, host=url_to_host(url))
@@ -97,12 +101,15 @@ async def translator_overlay(
         registry_url: str,
         normalizer_url: str,
         kp_data: dict[str, str] = {},
-        normalizer_data: dict[str, dict] = {},
+        normalizer_data: str = "",
 ):
     """Registry + KPs + Normalizer context manager."""
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            norm_overlay(normalizer_url, normalizer_data)
+            norm_overlay(
+                normalizer_url,
+                normalizer_data,
+            )
         )
         kps = dict()
         for host, data_string in kp_data.items():
