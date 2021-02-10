@@ -125,7 +125,7 @@ def kps_from_string(s):
     return kps
 
 
-def node_normalizer_data_from_string(s):
+def normalizer_data_from_string(s):
     """
     Parse data for node normalizer from string. Useful for tests.
 
@@ -139,28 +139,26 @@ def node_normalizer_data_from_string(s):
     # so we use inspect.cleandoc to remove leading indentation
     s = inspect.cleandoc(s)
 
-    node_re = r"(?P<id>.*)\(\( (?P<key>.*) (?P<val>.*) \)\)"
-    edge_re = r"(?P<src>.*)-- (?P<predicate>.*) -->(?P<target>.*)"
-    qg = {"nodes": {}, "edges": {}}
+    category_mappings = {}
+    synset_mappings = {}
     for line in s.splitlines():
-        match_node = re.search(node_re, line)
-        match_edge = re.search(edge_re, line)
-        if match_node:
-            node_id = match_node.group('id')
-            if node_id not in qg['nodes']:
-                qg['nodes'][node_id] = {}
-            qg['nodes'][node_id][match_node.group('key')] = \
-                match_node.group('val')
-        elif match_edge:
-            edge_id = match_edge.group('src') + match_edge.group('target')
-            qg['edges'][edge_id] = {
-                "subject": match_edge.group('src'),
-                "object": match_edge.group('target'),
-                "predicate": match_edge.group('predicate'),
-            }
+        tokens = line.split(" ")
+
+        curie = tokens[0]
+        if curie not in category_mappings:
+            category_mappings[curie] = []
+        if curie not in synset_mappings:
+            synset_mappings[curie] = []
+
+        action = tokens[1]
+        line_data = tokens[2:]
+        if action == 'categories':
+            category_mappings[curie].extend(line_data)
+        elif action == 'synonyms':
+            synset_mappings[curie].extend(line_data)
         else:
             raise ValueError(f"Invalid line: {line}")
-    return qg
+    return {"category_mappings": category_mappings, "synset_mappings": synset_mappings}
 
 
 async def time_and_display(f, msg):
