@@ -95,7 +95,7 @@ async def test_not_enough_kps(caplog):
         """
     )
 
-    plans = await generate_plans(
+    plans, _ = await generate_plans(
         qg,
         logger=logging.getLogger()
     )
@@ -128,7 +128,7 @@ async def test_no_reverse_edge_in_plan(caplog):
         """
     )
 
-    plans = await generate_plans(
+    plans, _ = await generate_plans(
         qg,
         logger=logging.getLogger(),
     )
@@ -167,7 +167,7 @@ async def test_no_path_from_pinned_node(caplog):
     permutations = await find_valid_permutations(operation_graph)
     assert len(list(permutations))
 
-    plans = await generate_plans(
+    plans, _ = await generate_plans(
         qg,
         logger=logging.getLogger(),
     )
@@ -197,7 +197,7 @@ async def test_solve_reverse_edge(caplog):
         """
     )
 
-    plans = await generate_plans(qg)
+    plans, _ = await generate_plans(qg)
     assert len(plans) == 1
     assert_no_level(caplog, logging.WARNING)
 
@@ -232,7 +232,7 @@ async def test_plan_ex1(caplog):
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    plans = await generate_plans(qg)
+    plans, _ = await generate_plans(qg)
     plan = plans[0]
     # One step per edge
     assert len(plan.keys()) == len(qg['edges'])
@@ -267,7 +267,7 @@ async def test_invalid_two_pinned_nodes(caplog):
         """
     )
 
-    plans = await generate_plans(qg)
+    plans, _ = await generate_plans(qg)
     assert len(plans) == 1
     assert_no_level(caplog, logging.WARNING)
 
@@ -295,7 +295,7 @@ async def test_unbound_unconnected_node(caplog):
         """
     )
 
-    plans = await generate_plans(qg)
+    plans, _ = await generate_plans(qg)
     assert len(plans) == 0
     assert_no_level(caplog, logging.WARNING, 1)
 
@@ -324,7 +324,7 @@ async def test_invalid_two_disconnected_components(caplog):
         """
     )
 
-    plans = await generate_plans(qg)
+    plans, _ = await generate_plans(qg)
     assert len(plans) == 0
     assert_no_level(caplog, logging.WARNING, 1)
 
@@ -361,7 +361,7 @@ async def test_bad_norm(caplog):
         }
     }
 
-    plans = await generate_plans(qg)
+    plans, _ = await generate_plans(qg)
     assert any(
         (
             record.levelname == "WARNING"

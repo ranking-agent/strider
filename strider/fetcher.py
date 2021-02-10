@@ -74,6 +74,7 @@ class StriderWorker(Worker):
     def __init__(self, *args, **kwargs):
         """Initialize."""
         self.plan: dict[Step, list]
+        self.expanded_qg: dict[str, dict]
         self.preferred_prefixes: dict[str, list[str]]
         self.qgraph: RedisGraph
         self.kgraph: RedisGraph
@@ -140,7 +141,7 @@ class StriderWorker(Worker):
         """
         self.logger.debug("Generating plan")
         # Generate traversal plan
-        plans = await generate_plans(
+        plans, self.expanded_qg = await generate_plans(
             self.qgraph,
             kp_registry=registry,
             logger=self.logger)
@@ -154,7 +155,7 @@ class StriderWorker(Worker):
         self.logger.debug({"plan": self.plan})
 
         # add partial results for each curie that we are given
-        for qnode_id, qnode in self.qgraph["nodes"].items():
+        for qnode_id, qnode in self.expanded_qg["nodes"].items():
             if not qnode.get("id", False):
                 continue
             for curie in qnode["id"]:
