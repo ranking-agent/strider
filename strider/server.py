@@ -358,7 +358,7 @@ async def generate_traversal_plan(
 ) -> list[dict]:
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
-    plans = await generate_plans(query_graph)
+    plans, _ = await generate_plans(query_graph)
 
     plans_stringified_keys = []
     for plan in plans:

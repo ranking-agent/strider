@@ -393,10 +393,13 @@ async def generate_plans(
         kp_registry: Registry = None,
         normalizer: Normalizer = None,
         logger: logging.Logger = LOGGER,
-) -> list[dict[Step, list]]:
+) -> (list[dict[Step, list]], dict[str, dict]):
     """
     Given a query graph, build plans that consists of steps
-    and the KPs we need to contact to evaluate those steps
+    and the KPs we need to contact to evaluate those steps.
+
+    Also return the expanded query graph so that we can use it during the
+    solving process.
     """
 
     logger.debug("Generating plan for query graph")
@@ -421,7 +424,7 @@ async def generate_plans(
                     We couldn't find a KP for every edge in your query graph
                 """
         })
-        return []
+        return [], {}
 
     plans = []
 
@@ -491,7 +494,7 @@ async def generate_plans(
             """
         })
 
-    return plans
+    return plans, expanded_qg
 
 
 def validate_and_annotate_og_list(
