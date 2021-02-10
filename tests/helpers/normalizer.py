@@ -41,12 +41,17 @@ def generate_synset_mappings():
     }
 
 
-def norm_router():
+def norm_router(
+        synset_mappings: dict[str, list] = None,
+        category_mappings: dict[str, list] = None
+):
     """Generate node-normalization router."""
     router = APIRouter()
 
-    synset_mappings = generate_synset_mappings()
-    category_mappings = generate_category_mappings()
+    if not synset_mappings:
+        synset_mappings = generate_synset_mappings()
+    if not category_mappings:
+        category_mappings = generate_category_mappings()
 
     def normalize_one(curie):
         """Get normalizer response for CURIE."""

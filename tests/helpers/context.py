@@ -55,11 +55,17 @@ async def registry_overlay(url, kps):
 
 
 @asynccontextmanager
-async def norm_overlay(url):
+async def norm_overlay(
+    url: str,
+    normalizer_data: dict[str, dict] = {},
+):
     """Normalizer server context manager."""
     async with AsyncExitStack() as stack:
         app = FastAPI()
-        app.include_router(norm_router())
+        app.include_router(norm_router(
+            synset_mappings=normalizer_data.get('synset_mappings', None),
+            category_mappings=normalizer_data.get('category_mappings', None),
+        ))
         await stack.enter_async_context(
             ASGIAR(app, host=url_to_host(url))
         )
@@ -90,26 +96,28 @@ async def response_overlay(url, response: Response):
 async def translator_overlay(
         registry_url: str,
         normalizer_url: str,
-        origins: dict[str, str]):
+        kp_data: dict[str, str] = {},
+        normalizer_data: dict[str, dict] = {},
+):
     """Registry + KPs + Normalizer context manager."""
     async with AsyncExitStack() as stack:
         await stack.enter_async_context(
-            norm_overlay(normalizer_url)
+            norm_overlay(normalizer_url, normalizer_data)
         )
         kps = dict()
-        for origin, data_string in origins.items():
+        for host, data_string in kp_data.items():
             await stack.enter_async_context(
                 kp_overlay(
-                    origin,
+                    host,
                     data=data_string,
                 )
             )
 
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"http://{origin}/ops")
+                response = await client.get(f"http://{host}/ops")
                 response.raise_for_status()
                 operations = response.json()
-                response = await client.get(f"http://{origin}/metadata")
+                response = await client.get(f"http://{host}/metadata")
                 response.raise_for_status()
                 metadata = response.json()
             node_types = {
@@ -120,8 +128,8 @@ async def translator_overlay(
                     operation["target_type"],
                 )
             }
-            kps[origin] = {
-                "url": f"http://{origin}/query",
+            kps[host] = {
+                "url": f"http://{host}/query",
                 "operations": operations,
                 "details": {
                     "preferred_prefixes": metadata["curie_prefixes"]
