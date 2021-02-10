@@ -217,6 +217,50 @@ async def test_solve_missing_category():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
+    kp_data={
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:Drug ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """
+    },
+    normalizer_data="""
+        CHEBI:6801 categories biolink:Drug
+        """
+
+)
+async def test_normalizer_different_category():
+    """
+    Test solving a query graph where the category provided doesn't match
+    the one in the node normalizer.
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:ChemicalSubstance ))
+        n0(( id CHEBI:6801 ))
+        n1(( category biolink:Disease ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert_no_warnings_trapi(output)
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
     {
         "ctd":
         """
