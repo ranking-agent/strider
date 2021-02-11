@@ -96,6 +96,7 @@ async def test_not_enough_kps(caplog):
         n0-- biolink:related_to -->n1
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(
         qg,
@@ -129,6 +130,7 @@ async def test_no_reverse_edge_in_plan(caplog):
         n0-- biolink:related_to -->n1
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(
         qg,
@@ -162,6 +164,7 @@ async def test_no_path_from_pinned_node(caplog):
         n1-- biolink:treats -->n0
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     # We should have valid permutations
     expanded_qg = await expand_qg(qg)
@@ -198,6 +201,7 @@ async def test_solve_reverse_edge(caplog):
         n1-- biolink:treats -->n0
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -215,8 +219,8 @@ async def test_valid_permute_ex1(caplog):
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
 
-    expanded_qg = await expand_qg(qg)
-    operation_graph = await qg_to_og(expanded_qg)
+    qg = await expand_qg(qg, logging.getLogger())
+    operation_graph = await qg_to_og(qg)
     plans = await find_valid_permutations(operation_graph)
 
     assert plans
@@ -233,6 +237,7 @@ async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     plan = plans[0]
@@ -268,6 +273,7 @@ async def test_invalid_two_pinned_nodes(caplog):
         n2(( id MONDO:0011122 ))
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -296,6 +302,7 @@ async def test_unbound_unconnected_node(caplog):
         n2(( category biolink:PhenotypicFeature ))
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -325,6 +332,7 @@ async def test_invalid_two_disconnected_components(caplog):
         n2-- biolink:treated_by -->n3
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -362,6 +370,7 @@ async def test_bad_norm(caplog):
             }
         }
     }
+    qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert any(
@@ -395,6 +404,7 @@ async def test_planning_performance_generic_qg():
         n1-- biolink:related_to -->n2
         """
     )
+    qg = await expand_qg(qg, logging.getLogger())
     await time_and_display(
         partial(generate_plans, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
@@ -415,6 +425,7 @@ async def test_planning_performance_typical_example():
 
     with open(cwd / "ex2_qg.json", "r") as f:
         qg = json.load(f)
+    qg = await expand_qg(qg, logging.getLogger())
 
     async def testable_generate_plans():
         await generate_plans(qg, logger=logging.getLogger())
