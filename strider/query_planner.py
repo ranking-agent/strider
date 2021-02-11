@@ -7,7 +7,7 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.util import WrappedBMT
+from strider.util import WrappedBMT, last
 from strider.config import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -366,46 +366,51 @@ async def generate_plans(
     plans = []
 
     for current_og in filtered_og_list:
+        traversals = []
         # Starting at each pinned node, construct a plan
         for pinned in pinned_nodes:
             dfs_nodes, dfs_edges = dfs(current_og, pinned)
-
             # Traversals might not include the entire depth first search
             # so we generate those and check them
-            traversals = []
-            for i in range(1, len(dfs_edges)):
-                traversals.append((dfs_nodes[:-i], dfs_edges[:-i]))
+            for i in range(len(dfs_edges)):
+                traversals.append(
+                    (
+                        last(dfs_nodes, i),
+                        last(dfs_edges, i)
+                    )
+                )
 
-            valid_traversals = [
-                (path_nodes, path_edges)
-                for path_nodes, path_edges in traversals
-                if validate_traversal(operation_graph, path_nodes, path_edges)
-            ]
+        # Validate each traversal
+        valid_traversals = [
+            (path_nodes, path_edges)
+            for path_nodes, path_edges in traversals
+            if validate_traversal(operation_graph, path_nodes, path_edges)
+        ]
 
-            for path_nodes, path_edges in valid_traversals:
-                # Build our list of steps in the plan
-                # information to the original query graph
-                plan = defaultdict(list)
-                for edge_id in path_edges:
-                    edge = current_og['edges'][edge_id]
-                    # Find edges that get us from
-                    # There could be multiple edges that need to each
-                    # be added as a separate step
-                    op = get_operation(current_og, edge)
+        for path_nodes, path_edges in valid_traversals:
+            # Build our list of steps in the plan
+            # information to the original query graph
+            plan = defaultdict(list)
+            for edge_id in path_edges:
+                edge = current_og['edges'][edge_id]
+                # Find edges that get us from
+                # There could be multiple edges that need to each
+                # be added as a separate step
+                op = get_operation(current_og, edge)
 
-                    # Reverse edges don't actually exist, so the steps in the plan
-                    # should just refer to the forward edges
-                    if edge_id.endswith(REVERSE_EDGE_SUFFIX):
-                        edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
+                # Reverse edges don't actually exist, so the steps in the plan
+                # should just refer to the forward edges
+                if edge_id.endswith(REVERSE_EDGE_SUFFIX):
+                    edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
 
-                    step = Step(edge['source'], edge_id, edge['target'])
-                    # Attach information about categorys to kp info
-                    for kp in edge['request_kps']:
-                        plan[step].append({
-                            **op._asdict(),
-                            **kp,
-                        })
-                plans.append(plan)
+                step = Step(edge['source'], edge_id, edge['target'])
+                # Attach information about categorys to kp info
+                for kp in edge['request_kps']:
+                    plan[step].append({
+                        **op._asdict(),
+                        **kp,
+                    })
+            plans.append(plan)
 
     # collapse plans
     unique_map = defaultdict(lambda: defaultdict(list))
