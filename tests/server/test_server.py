@@ -228,7 +228,6 @@ async def test_solve_missing_category():
     normalizer_data="""
         CHEBI:6801 categories biolink:Drug
         """
-
 )
 async def test_normalizer_different_category():
     """
