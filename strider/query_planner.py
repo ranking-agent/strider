@@ -259,7 +259,7 @@ def dfs(operation_graph, source) -> (list[str], list[str]):
 
     Returns a list of nodes and edges
     that we traversed. Will not go back to
-    previously visited nodes or edges.
+    previously visited edges.
     """
     path_nodes = [source]
     path_edges = []
@@ -284,13 +284,47 @@ def dfs(operation_graph, source) -> (list[str], list[str]):
         for node_id, edge_id in zip(adjacent_nodes, adjacent_edges):
             if edge_id in path_edges:
                 continue
-            if node_id in path_nodes:
-                continue
-            stack.append(node_id)
             path_nodes.append(node_id)
             path_edges.append(edge_id)
+            stack.append(node_id)
+            break
 
     return path_nodes, path_edges
+
+
+def validate_traversal(operation_graph, path_nodes, path_edges):
+    """
+    Validate a traversal.
+
+    Traversals must:
+    1. Visit every node
+    2. Visit every QUERY graph edge exactly once
+    """
+    all_nodes = operation_graph['nodes'].keys()
+    pinned_nodes = [
+        key for key, value in operation_graph["nodes"].items()
+        if value.get("id", None) is not None
+    ]
+
+    # path_nodes + pinned_nodes must cover all nodes in the graph
+    if set(pinned_nodes) | set(path_nodes) != all_nodes:
+        return False
+
+    def get_undirected_edges(edges):
+        return [edge_id.replace(REVERSE_EDGE_SUFFIX, '') for edge_id in edges]
+
+    graph_edges_undirected = set(
+        get_undirected_edges(
+            operation_graph["edges"].keys()
+        )
+    )
+    path_edges_undirected = get_undirected_edges(path_edges)
+
+    # Check that we traverse each query graph edge exactly once
+    for edge in graph_edges_undirected:
+        if path_edges_undirected.count(edge) != 1:
+            return False
+    return True
 
 
 async def generate_plans(
@@ -334,50 +368,44 @@ async def generate_plans(
     for current_og in filtered_og_list:
         # Starting at each pinned node, construct a plan
         for pinned in pinned_nodes:
-            path_nodes, path_edges = dfs(current_og, pinned)
+            dfs_nodes, dfs_edges = dfs(current_og, pinned)
 
-            all_nodes = current_og['nodes'].keys()
-            # path_nodes + pinned_nodes must cover all nodes in the graph
-            if set(pinned_nodes) | set(path_nodes) != all_nodes:
-                continue
+            # Traversals might not include the entire depth first search
+            # so we generate those and check them
+            traversals = []
+            for i in range(1, len(dfs_edges)):
+                traversals.append((dfs_nodes[:-i], dfs_edges[:-i]))
 
-            # If we don't traverse every edge either in the forward
-            # or reverse direction we can't use this
-            path_edges_with_reverse = set()
-            for edge_id in path_edges:
-                # Remove suffix
-                edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
-                path_edges_with_reverse.add(edge_id)
-                path_edges_with_reverse.add(edge_id + REVERSE_EDGE_SUFFIX)
-            if not all(
-                    graph_edge in path_edges_with_reverse
-                    for graph_edge in set(current_og['edges'].keys())
-            ):
-                continue
+            valid_traversals = [
+                (path_nodes, path_edges)
+                for path_nodes, path_edges in traversals
+                if validate_traversal(operation_graph, path_nodes, path_edges)
+            ]
 
-            # Build our list of steps in the plan
-            # information to the original query graph
-            plan = defaultdict(list)
-            for edge_id in path_edges:
-                edge = current_og['edges'][edge_id]
-                # Find edges that get us from
-                # There could be multiple edges that need to each
-                # be added as a separate step
-                op = get_operation(current_og, edge)
+            for path_nodes, path_edges in valid_traversals:
+                # Build our list of steps in the plan
+                # information to the original query graph
+                plan = defaultdict(list)
+                for edge_id in path_edges:
+                    edge = current_og['edges'][edge_id]
+                    # Find edges that get us from
+                    # There could be multiple edges that need to each
+                    # be added as a separate step
+                    op = get_operation(current_og, edge)
 
-                # Reverse edges don't actually exist, so the steps in the plan
-                # should just refer to the forward edges
-                if edge_id.endswith(REVERSE_EDGE_SUFFIX):
-                    edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
+                    # Reverse edges don't actually exist, so the steps in the plan
+                    # should just refer to the forward edges
+                    if edge_id.endswith(REVERSE_EDGE_SUFFIX):
+                        edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
 
-                step = Step(edge['source'], edge_id, edge['target'])
-                # Attach information about categorys to kp info
-                for kp in edge['request_kps']:
-                    plan[step].append({
-                        **op._asdict(),
-                        **kp,
-                    })
-            plans.append(plan)
+                    step = Step(edge['source'], edge_id, edge['target'])
+                    # Attach information about categorys to kp info
+                    for kp in edge['request_kps']:
+                        plan[step].append({
+                            **op._asdict(),
+                            **kp,
+                        })
+                plans.append(plan)
 
     # collapse plans
     unique_map = defaultdict(lambda: defaultdict(list))

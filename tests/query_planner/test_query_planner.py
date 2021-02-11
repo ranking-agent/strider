@@ -208,6 +208,37 @@ async def test_solve_reverse_edge(caplog):
     assert_no_level(caplog, logging.WARNING)
 
 
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease <-biolink:treats- biolink:ChemicalSubstance
+    kp1 biolink:ChemicalSubstance -biolink:treats-> biolink:Disease
+    kp2 biolink:PhenotypicFeature <-biolink:treats- biolink:ChemicalSubstance
+    kp3 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_plan_loop(caplog):
+    """
+    Test that we create a good plan for loop
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0008114 ))
+        n0(( category biolink:Disease ))
+        n1(( category biolink:PhenotypicFeature ))
+        n2(( category biolink:ChemicalSubstance ))
+        n0-- biolink:has_phenotype -->n1
+        n2-- biolink:treats -->n0
+        n2-- biolink:treats -->n1
+        """
+    )
+    qg = await expand_qg(qg, logging.getLogger())
+
+    plans = await generate_plans(qg)
+
+
 ex1_kps = load_kps(cwd / "ex1_kps.json")
 
 
