@@ -211,7 +211,6 @@ async def test_solve_reverse_edge(caplog):
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease <-biolink:treats- biolink:ChemicalSubstance
     kp1 biolink:ChemicalSubstance -biolink:treats-> biolink:Disease
     kp2 biolink:PhenotypicFeature <-biolink:treats- biolink:ChemicalSubstance
     kp3 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
@@ -220,7 +219,7 @@ async def test_solve_reverse_edge(caplog):
 @with_norm_overlay(settings.normalizer_url)
 async def test_plan_loop(caplog):
     """
-    Test that we create a good plan for loop
+    Test that we create a plan for a query with a loop
     """
 
     qg = query_graph_from_string(
@@ -238,13 +237,51 @@ async def test_plan_loop(caplog):
 
     plans = await generate_plans(qg)
 
+    assert len(plans) == 1
+    plan = plans[0]
+    assert len(plan) == 3
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp1 biolink:Disease -biolink:related_to-> biolink:Disease
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_plan_double_loop(caplog):
+    """
+    Test valid plan for a more complex query with two loops
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n0(( category biolink:Disease ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:Disease ))
+        n3(( category biolink:Disease ))
+        n4(( category biolink:Disease ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        n2-- biolink:related_to -->n0
+        n2-- biolink:related_to -->n3
+        n3-- biolink:related_to -->n4
+        n4-- biolink:related_to -->n2
+        """
+    )
+    qg = await expand_qg(qg, logging.getLogger())
+
+    plans = await generate_plans(qg)
+    breakpoint()
+
 
 ex1_kps = load_kps(cwd / "ex1_kps.json")
 
 
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
-@with_norm_overlay(settings.normalizer_url)
+@ pytest.mark.asyncio
+@ with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@ with_norm_overlay(settings.normalizer_url)
 async def test_valid_permute_ex1(caplog):
     """ Test first example is permuted correctly """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -261,9 +298,9 @@ async def test_valid_permute_ex1(caplog):
     assert_no_level(caplog, logging.WARNING)
 
 
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
-@with_norm_overlay(settings.normalizer_url)
+@ pytest.mark.asyncio
+@ with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@ with_norm_overlay(settings.normalizer_url)
 async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -282,13 +319,13 @@ async def test_plan_ex1(caplog):
     assert_no_level(caplog, logging.WARNING)
 
 
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+@ pytest.mark.asyncio
+@ with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@ with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_pinned_nodes(caplog):
     """
     Test Pinned -> Unbound + Pinned
@@ -311,13 +348,13 @@ async def test_invalid_two_pinned_nodes(caplog):
     assert_no_level(caplog, logging.WARNING)
 
 
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+@ pytest.mark.asyncio
+@ with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@ with_norm_overlay(settings.normalizer_url)
 async def test_unbound_unconnected_node(caplog):
     """
     Test Pinned -> Unbound + Unbound
@@ -340,15 +377,15 @@ async def test_unbound_unconnected_node(caplog):
     assert_no_level(caplog, logging.WARNING, 1)
 
 
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+@ pytest.mark.asyncio
+@ with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@ with_norm_overlay(settings.normalizer_url)
 async def test_invalid_two_disconnected_components(caplog):
-    """ 
+    """
     Test Pinned -> Unbound + Pinned -> Unbound
     This should be invalid because there is no path from
     a pinned node to all unbound nodes.
@@ -370,13 +407,13 @@ async def test_invalid_two_disconnected_components(caplog):
     assert_no_level(caplog, logging.WARNING, 1)
 
 
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+@ pytest.mark.asyncio
+@ with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@ with_norm_overlay(settings.normalizer_url)
 async def test_bad_norm(caplog):
     """
     Test that the pinned node "XXX:123" that the normalizer does not know
@@ -415,10 +452,10 @@ async def test_bad_norm(caplog):
     assert len(plans) == 1
 
 
-@pytest.mark.asyncio
-@pytest.mark.longrun
-@with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
-@with_norm_overlay(settings.normalizer_url)
+@ pytest.mark.asyncio
+@ pytest.mark.longrun
+@ with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
+@ with_norm_overlay(settings.normalizer_url)
 async def test_planning_performance_generic_qg():
     """
     Test our performance when planning a very generic query graph.
@@ -442,10 +479,10 @@ async def test_planning_performance_generic_qg():
     )
 
 
-@pytest.mark.asyncio
-@pytest.mark.longrun
-@with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
-@with_norm_overlay(settings.normalizer_url)
+@ pytest.mark.asyncio
+@ pytest.mark.longrun
+@ with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
+@ with_norm_overlay(settings.normalizer_url)
 async def test_planning_performance_typical_example():
     """
     Test our performance when planning a more typical query graph
