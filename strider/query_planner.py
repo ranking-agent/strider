@@ -297,7 +297,7 @@ async def generate_plans(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
         logger: logging.Logger = LOGGER,
-) -> (list[dict[Step, list]], dict[str, dict]):
+) -> list[dict[Step, list]]:
     """
     Given a query graph, build plans that consists of steps
     and the KPs we need to contact to evaluate those steps.
