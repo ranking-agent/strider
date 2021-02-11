@@ -243,3 +243,7 @@ def remove_null_values(obj):
         ]
     else:
         return obj
+
+
+def last(alist, n):
+    return alist[:-n] if n else alist[:]
