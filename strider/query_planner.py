@@ -257,7 +257,7 @@ def all_eulerian_paths(operation_graph, source) -> list[list[str]]:
     """
     Return all Eulerian paths originating from a source node.
 
-    An Eulerian path is one that visits all nodes exactly once
+    A Eulerian path is one that visits all edges exactly once
     """
     paths = []
 
@@ -384,10 +384,11 @@ async def generate_plans(
     for current_og in filtered_og_list:
         possible_traversals = []
 
-        # Starting at each pinned node, construct a plan
+        # Starting at each pinned node, find possible traversals through
+        # the operation graph
         for pinned in pinned_nodes:
             eulerian_paths = all_eulerian_paths(current_og, pinned)
-            # A valid traversal might not include every edge on the path
+            # A valid query graph traversal might not include every edge on the path
             # so we also add subsets of paths as possible traversals
             for path in eulerian_paths:
                 for i in range(len(path)):
