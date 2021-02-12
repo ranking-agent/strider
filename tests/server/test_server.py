@@ -260,6 +260,75 @@ async def test_normalizer_different_category():
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:0008114(( category biolink:Disease ))
+            MONDO:0008114-- predicate biolink:has_phenotype -->HP:0007430
+            HP:0007430<-- predicate biolink:has_phenotype --MONDO:0008114
+            HP:0007430(( category biolink:PhenotypicFeature ))
+        """,
+        "kp1":
+        """
+            MESH:C035133(( category biolink:ChemicalSubstance ))
+            MESH:C035133-- predicate biolink:treats -->HP:0007430
+            HP:0007430<-- predicate biolink:treats --MESH:C035133
+            HP:0007430(( category biolink:PhenotypicFeature ))
+        """,
+        "kp2":
+        """
+            MESH:C035133(( category biolink:ChemicalSubstance ))
+            MESH:C035133-- predicate biolink:treats -->MONDO:0008114
+            MONDO:0008114<-- predicate biolink:treats --MESH:C035133
+            MONDO:0008114(( category biolink:Disease ))
+        """,
+    },
+    normalizer_data="""
+        MONDO:0008114 categories biolink:Disease
+        MESH:C035133 categories biolink:ChemicalSubstance
+        HP:0007430 categories biolink:PhenotypicFeature
+        """
+)
+async def test_solve_loop(caplog):
+    """
+    Test that we correctly solve a query with a loop
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id MONDO:0008114 ))
+        n0(( category biolink:Disease ))
+        n1(( category biolink:PhenotypicFeature ))
+        n2(( category biolink:ChemicalSubstance ))
+        n0-- biolink:has_phenotype -->n1
+        n2-- biolink:treats -->n0
+        n2-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+    # Run
+    output = await sync_query(q)
+
+    # Ensure we have some results
+    assert len(output['message']['results']) > 0
+
+    # Ensure we have a knowledge graph with data that matches
+    # the query graph
+    assert len(output['message']['knowledge_graph']['nodes']) == 3
+    assert len(output['message']['knowledge_graph']['edges']) == 3
+    assert_no_warnings_trapi(output)
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
     {
         "ctd":
         """
