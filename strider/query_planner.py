@@ -253,46 +253,57 @@ async def find_valid_permutations(
     return list(filtered_ogs)
 
 
-def dfs(operation_graph, source) -> (list[str], list[str]):
+def all_eulerian_paths(operation_graph, source) -> list[list[str]]:
     """
-    Run depth first search on the graph
+    Return all Eulerian paths originating from a source node.
 
-    Returns a list of nodes and edges
-    that we traversed. Will not go back to
-    previously visited edges.
+    An Eulerian path is one that visits all nodes exactly once
     """
-    path_nodes = [source]
-    path_edges = []
+    paths = []
 
-    stack = [source]
+    starting_edges = [
+        edge_id for edge_id, edge in operation_graph['edges'].items()
+        if edge['source'] == source
+    ]
 
-    # The most efficient way to do a depth first search
-    # is with an adjacency list, so we build one here
+    # Initialize stack with all edges that start at our source node
+    stack = []
+    for edge in starting_edges:
+        new_graph = copy.deepcopy(operation_graph)
+        del new_graph['edges'][edge]
+        stack.append((new_graph, [edge]))
 
+    # Recursively finish paths
     while len(stack) != 0:
         s = stack.pop()
 
-        # Build adjacency list
-        adjacent_nodes = []
-        adjacent_edges = []
+        current_graph = s[0]
+        current_path = s[1]
 
-        for edge_id, edge in operation_graph['edges'].items():
-            if edge['source'] == s:
-                adjacent_nodes.append(edge['target'])
-                adjacent_edges.append(edge_id)
+        current_node = operation_graph['edges'][current_path[-1]]['target']
 
-        for node_id, edge_id in zip(adjacent_nodes, adjacent_edges):
-            if edge_id in path_edges:
-                continue
-            path_nodes.append(node_id)
-            path_edges.append(edge_id)
-            stack.append(node_id)
-            break
+        adjacent_edges = [
+            edge_id for edge_id, edge in current_graph['edges'].items()
+            if edge['source'] == current_node
+        ]
 
-    return path_nodes, path_edges
+        if len(adjacent_edges) == 0:
+            # Done
+            paths.append(current_path)
+            continue
+
+        for edge in adjacent_edges:
+            new_graph = copy.deepcopy(current_graph)
+            new_path = current_path.copy()
+            # remove edge from graph and add it to path
+            new_path.append(edge)
+            del new_graph['edges'][edge]
+            stack.append((new_graph, new_path))
+
+    return paths
 
 
-def validate_traversal(operation_graph, path_nodes, path_edges):
+def validate_traversal(operation_graph, path_edges):
     """
     Validate a traversal.
 
@@ -305,6 +316,11 @@ def validate_traversal(operation_graph, path_nodes, path_edges):
         key for key, value in operation_graph["nodes"].items()
         if value.get("id", None) is not None
     ]
+
+    path_nodes = set()
+    for edge in path_edges:
+        path_nodes.add(operation_graph['edges'][edge]['source'])
+        path_nodes.add(operation_graph['edges'][edge]['target'])
 
     # path_nodes + pinned_nodes must cover all nodes in the graph
     if set(pinned_nodes) | set(path_nodes) != all_nodes:
@@ -366,32 +382,28 @@ async def generate_plans(
     plans = []
 
     for current_og in filtered_og_list:
-        traversals = []
+        possible_traversals = []
+
         # Starting at each pinned node, construct a plan
         for pinned in pinned_nodes:
-            dfs_nodes, dfs_edges = dfs(current_og, pinned)
-            # Traversals might not include the entire depth first search
-            # so we generate those and check them
-            for i in range(len(dfs_edges)):
-                traversals.append(
-                    (
-                        last(dfs_nodes, i),
-                        last(dfs_edges, i)
-                    )
-                )
+            eulerian_paths = all_eulerian_paths(current_og, pinned)
+            # A valid traversal might not include every edge on the path
+            # so we also add subsets of paths as possible traversals
+            for path in eulerian_paths:
+                for i in range(len(path)):
+                    possible_traversals.append(last(path, i))
 
         # Validate each traversal
         valid_traversals = [
-            (path_nodes, path_edges)
-            for path_nodes, path_edges in traversals
-            if validate_traversal(operation_graph, path_nodes, path_edges)
+            path for path in possible_traversals
+            if validate_traversal(operation_graph, path)
         ]
 
-        for path_nodes, path_edges in valid_traversals:
+        for path in valid_traversals:
             # Build our list of steps in the plan
             # information to the original query graph
             plan = defaultdict(list)
-            for edge_id in path_edges:
+            for edge_id in path:
                 edge = current_og['edges'][edge_id]
                 # Find edges that get us from
                 # There could be multiple edges that need to each

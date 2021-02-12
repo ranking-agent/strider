@@ -245,7 +245,8 @@ async def test_plan_loop(caplog):
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp1 biolink:Disease -biolink:related_to-> biolink:Disease
+    kp0 biolink:Disease -biolink:related_to-> biolink:Disease
+    kp1 biolink:Disease <-biolink:related_to- biolink:Disease
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -273,7 +274,8 @@ async def test_plan_double_loop(caplog):
     qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
-    breakpoint()
+    assert len(plans) == 4
+    assert_no_level(caplog, logging.WARNING)
 
 
 ex1_kps = load_kps(cwd / "ex1_kps.json")
