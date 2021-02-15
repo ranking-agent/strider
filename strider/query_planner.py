@@ -253,11 +253,12 @@ async def find_valid_permutations(
     return list(filtered_ogs)
 
 
-def all_eulerian_paths(operation_graph, source) -> list[list[str]]:
+def all_paths_from_node(operation_graph, source) -> list[list[str]]:
     """
-    Return all Eulerian paths originating from a source node.
+    Return all paths originating from a source node that traverse
+    edges only once.
 
-    A Eulerian path is one that visits all edges exactly once
+    Paths are a list of edges.
     """
     paths = []
 
@@ -273,7 +274,7 @@ def all_eulerian_paths(operation_graph, source) -> list[list[str]]:
         del new_graph['edges'][edge]
         stack.append((new_graph, [edge]))
 
-    # Recursively finish paths
+    # Finish paths
     while len(stack) != 0:
         s = stack.pop()
 
@@ -387,10 +388,10 @@ async def generate_plans(
         # Starting at each pinned node, find possible traversals through
         # the operation graph
         for pinned in pinned_nodes:
-            eulerian_paths = all_eulerian_paths(current_og, pinned)
+            paths_from_node = all_paths_from_node(current_og, pinned)
             # A valid query graph traversal might not include every edge on the path
             # so we also add subsets of paths as possible traversals
-            for path in eulerian_paths:
+            for path in paths_from_node:
                 for i in range(len(path)):
                     possible_traversals.append(path[:-i] if i else path)
 
