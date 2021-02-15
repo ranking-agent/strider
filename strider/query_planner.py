@@ -7,7 +7,7 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.util import WrappedBMT, last
+from strider.util import WrappedBMT
 from strider.config import settings
 
 LOGGER = logging.getLogger(__name__)
@@ -392,7 +392,7 @@ async def generate_plans(
             # so we also add subsets of paths as possible traversals
             for path in eulerian_paths:
                 for i in range(len(path)):
-                    possible_traversals.append(last(path, i))
+                    possible_traversals.append(path[:-i] if i else path)
 
         # Validate each traversal
         valid_traversals = [
