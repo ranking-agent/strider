@@ -405,7 +405,7 @@ async def test_fork(caplog):
         n1(( category biolink:Drug ))
         n2(( category biolink:PhenotypicFeature ))
         n0-- biolink:treated_by -->n1
-        n0-- biolink:has_phenotype -->n1
+        n0-- biolink:has_phenotype -->n2
         """
     )
     qg = await expand_qg(qg, logging.getLogger())

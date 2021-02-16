@@ -253,43 +253,49 @@ async def find_valid_permutations(
     return list(filtered_ogs)
 
 
-def hamiltonian_paths_from_node(
+def get_next_node(graph, path):
+    """
+    Find next node to traverse
+
+    Prefer nodes that are adjacent to the last
+    node in the path.
+    """
+    for node in reversed(path):
+        adjacent_nodes = graph[node]
+        for adjacent_node in adjacent_nodes:
+            if adjacent_node in path:
+                continue
+            return adjacent_node
+    return None
+
+
+def traversals_from_node(
     graph: dict[str, list],
     source: str,
 ) -> list[list[str]]:
     """
-    Return all hamiltonian paths originating from a source node
-    Hamiltonian paths are those that cross every node once.
-
-    Paths are a list of edges.
+    Return all traversals originating from a source node.
     """
     paths = []
 
     # Initialize stack
-    stack = [(graph, [source])]
+    stack = [[source]]
 
     while len(stack) != 0:
-        current_graph, current_path = stack.pop()
+        current_path = stack.pop()
 
-        adjacent_nodes = current_graph.get(
-            current_path[-1], [])
-
-        if len(adjacent_nodes) == 0:
-            # Visited every node possible, done now
+        if len(current_path) == len(graph):
+            # Visited every node, done now
             paths.append(current_path)
             continue
 
-        for adjacent_node in adjacent_nodes:
-            new_graph = copy.deepcopy(current_graph)
+        # Find next node to traverse
+        next_node = get_next_node(graph, current_path)
+        if next_node:
+            # Add to stack for further iteration
             new_path = current_path.copy()
-
-            # add node to path and remove from graph
-            new_path.append(adjacent_node)
-            del new_graph[current_path[-1]]
-
-            # Queue for further iteration
-            stack.append((new_graph, new_path))
-
+            new_path.append(next_node)
+            stack.append(new_path)
     return paths
 
 
@@ -392,12 +398,13 @@ async def generate_plans(
         # Starting at each pinned node, find possible traversals through
         # the operation graph
         for pinned in pinned_nodes:
-            paths_from_node = hamiltonian_paths_from_node(
+            traversals = traversals_from_node(
                 reified_graph, pinned)
             # A valid query graph traversal might not include every edge on the path
             # so we also add subsets of paths as possible traversals
-            for path in paths_from_node:
-                path_edges = path[1::2]
+            for path in traversals:
+                path_edges = [
+                    p for p in path if p in current_og['edges'].keys()]
                 for i in range(len(path_edges)):
                     possible_traversals.append(
                         path_edges[:-i] if i else path_edges)
