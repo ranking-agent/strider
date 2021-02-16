@@ -18,7 +18,7 @@ from tests.helpers.logger import assert_no_level
 
 from strider.query_planner import \
     generate_plans, find_valid_permutations, \
-    permute_og, qg_to_og, \
+    permute_graph, qg_to_og, \
     NoAnswersError
 from strider.trapi import expand_qg
 
@@ -43,7 +43,7 @@ async def test_permute_curies(caplog):
         "edges": {},
     }
 
-    permutations = permute_og(qg)
+    permutations = permute_graph(qg)
 
     assert permutations
     # We should have two plans
@@ -66,7 +66,7 @@ async def test_permute_simple(caplog):
 
     qg = await expand_qg(qg, logging.getLogger())
     operation_graph = await qg_to_og(qg, reverse=False)
-    permutations = permute_og(operation_graph)
+    permutations = permute_graph(operation_graph)
     assert permutations
 
     # We should have:
