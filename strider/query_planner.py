@@ -28,20 +28,20 @@ def find_next_list_property(search_dict, fields_to_check):
     return None, None
 
 
-def permute_og(operation_graph: dict) -> Generator[dict, None, None]:
+def permute_graph(graph: dict) -> Generator[dict, None, None]:
     """
-    Take in a query graph that has some unbound properties
+    Take in a graph that has some unbound properties
     and return a list of query graphs where every property is bound
 
-    Example: If a query graph has ['Disease', 'Gene'] as a type for a node,
+    Example: If a graph has ['Disease', 'Gene'] as a type for a node,
     two query graphs will be returned, one with node type Disease and one with type Gene
     """
 
     stack = []
-    stack.append(copy.deepcopy(operation_graph))
+    stack.append(copy.deepcopy(graph))
 
     while len(stack) > 0:
-        current_qg = stack.pop()
+        current_graph = stack.pop()
 
         # Any fields on a node that might need to be permuted
         node_fields_to_permute = ['category', 'id']
@@ -49,13 +49,13 @@ def permute_og(operation_graph: dict) -> Generator[dict, None, None]:
         # Find our next node to permute
         next_node_id, next_node_field = \
             find_next_list_property(
-                current_qg['nodes'], node_fields_to_permute)
+                current_graph['nodes'], node_fields_to_permute)
 
         if next_node_id:
             # Permute this node and push permutations to stack
-            next_node = current_qg['nodes'][next_node_id]
+            next_node = current_graph['nodes'][next_node_id]
             for field_value in next_node[next_node_field]:
-                permutation_copy = copy.deepcopy(current_qg)
+                permutation_copy = copy.deepcopy(current_graph)
                 # Fix field value
                 permutation_copy['nodes'][next_node_id][next_node_field] = field_value
                 # Add to stack
@@ -68,21 +68,21 @@ def permute_og(operation_graph: dict) -> Generator[dict, None, None]:
         # Find our next edge to permute
         next_edge_id, next_edge_field = \
             find_next_list_property(
-                current_qg['edges'], edge_fields_to_permute)
+                current_graph['edges'], edge_fields_to_permute)
 
         if next_edge_id:
             # Permute this edge and push permutations to stack
-            next_edge = current_qg['edges'][next_edge_id]
+            next_edge = current_graph['edges'][next_edge_id]
             for field_value in next_edge[next_edge_field]:
-                permutation_copy = copy.deepcopy(current_qg)
+                permutation_copy = copy.deepcopy(current_graph)
                 # Fix predicate
                 permutation_copy['edges'][next_edge_id][next_edge_field] = field_value
                 # Add to stack
                 stack.append(permutation_copy)
             continue
 
-        # This QG is fully permuted, add to results
-        yield current_qg
+        # This graph is fully permuted, add to results
+        yield current_graph
 
 
 class NoAnswersError(Exception):
@@ -90,19 +90,28 @@ class NoAnswersError(Exception):
 
 
 def get_operation(
-        operation_graph: dict,
+        query_graph: dict,
         edge: dict,
+        reverse: bool = False,
 ) -> Operation:
     """ Get the types from an edge in the query graph """
-    return Operation(
-        operation_graph['nodes'][edge['source']]['category'],
-        edge['predicate'],
-        operation_graph['nodes'][edge['target']]['category'],
-    )
+
+    if reverse:
+        return Operation(
+            query_graph['nodes'][edge['object']]['category'],
+            f"<-{edge['predicate']}-",
+            query_graph['nodes'][edge['subject']]['category'],
+        )
+    else:
+        return Operation(
+            query_graph['nodes'][edge['subject']]['category'],
+            f"-{edge['predicate']}->",
+            query_graph['nodes'][edge['object']]['category'],
+        )
 
 
 async def get_operation_kp_map(
-        operation_graph,
+        query_graph,
         kp_registry: Registry = None,
 ) -> dict[Operation, list[dict]]:
     """Put the results in a master dictionary so that we can look
@@ -110,6 +119,8 @@ async def get_operation_kp_map(
     """
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
+
+    operation_graph = await qg_to_og(query_graph)
 
     operation_kp_map = {}
 
@@ -243,7 +254,7 @@ async def find_valid_permutations(
     logger.debug(
         "Iterating over QGs to find ones that are solvable")
 
-    permuted_og_list = permute_og(operation_graph)
+    permuted_og_list = permute_graph(operation_graph)
 
     filtered_ogs = validate_and_annotate_og_list(
         permuted_og_list,
@@ -354,10 +365,18 @@ async def generate_plans(
 
     logger.debug("Generating plan for query graph")
 
-    operation_graph = await qg_to_og(qgraph, logger)
-    filtered_og_list = await find_valid_permutations(
-        operation_graph, kp_registry, logger
-    )
+    logger.debug(
+        "Contacting KP registry to ask for KPs to solve this query graph")
+
+    operation_kp_map = await get_operation_kp_map(qgraph, kp_registry)
+
+    logger.debug(
+        f"Found {len(operation_kp_map)} possible KP operations we can use")
+
+    query_graph_permutations = permute_graph(qgraph)
+
+    annotated_query_graph_permutations = \
+        annotate_qg_list_with_kps(query_graph_permutations, operation_kp_map)
 
     # Build a list of pinned nodes
     pinned_nodes = [
@@ -365,65 +384,54 @@ async def generate_plans(
         if value.get("id", None) is not None
     ]
 
-    if len(filtered_og_list) == 0:
-        logger.warning({
-            "code": "QueryNotTraversable",
-            "message":
-                """
-                    We couldn't find a KP for every edge in your query graph
-                """
-        })
-        return []
-
     plans = []
 
-    for current_og in filtered_og_list:
-        possible_traversals = []
+    for current_qg in annotated_query_graph_permutations:
 
         # Create a graph where all nodes and edges
         # from the operation graph are nodes ("reified")
         #
         # This graph is stored as an adjacency list
         reified_graph = {}
-        for node_id in current_og['nodes'].keys():
+        for node_id in current_qg['nodes'].keys():
             reified_graph[node_id] = []
-        for edge_id in current_og['edges'].keys():
+        for edge_id in current_qg['edges'].keys():
             reified_graph[edge_id] = []
 
         # Fill in adjacencies
-        for edge_id, edge in current_og['edges'].items():
-            reified_graph[edge['source']].append(edge_id)
-            reified_graph[edge_id].append(edge['target'])
+        for edge_id, edge in current_qg['edges'].items():
+            if len(edge['forward_kps']) > 0:
+                # Adjacency for forward edge
+                reified_graph[edge['subject']].append(edge_id)
+                reified_graph[edge_id].append(edge['object'])
+            if len(edge['reverse_kps']) > 0:
+                # Adjacency for reverse edge
+                reified_graph[edge['object']].append(edge_id)
+                reified_graph[edge_id].append(edge['subject'])
 
         # Starting at each pinned node, find possible traversals through
         # the operation graph
+        possible_traversals = []
         for pinned in pinned_nodes:
-            traversals = traversals_from_node(
-                reified_graph, pinned)
-            # A valid query graph traversal might not include every edge on the path
-            # so we also add subsets of paths as possible traversals
-            for path in traversals:
-                path_edges = [
-                    p for p in path if p in current_og['edges'].keys()]
-                for i in range(len(path_edges)):
-                    possible_traversals.append(
-                        path_edges[:-i] if i else path_edges)
+            possible_traversals.extend(
+                traversals_from_node(reified_graph, pinned)
+            )
 
-        valid_traversals = [
-            path for path in possible_traversals
-            if validate_traversal(operation_graph, path)
-        ]
+        for traversal in possible_traversals:
+            # Traversals include both nodes and edges
+            # but we don't care about nodes
+            traversal_edges = [
+                p in traversal if p in current_qg['edges'].keys()
+            ]
 
-        for path in valid_traversals:
             # Build our list of steps in the plan
-            # information to the original query graph
             plan = defaultdict(list)
-            for edge_id in path:
-                edge = current_og['edges'][edge_id]
+            for edge_id in traversal_edges:
+                edge = current_qg['edges'][edge_id]
                 # Find edges that get us from
                 # There could be multiple edges that need to each
                 # be added as a separate step
-                op = get_operation(current_og, edge)
+                op = get_operation(current_qg, edge)
 
                 # Reverse edges don't actually exist, so the steps in the plan
                 # should just refer to the forward edges
@@ -460,24 +468,27 @@ async def generate_plans(
     return plans
 
 
-def validate_and_annotate_og_list(
-    og_list: Generator[dict, None, None],
+def annotate_qg_list_with_kps(
+    qg_list: Generator[dict, None, None],
     operation_kp_map: dict[Operation, list[dict]],
 ) -> Generator[dict, None, None]:
     """
-    Check if operation graph has a valid plan, and if it does,
-    annotate with KP name
+    Use an operation KP map to annotate graph edges
+    with KPs. Only yields graphs where every edge
+    has either a forward or backward KP available.
     """
-    for og in og_list:
+    for qg in qg_list:
         valid = True
-        for edge in og['edges'].values():
-            op = get_operation(og, edge)
-            kps_available = operation_kp_map.get(op, None)
-            if not kps_available:
+        for edge in qg['edges'].values():
+            forward_op = get_operation(qg, edge)
+            edge['forward_kps'] = operation_kp_map.get(forward_op, [])
+            reverse_op = get_operation(qg, edge, reverse=True)
+            edge['reverse_kps'] = operation_kp_map.get(reverse_op, [])
+
+            if len(edge['forward_kps']) == 0 and len(edge['reverse_kps']) == 0:
                 valid = False
-            edge['request_kps'] = kps_available
         if valid:
-            yield og
+            yield qg
 
 
 # pylint: disable=too-many-arguments
