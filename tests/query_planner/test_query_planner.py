@@ -250,6 +250,39 @@ async def test_plan_loop(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
+async def test_plan_reuse_pinned(caplog):
+    """
+    Test that we create a plan that uses a pinned node twice
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n0(( category biolink:Disease ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:Disease ))
+        n3(( category biolink:Disease ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        n2-- biolink:related_to -->n0
+        n0-- biolink:related_to -->n3
+        """
+    )
+    qg = await expand_qg(qg, logging.getLogger())
+
+    plans = await generate_plans(qg)
+
+    assert len(plans) == 1
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:related_to-> biolink:Disease
+    kp1 biolink:Disease <-biolink:related_to- biolink:Disease
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
 async def test_plan_double_loop(caplog):
     """
     Test valid plan for a more complex query with two loops
@@ -341,6 +374,38 @@ async def test_invalid_two_pinned_nodes(caplog):
         n1(( category biolink:Drug ))
         n0-- biolink:treated_by -->n1
         n2(( id MONDO:0011122 ))
+        """
+    )
+    qg = await expand_qg(qg, logging.getLogger())
+
+    plans = await generate_plans(qg)
+    assert len(plans) == 1
+    assert_no_level(caplog, logging.WARNING)
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    kp1 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_fork(caplog):
+    """
+    Test Unbound <- Pinned -> Unbound
+
+    This should be valid because we allow
+    a fork to multiple paths.
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treated_by -->n1
+        n0-- biolink:has_phenotype -->n1
         """
     )
     qg = await expand_qg(qg, logging.getLogger())
