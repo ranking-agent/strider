@@ -294,11 +294,10 @@ def get_next_nodes(graph, path):
 def traversals_from_node(
     graph: dict[str, list],
     source: str,
-) -> list[list[str]]:
+) -> Generator[list[str], None, None]:
     """
-    Return all traversals originating from a source node.
+    Yield all traversals originating from a source node.
     """
-    paths = []
 
     # Initialize stack
     stack = [[source]]
@@ -306,59 +305,36 @@ def traversals_from_node(
     while len(stack) != 0:
         current_path = stack.pop()
 
-        if len(current_path) == len(graph):
-            # Visited every node, done now
-            paths.append(current_path)
-            continue
-
         # Find next nodes to traverse
         next_nodes = get_next_nodes(graph, current_path)
+
+        # Visited every node possible, done now
+        if len(next_nodes) == 0:
+            yield current_path
+
         for next_node in next_nodes:
             # Add to stack for further iteration
             new_path = current_path.copy()
             new_path.append(next_node)
             stack.append(new_path)
-    return paths
 
 
-def validate_traversal(operation_graph, path_edges):
+def ensure_traversal_connected(graph, path):
     """
-    Validate a traversal.
-
-    Traversals must:
-    1. Visit every node
-    2. Visit every QUERY graph edge exactly once
+    Validate a traversal to make sure that it covers all unpinned
+    nodes. This may not be the case if there are two disconnected
+    components in the query graph.
     """
-    all_nodes = operation_graph['nodes'].keys()
-    pinned_nodes = [
-        key for key, value in operation_graph["nodes"].items()
+
+    graph_nodes = set(graph['nodes'].keys())
+    pinned_nodes = {
+        key for key, value in graph["nodes"].items()
         if value.get("id", None) is not None
-    ]
-
-    path_nodes = set()
-    for edge in path_edges:
-        path_nodes.add(operation_graph['edges'][edge]['source'])
-        path_nodes.add(operation_graph['edges'][edge]['target'])
+    }
+    path_nodes = {n for n in path if n in graph["nodes"].keys()}
 
     # path_nodes + pinned_nodes must cover all nodes in the graph
-    if set(pinned_nodes) | set(path_nodes) != all_nodes:
-        return False
-
-    def get_undirected_edges(edges):
-        return [edge_id.replace(REVERSE_EDGE_SUFFIX, '') for edge_id in edges]
-
-    graph_edges_undirected = set(
-        get_undirected_edges(
-            operation_graph["edges"].keys()
-        )
-    )
-    path_edges_undirected = get_undirected_edges(path_edges)
-
-    # Check that we traverse each query graph edge exactly once
-    for edge in graph_edges_undirected:
-        if path_edges_undirected.count(edge) != 1:
-            return False
-    return True
+    return pinned_nodes | path_nodes == graph_nodes
 
 
 async def generate_plans(
@@ -429,6 +405,10 @@ async def generate_plans(
             possible_traversals.extend(
                 traversals_from_node(reified_graph, pinned)
             )
+
+        possible_traversals = filter(
+            lambda t: ensure_traversal_connected(current_qg, t),
+            possible_traversals)
 
         for traversal in possible_traversals:
             # Build our list of steps in the plan
