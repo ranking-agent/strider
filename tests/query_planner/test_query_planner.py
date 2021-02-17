@@ -166,12 +166,6 @@ async def test_no_path_from_pinned_node(caplog):
     )
     qg = await expand_qg(qg, logging.getLogger())
 
-    # We should have valid permutations
-    expanded_qg = await expand_qg(qg)
-    operation_graph = await qg_to_og(expanded_qg)
-    permutations = await find_valid_permutations(operation_graph)
-    assert len(list(permutations))
-
     plans = await generate_plans(
         qg,
         logger=logging.getLogger(),
