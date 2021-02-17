@@ -180,27 +180,36 @@ async def qg_to_og(
     return ograph
 
 
-async def filter_categories_predicates(operation_graph, operation_kp_map):
+async def filter_categories_predicates(graph, operation_kp_map):
     """Filter out categories and predicates that cannot be found using KPs."""
-    for node in operation_graph['nodes'].values():
+    for node in graph['nodes'].values():
         node['filtered_categories'] = set()
-    for edge in operation_graph['edges'].values():
+    for edge in graph['edges'].values():
         edge['filtered_predicates'] = set()
 
-    for edge in operation_graph['edges'].values():
-
-        source = operation_graph['nodes'][edge['source']]
-        target = operation_graph['nodes'][edge['target']]
+    for edge in graph['edges'].values():
+        sub = graph['nodes'][edge['subject']]
+        obj = graph['nodes'][edge['object']]
 
         for op in operation_kp_map:
+            # Check if forward operation matches
             if (
-                    op.source_category in source["category"]
-                    and op.target_category in target["category"]
-                    and op.edge_predicate in edge["predicate"]
+                    op.source_category in sub["category"]
+                    and op.target_category in obj["category"]
+                    and op.edge_predicate in [f"-{p}->" for p in edge["predicate"]]
             ):
-                source['filtered_categories'].add(op.source_category)
-                target['filtered_categories'].add(op.target_category)
-                edge['filtered_predicates'].add(op.edge_predicate)
+                sub['filtered_categories'].add(op.source_category)
+                obj['filtered_categories'].add(op.target_category)
+                edge['filtered_predicates'].add(op.edge_predicate[1:-2])
+            # Reverse
+            if (
+                    op.source_category in obj["category"]
+                    and op.target_category in sub["category"]
+                    and op.edge_predicate in [f"<-{p}-" for p in edge["predicate"]]
+            ):
+                obj['filtered_categories'].add(op.source_category)
+                sub['filtered_categories'].add(op.target_category)
+                edge['filtered_predicates'].add(op.edge_predicate[2:-1])
 
     # Filter down node categories using those
     # we have recieved from the KP registry
@@ -208,17 +217,17 @@ async def filter_categories_predicates(operation_graph, operation_kp_map):
 
     # We only filter nodes that are touching at least one edge ("connected")
     connected_nodes = set()
-    for edge in operation_graph['edges'].values():
-        connected_nodes.add(edge['source'])
-        connected_nodes.add(edge['target'])
+    for edge in graph['edges'].values():
+        connected_nodes.add(edge['subject'])
+        connected_nodes.add(edge['object'])
     for node_id in connected_nodes:
-        node = operation_graph['nodes'][node_id]
+        node = graph['nodes'][node_id]
         if 'category' not in node:
             continue
         node['category'] = list(node.pop('filtered_categories'))
 
     # Also filter edge predicates as well
-    for edge in operation_graph['edges'].values():
+    for edge in graph['edges'].values():
         edge['predicate'] = list(edge.pop('filtered_predicates'))
     return None
 
@@ -373,6 +382,8 @@ async def generate_plans(
     logger.debug(
         f"Found {len(operation_kp_map)} possible KP operations we can use")
 
+    await filter_categories_predicates(qgraph, operation_kp_map)
+
     query_graph_permutations = permute_graph(qgraph)
 
     annotated_query_graph_permutations = \
@@ -418,29 +429,28 @@ async def generate_plans(
             )
 
         for traversal in possible_traversals:
-            # Traversals include both nodes and edges
-            # but we don't care about nodes
-            traversal_edges = [
-                p in traversal if p in current_qg['edges'].keys()
-            ]
-
             # Build our list of steps in the plan
             plan = defaultdict(list)
-            for edge_id in traversal_edges:
+            for index, edge_id in enumerate(traversal):
+                # Skip iteration for non-edges
+                if edge_id not in current_qg['edges'].keys():
+                    continue
+
+                # We need to know which way to step through the edge
+                # so we use the next value in the traversal
+                # which is always a target node
                 edge = current_qg['edges'][edge_id]
-                # Find edges that get us from
-                # There could be multiple edges that need to each
-                # be added as a separate step
-                op = get_operation(current_qg, edge)
+                target_node_id = traversal[index + 1]
+                reverse = target_node_id == edge['subject']
 
-                # Reverse edges don't actually exist, so the steps in the plan
-                # should just refer to the forward edges
-                if edge_id.endswith(REVERSE_EDGE_SUFFIX):
-                    edge_id = edge_id.replace(REVERSE_EDGE_SUFFIX, '')
+                if reverse:
+                    step = Step(edge['object'], edge_id, edge['subject'])
+                else:
+                    step = Step(edge['subject'], edge_id, edge['object'])
+                op = get_operation(current_qg, edge, reverse=reverse)
 
-                step = Step(edge['source'], edge_id, edge['target'])
                 # Attach information about categorys to kp info
-                for kp in edge['request_kps']:
+                for kp in edge['forward_kps'] + edge['reverse_kps']:
                     plan[step].append({
                         **op._asdict(),
                         **kp,
