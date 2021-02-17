@@ -301,7 +301,7 @@ async def test_plan_double_loop(caplog):
     qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
-    assert len(plans) == 4
+    assert len(plans) == 8
     assert_no_level(caplog, logging.WARNING)
 
 

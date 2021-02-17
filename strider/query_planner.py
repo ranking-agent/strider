@@ -273,7 +273,7 @@ async def find_valid_permutations(
     return list(filtered_ogs)
 
 
-def get_next_node(graph, path):
+def get_next_nodes(graph, path):
     """
     Find next node to traverse
 
@@ -282,11 +282,13 @@ def get_next_node(graph, path):
     """
     for node in reversed(path):
         adjacent_nodes = graph[node]
-        for adjacent_node in adjacent_nodes:
-            if adjacent_node in path:
-                continue
-            return adjacent_node
-    return None
+        valid_adjacent_nodes = [
+            node for node in adjacent_nodes
+            if node not in path
+        ]
+        if len(valid_adjacent_nodes) > 0:
+            return valid_adjacent_nodes
+    return []
 
 
 def traversals_from_node(
@@ -309,9 +311,9 @@ def traversals_from_node(
             paths.append(current_path)
             continue
 
-        # Find next node to traverse
-        next_node = get_next_node(graph, current_path)
-        if next_node:
+        # Find next nodes to traverse
+        next_nodes = get_next_nodes(graph, current_path)
+        for next_node in next_nodes:
             # Add to stack for further iteration
             new_path = current_path.copy()
             new_path.append(next_node)
@@ -437,11 +439,11 @@ async def generate_plans(
                     continue
 
                 # We need to know which way to step through the edge
-                # so we use the next value in the traversal
-                # which is always a target node
+                # so we use the previous value in the traversal
+                # which is always the source node
                 edge = current_qg['edges'][edge_id]
-                target_node_id = traversal[index + 1]
-                reverse = target_node_id == edge['subject']
+                source_node_id = traversal[index - 1]
+                reverse = source_node_id == edge['object']
 
                 if reverse:
                     step = Step(edge['object'], edge_id, edge['subject'])
