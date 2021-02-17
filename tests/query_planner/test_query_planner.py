@@ -266,7 +266,7 @@ async def test_plan_reuse_pinned(caplog):
 
     plans = await generate_plans(qg)
 
-    assert len(plans) == 1
+    assert len(plans) == 4
 
 
 @pytest.mark.asyncio
@@ -311,25 +311,6 @@ ex1_kps = load_kps(cwd / "ex1_kps.json")
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, ex1_kps)
 @with_norm_overlay(settings.normalizer_url)
-async def test_valid_permute_ex1(caplog):
-    """ Test first example is permuted correctly """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        qg = json.load(f)
-
-    qg = await expand_qg(qg, logging.getLogger())
-    operation_graph = await qg_to_og(qg)
-    plans = await find_valid_permutations(operation_graph)
-
-    assert plans
-
-    # We should have one valid plan
-    assert len(plans) == 1
-    assert_no_level(caplog, logging.WARNING)
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
-@with_norm_overlay(settings.normalizer_url)
 async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
@@ -355,7 +336,7 @@ async def test_plan_ex1(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_invalid_two_pinned_nodes(caplog):
+async def test_valid_two_pinned_nodes(caplog):
     """
     Test Pinned -> Unbound + Pinned
     This should be valid because we only care about
@@ -405,7 +386,7 @@ async def test_fork(caplog):
     qg = await expand_qg(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
-    assert len(plans) == 1
+    assert len(plans) == 2
     assert_no_level(caplog, logging.WARNING)
 
 
