@@ -114,8 +114,10 @@ async def get_operation_kp_map(
         query_graph,
         kp_registry: Registry = None,
 ) -> dict[Operation, list[dict]]:
-    """Put the results in a master dictionary so that we can look
-    them up for each permutation and see which are solvable
+    """
+    Look up kps for each operation in a query graph
+
+    Put the results in a master dictionary
     """
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
@@ -158,7 +160,7 @@ async def qg_to_og(
         logger: logging.Logger = logging.getLogger(),
         reverse: bool = True,
 ):
-    """Convert query graph to operation graph."""
+    """Convert query graph to operation graph"""
     ograph = {
         "nodes": copy.deepcopy(qgraph["nodes"]),
         "edges": dict(),
@@ -210,10 +212,6 @@ async def filter_categories_predicates(graph, operation_kp_map):
                 obj['filtered_categories'].add(op.source_category)
                 sub['filtered_categories'].add(op.target_category)
                 edge['filtered_predicates'].add(op.edge_predicate[2:-1])
-
-    # Filter down node categories using those
-    # we have recieved from the KP registry
-    # to limit the number of permutations.
 
     # We only filter nodes that are touching at least one edge ("connected")
     connected_nodes = set()
@@ -309,17 +307,30 @@ async def generate_plans(
     solving process.
     """
 
-    logger.debug("Generating plan for query graph")
+    logger.info("Generating plan for query graph")
 
-    logger.debug(
+    logger.info(
         "Contacting KP registry to ask for KPs to solve this query graph")
 
     operation_kp_map = await get_operation_kp_map(qgraph, kp_registry)
 
-    logger.debug(
+    logger.info(
         f"Found {len(operation_kp_map)} possible KP operations we can use")
 
+    logger.debug({
+        "message": "KP operations from the query graph",
+        "operation_kp_map": operation_kp_map,
+    })
+
+    # Filter down node categories using those
+    # we have recieved from the KP registry
+    # to limit the number of permutations.
     await filter_categories_predicates(qgraph, operation_kp_map)
+
+    logger.debug({
+        "message": "Filtered query graph based on operations",
+        "filtered_qgraph": qgraph,
+    })
 
     query_graph_permutations = permute_graph(qgraph)
 
@@ -332,7 +343,14 @@ async def generate_plans(
         if value.get("id", None) is not None
     ]
 
+    logger.debug({
+        "message": "Pinned nodes to search from",
+        "pinned": pinned_nodes,
+    })
+
     plans = []
+
+    logger.info("Searching query graph permutations for plans")
 
     for current_qg in annotated_query_graph_permutations:
 
@@ -398,6 +416,8 @@ async def generate_plans(
                     })
             plans.append(plan)
 
+    num_duplicated_plans = len(plans)
+
     # collapse plans
     unique_map = defaultdict(lambda: defaultdict(list))
     for plan in plans:
@@ -405,6 +425,9 @@ async def generate_plans(
         for step, kps in plan.items():
             unique_map[key][step].extend(kps)
     plans = list(unique_map.values())
+
+    logger.info(
+        f"Found {num_duplicated_plans} plans, collapsed down to {len(plans)} plans")
 
     if len(plans) == 0:
         logger.warning({

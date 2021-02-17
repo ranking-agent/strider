@@ -17,9 +17,9 @@ from tests.helpers.logger import assert_no_level
 
 
 from strider.query_planner import \
-    generate_plans, find_valid_permutations, \
     permute_graph, qg_to_og, \
-    NoAnswersError
+    generate_plans, NoAnswersError
+
 from strider.trapi import expand_qg
 
 from strider.config import settings
