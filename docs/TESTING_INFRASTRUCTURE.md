@@ -21,7 +21,7 @@ A common testing pattern for large pieces of software is to build integration te
 - Testing data is completely separated from the tests. This can make the code brittle - changing data for one test can affect all of the tests.
 - Testing requires a networking infrastructure. This means there is additional tooling that must be present to run tests. 
 
-Our infrastructure uses a feature of Python networking to simulate external services within one Python process. This eliminates the need for networking infrastructure and makes the tests less like integration tests and more like unit tests.
+Our infrastructure uses a feature of Python's `httpcore` library to intercept external HTTP calls and route them to internal handlers. All of this takes place within one Python process. This eliminates the need for networking infrastructure and makes the tests less like integration tests and more like unit tests.
 
 ## Networking Overlay (ASGIAR)
 
