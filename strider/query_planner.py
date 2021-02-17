@@ -232,47 +232,6 @@ async def filter_categories_predicates(graph, operation_kp_map):
     return None
 
 
-# pylint: disable=too-many-locals
-async def find_valid_permutations(
-        operation_graph,
-        kp_registry: Registry = None,
-        logger: logging.Logger = LOGGER,
-) -> list[dict]:
-    """
-    Given an operation graph, generate a list of operation graphs
-    that are solvable, and annotate those with a 'request_kp' property
-    that shows which KPs to contact to get results.
-    """
-
-    # For each edge, ask KP registry for KPs that could solve it
-
-    logger.debug(
-        "Contacting KP registry to ask for KPs to solve this query graph")
-
-    operation_kp_map = await get_operation_kp_map(operation_graph, kp_registry)
-
-    await filter_categories_predicates(operation_graph, operation_kp_map)
-
-    # Remove edges with no predicates
-    operation_graph['edges'] = {k: edge for k, edge in operation_graph['edges'].items()
-                                if len(edge['predicate']) > 0}
-
-    logger.debug(
-        f"Found {len(operation_kp_map)} possible KP operations we can use")
-
-    logger.debug(
-        "Iterating over QGs to find ones that are solvable")
-
-    permuted_og_list = permute_graph(operation_graph)
-
-    filtered_ogs = validate_and_annotate_og_list(
-        permuted_og_list,
-        operation_kp_map,
-    )
-
-    return list(filtered_ogs)
-
-
 def get_next_nodes(graph, path):
     """
     Find next node to traverse
