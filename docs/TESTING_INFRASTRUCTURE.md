@@ -4,28 +4,25 @@
 
 ## Introduction & Goals
 
-ARAs are complex pieces of software. If you ask a programmer how to ensure correctness with complex software, most of them will give some version of testing as an answer. It is clear that testing can be a valuable tool when developing an ARA. It's less clear *how* to implement effective testing. The main challenge is that ARAs make calls to a variety of external tools that can behave (or misbehave) in a variety of ways. When Strider receives a query it contacts the following external tools:
+An ARA is a complex pieces of software. One of the most important tools for building complex software is testing. It's less clear *how* to implement effective testing for an ARA. The main challenge is that ARAs make calls to external tools that can behave (or misbehave) in a variety of ways. When Strider receives a query it contacts the following external tools:
 
 - KP Registry to find KPs available to solve particular edges
 - Node Normalizer to convert curies between formats
 - Individual KPs to solve one-hop steps of a given query
 
-Comprehensive testing requires that we can control how these services respond. During normal operation, these services could respond with 500 errors, JSON error codes, empty lists, or null values. One of the goals of the testing infrastructure is to verify that Strider gracefully handles these cases, even if that means submitting a log message and returning!
+Comprehensive testing requires that we can control how these services respond. During normal operation, these services could respond with 500 errors, JSON error codes, empty lists, or null values. One of the goals of the testing infrastructure is to verify that Strider gracefully handles these cases, even if that means submitting a log message and returning.
 
-A good example of this is how Strider handles node normalizer responses. One of the ways we use the node normalizer is to find synonyms. Using synonyms when contacting KPs helps us get more responses back. Contacting the node normalizer is helpful, but not necessary. Using our testing framework, we were able to write tests to ensure that when the node normalizer is unavailable we still return results but also include a warning message in the response. 
+A good example of this is how Strider handles node normalizer responses. One of the ways we use the node normalizer is to find synonyms. Using synonyms when contacting KPs causes them to return more results. Contacting the node normalizer is helpful, but not necessary. It is important for us to verify that Strider gracefully handles when the normalizer is unavailable. Specifically, we would like to ensure that a valid ressponse is returned, with results, and including a log message saying that the normalizer was unavailable. One of the high level goals of the testing framework is to support testing these types of use cases.
 
 ## Architecture Overview
 
-A common testing pattern for large pieces of software is to build integration tests. This would involve running Strider, the KP Registry, and individual KPs in separate processes. There ar e drawbacks to this approach that make it difficult:
-
-- Testing data is completely separated from the tests. This can make the code brittle - changing data for one test can affect all of the tests.
-- Testing requires a networking infrastructure. This means there is additional tooling that must be present to run tests. 
+A common testing pattern for large pieces of software is to build integration tests. This would involve running Strider, the KP Registry, and individual KPs in separate processes. There ar e drawbacks to this approach that make it difficult. One main drawback is that testing requires a networking infrastructure. This means there is additional tooling that must be present to run tests.
 
 Our infrastructure uses a feature of Python's `httpcore` library to intercept external HTTP calls and route them to internal handlers. All of this takes place within one Python process. This eliminates the need for networking infrastructure and makes the tests less like integration tests and more like unit tests.
 
 ## Networking Overlay (ASGIAR)
 
-The code for simulating external services is packaged in the [ASGIAR Repository](https://github.com/patrickkwang/asgiar). This allows overlaying an ASGI appliction to intercept HTTP requests. ASGI is the successor to WSGI - a standardized Python web server interface. Many standard frameworks implement ASGI including FastAPI, Starlette, and Django. This means any application written using any of these frameworks can "plug in" to ASGIAR and handle web requests.
+The code for simulating external services is packaged in the [ASGIAR Repository](https://github.com/patrickkwang/asgiar). This allows overlaying an ASGI appliction to intercept HTTP requests. ASGI is the successor to WSGI - a standardized Python web server interface. Many frameworks implement ASGI including FastAPI, Starlette, and Django. This means any application written using any of these frameworks can "plug in" to ASGIAR and handle web requests.
 
 The interface for using ASGIAR uses the standard Python context handler. Running a test with a custom KP is as simple as:
 
@@ -39,6 +36,8 @@ async def my_custom_kp_test():
             response = await client.get("http://kp/test")
         assert response.status_code == 200
 ```
+
+In this test, the call to `client.get` will be handled by the `/test` endpoint of the custom\_kp\_app.
 
 ## Custom Services
 
@@ -79,7 +78,7 @@ After many iterations of refining test structure, we decided that the cleanest w
 }
 ```
 
-Sixteen lines to specify a query graph with a single edge isn't great. Most of our tests need KP and Normalizer data as well. Our solution was to write helper functions that allow specifying data as a string that gets converted to JSON:
+Sixteen lines to specify a query graph with a single edge isn't great. Most of our tests need a query graph, KP data, and Normalizer data. Our solution was to write helper functions that allow specifying data as a string that gets converted to JSON:
 
 ```python
 query_graph = query_graph_from_string(
@@ -117,7 +116,7 @@ The solution we chose was to encapsulate these contexts within decorators. These
 - `with_response_overlay`
 - `with_translator_overlay`
 
-The first three should be self explanatory. `with_response_overlay` allows specifying a static response. This is useful for testing what happens if a host is offline or returns a 500 error. 
+The first three are simple - they wrap the function with a context provider that calls the ASGIAR library with the specified external service. `with_response_overlay` allows specifying a static response. This is useful for testing what happens if a host is offline or returns a 500 error.
 
 `with_translator_overlay` combines the normalizer, registry, and any number of KPs into a single decorator. There are many tests that require all of these services present, so having one utility to encapsulate this is helpful. Putting it all together, here is a full example of one test with our framework:
 
