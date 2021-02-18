@@ -79,7 +79,7 @@ After many iterations of refining test structure, we decided that the cleanest w
 }
 ```
 
-Seven lines to specify a query graph with a single node isn't great. Most of our tests need query graphs, KP data, and Normalizer data as well. Our solution was to write helper functions that allow specifying data as a string that gets converted to JSON:
+Sixteen lines to specify a query graph with a single edge isn't great. Most of our tests need KP and Normalizer data as well. Our solution was to write helper functions that allow specifying data as a string that gets converted to JSON:
 
 ```python
 query_graph = query_graph_from_string(
@@ -93,11 +93,85 @@ query_graph = query_graph_from_string(
 
 As a bonus, this format is compatible with the [Mermaid](https://mermaid-js.github.io/mermaid/#/) markup language. This means that we can use existing visualization utilities to display query graphs for our tests, such as the [Mermaid Live Editor](https://mermaid-js.github.io/mermaid-live-editor/#/edit/eyJjb2RlIjoiZ3JhcGggVERcbiAgICAgICAgbjAoKCBpZCBNT05ETzowMDA1MTQ4ICkpXG4gICAgICAgIG4xKCggY2F0ZWdvcnkgYmlvbGluazpEcnVnICkpXG4gICAgICAgIG4wLS0gYmlvbGluazp0cmVhdGVkX2J5IC0tPm4xXG5cdFx0IiwibWVybWFpZCI6e30sInVwZGF0ZUVkaXRvciI6ZmFsc2V9). This is a great tool for debugging tests quickly and efficiently.
 
-There are similar utilities present in the code for KP data (`kps_from_string`) as well as normalizer data (`normalizer_data_from_string`).
+There are similar utilities present in the code for KP data (`kps_from_string`) as well as normalizer data (`normalizer_data_from_string`). 
 
-### Wrappers
+### Decorators
 
-The other 
+The other utility function helps remove the issues of nested context providers. Running ASGIAR code with multiple hosts requires nested `with` statements and quickly begins to look like [Javascript from 2012](http://callbackhell.com/):
+
+```python
+with ASGIAR(custom_kp_1, host="kp1"):
+    with ASGIAR(custom_kp_2, host="kp2"):
+		with ASGIAR(normalizer, host="normalizer"):
+			with ASGIAR(registry, host="registry"):
+				async with httpx.AsyncClient() as client:
+					response = await client.get("http://kp/test")
+				assert response.status_code == 200
+```
+
+The solution we chose was to encapsulate these contexts within decorators. These decorators can be added to tests to provide functionality. We settled on five decorators to cover most of the functionality we needed:
+
+- `with_kp_overlay`
+- `with_registry_overlay`
+- `with_norm_overlay`
+- `with_response_overlay`
+- `with_translator_overlay`
+
+The first three should be self explanatory. `with_response_overlay` allows specifying a static response. This is useful for testing what happens if a host is offline or returns a 500 error. 
+
+`with_translator_overlay` combines the normalizer, registry, and any number of KPs into a single decorator. There are many tests that require all of these services present, so having one utility to encapsulate this is helpful. Putting it all together, here is a full example of one test with our framework:
+
+```python
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148(( category biolink:DiseaseOrPhenotypicFeature ))
+            MONDO:0005148(( category biolink:Disease ))
+        """
+    }
+)
+async def test_duplicate_results():
+    """
+    Some KPs will advertise multiple operations from the biolink hierarchy.
+
+    Test that we filter out duplicate results if we
+    contact the KP multiple times.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:DiseaseOrPhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert_no_warnings_trapi(output)
+
+    assert len(output['message']['results']) == 1
+```
 
 ## Conclusion & Future Improvements
 
+Overall, we are happy with the current version of the testing framework. As of writing, there are 35 tests which provide about 95% coverage of the code currently in use. The tests are easy to maintain and can cover nearly all responses from external services.
+
+Code is never fully complete, and this testing framework is no exception. There are a number of improvements that we are looking to work on in the future including:
+
+- Comprehensive output validation
+- More standardization of external components
+- Query and response visualization tools for faster debugging
