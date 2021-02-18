@@ -230,9 +230,12 @@ async def filter_categories_predicates(graph, operation_kp_map):
     return None
 
 
-def get_next_nodes(graph, path):
+def get_next_nodes(
+        graph: dict[str, list[str]],
+        path: list[str],
+):
     """
-    Find next node to traverse
+    Find next nodes to traverse
 
     Prefer nodes that are adjacent to the last
     node in the path.
@@ -249,7 +252,7 @@ def get_next_nodes(graph, path):
 
 
 def traversals_from_node(
-    graph: dict[str, list],
+    graph: dict[str, list[str]],
     source: str,
 ) -> Generator[list[str], None, None]:
     """
