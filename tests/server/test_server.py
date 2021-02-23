@@ -616,3 +616,91 @@ async def test_mutability_bug():
     # Run
     output = await sync_query(q)
     assert len(output["message"]["results"]) == 2
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:Drug ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """
+    },
+    normalizer_data="""
+        CHEBI:6801 categories biolink:Drug
+        MONDO:0005148 categories biolink:Disease
+        """
+)
+async def test_inverse_predicate():
+    """
+    Test solving a query graph where we have to synonymize for a KP call
+    to get the right answer.
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:Disease ))
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n0-- biolink:treated_by -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert_no_warnings_trapi(output)
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:Drug ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:correlated_with -->MONDO:0005148
+        """
+    },
+    normalizer_data="""
+        CHEBI:6801 categories biolink:Drug
+        MONDO:0005148 categories biolink:Disease
+        """
+)
+async def test_symetric_predicate():
+    """
+    Test solving a query graph where we have a symetric predicate
+    that we have to look up in reverse.
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:Disease ))
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:Drug ))
+        n0-- biolink:correlated_with -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+    assert_no_warnings_trapi(output)
