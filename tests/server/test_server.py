@@ -630,10 +630,6 @@ async def test_mutability_bug():
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """
     },
-    normalizer_data="""
-        CHEBI:6801 categories biolink:Drug
-        MONDO:0005148 categories biolink:Disease
-        """
 )
 async def test_inverse_predicate():
     """
@@ -658,7 +654,7 @@ async def test_inverse_predicate():
     )
 
     # Run
-    output = await sync_query(q)
+    output = await sync_query(q, log_level='DEBUG')
     assert_no_warnings_trapi(output)
 
 

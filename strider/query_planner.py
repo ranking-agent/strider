@@ -2,7 +2,7 @@
 from collections import defaultdict, namedtuple
 import logging
 import copy
-from typing import Generator
+from typing import Generator, Callable
 
 from reasoner_pydantic import QueryGraph
 
@@ -17,6 +17,11 @@ Operation = namedtuple(
     "Operation", ["source_category", "edge_predicate", "target_category"])
 
 REVERSE_EDGE_SUFFIX = '.reverse'
+SYMMETRIC_EDGE_SUFFIX = '.symmetric'
+INVERSE_EDGE_SUFFIX = '.inverse'
+
+
+WBMT = WrappedBMT()
 
 
 def find_next_list_property(search_dict, fields_to_check):
@@ -155,6 +160,32 @@ async def get_operation_kp_map(
     return operation_kp_map
 
 
+def make_og_edge(
+        qg_edge: dict,
+        edge_reverse: bool,
+        predicate_reverse: bool,
+        predicates: list = None,
+):
+    og_edge = {}
+
+    if edge_reverse:
+        og_edge["source"] = qg_edge["object"]
+        og_edge["target"] = qg_edge["subject"]
+    else:
+        og_edge["source"] = qg_edge["subject"]
+        og_edge["target"] = qg_edge["object"]
+
+    # Default value
+    if not predicates:
+        predicates = qg_edge["predicate"]
+
+    if predicate_reverse:
+        og_edge["predicate"] = [f"<-{p}-" for p in predicates]
+    else:
+        og_edge["predicate"] = [f"-{p}->" for p in predicates]
+    return og_edge
+
+
 async def qg_to_og(
         qgraph,
         logger: logging.Logger = logging.getLogger(),
@@ -167,17 +198,57 @@ async def qg_to_og(
     }
     # Add reverse edges so that we can traverse edges in both directions
     for edge_id, edge in qgraph["edges"].items():
-        ograph["edges"][edge_id] = {
-            "source": edge["subject"],
-            "predicate": [f"-{p}->" for p in edge["predicate"]],
-            "target": edge["object"],
-        }
-        if reverse:
-            ograph["edges"][edge_id + REVERSE_EDGE_SUFFIX] = {
-                "source": edge["object"],
-                "predicate": [f"<-{p}-" for p in edge["predicate"]],
-                "target": edge["subject"],
-            }
+        # Forward edge
+        ograph["edges"][edge_id] = make_og_edge(
+            edge,
+            edge_reverse=False,
+            predicate_reverse=False
+        )
+        # Reverse edge
+        ograph["edges"][edge_id + REVERSE_EDGE_SUFFIX] = make_og_edge(
+            edge,
+            edge_reverse=True,
+            predicate_reverse=True
+        )
+
+        symmetric_predicates = [
+            p for p in edge["predicate"]
+            if WBMT.predicate_is_symmetric(p)
+        ]
+        if len(symmetric_predicates) > 0:
+            # Forward symmetric edge
+            ograph["edges"][edge_id + SYMMETRIC_EDGE_SUFFIX] = make_og_edge(
+                edge,
+                edge_reverse=False,
+                predicate_reverse=True,
+                predicates=symmetric_predicates)
+            # Reverse symmetric edge
+            ograph["edges"][edge_id + REVERSE_EDGE_SUFFIX + SYMMETRIC_EDGE_SUFFIX] = \
+                make_og_edge(
+                edge,
+                edge_reverse=True,
+                predicate_reverse=False,
+                predicates=symmetric_predicates)
+
+        # Inverse edge
+        inverse_predicates = [
+            WBMT.predicate_inverse(p) for p in edge["predicate"]
+        ]
+        inverse_predicates = list(filter(None, inverse_predicates))
+        if len(inverse_predicates) > 0:
+            # Forward inverse edge
+            ograph["edges"][edge_id + INVERSE_EDGE_SUFFIX] = make_og_edge(
+                edge,
+                edge_reverse=True,
+                predicate_reverse=False,
+                predicates=inverse_predicates)
+            # Reverse inverse edge
+            ograph["edges"][edge_id + REVERSE_EDGE_SUFFIX + INVERSE_EDGE_SUFFIX] = \
+                make_og_edge(
+                edge,
+                edge_reverse=False,
+                predicate_reverse=True,
+                predicates=inverse_predicates)
 
     return ograph
 

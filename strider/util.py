@@ -73,6 +73,18 @@ class WrappedBMT():
             ancestors.append(concept)
         return ancestors
 
+    def predicate_is_symmetric(self, predicate):
+        """ Get whether a given predicate is symmetric """
+        predicate_old_format = self.new_case_to_old_case(predicate)
+        return self.bmt.get_element(predicate_old_format).symmetric
+
+    def predicate_inverse(self, predicate):
+        """ Get the inverse of a predicate if it has one """
+        predicate_old_format = self.new_case_to_old_case(predicate)
+        return self.old_case_to_new_case(
+            self.bmt.get_element(predicate_old_format).inverse
+        )
+
 
 async def post_json(url, request):
     """Make post request."""
