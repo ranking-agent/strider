@@ -144,9 +144,11 @@ async def annotate_operation_graph(
             kp_registry,
             allowlist=allowlist, denylist=denylist,
         )
-        edge["kps"] = kp_results
+
         if len(kp_results) == 0:
             del operation_graph["edges"][edge_id]
+            continue
+        edge["kps"] = kp_results
 
 
 def make_og_edge(
@@ -161,6 +163,9 @@ def make_og_edge(
     # Annotate operation graph edge
     # with the query graph edge_id
     og_edge["qg_edge_id"] = qg_edge_id
+    # Also annotate with whether we are traversing
+    # this edge in reverse
+    og_edge["qg_traversal_reverse"] = predicate_reverse
 
     if edge_reverse:
         og_edge["source"] = qg_edge["object"]
@@ -474,10 +479,15 @@ async def generate_plans(
                 op = get_operation(current_qg, edge, reverse=reverse)
 
                 # Attach information about categorys to kp info
-                for kp in edge['forward_kps'] + edge['reverse_kps']:
+                all_kps = {**edge['forward_kps'], **edge['reverse_kps']}
+                for kp_name, kp in all_kps.items():
+                    kp_without_ops = {x: kp[x]
+                                      for x in kp if x != 'operations'}
+                    kp_without_ops['name'] = kp_name
+
                     plan[step].append({
                         **op._asdict(),
-                        **kp,
+                        **kp_without_ops,
                     })
             plans.append(plan)
 
@@ -524,16 +534,14 @@ def annotate_query_graph(
             if edge["qg_edge_id"] == qg_edge_id
         ]
 
-        edge['forward_kps'] = []
-        edge['reverse_kps'] = []
+        edge['forward_kps'] = {}
+        edge['reverse_kps'] = {}
 
         for og_edge in associated_operation_graph_edges:
-            qg_edge_category = query_graph["nodes"][edge["subject"]]["category"]
-            og_edge_categories = operation_graph["nodes"][og_edge["source"]]["category"]
-            if qg_edge_category in og_edge_categories:
-                edge['forward_kps'].append(og_edge["kps"])
+            if og_edge["qg_traversal_reverse"]:
+                edge['reverse_kps'].update(og_edge["kps"])
             else:
-                edge['reverse_kps'].append(og_edge["kps"])
+                edge['forward_kps'].update(og_edge["kps"])
 
         if len(edge['forward_kps']) == 0 and len(edge['reverse_kps']) == 0:
             return False

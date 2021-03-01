@@ -69,10 +69,10 @@ async def test_permute_simple(caplog):
     permutations = permute_graph(operation_graph)
     assert permutations
 
-    # We should have:
-    # 4 * 2 * 3 = 24
-    # permutations
-    assert len(list(permutations)) == 24
+    # We should have 4 * 2 * 3 * 3 = 72
+    # permutations because three of our predicates
+    # have inverses as well
+    assert len(list(permutations)) == 72
     assert_no_level(caplog, logging.WARNING)
 
 
