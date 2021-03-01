@@ -128,7 +128,8 @@ async def annotate_operation_graph(
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
 
-    for edge in operation_graph['edges'].values():
+    for edge_id in list(operation_graph['edges'].keys()):
+        edge = operation_graph["edges"][edge_id]
         if "provided_by" in edge:
             allowlist = edge["provided_by"].get("allowlist", None)
             denylist = edge["provided_by"].get("denylist", None)
@@ -144,6 +145,8 @@ async def annotate_operation_graph(
             allowlist=allowlist, denylist=denylist,
         )
         edge["kps"] = kp_results
+        if len(kp_results) == 0:
+            del operation_graph["edges"][edge_id]
 
 
 def make_og_edge(
@@ -521,10 +524,16 @@ def annotate_query_graph(
             if edge["qg_edge_id"] == qg_edge_id
         ]
 
-        forward_op = get_operation(qg, edge)
-        edge['forward_kps'] = operation_kp_map.get(forward_op, [])
-        reverse_op = get_operation(qg, edge, reverse=True)
-        edge['reverse_kps'] = operation_kp_map.get(reverse_op, [])
+        edge['forward_kps'] = []
+        edge['reverse_kps'] = []
+
+        for og_edge in associated_operation_graph_edges:
+            qg_edge_category = query_graph["nodes"][edge["subject"]]["category"]
+            og_edge_categories = operation_graph["nodes"][og_edge["source"]]["category"]
+            if qg_edge_category in og_edge_categories:
+                edge['forward_kps'].append(og_edge["kps"])
+            else:
+                edge['reverse_kps'].append(og_edge["kps"])
 
         if len(edge['forward_kps']) == 0 and len(edge['reverse_kps']) == 0:
             return False
@@ -537,9 +546,7 @@ def annotate_query_graph_list(
 ) -> dict[str, dict]:
     """ Wrapper around annotate_query_graph for generator """
     for qg in query_graph_list:
-        breakpoint()
         valid = annotate_query_graph(qg, operation_graph)
-        breakpoint()
         if valid:
             yield qg
 
