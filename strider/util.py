@@ -81,9 +81,11 @@ class WrappedBMT():
     def predicate_inverse(self, predicate):
         """ Get the inverse of a predicate if it has one """
         predicate_old_format = self.new_case_to_old_case(predicate)
-        return self.old_case_to_new_case(
-            self.bmt.get_element(predicate_old_format).inverse
-        )
+        predicate_inverse_old_format = self.bmt.get_element(
+            predicate_old_format).inverse
+        if predicate_inverse_old_format:
+            return self.old_case_to_new_case(predicate_inverse_old_format)
+        return None
 
 
 async def post_json(url, request):
