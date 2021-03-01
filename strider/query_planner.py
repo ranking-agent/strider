@@ -157,7 +157,15 @@ def make_og_edge(
         edge_reverse: bool,
         predicate_reverse: bool,
         predicates: list = None,
-):
+) -> dict:
+    """
+    Build an operation graph edge from a query graph.
+
+    Accepts parameters to invert the edge direction (source -> target, target -> source)
+    and the predicate direction (-treats-> or <-treats-).
+
+    Also accepts a custom list of predicates.
+    """
     og_edge = {}
 
     # Annotate operation graph edge
@@ -185,12 +193,13 @@ def make_og_edge(
     return og_edge
 
 
-async def qg_to_og(
-        qgraph,
-        logger: logging.Logger = logging.getLogger(),
-        reverse: bool = True,
-):
-    """Convert query graph to operation graph"""
+async def qg_to_og(qgraph):
+    """
+    Convert query graph to operation graph
+
+    This will add reverse, symmetric,
+    and inverse edges when they are available
+    """
     ograph = {
         "nodes": copy.deepcopy(qgraph["nodes"]),
         "edges": dict(),

@@ -65,7 +65,7 @@ async def test_permute_simple(caplog):
     )
 
     qg = await expand_qg(qg, logging.getLogger())
-    operation_graph = await qg_to_og(qg, reverse=False)
+    operation_graph = await qg_to_og(qg)
     permutations = permute_graph(operation_graph)
     assert permutations
 
