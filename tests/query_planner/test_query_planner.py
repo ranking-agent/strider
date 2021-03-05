@@ -544,3 +544,29 @@ async def test_planning_performance_typical_example():
         testable_generate_plans,
         "generate plan for a typical query graph (50k KPs)",
     )
+
+
+@pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    kp0 biolink:Drug <-biolink:treated_by- biolink:Disease
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_double_sided(caplog):
+    """
+    Test planning when a KP provides edges in both directions.
+    """
+
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005737 ))
+        n0(( category biolink:Disease ))
+        n1(( category biolink:Drug ))
+        n0-- biolink:treated_by -->n1
+        """
+    )
+    qg = await expand_qg(qg, logging.getLogger())
+    plans = await generate_plans(qg, logger=logging.getLogger())
+    assert len(plans) == 1
