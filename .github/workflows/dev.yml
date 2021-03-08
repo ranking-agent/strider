@@ -77,3 +77,6 @@ jobs:
 #         repo-token: ${{ secrets.GITHUB_TOKEN }}
 #         repo-token-user-login: 'github-actions[bot]' # The user.login for temporary GitHub tokens
 #         allow-repeats: true
+
+      - name: Exit if there are any test failures
+        run: '[[ $TEST_OUTPUT != *FAILED* ]]'
