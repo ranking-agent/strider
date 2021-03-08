@@ -276,18 +276,23 @@ async def filter_categories_predicates(query_graph, operation_graph):
             if edge["qg_edge_id"] == qg_edge_id
         ]
 
-        for og_edge in associated_operation_graph_edges:
+        sub = query_graph['nodes'][edge['subject']]
+        obj = query_graph['nodes'][edge['object']]
 
-            sub = query_graph['nodes'][edge['subject']]
-            obj = query_graph['nodes'][edge['object']]
-            if og_edge["qg_traversal_reverse"]:
-                sub, obj = obj, sub
+        for og_edge in associated_operation_graph_edges:
 
             for kp in og_edge["kps"].values():
                 for kp_operation in kp["operations"]:
-                    sub['filtered_categories'].add(
+                    if og_edge["qg_traversal_reverse"]:
+                        source = obj
+                        target = sub
+                    else:
+                        source = sub
+                        target = obj
+
+                    source['filtered_categories'].add(
                         kp_operation["source_category"])
-                    obj['filtered_categories'].add(
+                    target['filtered_categories'].add(
                         kp_operation["target_category"])
                     # Remove arrows
                     edge['filtered_predicates'].add(
