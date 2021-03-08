@@ -570,3 +570,4 @@ async def test_double_sided(caplog):
     qg = await expand_qg(qg, logging.getLogger())
     plans = await generate_plans(qg, logger=logging.getLogger())
     assert len(plans) == 1
+    assert len(list(plans[0].values())[0]) == 1
