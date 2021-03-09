@@ -495,6 +495,43 @@ async def test_bad_norm(caplog):
 
 
 @pytest.mark.asyncio
+@with_registry_overlay(settings.kpregistry_url, kps_from_string(
+    """
+    kp0 biolink:Disease <-biolink:treats- biolink:Drug
+    """
+))
+@with_norm_overlay(settings.normalizer_url)
+async def test_descendant_reverse_category(caplog):
+    """
+    Test that when we are given related_to that descendants
+    will be filled either in the forward or backwards direction
+    """
+    invalid_qg = query_graph_from_string(
+        """
+        n0(( category biolink:Disease ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Drug ))
+        """
+    )
+    invalid_qg = await expand_qg(invalid_qg, logging.getLogger())
+    plans = await generate_plans(invalid_qg)
+    assert len(plans) == 0
+
+    valid_qg = query_graph_from_string(
+        """
+        n0(( category biolink:Disease ))
+        n0-- biolink:related_to -->n1
+        n1(( category biolink:Drug ))
+        """
+    )
+    valid_qg = await expand_qg(valid_qg, logging.getLogger())
+    plans = await generate_plans(valid_qg)
+    assert len(plans) == 1
+
+    assert_no_level(caplog, logging.WARNING, 1)
+
+
+@pytest.mark.asyncio
 @pytest.mark.longrun
 @with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
 @with_norm_overlay(settings.normalizer_url)
