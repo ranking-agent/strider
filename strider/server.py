@@ -30,7 +30,7 @@ from .storage import RedisGraph, RedisList
 from .config import settings
 from .logging import LogLevelEnum
 from .util import standardize_graph_lists
-from .trapi import expand_qg
+from .trapi import fill_categories_predicates, add_descendants
 
 LOGGER = logging.getLogger(__name__)
 
@@ -360,7 +360,8 @@ async def generate_traversal_plan(
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
 
-    query_graph = await expand_qg(query_graph, LOGGER)
+    await fill_categories_predicates(query_graph, logging.getLogger())
+    await add_descendants(query_graph, logging.getLogger())
     plans = await generate_plans(query_graph)
 
     plans_stringified_keys = []
