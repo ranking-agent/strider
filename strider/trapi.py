@@ -202,22 +202,21 @@ def filter_ancestor_types(types):
     return specific_types
 
 
-async def expand_qg(
+async def fill_categories_predicates(
         qg: QueryGraph,
         logger: logging.Logger = logging.getLogger(),
         normalizer: Normalizer = None,
-) -> QueryGraph:
+):
     """
-    Given a query graph, use the Biolink model to expand categories and predicates
-    to include their descendants. Also get categories for pinned nodes.
+    Given a query graph, fill in missing categories and predicates
+    using the normalizer or with the most general terms (NamedThing and related_to).
     """
-    qg = copy.deepcopy(qg)
 
     if normalizer is None:
         normalizer = Normalizer(settings.normalizer_url)
 
     # Fill in missing predicates with most general term
-    for eid, edge in qg['edges'].items():
+    for edge in qg['edges'].values():
         if ('predicate' not in edge) or (edge['predicate'] is None):
             edge['predicate'] = 'biolink:related_to'
 
@@ -225,6 +224,35 @@ async def expand_qg(
     for node in qg['nodes'].values():
         if ('category' not in node) or (node['category'] is None):
             node['category'] = 'biolink:NamedThing'
+
+    logger.debug("Contacting node normalizer to get categorys for curies")
+
+    # Use node normalizer to add
+    # a category to nodes with a curie
+    for node in qg['nodes'].values():
+        if not node.get('id'):
+            continue
+        if not isinstance(node['id'], list):
+            node['id'] = [node['id']]
+
+        # Get full list of categorys
+        categories = await normalizer.get_types(node['id'])
+
+        if categories:
+            # Filter categorys that are ancestors of other categorys we were given
+            node['category'] = filter_ancestor_types(categories)
+        elif "category" not in node:
+            node["category"] = []
+
+
+async def add_descendants(
+        qg: QueryGraph,
+        logger: logging.Logger = logging.getLogger(),
+) -> QueryGraph:
+    """
+    Use the Biolink Model Toolkit to add descendants
+    to categories and predicates in a graph.
+    """
 
     logger.debug("Using BMT to get descendants of node and edge types")
 
@@ -254,24 +282,5 @@ async def expand_qg(
         "description": "Expanded query graph with descendants",
         "qg": qg,
     })
-
-    logger.debug("Contacting node normalizer to get categorys for curies")
-
-    # Use node normalizer to add
-    # a category to nodes with a curie
-    for node in qg['nodes'].values():
-        if not node.get('id'):
-            continue
-        if not isinstance(node['id'], list):
-            node['id'] = [node['id']]
-
-        # Get full list of categorys
-        categories = await normalizer.get_types(node['id'])
-
-        if categories:
-            # Filter categorys that are ancestors of other categorys we were given
-            node['category'] = filter_ancestor_types(categories)
-        elif "category" not in node:
-            node["category"] = []
 
     return qg

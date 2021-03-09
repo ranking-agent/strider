@@ -21,7 +21,8 @@ from reasoner_pydantic import QueryGraph, Result, Response
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
-from .trapi import merge_messages, merge_results, expand_qg
+from .trapi import merge_messages, merge_results, \
+    fill_categories_predicates, add_descendants
 from .worker import Worker
 from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
@@ -121,7 +122,8 @@ class StriderWorker(Worker):
         ))["query_graph"]
 
         # Expand the query graph using the biolink model hierarchies
-        self.qgraph = await expand_qg(self.qgraph, self.logger)
+        await fill_categories_predicates(self.qgraph, self.logger)
+        await add_descendants(self.qgraph, self.logger)
 
     async def generate_plan(self):
         """

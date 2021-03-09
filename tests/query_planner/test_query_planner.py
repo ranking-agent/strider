@@ -20,7 +20,7 @@ from strider.query_planner import \
     permute_graph, qg_to_og, \
     generate_plans, NoAnswersError
 
-from strider.trapi import expand_qg
+from strider.trapi import fill_categories_predicates, add_descendants
 
 from strider.config import settings
 
@@ -64,7 +64,8 @@ async def test_permute_simple(caplog):
         """
     )
 
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
     operation_graph = await qg_to_og(qg)
     permutations = permute_graph(operation_graph)
     assert permutations
@@ -96,7 +97,8 @@ async def test_not_enough_kps(caplog):
         n0-- biolink:related_to -->n1
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(
         qg,
@@ -130,7 +132,8 @@ async def test_no_reverse_edge_in_plan(caplog):
         n0-- biolink:related_to -->n1
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(
         qg,
@@ -164,7 +167,8 @@ async def test_no_path_from_pinned_node(caplog):
         n1-- biolink:treats -->n0
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(
         qg,
@@ -195,7 +199,8 @@ async def test_solve_reverse_edge(caplog):
         n1-- biolink:treats -->n0
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -227,7 +232,8 @@ async def test_plan_loop(caplog):
         n2-- biolink:treats -->n1
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
 
@@ -262,7 +268,8 @@ async def test_plan_reuse_pinned(caplog):
         n0-- biolink:related_to -->n3
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
 
@@ -298,7 +305,8 @@ async def test_plan_double_loop(caplog):
         n4-- biolink:related_to -->n2
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 8
@@ -315,7 +323,8 @@ async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     plan = plans[0]
@@ -351,7 +360,8 @@ async def test_valid_two_pinned_nodes(caplog):
         n2(( id MONDO:0011122 ))
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -383,7 +393,8 @@ async def test_fork(caplog):
         n0-- biolink:has_phenotype -->n2
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 2
@@ -412,7 +423,8 @@ async def test_unbound_unconnected_node(caplog):
         n2(( category biolink:PhenotypicFeature ))
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -442,7 +454,8 @@ async def test_invalid_two_disconnected_components(caplog):
         n2-- biolink:treated_by -->n3
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -480,7 +493,8 @@ async def test_bad_norm(caplog):
             }
         }
     }
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     plans = await generate_plans(qg)
     assert any(
@@ -513,7 +527,8 @@ async def test_descendant_reverse_category(caplog):
         n1(( category biolink:Drug ))
         """
     )
-    invalid_qg = await expand_qg(invalid_qg, logging.getLogger())
+    await fill_categories_predicates(invalid_qg, logging.getLogger())
+    await add_descendants(invalid_qg, logging.getLogger())
     plans = await generate_plans(invalid_qg)
     assert len(plans) == 0
 
@@ -524,7 +539,8 @@ async def test_descendant_reverse_category(caplog):
         n1(( category biolink:Drug ))
         """
     )
-    valid_qg = await expand_qg(valid_qg, logging.getLogger())
+    await fill_categories_predicates(valid_qg, logging.getLogger())
+    await add_descendants(valid_qg, logging.getLogger())
     plans = await generate_plans(valid_qg)
     assert len(plans) == 1
 
@@ -551,7 +567,8 @@ async def test_planning_performance_generic_qg():
         n1-- biolink:related_to -->n2
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
     await time_and_display(
         partial(generate_plans, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
@@ -572,7 +589,8 @@ async def test_planning_performance_typical_example():
 
     with open(cwd / "ex2_qg.json", "r") as f:
         qg = json.load(f)
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
 
     async def testable_generate_plans():
         await generate_plans(qg, logger=logging.getLogger())
@@ -604,7 +622,8 @@ async def test_double_sided(caplog):
         n0-- biolink:treated_by -->n1
         """
     )
-    qg = await expand_qg(qg, logging.getLogger())
+    await fill_categories_predicates(qg, logging.getLogger())
+    await add_descendants(qg, logging.getLogger())
     plans = await generate_plans(qg, logger=logging.getLogger())
     assert len(plans) == 1
     assert len(list(plans[0].values())[0]) == 1
