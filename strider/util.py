@@ -16,7 +16,7 @@ def snake_to_camel(s):
 
 
 class WrappedBMT():
-    """ 
+    """
     Wrapping around some of the BMT Toolkit functions
     to provide case conversions to the new format
     """
@@ -136,6 +136,22 @@ def standardize_graph_lists(graph: dict[str, dict]):
     for edge in graph['edges'].values():
         for field in edge_fields:
             listify_value(edge, field)
+
+
+def extract_predicate_direction(predicate: str) -> tuple[str, bool]:
+    """ Extract predicate direction from string with enclosing arrows """
+    if "<-" in predicate:
+        return predicate[2:-1], True
+    else:
+        return predicate[1:-2], False
+
+
+def build_predicate_direction(predicate: str, reverse: bool) -> str:
+    """ Given a tuple of predicate string and direction, build a string with arrows """
+    if reverse:
+        return f"<-{predicate}-"
+    else:
+        return f"-{predicate}->"
 
 
 def message_to_list_form(message):

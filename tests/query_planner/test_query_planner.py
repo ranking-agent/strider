@@ -20,9 +20,10 @@ from strider.query_planner import \
     permute_graph, qg_to_og, \
     generate_plans, NoAnswersError
 
-from strider.trapi import fill_categories_predicates, add_descendants
+from strider.trapi import fill_categories_predicates
 
 from strider.config import settings
+from strider.util import standardize_graph_lists
 
 cwd = Path(__file__).parent
 
@@ -65,7 +66,7 @@ async def test_permute_simple(caplog):
     )
 
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
     operation_graph = await qg_to_og(qg)
     permutations = permute_graph(operation_graph)
     assert permutations
@@ -98,7 +99,7 @@ async def test_not_enough_kps(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(
         qg,
@@ -133,7 +134,7 @@ async def test_no_reverse_edge_in_plan(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(
         qg,
@@ -168,7 +169,7 @@ async def test_no_path_from_pinned_node(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(
         qg,
@@ -200,7 +201,7 @@ async def test_solve_reverse_edge(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -233,7 +234,7 @@ async def test_plan_loop(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
 
@@ -269,7 +270,7 @@ async def test_plan_reuse_pinned(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
 
@@ -306,7 +307,7 @@ async def test_plan_double_loop(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 8
@@ -324,7 +325,7 @@ async def test_plan_ex1(caplog):
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     plan = plans[0]
@@ -361,7 +362,7 @@ async def test_valid_two_pinned_nodes(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -394,7 +395,7 @@ async def test_fork(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 2
@@ -424,7 +425,7 @@ async def test_unbound_unconnected_node(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -455,7 +456,7 @@ async def test_invalid_two_disconnected_components(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -494,7 +495,7 @@ async def test_bad_norm(caplog):
         }
     }
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     plans = await generate_plans(qg)
     assert any(
@@ -528,7 +529,7 @@ async def test_descendant_reverse_category(caplog):
         """
     )
     await fill_categories_predicates(invalid_qg, logging.getLogger())
-    await add_descendants(invalid_qg, logging.getLogger())
+    standardize_graph_lists(invalid_qg)
     plans = await generate_plans(invalid_qg)
     assert len(plans) == 0
 
@@ -540,7 +541,7 @@ async def test_descendant_reverse_category(caplog):
         """
     )
     await fill_categories_predicates(valid_qg, logging.getLogger())
-    await add_descendants(valid_qg, logging.getLogger())
+    standardize_graph_lists(valid_qg)
     plans = await generate_plans(valid_qg)
     assert len(plans) == 1
 
@@ -568,7 +569,7 @@ async def test_planning_performance_generic_qg():
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
     await time_and_display(
         partial(generate_plans, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
@@ -590,7 +591,7 @@ async def test_planning_performance_typical_example():
     with open(cwd / "ex2_qg.json", "r") as f:
         qg = json.load(f)
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
 
     async def testable_generate_plans():
         await generate_plans(qg, logger=logging.getLogger())
@@ -623,7 +624,7 @@ async def test_double_sided(caplog):
         """
     )
     await fill_categories_predicates(qg, logging.getLogger())
-    await add_descendants(qg, logging.getLogger())
+    standardize_graph_lists(qg)
     plans = await generate_plans(qg, logger=logging.getLogger())
     assert len(plans) == 1
     assert len(list(plans[0].values())[0]) == 1

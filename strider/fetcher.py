@@ -22,13 +22,13 @@ from reasoner_pydantic import QueryGraph, Result, Response
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
 from .trapi import merge_messages, merge_results, \
-    fill_categories_predicates, add_descendants
+    fill_categories_predicates
 from .worker import Worker
 from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import ensure_list
+from .util import ensure_list, standardize_graph_lists
 
 # Initialize registry
 registry = Registry(settings.kpregistry_url)
@@ -123,7 +123,7 @@ class StriderWorker(Worker):
 
         # Expand the query graph using the biolink model hierarchies
         await fill_categories_predicates(self.qgraph, self.logger)
-        await add_descendants(self.qgraph, self.logger)
+        standardize_graph_lists(self.qgraph)
 
     async def generate_plan(self):
         """

@@ -1,5 +1,5 @@
 """Query planner."""
-from collections import defaultdict, namedtuple
+from collections import defaultdict, namedtuple, ChainMap
 import logging
 import copy
 from typing import Generator, Callable
@@ -10,6 +10,7 @@ from reasoner_pydantic import QueryGraph
 from strider.kp_registry import Registry
 from strider.util import WrappedBMT
 from strider.config import settings
+from strider.trapi import add_descendants
 
 LOGGER = logging.getLogger(__name__)
 
@@ -121,9 +122,8 @@ async def annotate_operation_graph(
         kp_registry: Registry = None,
 ):
     """
-    Look up kps for each operation in a query graph
-
-    Put the results in a master dictionary
+    Look up kps for each edge in an operation graph
+    and add it to the "kps" property of the edge
     """
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
@@ -262,58 +262,43 @@ async def qg_to_og(qgraph):
     return ograph
 
 
-async def filter_categories_predicates(query_graph, operation_graph):
-    """Filter out categories and predicates that cannot be found using KPs."""
-    for node in query_graph['nodes'].values():
+def filter_categories_predicates(operation_graph):
+    """
+    Filter out categories and predicates that are not defined in any KP
+    """
+    for node in operation_graph['nodes'].values():
         node['filtered_categories'] = set()
-    for edge in query_graph['edges'].values():
+    for edge in operation_graph['edges'].values():
         edge['filtered_predicates'] = set()
 
-    for qg_edge_id, edge in query_graph['edges'].items():
+    for edge in operation_graph['edges'].values():
+        for kp in edge["kps"].values():
+            for kp_operation in kp["operations"]:
+                source_node = operation_graph["nodes"][edge["source"]]
+                target_node = operation_graph["nodes"][edge["target"]]
 
-        associated_operation_graph_edges = [
-            edge for edge in operation_graph["edges"].values()
-            if edge["qg_edge_id"] == qg_edge_id
-        ]
-
-        sub = query_graph['nodes'][edge['subject']]
-        obj = query_graph['nodes'][edge['object']]
-
-        for og_edge in associated_operation_graph_edges:
-
-            for kp in og_edge["kps"].values():
-                for kp_operation in kp["operations"]:
-                    if og_edge["qg_traversal_reverse"]:
-                        source = obj
-                        target = sub
-                    else:
-                        source = sub
-                        target = obj
-
-                    source['filtered_categories'].add(
-                        kp_operation["source_category"])
-                    target['filtered_categories'].add(
-                        kp_operation["target_category"])
-                    # Remove arrows
-                    edge['filtered_predicates'].add(
-                        re.sub(r"[<\->]", "", kp_operation["edge_predicate"])
-                    )
+                source_node['filtered_categories'].add(
+                    kp_operation["source_category"])
+                target_node['filtered_categories'].add(
+                    kp_operation["target_category"])
+                edge['filtered_predicates'].add(
+                    kp_operation["edge_predicate"]
+                )
 
     # We only filter nodes that are touching at least one edge ("connected")
     connected_nodes = set()
-    for edge in query_graph['edges'].values():
-        connected_nodes.add(edge['subject'])
-        connected_nodes.add(edge['object'])
+    for edge in operation_graph['edges'].values():
+        connected_nodes.add(edge['source'])
+        connected_nodes.add(edge['target'])
     for node_id in connected_nodes:
-        node = query_graph['nodes'][node_id]
+        node = operation_graph['nodes'][node_id]
         if 'category' not in node:
             continue
         node['category'] = list(node.pop('filtered_categories'))
 
     # Also filter edge predicates as well
-    for edge in query_graph['edges'].values():
+    for edge in operation_graph['edges'].values():
         edge['predicate'] = list(edge.pop('filtered_predicates'))
-    return None
 
 
 def get_next_nodes(
@@ -403,6 +388,8 @@ async def generate_plans(
 
     operation_graph = await qg_to_og(qgraph)
 
+    add_descendants(operation_graph, logger)
+
     await annotate_operation_graph(operation_graph, kp_registry)
 
     logger.debug({
@@ -413,17 +400,14 @@ async def generate_plans(
     # Filter down node categories using those
     # we have recieved from the KP registry
     # to limit the number of permutations.
-    await filter_categories_predicates(qgraph, operation_graph)
+    filter_categories_predicates(operation_graph)
 
     logger.debug({
         "message": "Filtered query graph based on operations",
         "filtered_qgraph": qgraph,
     })
 
-    query_graph_permutations = permute_graph(qgraph)
-
-    annotated_query_graph_permutations = \
-        annotate_query_graph_list(query_graph_permutations, operation_graph)
+    operation_graph_permutations = permute_graph(operation_graph)
 
     # Build a list of pinned nodes
     pinned_nodes = [
@@ -440,25 +424,28 @@ async def generate_plans(
 
     logger.info("Searching query graph permutations for plans")
 
-    for current_qg in annotated_query_graph_permutations:
+    for current_og in operation_graph_permutations:
+        filter_operation_graph_kps(current_og)
 
         # Create a graph where all nodes and edges
         # from the operation graph are nodes ("reified")
         #
         # This graph is stored as an adjacency list
         reified_graph = {}
-        for node_id in current_qg['nodes'].keys():
+        for node_id in qgraph['nodes'].keys():
             reified_graph[node_id] = []
-        for edge_id in current_qg['edges'].keys():
+        for edge_id in qgraph['edges'].keys():
             reified_graph[edge_id] = []
 
         # Fill in adjacencies
-        for edge_id, edge in current_qg['edges'].items():
-            if len(edge['forward_kps']) > 0:
+        for edge_id, edge in qgraph['edges'].items():
+            forward_kps = get_query_graph_edge_kps(current_og, edge_id, False)
+            if len(forward_kps) > 0:
                 # Adjacency for forward edge
                 reified_graph[edge['subject']].append(edge_id)
                 reified_graph[edge_id].append(edge['object'])
-            if len(edge['reverse_kps']) > 0:
+            reverse_kps = get_query_graph_edge_kps(current_og, edge_id, True)
+            if len(reverse_kps) > 0:
                 # Adjacency for reverse edge
                 reified_graph[edge['object']].append(edge_id)
                 reified_graph[edge_id].append(edge['subject'])
@@ -472,7 +459,7 @@ async def generate_plans(
             )
 
         possible_traversals = filter(
-            lambda t: ensure_traversal_connected(current_qg, t),
+            lambda t: ensure_traversal_connected(qgraph, t),
             possible_traversals)
 
         for traversal in possible_traversals:
@@ -480,13 +467,13 @@ async def generate_plans(
             plan = defaultdict(list)
             for index, edge_id in enumerate(traversal):
                 # Skip iteration for non-edges
-                if edge_id not in current_qg['edges'].keys():
+                if edge_id not in qgraph['edges'].keys():
                     continue
 
                 # We need to know which way to step through the edge
                 # so we use the previous value in the traversal
                 # which is always the source node
-                edge = current_qg['edges'][edge_id]
+                edge = qgraph['edges'][edge_id]
                 source_node_id = traversal[index - 1]
                 reverse = source_node_id == edge['object']
 
@@ -494,10 +481,15 @@ async def generate_plans(
                     step = Step(edge['object'], edge_id, edge['subject'])
                 else:
                     step = Step(edge['subject'], edge_id, edge['object'])
-                op = get_operation(current_qg, edge, reverse=reverse)
+                op = get_operation(qgraph, edge, reverse=reverse)
+
+                forward_kps = get_query_graph_edge_kps(
+                    current_og, edge_id, False)
+                reverse_kps = get_query_graph_edge_kps(
+                    current_og, edge_id, True)
 
                 # Attach information about categorys to kp info
-                all_kps = {**edge['forward_kps'], **edge['reverse_kps']}
+                all_kps = {**forward_kps, **reverse_kps}
                 for kp_name, kp in all_kps.items():
                     kp_without_ops = {x: kp[x]
                                       for x in kp if x != 'operations'}
@@ -533,6 +525,25 @@ async def generate_plans(
         })
 
     return plans
+
+
+def filter_operation_graph_kps(
+    operation_graph: dict[str, dict],
+):
+    """
+    Remove KPs that don't match the operation graph's
+    node categories or edge predicates.
+    """
+    for edge in operation_graph["edges"].values():
+        edge_operation = {
+            "edge_predicate": edge["predicate"],
+            "source_category": operation_graph["nodes"][edge["source"]]["category"],
+            "target_category": operation_graph["nodes"][edge["target"]]["category"],
+        }
+        edge["kps"] = {name: kp
+                       for name, kp in edge["kps"].items()
+                       if edge_operation in kp["operations"]
+                       }
 
 
 def annotate_query_graph(
@@ -575,6 +586,34 @@ def annotate_query_graph_list(
         valid = annotate_query_graph(qg, operation_graph)
         if valid:
             yield qg
+
+
+def get_query_graph_edge_kps(
+    operation_graph: dict[str, dict],
+    qg_edge_id: str,
+    reverse: bool,
+) -> dict[str, dict]:
+    """
+    Get KPs from the operation graph that
+    correspond to a query graph edge
+    """
+    kps = {}
+
+    for og_edge in operation_graph["edges"].values():
+        if og_edge["qg_edge_id"] != qg_edge_id:
+            continue
+        if og_edge["qg_traversal_reverse"] != reverse:
+            continue
+
+        for current_kp_name, current_kp in og_edge["kps"].items():
+            # Add information to KPs about operation graph edge
+            kps[current_kp_name] = {
+                **current_kp,
+                "source_category": operation_graph["nodes"][og_edge["source"]]["category"],
+                "edge_predicate": og_edge["predicate"],
+                "target_category": operation_graph["nodes"][og_edge["target"]]["category"],
+            }
+    return kps
 
 
 # pylint: disable=too-many-arguments
