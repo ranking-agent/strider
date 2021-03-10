@@ -7,7 +7,8 @@ import logging
 from reasoner_pydantic import Message, Result, QNode, Node, Edge
 from reasoner_pydantic.qgraph import QueryGraph
 
-from strider.util import deduplicate_by, WrappedBMT
+from strider.util import deduplicate_by, WrappedBMT, \
+    build_predicate_direction, extract_predicate_direction
 from strider.normalizer import Normalizer
 from strider.config import settings
 
@@ -230,13 +231,14 @@ async def fill_categories_predicates(
     # Use node normalizer to add
     # a category to nodes with a curie
     for node in qg['nodes'].values():
-        if not node.get('id'):
+        node_id = node.get('id', None)
+        if not node_id:
             continue
-        if not isinstance(node['id'], list):
-            node['id'] = [node['id']]
+        if not isinstance(node_id, list):
+            node_id = [node_id]
 
         # Get full list of categorys
-        categories = await normalizer.get_types(node['id'])
+        categories = await normalizer.get_types(node_id)
 
         if categories:
             # Filter categorys that are ancestors of other categorys we were given
@@ -245,7 +247,7 @@ async def fill_categories_predicates(
             node["category"] = []
 
 
-async def add_descendants(
+def add_descendants(
         qg: QueryGraph,
         logger: logging.Logger = logging.getLogger(),
 ) -> QueryGraph:
@@ -260,8 +262,6 @@ async def add_descendants(
     for node in qg['nodes'].values():
         if 'category' not in node:
             continue
-        if not isinstance(node['category'], list):
-            node['category'] = [node['category']]
         new_category_list = []
         for t in node['category']:
             new_category_list.extend(WBMT.get_descendants(t))
@@ -271,11 +271,12 @@ async def add_descendants(
     for edge in qg['edges'].values():
         if 'predicate' not in edge:
             continue
-        if not isinstance(edge['predicate'], list):
-            edge['predicate'] = [edge['predicate']]
         new_predicate_list = []
         for t in edge['predicate']:
-            new_predicate_list.extend(WBMT.get_descendants(t))
+            predicate, direction = extract_predicate_direction(t)
+            for new_predicate in WBMT.get_descendants(predicate):
+                new_predicate_list.append(
+                    build_predicate_direction(new_predicate, direction))
         edge['predicate'] = new_predicate_list
 
     logger.debug({
