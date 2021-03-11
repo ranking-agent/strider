@@ -481,7 +481,6 @@ async def generate_plans(
                     step = Step(edge['object'], edge_id, edge['subject'])
                 else:
                     step = Step(edge['subject'], edge_id, edge['object'])
-                op = get_operation(qgraph, edge, reverse=reverse)
 
                 forward_kps = get_query_graph_edge_kps(
                     current_og, edge_id, False)
@@ -495,10 +494,7 @@ async def generate_plans(
                                       for x in kp if x != 'operations'}
                     kp_without_ops['name'] = kp_name
 
-                    plan[step].append({
-                        **op._asdict(),
-                        **kp_without_ops,
-                    })
+                    plan[step].append(kp_without_ops)
             plans.append(plan)
 
     num_duplicated_plans = len(plans)
