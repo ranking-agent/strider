@@ -512,7 +512,7 @@ async def test_bad_norm(caplog):
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease <-biolink:treats- biolink:Drug
+    kp0 biolink:Disease <-biolink:treats- biolink:ChemicalSubstance
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -521,31 +521,32 @@ async def test_descendant_reverse_category(caplog):
     Test that when we are given related_to that descendants
     will be filled either in the forward or backwards direction
     """
-    invalid_qg = query_graph_from_string(
-        """
-        n0(( category biolink:Disease ))
-        n0-- biolink:treats -->n1
-        n1(( category biolink:Drug ))
-        """
-    )
-    await fill_categories_predicates(invalid_qg, logging.getLogger())
-    standardize_graph_lists(invalid_qg)
-    plans = await generate_plans(invalid_qg)
-    assert len(plans) == 0
-
     valid_qg = query_graph_from_string(
         """
         n0(( category biolink:Disease ))
         n0-- biolink:related_to -->n1
-        n1(( category biolink:Drug ))
+        n1(( category biolink:ChemicalSubstance ))
+        n1(( id CHEBI:6801 ))
         """
     )
     await fill_categories_predicates(valid_qg, logging.getLogger())
     standardize_graph_lists(valid_qg)
     plans = await generate_plans(valid_qg)
     assert len(plans) == 1
-
     assert_no_level(caplog, logging.WARNING, 1)
+
+    invalid_qg = query_graph_from_string(
+        """
+        n0(( category biolink:Disease ))
+        n0(( id MONDO:0005737 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:ChemicalSubstance ))
+        """
+    )
+    await fill_categories_predicates(invalid_qg, logging.getLogger())
+    standardize_graph_lists(invalid_qg)
+    plans = await generate_plans(invalid_qg)
+    assert len(plans) == 0
 
 
 @pytest.mark.asyncio
