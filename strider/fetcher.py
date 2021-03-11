@@ -203,6 +203,7 @@ class StriderWorker(Worker):
             )
             for kp in self.plan[step]
             if kp["source_category"] in category
+            or kp["target_category"] in category
         ))
         return merge_messages(responses)
 
