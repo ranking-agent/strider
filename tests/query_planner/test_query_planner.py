@@ -7,8 +7,9 @@ import pytest
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import load_kps, generate_kps, \
-    time_and_display, query_graph_from_string, kps_from_string
+from tests.helpers.utils import load_kps, generate_kps, validate_template, \
+    time_and_display, query_graph_from_string, \
+    kps_from_string, plan_template_from_string
 from tests.helpers.logger import assert_no_level
 
 
@@ -140,6 +141,14 @@ async def test_no_reverse_edge_in_plan(caplog):
         logger=logging.getLogger(),
     )
     plan = plans[0]
+
+    plan_template = plan_template_from_string(
+        """
+        n0-n0n1-n1 http://kp0 biolink:Drug -biolink:related_to-> biolink:Gene
+        """
+    )
+
+    validate_template(plan_template, plan)
 
     # One step in plan
     assert len(plan) == 1

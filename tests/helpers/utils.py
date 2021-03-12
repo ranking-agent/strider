@@ -157,6 +157,60 @@ def normalizer_data_from_string(s):
     return {"category_mappings": category_mappings, "synset_mappings": synset_mappings}
 
 
+def plan_template_from_string(s):
+    """
+    Create a template to validate a plan from a string format
+
+    Example:
+
+    n0-n0n1-n1 http://kp0 biolink:Drug -biolink:related_to-> biolink:Disease
+    n0-n0n1-n1 http://kp1 biolink:Drug -biolink:treats-> biolink:Disease
+    n1-n1n2-n2 http://kp2 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
+
+    """
+    # This usually comes from triple quoted strings
+    # so we use inspect.cleandoc to remove leading indentation
+    s = inspect.cleandoc(s)
+
+    plan_template = defaultdict(list)
+
+    for line in s.splitlines():
+        tokens = line.split(" ")
+        step = tuple(tokens[0].split("-"))
+
+        plan_template[step].append({
+            "url": tokens[1],
+            "source_category": tokens[2],
+            "edge_predicate": tokens[3],
+            "target_category": tokens[4],
+        })
+
+    return dict(plan_template)
+
+
+def validate_template(template, value):
+    """
+    Assert that value adheres to the provided template
+
+    This means that all dictionary values in the template are present.
+    Will not validate if there are extra fields present in the value
+    """
+    if isinstance(template, list):
+        if len(template) != len(value):
+            raise ValueError("Lists are not the same length")
+        for index in range(len(template)):
+            validate_template(template[index], value[index])
+    elif isinstance(template, dict):
+        for key in template.keys():
+            if key not in value:
+                raise ValueError(f"Key {key} not present in value")
+            validate_template(template[key], value[key])
+    else:
+        if template != value:
+            raise ValueError(
+                f"Template value {template} does not equal {value}")
+
+
 async def time_and_display(f, msg):
     """ Time a function and print the time """
     start_time = time.time()
