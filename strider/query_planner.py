@@ -1,9 +1,8 @@
 """Query planner."""
-from collections import defaultdict, namedtuple, ChainMap
+from collections import defaultdict, namedtuple
 import logging
 import copy
-from typing import Generator, Callable
-import re
+from typing import Generator
 
 from reasoner_pydantic import QueryGraph
 
@@ -347,6 +346,9 @@ def ensure_traversal_connected(graph, path):
     return pinned_nodes | path_nodes == graph_nodes
 
 
+# pylint: disable=too-many-locals
+# pylint: disable=too-many-branches
+# pylint: disable=too-many-statements
 async def generate_plans(
         qgraph: QueryGraph,
         kp_registry: Registry = None,
