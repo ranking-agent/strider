@@ -1,13 +1,9 @@
 from pathlib import Path
 from functools import partial
-import os
-import math
 import json
 import logging
-import random
 
 import pytest
-from bmt import Toolkit as BMToolkit
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
@@ -18,7 +14,7 @@ from tests.helpers.logger import assert_no_level
 
 from strider.query_planner import \
     permute_graph, qg_to_og, \
-    generate_plans, NoAnswersError, add_descendants
+    generate_plans, add_descendants
 
 from strider.trapi import fill_categories_predicates
 
@@ -218,7 +214,7 @@ async def test_solve_reverse_edge(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_plan_loop(caplog):
+async def test_plan_loop():
     """
     Test that we create a plan for a query with a loop
     """
@@ -252,7 +248,7 @@ async def test_plan_loop(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_plan_reuse_pinned(caplog):
+async def test_plan_reuse_pinned():
     """
     Test that we create a plan that uses a pinned node twice
     """

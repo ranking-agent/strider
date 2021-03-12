@@ -1,7 +1,5 @@
 """TRAPI utilities."""
 from collections import defaultdict
-from collections.abc import Callable
-import copy
 import logging
 
 from reasoner_pydantic import Message, Result, QNode, Node, Edge
