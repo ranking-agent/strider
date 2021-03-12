@@ -361,7 +361,7 @@ async def generate_traversal_plan(
     query_graph = query.message.query_graph.dict()
 
     await fill_categories_predicates(query_graph, logging.getLogger())
-    await add_descendants(query_graph, logging.getLogger())
+    standardize_graph_lists(query_graph)
     plans = await generate_plans(query_graph)
 
     plans_stringified_keys = []

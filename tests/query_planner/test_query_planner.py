@@ -18,7 +18,7 @@ from tests.helpers.logger import assert_no_level
 
 from strider.query_planner import \
     permute_graph, qg_to_og, \
-    generate_plans, NoAnswersError
+    generate_plans, NoAnswersError, add_descendants
 
 from strider.trapi import fill_categories_predicates
 
@@ -68,6 +68,7 @@ async def test_permute_simple(caplog):
     await fill_categories_predicates(qg, logging.getLogger())
     standardize_graph_lists(qg)
     operation_graph = await qg_to_og(qg)
+    add_descendants(operation_graph)
     permutations = permute_graph(operation_graph)
     assert permutations
 
