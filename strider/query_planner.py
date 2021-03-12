@@ -96,27 +96,6 @@ class NoAnswersError(Exception):
     """No answers can be found."""
 
 
-def get_operation(
-        query_graph: dict,
-        edge: dict,
-        reverse: bool = False,
-) -> Operation:
-    """ Get the types from an edge in the query graph """
-
-    if reverse:
-        return Operation(
-            query_graph['nodes'][edge['object']]['category'],
-            f"<-{edge['predicate']}-",
-            query_graph['nodes'][edge['subject']]['category'],
-        )
-    else:
-        return Operation(
-            query_graph['nodes'][edge['subject']]['category'],
-            f"-{edge['predicate']}->",
-            query_graph['nodes'][edge['object']]['category'],
-        )
-
-
 async def annotate_operation_graph(
         operation_graph: dict[str, dict],
         kp_registry: Registry = None,
