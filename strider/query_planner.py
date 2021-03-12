@@ -482,14 +482,11 @@ async def generate_plans(
                 else:
                     step = Step(edge['subject'], edge_id, edge['object'])
 
-                forward_kps = get_query_graph_edge_kps(
-                    current_og, edge_id, False)
-                reverse_kps = get_query_graph_edge_kps(
-                    current_og, edge_id, True)
+                kps = get_query_graph_edge_kps(
+                    current_og, edge_id, reverse)
 
                 # Attach information about categorys to kp info
-                all_kps = {**forward_kps, **reverse_kps}
-                for kp_name, kp in all_kps.items():
+                for kp_name, kp in kps.items():
                     kp_without_ops = {x: kp[x]
                                       for x in kp if x != 'operations'}
                     kp_without_ops['name'] = kp_name
