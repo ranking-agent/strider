@@ -29,6 +29,10 @@ settings.normalizer_url = "http://normalizer"
 
 LOGGER = logging.getLogger()
 
+async def prepare_query_graph(query_graph):
+    """ Prepare a query graph for the generate_plans method """
+    await fill_categories_predicates(query_graph, logging.getLogger())
+    standardize_graph_lists(query_graph)
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, [])
@@ -61,8 +65,7 @@ async def test_permute_simple(caplog):
         """
     )
 
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
     operation_graph = await qg_to_og(qg)
     add_descendants(operation_graph)
     permutations = permute_graph(operation_graph)
@@ -95,8 +98,8 @@ async def test_not_enough_kps(caplog):
         n0-- biolink:related_to -->n1
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(
         qg,
@@ -130,8 +133,7 @@ async def test_no_reverse_edge_in_plan(caplog):
         n0-- biolink:related_to -->n1
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(
         qg,
@@ -165,8 +167,7 @@ async def test_no_path_from_pinned_node(caplog):
         n1-- biolink:treats -->n0
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(
         qg,
@@ -197,8 +198,7 @@ async def test_solve_reverse_edge(caplog):
         n1-- biolink:treats -->n0
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -230,8 +230,7 @@ async def test_plan_loop():
         n2-- biolink:treats -->n1
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
 
@@ -266,8 +265,7 @@ async def test_plan_reuse_pinned():
         n0-- biolink:related_to -->n3
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
 
@@ -303,8 +301,7 @@ async def test_plan_double_loop(caplog):
         n4-- biolink:related_to -->n2
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 8
@@ -321,8 +318,7 @@ async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     with open(cwd / "ex1_qg.json", "r") as f:
         qg = json.load(f)
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     plan = plans[0]
@@ -358,8 +354,7 @@ async def test_valid_two_pinned_nodes(caplog):
         n2(( id MONDO:0011122 ))
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
@@ -391,8 +386,7 @@ async def test_fork(caplog):
         n0-- biolink:has_phenotype -->n2
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 2
@@ -421,8 +415,7 @@ async def test_unbound_unconnected_node(caplog):
         n2(( category biolink:PhenotypicFeature ))
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -452,8 +445,7 @@ async def test_invalid_two_disconnected_components(caplog):
         n2-- biolink:treated_by -->n3
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert len(plans) == 0
@@ -491,8 +483,7 @@ async def test_bad_norm(caplog):
             }
         }
     }
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
     assert any(
@@ -526,8 +517,7 @@ async def test_descendant_reverse_category(caplog):
         n1(( id CHEBI:6801 ))
         """
     )
-    await fill_categories_predicates(valid_qg, logging.getLogger())
-    standardize_graph_lists(valid_qg)
+    await prepare_query_graph(valid_qg)
     plans = await generate_plans(valid_qg)
     assert len(plans) == 1
     assert_no_level(caplog, logging.WARNING, 1)
@@ -540,8 +530,7 @@ async def test_descendant_reverse_category(caplog):
         n1(( category biolink:ChemicalSubstance ))
         """
     )
-    await fill_categories_predicates(invalid_qg, logging.getLogger())
-    standardize_graph_lists(invalid_qg)
+    await prepare_query_graph(invalid_qg)
     plans = await generate_plans(invalid_qg)
     assert len(plans) == 0
 
@@ -566,8 +555,7 @@ async def test_planning_performance_generic_qg():
         n1-- biolink:related_to -->n2
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
     await time_and_display(
         partial(generate_plans, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
@@ -588,8 +576,7 @@ async def test_planning_performance_typical_example():
 
     with open(cwd / "ex2_qg.json", "r") as f:
         qg = json.load(f)
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
 
     async def testable_generate_plans():
         await generate_plans(qg, logger=logging.getLogger())
@@ -621,8 +608,7 @@ async def test_double_sided(caplog):
         n0-- biolink:treated_by -->n1
         """
     )
-    await fill_categories_predicates(qg, logging.getLogger())
-    standardize_graph_lists(qg)
+    await prepare_query_graph(qg)
     plans = await generate_plans(qg, logger=logging.getLogger())
     assert len(plans) == 1
     assert len(list(plans[0].values())[0]) == 1
