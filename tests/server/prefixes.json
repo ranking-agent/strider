@@ -1,4 +1,8 @@
 {
-    "biolink:Disease": ["MONDO"],
-    "biolink:ChemicalSubstance": ["CHEBI"]
+  "biolink:Disease": [
+    "MONDO"
+  ],
+  "biolink:ChemicalSubstance": [
+    "CHEBI"
+  ]
 }

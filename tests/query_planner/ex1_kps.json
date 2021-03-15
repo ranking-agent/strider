@@ -1,37 +1,49 @@
 {
-  "kp0" : {
-    "url" : "http://kp0",
-    "operations" : [{
-      "source_type" : "biolink:Disease",
-      "edge_type" : "-biolink:treated_by->",
-      "target_type" : "biolink:Drug"
-    }]
+  "kp0": {
+    "url": "http://kp0",
+    "operations": [
+      {
+        "source_type": "biolink:Disease",
+        "edge_type": "-biolink:treated_by->",
+        "target_type": "biolink:Drug"
+      }
+    ]
   },
-  "kp1" : {
-    "url" : "http://kp1",
-	"details" : {
-		"preferred_prefixes" : { "biolink:Disease" : ["MONDO"] }
-	},
-    "operations" : [{
-      "source_type" : "biolink:Drug",
-      "edge_type" : "-biolink:affects->",
-      "target_type" : "biolink:Gene"
-    }]
+  "kp1": {
+    "url": "http://kp1",
+    "details": {
+      "preferred_prefixes": {
+        "biolink:Disease": [
+          "MONDO"
+        ]
+      }
+    },
+    "operations": [
+      {
+        "source_type": "biolink:Drug",
+        "edge_type": "-biolink:affects->",
+        "target_type": "biolink:Gene"
+      }
+    ]
   },
-  "kp2" : {
-    "url" : "http://kp2",
-    "operations" : [{
-      "source_type" : "biolink:MolecularEntity",
-      "edge_type" : "-biolink:decreases_abundance_of->",
-      "target_type" : "biolink:GeneOrGeneProduct"
-    }]
+  "kp2": {
+    "url": "http://kp2",
+    "operations": [
+      {
+        "source_type": "biolink:MolecularEntity",
+        "edge_type": "-biolink:decreases_abundance_of->",
+        "target_type": "biolink:GeneOrGeneProduct"
+      }
+    ]
   },
-  "kp3" : {
-    "url" : "http://kp3",
-    "operations" : [{
-      "source_type" : "biolink:Disease",
-      "edge_type" : "-biolink:treated_by->",
-      "target_type" : "biolink:MolecularEntity"
-    }]
+  "kp3": {
+    "url": "http://kp3",
+    "operations": [
+      {
+        "source_type": "biolink:Disease",
+        "edge_type": "-biolink:treated_by->",
+        "target_type": "biolink:MolecularEntity"
+      }
+    ]
   }
 }

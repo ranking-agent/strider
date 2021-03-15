@@ -1,17 +1,49 @@
 {
   "nodes": {
-    "n0": {"id": "MONDO:0005737"},
-    "n1": {"category": "biolink:BiologicalProcessOrActivity"},
-    "n2": {"category": "biolink:AnatomicalEntity"},
-    "n3": {"category": "biolink:PhenotypicFeature"},
-    "n4": {"category": "biolink:PhenotypicFeature"},
-    "n5": {"id": "MONDO:6801"}
+    "n0": {
+      "id": "MONDO:0005737"
+    },
+    "n1": {
+      "category": "biolink:BiologicalProcessOrActivity"
+    },
+    "n2": {
+      "category": "biolink:AnatomicalEntity"
+    },
+    "n3": {
+      "category": "biolink:PhenotypicFeature"
+    },
+    "n4": {
+      "category": "biolink:PhenotypicFeature"
+    },
+    "n5": {
+      "id": "MONDO:6801"
+    }
   },
   "edges": {
-    "e01": {"subject": "n0", "object": "n1", "predicate": "biolink:related_to"},
-    "e12": {"subject": "n1", "object": "n2", "predicate": "biolink:related_to"},
-    "e23": {"subject": "n2", "object": "n3", "predicate": "biolink:related_to"},
-    "e34": {"subject": "n3", "object": "n4", "predicate": "biolink:related_to"},
-    "e45": {"subject": "n4", "object": "n5", "predicate": "biolink:related_to"}
+    "e01": {
+      "subject": "n0",
+      "object": "n1",
+      "predicate": "biolink:related_to"
+    },
+    "e12": {
+      "subject": "n1",
+      "object": "n2",
+      "predicate": "biolink:related_to"
+    },
+    "e23": {
+      "subject": "n2",
+      "object": "n3",
+      "predicate": "biolink:related_to"
+    },
+    "e34": {
+      "subject": "n3",
+      "object": "n4",
+      "predicate": "biolink:related_to"
+    },
+    "e45": {
+      "subject": "n4",
+      "object": "n5",
+      "predicate": "biolink:related_to"
+    }
   }
 }
