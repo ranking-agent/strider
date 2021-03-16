@@ -192,8 +192,14 @@ def validate_template(template, value):
     """
     Assert that value adheres to the provided template
 
-    This means that all dictionary values in the template are present.
-    Will not validate if there are extra fields present in the value
+    This means that:
+    1. All dictionary key-value pairs in the template are
+       present and equal to instance values
+    2. All lists must be of the same length and have equal
+       values to the template
+    3. All values that are not lists or dictionaries
+       must compare equal using Python equality
+
     """
     if isinstance(template, list):
         if len(template) != len(value):
