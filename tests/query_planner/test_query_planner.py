@@ -144,7 +144,7 @@ async def test_no_reverse_edge_in_plan(caplog):
 
     plan_template = plan_template_from_string(
         """
-        n0-n0n1-n1 http://kp0 biolink:Drug -biolink:related_to-> biolink:Gene
+        n0-n0n1-n1 http://kp0 biolink:Drug -biolink:related_to-> biolink:Disease
         """
     )
 
