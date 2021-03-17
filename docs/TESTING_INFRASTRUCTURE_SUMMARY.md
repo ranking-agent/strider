@@ -1,16 +1,16 @@
-An ARA is a complex pieces of software. One of the most important tools for building complex software is testing. It's unclear how to implement effective testing for an ARA. The main challenge is that ARAs make calls to external tools that can behave (or misbehave) in a variety of ways. The Aragorn ARA, known as Strider, contacts the following external tools:
+An ARA is a complex pieces of software. One of the most important tools for building complex software is testing. It's unclear how to implement effective testing for an ARA. The main challenge is that ARAs make calls to external tools that can behave (or misbehave) in a variety of ways. The Aragorn query-routing engine, known as Strider, contacts the following external tools:
 
 - KP Registry to find KPs available to solve particular edges
 - Node Normalizer to convert curies between formats
 - Individual KPs to solve one-hop steps of a given query
 
-During normal operation, these services could respond with 500 errors, JSON error codes, empty lists, or null values. One of the goals of the testing infrastructure is to verify that Strider gracefully handles these cases, even if that means submitting a log message and returning. 
+During normal operation, these services could respond with 500 errors, JSON error codes, empty lists, or null values. One of the goals of the testing infrastructure is to verify that Strider gracefully handles these cases, even if that means submitting a log message and returning. To do this, we want to mock these external services. Mock services allow us to control the responses that these services send—opening up opportunities to test Strider in a controlled environment.
 
 Our solution uses a feature of Python's httpcore library to intercept external HTTP calls and route them to internal handlers. All of this takes place within one Python process. This eliminates the need for networking infrastructure and makes the tests lightweight and easy to run locally.
 
-The packge for simulating external services is called ASGIAR - ASGI Augmented Reality. This allows overlaying an ASGI appliction, such as FastAPI or Django, to intercept HTTP requests. Any application written using any of these frameworks can "plug in" to ASGIAR and handle web requests.
+The package for simulating external services is called ASGIAR - ASGI Augmented Reality. This allows overlaying an ASGI application, such as FastAPI or Django, to intercept HTTP requests. Any application written using any of these frameworks can "plug in" to ASGIAR and handle web requests.
 
-The second key piece of our infrastructure is mocks of external services, in particular the Node Normalizer, KP Registry, and KPs. These services live in separate repositories and can be installed as Python packages with pip. All of these services are built using FastAPI to maintain compatibility with ASGIAR. Each of them can be initialized with custom data during creation.
+ We use ASGIAR to attach mocked external services to Strider during testing, in particular the Node Normalizer, KP Registry, and KPs. These mock services live in separate repositories and can be installed as Python packages with pip. All of these services are built using FastAPI to maintain compatibility with ASGIAR. Each of them can be initialized with custom data during creation.
 
 
 In addition to this infrastructure, our tests include helper functions that allow us to add these external service mocks using decorators. We also have helpers for specifying test data directly in the tests which makes tests very easy to understand. Here is an example of a finished test using all of our utilities:
