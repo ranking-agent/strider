@@ -50,7 +50,7 @@ def permute_graph(graph: dict) -> Generator[dict, None, None]:
         current_graph = stack.pop()
 
         # Any fields on a node that might need to be permuted
-        node_fields_to_permute = ['category', 'id']
+        node_fields_to_permute = []
 
         # Find our next node to permute
         next_node_id, next_node_field = \
@@ -69,7 +69,7 @@ def permute_graph(graph: dict) -> Generator[dict, None, None]:
             continue
 
         # Any fields on an edge that might need to be permuted
-        edge_fields_to_permute = ['predicate']
+        edge_fields_to_permute = ['kps']
 
         # Find our next edge to permute
         next_edge_id, next_edge_field = \
@@ -126,7 +126,16 @@ async def annotate_operation_graph(
         if len(kp_results) == 0:
             del operation_graph["edges"][edge_id]
             continue
-        edge["kps"] = kp_results
+
+        edge["kps"] = []
+        for kp_name, kp_result in kp_results.items():
+            operations = kp_result.pop("operations")
+            for operation in operations:
+                edge["kps"].append({
+                    "name": kp_name,
+                    **kp_result,
+                    **operation,
+                })
 
 
 def make_og_edge(
@@ -238,6 +247,42 @@ async def qg_to_og(qgraph):
             )
 
     return ograph
+
+
+def fix_categories_predicates(operation_graph):
+    """
+    Given a permuted operation graph with one KP,
+    fix the node categories and predicates to match the KP
+
+    Returns false if there is a conflicting node type
+    """
+    for edge in operation_graph['edges'].values():
+        source_node = operation_graph["nodes"][edge["source"]]
+        existing_source_category = source_node["category"] \
+            if not isinstance(source_node["category"], list) else None
+        new_source_category = edge["kps"].pop("source_category")
+        if existing_source_category and \
+           existing_source_category != new_source_category:
+            return False
+        source_node["category"] = new_source_category
+
+        target_node = operation_graph["nodes"][edge["target"]]
+        existing_target_category = target_node["category"] \
+            if not isinstance(target_node["category"], list) else None
+        new_target_category = edge["kps"].pop("target_category")
+        if existing_target_category and \
+           existing_target_category != new_target_category:
+            return False
+        target_node["category"] = new_target_category
+
+        existing_predicate = edge["predicate"] \
+            if not isinstance(edge["predicate"], list) else None
+        new_predicate = edge["kps"].pop("edge_predicate")
+        if existing_predicate and \
+           existing_predicate != new_predicate:
+            return False
+        edge["predicate"] = new_predicate
+    return True
 
 
 def filter_categories_predicates(operation_graph):
@@ -381,8 +426,9 @@ async def generate_plans(
     # Filter down node categories using those
     # we have recieved from the KP registry
     # to limit the number of permutations.
-    filter_categories_predicates(operation_graph)
+    # filter_categories_predicates(operation_graph)
 
+    # TODO fix this line
     logger.debug({
         "message": "Filtered query graph based on operations",
         "filtered_qgraph": qgraph,
@@ -405,8 +451,11 @@ async def generate_plans(
 
     logger.info("Searching query graph permutations for plans")
 
+    # TODO replace with generator
     for current_og in operation_graph_permutations:
-        filter_operation_graph_kps(current_og)
+        valid = fix_categories_predicates(current_og)
+        if not valid:
+            continue
 
         # Create a graph where all nodes and edges
         # from the operation graph are nodes ("reified")
@@ -467,12 +516,7 @@ async def generate_plans(
                     current_og, edge_id, reverse)
 
                 # Attach information about categorys to kp info
-                for kp_name, kp in kps.items():
-                    kp_without_ops = {x: kp[x]
-                                      for x in kp if x != 'operations'}
-                    kp_without_ops['name'] = kp_name
-
-                    plan[step].append(kp_without_ops)
+                plan[step].extend(kps)
             plans.append(plan)
 
     num_duplicated_plans = len(plans)
@@ -566,12 +610,12 @@ def get_query_graph_edge_kps(
     operation_graph: dict[str, dict],
     qg_edge_id: str,
     reverse: bool,
-) -> dict[str, dict]:
+) -> list[dict]:
     """
     Get KPs from the operation graph that
     correspond to a query graph edge
     """
-    kps = {}
+    kps = []
 
     for og_edge in operation_graph["edges"].values():
         if og_edge["qg_edge_id"] != qg_edge_id:
@@ -579,14 +623,12 @@ def get_query_graph_edge_kps(
         if og_edge["qg_traversal_reverse"] != reverse:
             continue
 
-        for current_kp_name, current_kp in og_edge["kps"].items():
-            # Add information to KPs about operation graph edge
-            kps[current_kp_name] = {
-                **current_kp,
-                "source_category": operation_graph["nodes"][og_edge["source"]]["category"],
-                "edge_predicate": og_edge["predicate"],
-                "target_category": operation_graph["nodes"][og_edge["target"]]["category"],
-            }
+        kps.append({
+            **og_edge["kps"],
+            "source_category": operation_graph["nodes"][og_edge["source"]]["category"],
+            "edge_predicate": og_edge["predicate"],
+            "target_category": operation_graph["nodes"][og_edge["target"]]["category"],
+        })
     return kps
 
 
