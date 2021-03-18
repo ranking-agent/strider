@@ -1,5 +1,6 @@
 """Query planner."""
 from collections import defaultdict, namedtuple
+import itertools
 import logging
 import copy
 from typing import Generator
@@ -7,7 +8,7 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.util import WrappedBMT
+from strider.util import WrappedBMT, extract_predicate_direction
 from strider.config import settings
 from strider.trapi import add_descendants
 
@@ -69,7 +70,7 @@ def permute_graph(graph: dict) -> Generator[dict, None, None]:
             continue
 
         # Any fields on an edge that might need to be permuted
-        edge_fields_to_permute = ['kps']
+        edge_fields_to_permute = ['forward_kps', 'reverse_kps']
 
         # Find our next edge to permute
         next_edge_id, next_edge_field = \
@@ -249,27 +250,39 @@ async def qg_to_og(qgraph):
     return ograph
 
 
-def fix_categories_predicates(operation_graph):
+def fix_categories_predicates(query_graph):
     """
-    Given a permuted operation graph with one KP,
+    Given a permuted query graph with one KP,
     fix the node categories and predicates to match the KP
 
     Returns false if there is a conflicting node type
     """
-    for edge in operation_graph['edges'].values():
-        source_node = operation_graph["nodes"][edge["source"]]
+    for edge, reverse in itertools.product(query_graph['edges'].values(), [False, True]):
+        if reverse:
+            kp = edge.get("reverse_kps", None)
+        else:
+            kp = edge.get("forward_kps", None)
+        if not kp:
+            continue
+
+        if reverse:
+            source_node = query_graph["nodes"][edge["object"]]
+            target_node = query_graph["nodes"][edge["subject"]]
+        else:
+            source_node = query_graph["nodes"][edge["subject"]]
+            target_node = query_graph["nodes"][edge["object"]]
+
         existing_source_category = source_node["category"] \
             if not isinstance(source_node["category"], list) else None
-        new_source_category = edge["kps"].pop("source_category")
+        new_source_category = kp["source_category"]
         if existing_source_category and \
            existing_source_category != new_source_category:
             return False
         source_node["category"] = new_source_category
 
-        target_node = operation_graph["nodes"][edge["target"]]
         existing_target_category = target_node["category"] \
             if not isinstance(target_node["category"], list) else None
-        new_target_category = edge["kps"].pop("target_category")
+        new_target_category = kp["target_category"]
         if existing_target_category and \
            existing_target_category != new_target_category:
             return False
@@ -277,7 +290,7 @@ def fix_categories_predicates(operation_graph):
 
         existing_predicate = edge["predicate"] \
             if not isinstance(edge["predicate"], list) else None
-        new_predicate = edge["kps"].pop("edge_predicate")
+        new_predicate = kp["edge_predicate"]
         if existing_predicate and \
            existing_predicate != new_predicate:
             return False
@@ -423,6 +436,8 @@ async def generate_plans(
         "operation_graph": operation_graph,
     })
 
+    annotate_query_graph(qgraph, operation_graph)
+
     # Filter down node categories using those
     # we have recieved from the KP registry
     # to limit the number of permutations.
@@ -434,7 +449,7 @@ async def generate_plans(
         "filtered_qgraph": qgraph,
     })
 
-    operation_graph_permutations = permute_graph(operation_graph)
+    query_graph_permutations = permute_graph(qgraph)
 
     # Build a list of pinned nodes
     pinned_nodes = [
@@ -452,8 +467,8 @@ async def generate_plans(
     logger.info("Searching query graph permutations for plans")
 
     # TODO replace with generator
-    for current_og in operation_graph_permutations:
-        valid = fix_categories_predicates(current_og)
+    for current_qg in query_graph_permutations:
+        valid = fix_categories_predicates(current_qg)
         if not valid:
             continue
 
@@ -462,20 +477,18 @@ async def generate_plans(
         #
         # This graph is stored as an adjacency list
         reified_graph = {}
-        for node_id in qgraph['nodes'].keys():
+        for node_id in current_qg['nodes'].keys():
             reified_graph[node_id] = []
-        for edge_id in qgraph['edges'].keys():
+        for edge_id in current_qg['edges'].keys():
             reified_graph[edge_id] = []
 
         # Fill in adjacencies
-        for edge_id, edge in qgraph['edges'].items():
-            forward_kps = get_query_graph_edge_kps(current_og, edge_id, False)
-            if len(forward_kps) > 0:
+        for edge_id, edge in current_qg['edges'].items():
+            if "forward_kps" in edge:
                 # Adjacency for forward edge
                 reified_graph[edge['subject']].append(edge_id)
                 reified_graph[edge_id].append(edge['object'])
-            reverse_kps = get_query_graph_edge_kps(current_og, edge_id, True)
-            if len(reverse_kps) > 0:
+            if "reverse_kps" in edge:
                 # Adjacency for reverse edge
                 reified_graph[edge['object']].append(edge_id)
                 reified_graph[edge_id].append(edge['subject'])
@@ -489,7 +502,7 @@ async def generate_plans(
             )
 
         possible_traversals = filter(
-            lambda t: ensure_traversal_connected(qgraph, t),
+            lambda t: ensure_traversal_connected(current_qg, t),
             possible_traversals)
 
         for traversal in possible_traversals:
@@ -497,26 +510,25 @@ async def generate_plans(
             plan = defaultdict(list)
             for index, edge_id in enumerate(traversal):
                 # Skip iteration for non-edges
-                if edge_id not in qgraph['edges'].keys():
+                if edge_id not in current_qg['edges'].keys():
                     continue
 
                 # We need to know which way to step through the edge
                 # so we use the previous value in the traversal
                 # which is always the source node
-                edge = qgraph['edges'][edge_id]
+                edge = current_qg['edges'][edge_id]
                 source_node_id = traversal[index - 1]
                 reverse = source_node_id == edge['object']
 
                 if reverse:
                     step = Step(edge['object'], edge_id, edge['subject'])
+                    kp = edge["reverse_kps"]
                 else:
                     step = Step(edge['subject'], edge_id, edge['object'])
-
-                kps = get_query_graph_edge_kps(
-                    current_og, edge_id, reverse)
+                    kp = edge["forward_kps"]
 
                 # Attach information about categorys to kp info
-                plan[step].extend(kps)
+                plan[step].append(kp)
             plans.append(plan)
 
     num_duplicated_plans = len(plans)
@@ -567,43 +579,21 @@ def filter_operation_graph_kps(
 def annotate_query_graph(
     query_graph: dict[str, dict],
     operation_graph: dict[str, dict],
-) -> dict[str, dict]:
+):
     """
     Use an annotated operation_graph to annotate
     a query graphs with KPs.
-
-    Returns true for graphs where every edge
-    has either a forward or backward KP available.
     """
-    for qg_edge_id, edge in query_graph["edges"].items():
-        associated_operation_graph_edges = [
-            edge for edge in operation_graph["edges"].values()
-            if edge["qg_edge_id"] == qg_edge_id
-        ]
+    for edge_id, edge in query_graph["edges"].items():
+        edge["forward_kps"] = get_query_graph_edge_kps(
+            operation_graph, edge_id, False)
+        if len(edge["forward_kps"]) == 0:
+            del edge["forward_kps"]
 
-        edge['forward_kps'] = {}
-        edge['reverse_kps'] = {}
-
-        for og_edge in associated_operation_graph_edges:
-            if og_edge["qg_traversal_reverse"]:
-                edge['reverse_kps'].update(og_edge["kps"])
-            else:
-                edge['forward_kps'].update(og_edge["kps"])
-
-        if len(edge['forward_kps']) == 0 and len(edge['reverse_kps']) == 0:
-            return False
-    return True
-
-
-def annotate_query_graph_list(
-    query_graph_list: Generator[dict[str, dict], None, None],
-    operation_graph: dict[str, dict],
-) -> dict[str, dict]:
-    """ Wrapper around annotate_query_graph for generator """
-    for qg in query_graph_list:
-        valid = annotate_query_graph(qg, operation_graph)
-        if valid:
-            yield qg
+        edge["reverse_kps"] = get_query_graph_edge_kps(
+            operation_graph, edge_id, True)
+        if len(edge["reverse_kps"]) == 0:
+            del edge["reverse_kps"]
 
 
 def get_query_graph_edge_kps(
@@ -623,12 +613,7 @@ def get_query_graph_edge_kps(
         if og_edge["qg_traversal_reverse"] != reverse:
             continue
 
-        kps.append({
-            **og_edge["kps"],
-            "source_category": operation_graph["nodes"][og_edge["source"]]["category"],
-            "edge_predicate": og_edge["predicate"],
-            "target_category": operation_graph["nodes"][og_edge["target"]]["category"],
-        })
+        kps.extend(og_edge["kps"])
     return kps
 
 
