@@ -47,7 +47,7 @@ async def test_permute_curies(caplog):
         "edges": {},
     }
 
-    permutations = permute_graph(qg)
+    permutations = permute_graph(qg, node_fields=["id"])
 
     assert permutations
     # We should have two plans
@@ -57,8 +57,11 @@ async def test_permute_curies(caplog):
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, [])
-async def test_permute_simple(caplog):
-    """ Check that a simple permutation is done correctly using Biolink """
+async def test_permute_categories_predicates(caplog):
+    """ 
+    Check that we can permute categories and predicates
+    and get them from the biolink hierarchy
+    """
 
     qg = query_graph_from_string(
         """
@@ -71,7 +74,11 @@ async def test_permute_simple(caplog):
     await prepare_query_graph(qg)
     operation_graph = await qg_to_og(qg)
     add_descendants(operation_graph)
-    permutations = permute_graph(operation_graph)
+    permutations = permute_graph(
+        operation_graph,
+        node_fields=["category"],
+        edge_fields=["predicate"],
+    )
     assert permutations
 
     # We should have 2 * 3 * 3 * 7 = 126
@@ -280,7 +287,7 @@ async def test_plan_reuse_pinned():
 
     plans = await generate_plans(qg)
 
-    assert len(plans) == 4
+    assert len(plans) == 16
 
 
 @pytest.mark.asyncio
@@ -315,7 +322,7 @@ async def test_plan_double_loop(caplog):
     await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
-    assert len(plans) == 8
+    assert len(plans) == 76
     assert_no_level(caplog, logging.WARNING)
 
 
