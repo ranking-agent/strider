@@ -35,7 +35,11 @@ def find_next_list_property(search_dict, fields_to_check):
     return None, None
 
 
-def permute_graph(graph: dict) -> Generator[dict, None, None]:
+def permute_graph(
+        graph: dict,
+        node_fields: list[str] = [],
+        edge_fields: list[str] = [],
+) -> Generator[dict, None, None]:
     """
     Take in a graph that has some unbound properties
     and return a list of query graphs where every property is bound
@@ -50,13 +54,10 @@ def permute_graph(graph: dict) -> Generator[dict, None, None]:
     while len(stack) > 0:
         current_graph = stack.pop()
 
-        # Any fields on a node that might need to be permuted
-        node_fields_to_permute = []
-
         # Find our next node to permute
         next_node_id, next_node_field = \
             find_next_list_property(
-                current_graph['nodes'], node_fields_to_permute)
+                current_graph['nodes'], node_fields)
 
         if next_node_id:
             # Permute this node and push permutations to stack
@@ -69,13 +70,10 @@ def permute_graph(graph: dict) -> Generator[dict, None, None]:
                 stack.append(permutation_copy)
             continue
 
-        # Any fields on an edge that might need to be permuted
-        edge_fields_to_permute = ['kps']
-
         # Find our next edge to permute
         next_edge_id, next_edge_field = \
             find_next_list_property(
-                current_graph['edges'], edge_fields_to_permute)
+                current_graph['edges'], edge_fields)
 
         if next_edge_id:
             # Permute this edge and push permutations to stack
@@ -447,7 +445,7 @@ async def generate_plans(
         "filtered_qgraph": qgraph,
     })
 
-    query_graph_permutations = permute_graph(qgraph)
+    query_graph_permutations = permute_graph(qgraph, edge_fields=["kps"])
 
     # Build a list of pinned nodes
     pinned_nodes = [
