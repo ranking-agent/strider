@@ -554,6 +554,11 @@ async def generate_plans(
             """
         })
 
+    for plan in plans:
+        for step in plan.values():
+            for kp in step:
+                kp.pop("reverse", None)
+
     return plans
 
 
