@@ -30,10 +30,12 @@ settings.normalizer_url = "http://normalizer"
 
 LOGGER = logging.getLogger()
 
+
 async def prepare_query_graph(query_graph):
     """ Prepare a query graph for the generate_plans method """
     await fill_categories_predicates(query_graph, logging.getLogger())
     standardize_graph_lists(query_graph)
+
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, [])
