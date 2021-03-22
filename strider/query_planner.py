@@ -70,7 +70,7 @@ def permute_graph(graph: dict) -> Generator[dict, None, None]:
             continue
 
         # Any fields on an edge that might need to be permuted
-        edge_fields_to_permute = ['forward_kps', 'reverse_kps']
+        edge_fields_to_permute = ['kps']
 
         # Find our next edge to permute
         next_edge_id, next_edge_field = \
@@ -257,13 +257,9 @@ def fix_categories_predicates(query_graph):
 
     Returns false if there is a conflicting node type
     """
-    for edge, reverse in itertools.product(query_graph['edges'].values(), [False, True]):
-        if reverse:
-            kp = edge.get("reverse_kps", None)
-        else:
-            kp = edge.get("forward_kps", None)
-        if not kp:
-            continue
+    for edge in query_graph['edges'].values():
+        kp = edge["kps"]
+        reverse = kp["reverse"]
 
         if reverse:
             source_node = query_graph["nodes"][edge["object"]]
@@ -484,11 +480,12 @@ async def generate_plans(
 
         # Fill in adjacencies
         for edge_id, edge in current_qg['edges'].items():
-            if "forward_kps" in edge:
+            reverse = edge["kps"]["reverse"]
+            if not reverse:
                 # Adjacency for forward edge
                 reified_graph[edge['subject']].append(edge_id)
                 reified_graph[edge_id].append(edge['object'])
-            if "reverse_kps" in edge:
+            else:
                 # Adjacency for reverse edge
                 reified_graph[edge['object']].append(edge_id)
                 reified_graph[edge_id].append(edge['subject'])
@@ -505,6 +502,8 @@ async def generate_plans(
             lambda t: ensure_traversal_connected(current_qg, t),
             possible_traversals)
 
+        possible_traversals = list(possible_traversals)
+
         for traversal in possible_traversals:
             # Build our list of steps in the plan
             plan = defaultdict(list)
@@ -520,12 +519,11 @@ async def generate_plans(
                 source_node_id = traversal[index - 1]
                 reverse = source_node_id == edge['object']
 
+                kp = edge["kps"]
                 if reverse:
                     step = Step(edge['object'], edge_id, edge['subject'])
-                    kp = edge["reverse_kps"]
                 else:
                     step = Step(edge['subject'], edge_id, edge['object'])
-                    kp = edge["forward_kps"]
 
                 # Attach information about categorys to kp info
                 plan[step].append(kp)
@@ -585,21 +583,13 @@ def annotate_query_graph(
     a query graphs with KPs.
     """
     for edge_id, edge in query_graph["edges"].items():
-        edge["forward_kps"] = get_query_graph_edge_kps(
-            operation_graph, edge_id, False)
-        if len(edge["forward_kps"]) == 0:
-            del edge["forward_kps"]
-
-        edge["reverse_kps"] = get_query_graph_edge_kps(
-            operation_graph, edge_id, True)
-        if len(edge["reverse_kps"]) == 0:
-            del edge["reverse_kps"]
+        edge["kps"] = get_query_graph_edge_kps(
+            operation_graph, edge_id)
 
 
 def get_query_graph_edge_kps(
     operation_graph: dict[str, dict],
     qg_edge_id: str,
-    reverse: bool,
 ) -> list[dict]:
     """
     Get KPs from the operation graph that
@@ -610,10 +600,11 @@ def get_query_graph_edge_kps(
     for og_edge in operation_graph["edges"].values():
         if og_edge["qg_edge_id"] != qg_edge_id:
             continue
-        if og_edge["qg_traversal_reverse"] != reverse:
-            continue
-
-        kps.extend(og_edge["kps"])
+        for kp in og_edge["kps"]:
+            kps.append({
+                **kp,
+                "reverse": og_edge["qg_traversal_reverse"],
+            })
     return kps
 
 
