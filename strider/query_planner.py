@@ -416,6 +416,8 @@ async def generate_plans(
     solving process.
     """
 
+    qgraph = copy.deepcopy(qgraph)
+
     logger.info("Generating plan for query graph")
 
     logger.info(
@@ -517,9 +519,9 @@ async def generate_plans(
                 # which is always the source node
                 edge = current_qg['edges'][edge_id]
                 source_node_id = traversal[index - 1]
-                reverse = source_node_id == edge['object']
 
                 kp = edge["kps"]
+                reverse = kp["reverse"]
                 if reverse:
                     step = Step(edge['object'], edge_id, edge['subject'])
                 else:
@@ -536,7 +538,9 @@ async def generate_plans(
     for plan in plans:
         key = tuple(plan.keys())
         for step, kps in plan.items():
-            unique_map[key][step].extend(kps)
+            for kp in kps:
+                if kp not in unique_map[key][step]:
+                    unique_map[key][step].append(kp)
     plans = list(unique_map.values())
 
     logger.info(
