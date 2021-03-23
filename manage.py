@@ -54,6 +54,23 @@ def coverage(extra_args):
     run_command(command)
 
 
+def profile(extra_args):
+    """
+    Profile a test in docker, copy out a report,
+    and display using the snakeviz utility
+    """
+    command = f"""\
+    docker rm strider-profile || true
+    docker build -t strider-profile \
+                 -f Dockerfile.test .
+    docker run --name strider-profile strider-profile \
+            python -m cProfile -o strider.prof -m pytest {extra_args}
+    docker cp strider-profile:/app/strider.prof /tmp/
+    snakeviz /tmp/strider.prof
+    """
+    run_command(command)
+
+
 def main():
     command = sys.argv[1]
     command_func = globals()[command]
