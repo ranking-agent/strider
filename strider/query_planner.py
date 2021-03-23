@@ -1,6 +1,5 @@
 """Query planner."""
 from collections import defaultdict, namedtuple
-import itertools
 import logging
 import copy
 from typing import Generator
@@ -8,7 +7,7 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.util import WrappedBMT, extract_predicate_direction
+from strider.util import WrappedBMT
 from strider.config import settings
 from strider.trapi import add_descendants
 
@@ -47,6 +46,10 @@ def permute_graph(
     Example: If a graph has ['Disease', 'Gene'] as a type for a node,
     two query graphs will be returned, one with node type Disease and one with type Gene
     """
+
+    # pylint: disable=dangerous-default-value
+    # It is okay to disable this rule in this function
+    # because we don't modify the default value
 
     stack = []
     stack.append(copy.deepcopy(graph))
@@ -107,6 +110,11 @@ def count_permutations(
     Get the number of permutations that will be generated
     from the permute_graph method.
     """
+
+    # pylint: disable=dangerous-default-value
+    # It is okay to disable this rule in this function
+    # because we don't modify the default value
+
     total_permutations = 1
     for node in graph["nodes"].values():
         for field in node_fields:
@@ -447,30 +455,24 @@ async def generate_plans(
 
     logger.info("Generating plan for query graph")
 
-    logger.info(
-        "Contacting KP registry to ask for KPs to solve this query graph")
-
     operation_graph = await qg_to_og(qgraph)
 
     add_descendants(operation_graph, logger)
 
+    logger.info(
+        "Contacting KP registry to ask for KPs to solve this query graph")
+
     await annotate_operation_graph(operation_graph, kp_registry)
 
     logger.debug({
-        "message": "Operation graph with KPs",
+        "message": "Annotated operation graph with KPs",
         "operation_graph": operation_graph,
     })
 
     annotate_query_graph(qgraph, operation_graph)
 
-    # Filter down node categories using those
-    # we have recieved from the KP registry
-    # to limit the number of permutations.
-    # filter_categories_predicates(operation_graph)
-
-    # TODO fix this line
     logger.debug({
-        "message": "Filtered query graph based on operations",
+        "message": "Annotated query graph with KPs",
         "filtered_qgraph": qgraph,
     })
 
@@ -497,7 +499,6 @@ async def generate_plans(
 
     logger.info("Searching query graph permutations for plans")
 
-    # TODO replace with generator
     for current_qg in query_graph_permutations:
         valid = fix_categories_predicates(current_qg)
         if not valid:
@@ -533,6 +534,7 @@ async def generate_plans(
                 traversals_from_node(reified_graph, pinned)
             )
 
+        # pylint: disable=cell-var-from-loop
         possible_traversals = filter(
             lambda t: ensure_traversal_connected(current_qg, t),
             possible_traversals)
@@ -542,7 +544,7 @@ async def generate_plans(
         for traversal in possible_traversals:
             # Build our list of steps in the plan
             plan = defaultdict(list)
-            for index, edge_id in enumerate(traversal):
+            for edge_id in traversal:
                 # Skip iteration for non-edges
                 if edge_id not in current_qg['edges'].keys():
                     continue
@@ -551,7 +553,6 @@ async def generate_plans(
                 # so we use the previous value in the traversal
                 # which is always the source node
                 edge = current_qg['edges'][edge_id]
-                source_node_id = traversal[index - 1]
 
                 kp = edge["kps"]
                 reverse = kp["reverse"]
@@ -595,25 +596,6 @@ async def generate_plans(
                 kp.pop("reverse", None)
 
     return plans
-
-
-def filter_operation_graph_kps(
-    operation_graph: dict[str, dict],
-):
-    """
-    Remove KPs that don't match the operation graph's
-    node categories or edge predicates.
-    """
-    for edge in operation_graph["edges"].values():
-        edge_operation = {
-            "edge_predicate": edge["predicate"],
-            "source_category": operation_graph["nodes"][edge["source"]]["category"],
-            "target_category": operation_graph["nodes"][edge["target"]]["category"],
-        }
-        edge["kps"] = {name: kp
-                       for name, kp in edge["kps"].items()
-                       if edge_operation in kp["operations"]
-                       }
 
 
 def annotate_query_graph(
