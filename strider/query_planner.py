@@ -63,9 +63,13 @@ def permute_graph(
             # Permute this node and push permutations to stack
             next_node = current_graph['nodes'][next_node_id]
             for field_value in next_node[next_node_field]:
-                permutation_copy = copy.deepcopy(current_graph)
+                permutation_copy = current_graph.copy()
+                permutation_copy["nodes"] = permutation_copy["nodes"].copy()
+                permutation_copy["nodes"][next_node_id] = \
+                    permutation_copy["nodes"][next_node_id].copy()
+
                 # Fix field value
-                permutation_copy['nodes'][next_node_id][next_node_field] = field_value
+                permutation_copy["nodes"][next_node_id][next_node_field] = field_value
                 # Add to stack
                 stack.append(permutation_copy)
             continue
@@ -79,7 +83,11 @@ def permute_graph(
             # Permute this edge and push permutations to stack
             next_edge = current_graph['edges'][next_edge_id]
             for field_value in next_edge[next_edge_field]:
-                permutation_copy = copy.deepcopy(current_graph)
+                permutation_copy = current_graph.copy()
+                permutation_copy["edges"] = permutation_copy["edges"].copy()
+                permutation_copy["edges"][next_edge_id] = \
+                    permutation_copy["edges"][next_edge_id].copy()
+
                 # Fix predicate
                 permutation_copy['edges'][next_edge_id][next_edge_field] = field_value
                 # Add to stack
@@ -88,6 +96,27 @@ def permute_graph(
 
         # This graph is fully permuted, add to results
         yield current_graph
+
+
+def count_permutations(
+        graph: dict,
+        node_fields: list[str] = [],
+        edge_fields: list[str] = [],
+):
+    """
+    Get the number of permutations that will be generated
+    from the permute_graph method.
+    """
+    total_permutations = 1
+    for node in graph["nodes"].values():
+        for field in node_fields:
+            if field in node and isinstance(node[field], list):
+                total_permutations *= len(node[field])
+    for edge in graph["edges"].values():
+        for field in edge_fields:
+            if field in edge and isinstance(edge[field], list):
+                total_permutations *= len(edge[field])
+    return total_permutations
 
 
 class NoAnswersError(Exception):
@@ -443,6 +472,12 @@ async def generate_plans(
     logger.debug({
         "message": "Filtered query graph based on operations",
         "filtered_qgraph": qgraph,
+    })
+
+    num_permutations = count_permutations(qgraph, edge_fields=["kps"])
+    logger.info({
+        "message": "Number of permutations to evaluate for planning",
+        "permutations": num_permutations,
     })
 
     query_graph_permutations = permute_graph(qgraph, edge_fields=["kps"])
