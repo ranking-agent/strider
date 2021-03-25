@@ -194,9 +194,10 @@ def make_og_edge(
     # Annotate operation graph edge
     # with the query graph edge_id
     og_edge["qg_edge_id"] = qg_edge_id
-    # Also annotate with whether we are traversing
-    # this edge in reverse
-    og_edge["qg_traversal_reverse"] = predicate_reverse
+
+    # Annotate with whether we have switched
+    # the source and target
+    og_edge["edge_reverse"] = edge_reverse
 
     if edge_reverse:
         og_edge["source"] = qg_edge["object"]
@@ -270,15 +271,15 @@ async def qg_to_og(qgraph):
             # Forward inverse edge
             ograph["edges"][edge_id + INVERSE_EDGE_SUFFIX] = make_og_edge(
                 edge_id, edge,
-                edge_reverse=True,
-                predicate_reverse=False,
+                edge_reverse=False,
+                predicate_reverse=True,
                 predicates=inverse_predicates)
             # Reverse inverse edge
             ograph["edges"][edge_id + REVERSE_EDGE_SUFFIX + INVERSE_EDGE_SUFFIX] = \
                 make_og_edge(
                 edge_id, edge,
-                edge_reverse=False,
-                predicate_reverse=True,
+                edge_reverse=True,
+                predicate_reverse=False,
                 predicates=inverse_predicates
             )
 
@@ -292,6 +293,13 @@ def fix_categories_predicates(query_graph):
 
     Returns false if there is a conflicting node type
     """
+
+    # Clear existing categories and predicates
+    for node in query_graph["nodes"].values():
+        node.pop("category", None)
+    for edge in query_graph["edges"].values():
+        edge.pop("predicate", None)
+
     for edge in query_graph['edges'].values():
         kp = edge["kps"]
         reverse = kp["reverse"]
@@ -303,29 +311,20 @@ def fix_categories_predicates(query_graph):
             source_node = query_graph["nodes"][edge["subject"]]
             target_node = query_graph["nodes"][edge["object"]]
 
-        existing_source_category = source_node["category"] \
-            if not isinstance(source_node["category"], list) else None
-        new_source_category = kp["source_category"]
-        if existing_source_category and \
-           existing_source_category != new_source_category:
+        if "category" in source_node \
+                and source_node["category"] != kp["source_category"]:
             return False
-        source_node["category"] = new_source_category
+        source_node["category"] = kp["source_category"]
 
-        existing_target_category = target_node["category"] \
-            if not isinstance(target_node["category"], list) else None
-        new_target_category = kp["target_category"]
-        if existing_target_category and \
-           existing_target_category != new_target_category:
+        if "category" in target_node \
+                and target_node["category"] != kp["target_category"]:
             return False
-        target_node["category"] = new_target_category
+        target_node["category"] = kp["target_category"]
 
-        existing_predicate = edge["predicate"] \
-            if not isinstance(edge["predicate"], list) else None
-        new_predicate = kp["edge_predicate"]
-        if existing_predicate and \
-           existing_predicate != new_predicate:
+        if "predicate" in edge \
+                and edge["predicate"] != kp["edge_predicate"]:
             return False
-        edge["predicate"] = new_predicate
+        edge["predicate"] = kp["edge_predicate"]
     return True
 
 
@@ -590,11 +589,6 @@ async def generate_plans(
             """
         })
 
-    for plan in plans:
-        for step in plan.values():
-            for kp in step:
-                kp.pop("reverse", None)
-
     return plans
 
 
@@ -627,7 +621,7 @@ def get_query_graph_edge_kps(
         for kp in og_edge["kps"]:
             kps.append({
                 **kp,
-                "reverse": og_edge["qg_traversal_reverse"],
+                "reverse": og_edge["edge_reverse"],
             })
     return kps
 

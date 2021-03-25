@@ -697,7 +697,7 @@ async def test_inverse_predicate():
         """
             CHEBI:6801(( category biolink:Drug ))
             MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:correlated_with -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:correlated_with -->CHEBI:6801
         """
     },
     normalizer_data="""
@@ -716,7 +716,7 @@ async def test_symmetric_predicate():
         n0(( category biolink:Disease ))
         n0(( id MONDO:0005148 ))
         n1(( category biolink:Drug ))
-        n0-- biolink:correlated_with -->n1
+        n1-- biolink:correlated_with -->n0
         """
     )
 
