@@ -28,7 +28,7 @@ from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import ensure_list, standardize_graph_lists
+from .util import ensure_list, standardize_graph_lists, extract_predicate_direction
 
 # Initialize registry
 registry = Registry(settings.kpregistry_url)
@@ -257,26 +257,37 @@ def get_kp_request_body(
         kp: dict,
 ) -> Response:
     """Get request to send to KP."""
-    included_nodes = [
-        qgraph['edges'][step.edge]['subject'],
-        qgraph['edges'][step.edge]['object'],
-    ]
-    included_edges = [step.edge]
+
+    edge = qgraph['edges'][step.edge].copy()
+
+    if kp["reverse"]:
+        edge["object"], edge["subject"] = edge["subject"], edge["object"]
+
+    source_id = edge['subject']
+    target_id = edge['object']
+
+    source = qgraph["nodes"][source_id].copy()
+    target = qgraph["nodes"][target_id].copy()
+
+    # Modify to match kp
+    source["category"] = kp["source_category"]
+    source["id"] = curie
+    target["category"] = kp["target_category"]
+
+    # Modify to match curie
+    predicate, _ = extract_predicate_direction(kp["edge_predicate"])
+    edge["predicate"] = predicate
+
+    breakpoint()
 
     request_qgraph = {
         "nodes": {
-            key: val.copy() for key, val in qgraph['nodes'].items()
-            if key in included_nodes
+            source_id: source,
+            target_id: target,
         },
         "edges": {
-            key: val.copy() for key, val in qgraph['edges'].items()
-            if key in included_edges
+            step.edge: edge
         },
     }
 
-    request_qgraph['nodes'][step.source]['id'] = curie
-    predicate = kp["edge_predicate"].split("-")[1]
-    request_qgraph['edges'][step.edge]['predicate'] = predicate
-    request_qgraph['nodes'][step.source]['category'] = kp["source_category"]
-    request_qgraph['nodes'][step.target]['category'] = kp["target_category"]
     return {"message": {"query_graph": request_qgraph}}

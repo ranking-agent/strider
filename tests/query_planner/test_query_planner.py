@@ -153,7 +153,8 @@ async def test_no_reverse_edge_in_plan(caplog):
 
     plan_template = plan_template_from_string(
         """
-        n0-n0n1-n1 http://kp0 biolink:Drug -biolink:related_to-> biolink:Disease
+        n0-n0n1-n1 http://kp0 biolink:Disease <-biolink:related_to- biolink:Drug
+        n0-n0n1-n1 http://kp0 biolink:Disease -biolink:related_to-> biolink:Drug
         """
     )
 
@@ -220,6 +221,14 @@ async def test_solve_reverse_edge(caplog):
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
+
+    plan_template = plan_template_from_string(
+        """
+        n0-n1n0-n1 http://kp0 biolink:Disease <-biolink:treats- biolink:Drug
+        """
+    )
+
+    validate_template(plan_template, plans[0])
     assert_no_level(caplog, logging.WARNING)
 
 
@@ -530,9 +539,9 @@ async def test_descendant_reverse_category(caplog):
     valid_qg = query_graph_from_string(
         """
         n0(( category biolink:Disease ))
+        n0(( id MONDO:0005737 ))
         n0-- biolink:related_to -->n1
         n1(( category biolink:ChemicalSubstance ))
-        n1(( id CHEBI:6801 ))
         """
     )
     await prepare_query_graph(valid_qg)
