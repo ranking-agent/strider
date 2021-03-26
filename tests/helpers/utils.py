@@ -217,6 +217,99 @@ def validate_template(template, value):
                 f"Template value {template} does not equal {value}")
 
 
+def validate_message(template, value):
+    """
+    Validate a message against the given template
+
+    Raises ValueError if anything doesn't match up.
+    """
+
+    template["knowledge_graph"] = inspect.cleandoc(template["knowledge_graph"])
+
+    nodes = set()
+    # Validate edges
+    for edge_string in template["knowledge_graph"].splitlines():
+        sub, predicate, obj = edge_string.split(" ")
+        nodes.add(sub)
+        nodes.add(obj)
+        # Check that this edge exists
+        if not any(
+                edge["subject"] == sub and
+                edge["object"] == obj and
+                edge["predicate"] == predicate
+            for edge in value["knowledge_graph"]["edges"].values()
+        ):
+            raise ValueError(
+                f"Knowledge graph edge {edge_string} not found in message")
+
+    # Validate nodes
+    for node in nodes:
+        if node not in value["knowledge_graph"]["nodes"].keys():
+            raise ValueError(
+                f"Knowledge graph node {node} not found in message")
+
+    # Check for extra nodes or edges
+    if len(nodes) != len(value["knowledge_graph"]["nodes"]):
+        raise ValueError(
+            "Extra nodes found in message knowledge_graph")
+    if len(template["knowledge_graph"].splitlines()) != len(value["knowledge_graph"]["edges"]):
+        raise ValueError(
+            "Extra edges found in message knowledge_graph")
+
+    # Validate results
+    for index, template_result in enumerate(template["results"]):
+        value_result = value["results"][index]
+        # Validate node bindings
+        template_result["node_bindings"] = inspect.cleandoc(
+            template_result["node_bindings"])
+        for node_binding_string in template_result["node_bindings"].splitlines():
+            qg_node_id, *kg_node_ids = node_binding_string.split(" ")
+            if qg_node_id not in value_result["node_bindings"]:
+                raise ValueError(
+                    f"Could not find binding for node {qg_node_id}")
+
+            for kg_node_id in kg_node_ids:
+                if not any(
+                    nb["id"] == kg_node_id
+                    for nb in value_result["node_bindings"][qg_node_id]
+                ):
+                    raise ValueError(
+                        f"Expected node binding {qg_node_id} to {kg_node_id}")
+            if len(value_result["node_bindings"][qg_node_id]) != len(kg_node_ids):
+                raise ValueError(f"Extra node bindings found for {qg_node_id}")
+
+        # Validate edge bindings
+        template_result["edge_bindings"] = inspect.cleandoc(
+            template_result["edge_bindings"])
+        for edge_binding_string in template_result["edge_bindings"].splitlines():
+            qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
+
+            # Find KG edge IDs from the kg edge strings
+            kg_edge_ids = []
+            for kg_edge_string in kg_edge_strings:
+                sub, obj = kg_edge_string.split("-")
+                kg_edge_id = next(
+                    kg_edge_id
+                    for kg_edge_id, kg_edge in value["knowledge_graph"]["edges"].items()
+                    if kg_edge["subject"] == sub and kg_edge["object"] == obj
+                )
+                kg_edge_ids.append(kg_edge_id)
+
+            if qg_edge_id not in value_result["edge_bindings"]:
+                raise ValueError(
+                    f"Could not find binding for edge {qg_edge_id}")
+
+            for kg_edge_id in kg_edge_ids:
+                if not any(
+                    nb["id"] == kg_edge_id
+                    for nb in value_result["edge_bindings"][qg_edge_id]
+                ):
+                    raise ValueError(
+                        f"Expected edge binding {qg_edge_id} to {kg_edge_id}")
+            if len(value_result["edge_bindings"][qg_edge_id]) != len(kg_edge_ids):
+                raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+
+
 async def time_and_display(f, msg):
     """ Time a function and print the time """
     start_time = time.time()
