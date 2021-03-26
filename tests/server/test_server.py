@@ -14,7 +14,7 @@ from tests.helpers.logger import setup_logger
 from tests.helpers.context import \
     with_translator_overlay, with_registry_overlay, \
     with_norm_overlay, with_response_overlay
-from tests.helpers.utils import query_graph_from_string
+from tests.helpers.utils import query_graph_from_string, validate_message
 
 from strider.config import settings
 
@@ -90,16 +90,30 @@ async def test_solve_ex1():
     output = await sync_query(q)
 
     assert output
-    # Ensure we have some results
-    assert len(output['message']['results']) > 0
-    # Ensure we have a knowledge graph with nodes and edges
-    assert len(output['message']['knowledge_graph']['nodes']) > 0
-    assert len(output['message']['knowledge_graph']['edges']) > 0
-    assert_no_warnings_trapi(output)
-
-    print("========================= RESULTS =========================")
-    print(output['message']['results'])
-    print(output['message']['knowledge_graph'])
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                MONDO:0005148 biolink:has_phenotype HP:0004324
+                """,
+            "results": [
+                {"node_bindings":
+                    """
+                    n0 CHEBI:6801
+                    n1 MONDO:0005148
+                    n2 HP:0004324
+                    """,
+                 "edge_bindings":
+                    """
+                    e01 CHEBI:6801-MONDO:0005148
+                    e12 MONDO:0005148-HP:0004324
+                    """
+                 }
+            ],
+        },
+        output["message"]
+    )
 
 
 @pytest.mark.asyncio
