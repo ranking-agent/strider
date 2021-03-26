@@ -258,9 +258,12 @@ def get_kp_request_body(
 ) -> Response:
     """Get request to send to KP."""
 
+    predicate, predicate_reverse = \
+        extract_predicate_direction(kp["edge_predicate"])
+
     edge = qgraph['edges'][step.edge].copy()
 
-    if kp["reverse"]:
+    if kp["reverse"] and predicate_reverse:
         edge["object"], edge["subject"] = edge["subject"], edge["object"]
 
     source_id = edge['subject']
@@ -275,10 +278,7 @@ def get_kp_request_body(
     target["category"] = kp["target_category"]
 
     # Modify to match curie
-    predicate, _ = extract_predicate_direction(kp["edge_predicate"])
     edge["predicate"] = predicate
-
-    breakpoint()
 
     request_qgraph = {
         "nodes": {
