@@ -265,12 +265,24 @@ def validate_message(template, value):
     template["results"].sort()
 
     # Validate results
-    for index, template_result in enumerate(template["results"]):
+    for index, template_result_string in enumerate(template["results"]):
+
+        # Parse string representation
+        template_result_string = inspect.cleandoc(template_result_string)
+        template_result = defaultdict(list)
+        current_key = None
+        for line in template_result_string.splitlines():
+            if not line.startswith(" "):
+                # Key
+                current_key = line
+            else:
+                # Value
+                template_result[current_key].append(line.strip())
+
         value_result = value["results"][index]
+
         # Validate node bindings
-        template_result["node_bindings"] = inspect.cleandoc(
-            template_result["node_bindings"])
-        for node_binding_string in template_result["node_bindings"].splitlines():
+        for node_binding_string in template_result["node_bindings"]:
             qg_node_id, *kg_node_ids = node_binding_string.split(" ")
             if qg_node_id not in value_result["node_bindings"]:
                 raise ValueError(
@@ -287,9 +299,7 @@ def validate_message(template, value):
                 raise ValueError(f"Extra node bindings found for {qg_node_id}")
 
         # Validate edge bindings
-        template_result["edge_bindings"] = inspect.cleandoc(
-            template_result["edge_bindings"])
-        for edge_binding_string in template_result["edge_bindings"].splitlines():
+        for edge_binding_string in template_result["edge_bindings"]:
             qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
 
             # Find KG edge IDs from the kg edge strings
