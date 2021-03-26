@@ -222,6 +222,10 @@ def validate_message(template, value):
     Validate a message against the given template
 
     Raises ValueError if anything doesn't match up.
+
+    Templates must be a dictionary with "knowledge_graph" and "results"
+    keys. Knowledge_graph should be a string representation of the knowledge
+    graph edges. Results should be a list of strings each representing a results object.
     """
 
     template["knowledge_graph"] = inspect.cleandoc(template["knowledge_graph"])
@@ -255,6 +259,10 @@ def validate_message(template, value):
     if len(template["knowledge_graph"].splitlines()) != len(value["knowledge_graph"]["edges"]):
         raise ValueError(
             "Extra edges found in message knowledge_graph")
+
+    # Sort results in both template in value to make the comparision easier
+    value["results"].sort()
+    template["results"].sort()
 
     # Validate results
     for index, template_result in enumerate(template["results"]):
