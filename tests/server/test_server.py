@@ -98,18 +98,15 @@ async def test_solve_ex1():
                 MONDO:0005148 biolink:has_phenotype HP:0004324
                 """,
             "results": [
-                {"node_bindings":
-                    """
+                """
+                node_bindings:
                     n0 CHEBI:6801
                     n1 MONDO:0005148
                     n2 HP:0004324
-                    """,
-                 "edge_bindings":
-                    """
+                edge_bindings:
                     e01 CHEBI:6801-MONDO:0005148
                     e12 MONDO:0005148-HP:0004324
-                    """
-                 }
+                """
             ],
         },
         output["message"]
