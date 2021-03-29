@@ -256,7 +256,10 @@ def validate_message(template, value):
     if len(nodes) != len(value["knowledge_graph"]["nodes"]):
         raise ValueError(
             "Extra nodes found in message knowledge_graph")
-    if len(template["knowledge_graph"].splitlines()) != len(value["knowledge_graph"]["edges"]):
+    if (
+        len(template["knowledge_graph"].splitlines()) !=
+        len(value["knowledge_graph"]["edges"])
+    ):
         raise ValueError(
             "Extra edges found in message knowledge_graph")
 
@@ -265,12 +268,13 @@ def validate_message(template, value):
 
         # Parse string representation
         template_result_string = inspect.cleandoc(template_result_string)
-        template_result = defaultdict(list)
+        template_result = {}
         current_key = None
         for line in template_result_string.splitlines():
             if not line.startswith(" "):
-                # Key
-                current_key = line
+                # Key (remove trailing colon)
+                current_key = line[:-1]
+                template_result[current_key] = []
             else:
                 # Value
                 template_result[current_key].append(line.strip())
