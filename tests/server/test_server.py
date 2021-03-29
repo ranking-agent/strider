@@ -711,3 +711,73 @@ async def test_symetric_predicate():
     # Run
     output = await sync_query(q)
     assert_no_warnings_trapi(output)
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "automat_kegg":
+        """
+            NCBIGene:2710(( category biolink:Gene ))
+            CHEBI:15422(( category biolink:BiologicalEntity ))
+            CHEBI:17754(( category biolink:BiologicalEntity ))
+            NCBIGene:2710-- predicate biolink:increases_degradation_of -->CHEBI:15422
+            NCBIGene:2710-- predicate biolink:increases_degradation_of -->CHEBI:17754
+        """
+    },
+    normalizer_data="""
+        UniProtKB:P32189 synonyms NCBIGene:2710
+        UniProtKB:P32189 categories biolink:Gene
+        """
+)
+async def test_issue_102():
+    """
+    Test solving a query graph where the category provided doesn't match
+    the one in the node normalizer.
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        a(( category biolink:ChemicalSubstance ))
+        b(( id UniProtKB:P32189 ))
+        a-- biolink:related_to -->b
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+
+    validate_message({
+        "knowledge_graph":
+            """
+            NCBIGene:2710 biolink:increases_degradation_of CHEBI:17754
+            NCBIGene:2710 biolink:increases_degradation_of CHEBI:15422
+            """,
+        "results": [
+            """
+            node_bindings:
+                a CHEBI:17754
+                b NCBIGene:2710
+            edge_bindings:
+                ab NCBIGene:2710-CHEBI:17754
+            """,
+            """
+            node_bindings:
+                a CHEBI:15422
+                b NCBIGene:2710
+            edge_bindings:
+                ab NCBIGene:2710-CHEBI:15422
+            """
+        ]
+    },
+        output["message"]
+    )
