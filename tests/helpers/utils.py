@@ -260,10 +260,6 @@ def validate_message(template, value):
         raise ValueError(
             "Extra edges found in message knowledge_graph")
 
-    # Sort results in both template in value to make the comparision easier
-    value["results"].sort()
-    template["results"].sort()
-
     # Validate results
     for index, template_result_string in enumerate(template["results"]):
 
@@ -279,7 +275,10 @@ def validate_message(template, value):
                 # Value
                 template_result[current_key].append(line.strip())
 
-        value_result = value["results"][index]
+        try:
+            value_result = value["results"][index]
+        except IndexError as e:
+            raise ValueError("Expected more results") from e
 
         # Validate node bindings
         for node_binding_string in template_result["node_bindings"]:
@@ -326,6 +325,10 @@ def validate_message(template, value):
                         f"Expected edge binding {qg_edge_id} to {kg_edge_id}")
             if len(value_result["edge_bindings"][qg_edge_id]) != len(kg_edge_ids):
                 raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+
+    # Check for extra results
+    if len(template["results"]) != len(value["results"]):
+        raise ValueError("Extra results found")
 
 
 async def time_and_display(f, msg):
