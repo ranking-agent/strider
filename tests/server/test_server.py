@@ -641,6 +641,10 @@ async def test_mutability_bug():
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """
     },
+    normalizer_data="""
+        CHEBI:6801 categories biolink:Drug
+        MONDO:0005148 categories biolink:Disease
+        """
 )
 async def test_inverse_predicate():
     """
@@ -650,7 +654,6 @@ async def test_inverse_predicate():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:Disease ))
         n0(( id MONDO:0005148 ))
         n1(( category biolink:Drug ))
         n0-- biolink:treated_by -->n1
@@ -666,7 +669,23 @@ async def test_inverse_predicate():
 
     # Run
     output = await sync_query(q, log_level='DEBUG')
-    assert_no_warnings_trapi(output)
+
+    validate_message({
+        "knowledge_graph":
+            """
+            CHEBI:6801 biolink:treats MONDO:0005148
+            """,
+        "results": [
+            """
+            node_bindings:
+                n0 MONDO:0005148
+                n1 CHEBI:6801
+            edge_bindings:
+                n0n1 CHEBI:6801-MONDO:0005148
+            """
+        ]
+    },
+        output["message"])
 
 
 @pytest.mark.asyncio
