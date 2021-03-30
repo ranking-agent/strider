@@ -648,14 +648,14 @@ async def test_mutability_bug():
 )
 async def test_inverse_predicate():
     """
-    Test solving a query graph where we have to synonymize for a KP call
-    to get the right answer.
+    Test solving a query graph where we have to look up
+    the inverse of a given predicate to get the right answer.
     """
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
+        n0(( category biolink:Disease ))
+        n1(( id CHEBI:6801 ))
         n0-- biolink:treated_by -->n1
         """
     )
@@ -668,7 +668,7 @@ async def test_inverse_predicate():
     )
 
     # Run
-    output = await sync_query(q, log_level='DEBUG')
+    output = await sync_query(q)
 
     validate_message({
         "knowledge_graph":
