@@ -732,7 +732,7 @@ async def test_symmetric_predicate():
     validate_message({
         "knowledge_graph":
             """
-            CHEBI:6801 biolink:correlated_with MONDO:0005148
+            MONDO:0005148 biolink:correlated_with CHEBI:6801
             """,
         "results": [
             """
@@ -740,7 +740,7 @@ async def test_symmetric_predicate():
                 n0 MONDO:0005148
                 n1 CHEBI:6801
             edge_bindings:
-                n0n1 CHEBI:6801-MONDO:0005148
+                n1n0 MONDO:0005148-CHEBI:6801
             """
         ]}, output["message"]
     )
