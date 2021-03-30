@@ -150,9 +150,15 @@ class StriderWorker(Worker):
 
         # add partial results for each curie that we are given
         for qnode_id, qnode in self.qgraph["nodes"].items():
-            if not qnode.get("id", False):
+
+            # Remove ID from query graph because we will
+            # add it back manually later in the get_kp_request_body
+            # function
+            curies = qnode.pop("id", None)
+            if not curies:
                 continue
-            for curie in qnode["id"]:
+
+            for curie in curies:
                 result = {
                     "node_bindings": {
                         qnode_id: [{
@@ -258,35 +264,32 @@ def get_kp_request_body(
 ) -> Response:
     """Get request to send to KP."""
 
-    predicate, predicate_reverse = \
+    predicate, _ = \
         extract_predicate_direction(kp["edge_predicate"])
 
-    edge = qgraph['edges'][step.edge].copy()
+    # Build request edges
+    request_edge = qgraph["edges"][step.edge].copy()
+    request_source = qgraph["nodes"][step.source].copy()
+    request_target = qgraph["nodes"][step.target].copy()
 
-    if kp["reverse"] and predicate_reverse:
-        edge["object"], edge["subject"] = edge["subject"], edge["object"]
+    # Update request properties to match what the KP expects
+    request_edge["subject"] = step.source
+    request_edge["predicate"] = predicate
+    request_edge["object"] = step.target
+    request_source["category"] = kp["source_category"]
+    request_target["category"] = kp["target_category"]
 
-    source_id = edge['subject']
-    target_id = edge['object']
+    # Fill in the current curie
+    request_source["id"] = curie
 
-    source = qgraph["nodes"][source_id].copy()
-    target = qgraph["nodes"][target_id].copy()
-
-    # Modify to match kp
-    source["category"] = kp["source_category"]
-    source["id"] = curie
-    target["category"] = kp["target_category"]
-
-    # Modify to match curie
-    edge["predicate"] = predicate
-
+    # Build request
     request_qgraph = {
         "nodes": {
-            source_id: source,
-            target_id: target,
+            step.source: request_source,
+            step.target: request_target,
         },
         "edges": {
-            step.edge: edge
+            step.edge: request_edge
         },
     }
 
