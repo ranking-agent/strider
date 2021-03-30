@@ -47,7 +47,7 @@ async def test_permute_curies(caplog):
         "edges": {},
     }
 
-    permutations = permute_graph(qg, node_fields=["id"])
+    permutations = permute_graph(qg, node_field_map={"id": "id"})
 
     assert permutations
     # We should have two plans
@@ -76,8 +76,8 @@ async def test_permute_categories_predicates(caplog):
     add_descendants(operation_graph)
     permutations = permute_graph(
         operation_graph,
-        node_fields=["category"],
-        edge_fields=["predicate"],
+        node_field_map={"category": "category"},
+        edge_field_map={"predicate": "predicate"},
     )
     assert permutations
 

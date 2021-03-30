@@ -36,12 +36,16 @@ def find_next_list_property(search_dict, fields_to_check):
 
 def permute_graph(
         graph: dict,
-        node_fields: list[str] = [],
-        edge_fields: list[str] = [],
+        node_field_map: dict[str] = {},
+        edge_field_map: dict[str] = {},
 ) -> Generator[dict, None, None]:
     """
     Take in a graph that has some unbound properties
-    and return a list of query graphs where every property is bound
+    and return a list of query graphs where every property is bound.
+
+    Parameters are dictionaries that are the mapping from the
+    field on an unbound graph to a bound graph. 
+    For example { "kps" : "kp" } will map the kps field to a field called kp.
 
     Example: If a graph has ['Disease', 'Gene'] as a type for a node,
     two query graphs will be returned, one with node type Disease and one with type Gene
@@ -60,19 +64,27 @@ def permute_graph(
         # Find our next node to permute
         next_node_id, next_node_field = \
             find_next_list_property(
-                current_graph['nodes'], node_fields)
+                current_graph['nodes'], node_field_map.keys())
 
         if next_node_id:
             # Permute this node and push permutations to stack
             next_node = current_graph['nodes'][next_node_id]
-            for field_value in next_node[next_node_field]:
+
+            # Pull field values and iterate over them
+            field_value_list = next_node[next_node_field]
+            for field_value in field_value_list:
                 permutation_copy = current_graph.copy()
                 permutation_copy["nodes"] = permutation_copy["nodes"].copy()
                 permutation_copy["nodes"][next_node_id] = \
                     permutation_copy["nodes"][next_node_id].copy()
 
-                # Fix field value
-                permutation_copy["nodes"][next_node_id][next_node_field] = field_value
+                # Remove old field
+                permutation_copy["nodes"][next_node_id].pop(next_node_field)
+                # Set mapped field
+                permutation_copy["nodes"][next_node_id][
+                    node_field_map[next_node_field]
+                ] = field_value
+
                 # Add to stack
                 stack.append(permutation_copy)
             continue
@@ -80,19 +92,27 @@ def permute_graph(
         # Find our next edge to permute
         next_edge_id, next_edge_field = \
             find_next_list_property(
-                current_graph['edges'], edge_fields)
+                current_graph['edges'], edge_field_map.keys())
 
         if next_edge_id:
             # Permute this edge and push permutations to stack
             next_edge = current_graph['edges'][next_edge_id]
-            for field_value in next_edge[next_edge_field]:
+
+            # Pull field value and iterate over list
+            field_value_list = next_edge[next_edge_field]
+            for field_value in field_value_list:
                 permutation_copy = current_graph.copy()
                 permutation_copy["edges"] = permutation_copy["edges"].copy()
                 permutation_copy["edges"][next_edge_id] = \
                     permutation_copy["edges"][next_edge_id].copy()
 
-                # Fix predicate
-                permutation_copy['edges'][next_edge_id][next_edge_field] = field_value
+                # Remove old field
+                permutation_copy["edges"][next_edge_id].pop(next_edge_field)
+                # Set mapped field
+                permutation_copy['edges'][next_edge_id][
+                    edge_field_map[next_edge_field]
+                ] = field_value
+
                 # Add to stack
                 stack.append(permutation_copy)
             continue
@@ -301,7 +321,7 @@ def fix_categories_predicates(query_graph):
         edge.pop("predicate", None)
 
     for edge in query_graph['edges'].values():
-        kp = edge["kps"]
+        kp = edge["kp"]
         reverse = kp["reverse"]
 
         if reverse:
@@ -481,7 +501,8 @@ async def generate_plans(
         "permutations": num_permutations,
     })
 
-    query_graph_permutations = permute_graph(qgraph, edge_fields=["kps"])
+    query_graph_permutations = permute_graph(
+        qgraph, edge_field_map={"kps": "kp"})
 
     # Build a list of pinned nodes
     pinned_nodes = [
@@ -515,7 +536,7 @@ async def generate_plans(
 
         # Fill in adjacencies
         for edge_id, edge in current_qg['edges'].items():
-            reverse = edge["kps"]["reverse"]
+            reverse = edge["kp"]["reverse"]
             if not reverse:
                 # Adjacency for forward edge
                 reified_graph[edge['subject']].append(edge_id)
@@ -553,7 +574,7 @@ async def generate_plans(
                 # which is always the source node
                 edge = current_qg['edges'][edge_id]
 
-                kp = edge["kps"]
+                kp = edge["kp"]
                 reverse = kp["reverse"]
                 if reverse:
                     step = Step(edge['object'], edge_id, edge['subject'])
