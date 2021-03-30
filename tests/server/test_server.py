@@ -705,9 +705,9 @@ async def test_inverse_predicate():
         MONDO:0005148 categories biolink:Disease
         """
 )
-async def test_symetric_predicate():
+async def test_symmetric_predicate():
     """
-    Test solving a query graph where we have a symetric predicate
+    Test solving a query graph where we have a symmetric predicate
     that we have to look up in reverse.
     """
 
@@ -729,7 +729,21 @@ async def test_symetric_predicate():
 
     # Run
     output = await sync_query(q)
-    assert_no_warnings_trapi(output)
+    validate_message({
+        "knowledge_graph":
+            """
+            CHEBI:6801 biolink:correlated_with MONDO:0005148
+            """,
+        "results": [
+            """
+            node_bindings:
+                n0 MONDO:0005148
+                n1 CHEBI:6801
+            edge_bindings:
+                n0n1 CHEBI:6801-MONDO:0005148
+            """
+        ]}, output["message"]
+    )
 
 
 @pytest.mark.asyncio
