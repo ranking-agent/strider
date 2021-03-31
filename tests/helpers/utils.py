@@ -148,6 +148,11 @@ def normalizer_data_from_string(s):
         curie = tokens[0]
         action = tokens[1]
         line_data = tokens[2:]
+
+        # Add to synset
+        if curie not in synset_mappings:
+            synset_mappings[curie] = []
+
         if action == 'categories':
             category_mappings[curie].extend(line_data)
         elif action == 'synonyms':
