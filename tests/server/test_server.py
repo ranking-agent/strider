@@ -766,15 +766,17 @@ async def test_symmetric_predicate():
         "automat_kegg":
         """
             NCBIGene:2710(( category biolink:Gene ))
-            CHEBI:15422(( category biolink:BiologicalEntity ))
-            CHEBI:17754(( category biolink:BiologicalEntity ))
+            CHEBI:15422(( category biolink:ChemicalSubstance ))
+            CHEBI:17754(( category biolink:ChemicalSubstance ))
             NCBIGene:2710-- predicate biolink:increases_degradation_of -->CHEBI:15422
             NCBIGene:2710-- predicate biolink:increases_degradation_of -->CHEBI:17754
         """
     },
     normalizer_data="""
-        UniProtKB:P32189 synonyms NCBIGene:2710
         UniProtKB:P32189 categories biolink:Gene
+        UniProtKB:P32189 synonyms NCBIGene:2710
+        NCBIGene:2710 categories biolink:Gene
+        NCBIGene:2710 synonyms UniProtKB:P32189
         """
 )
 async def test_issue_102():
