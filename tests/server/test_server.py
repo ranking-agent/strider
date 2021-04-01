@@ -275,29 +275,26 @@ async def test_normalizer_different_category():
         "kp0":
         """
             MONDO:0008114(( category biolink:Disease ))
-            MONDO:0008114-- predicate biolink:has_phenotype -->HP:0007430
-            HP:0007430<-- predicate biolink:has_phenotype --MONDO:0008114
-            HP:0007430(( category biolink:PhenotypicFeature ))
+            MONDO:0008114-- predicate biolink:treated_by -->MESH:C035133
+            MESH:C035133(( category biolink:ChemicalSubstance ))
         """,
         "kp1":
         """
             MESH:C035133(( category biolink:ChemicalSubstance ))
-            MESH:C035133-- predicate biolink:treats -->HP:0007430
-            HP:0007430<-- predicate biolink:treats --MESH:C035133
+            MESH:C035133-- predicate biolink:ameliorates -->HP:0007430
             HP:0007430(( category biolink:PhenotypicFeature ))
         """,
         "kp2":
         """
-            MESH:C035133(( category biolink:ChemicalSubstance ))
-            MESH:C035133-- predicate biolink:treats -->MONDO:0008114
-            MONDO:0008114<-- predicate biolink:treats --MESH:C035133
+            HP:0007430(( category biolink:PhenotypicFeature ))
+            HP:0007430-- predicate biolink:has_phenotype -->MONDO:0008114
             MONDO:0008114(( category biolink:Disease ))
         """,
     },
     normalizer_data="""
         MONDO:0008114 categories biolink:Disease
-        MESH:C035133 categories biolink:ChemicalSubstance
         HP:0007430 categories biolink:PhenotypicFeature
+        MESH:C035133 categories biolink:ChemicalSubstance
         """
 )
 async def test_solve_loop(caplog):
@@ -305,15 +302,17 @@ async def test_solve_loop(caplog):
     Test that we correctly solve a query with a loop
     """
 
+    # TODO replace has_phenotype with the correct predicate phenotype_of
+    # when BMT is updated to recognize it as a valid predicate
+
     QGRAPH = query_graph_from_string(
         """
         n0(( id MONDO:0008114 ))
-        n0(( category biolink:Disease ))
-        n1(( category biolink:PhenotypicFeature ))
-        n2(( category biolink:ChemicalSubstance ))
-        n0-- biolink:has_phenotype -->n1
-        n2-- biolink:treats -->n0
-        n2-- biolink:treats -->n1
+        n1(( category biolink:ChemicalSubstance ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        n2-- biolink:related_to -->n0
         """
     )
 
@@ -326,14 +325,27 @@ async def test_solve_loop(caplog):
     # Run
     output = await sync_query(q)
 
-    # Ensure we have some results
-    assert len(output['message']['results']) > 0
-
-    # Ensure we have a knowledge graph with data that matches
-    # the query graph
-    assert len(output['message']['knowledge_graph']['nodes']) == 3
-    assert len(output['message']['knowledge_graph']['edges']) == 3
-    assert_no_warnings_trapi(output)
+    validate_message({
+        "knowledge_graph":
+            """
+            MONDO:0008114 biolink:treated_by MESH:C035133
+            MESH:C035133 biolink:ameliorates HP:0007430
+            HP:0007430 biolink:has_phenotype MONDO:0008114
+            """,
+        "results": [
+            """
+            node_bindings:
+                n0 MONDO:0008114
+                n1 MESH:C035133
+                n2 HP:0007430
+            edge_bindings:
+                n0n1 MONDO:0008114-MESH:C035133
+                n1n2 MESH:C035133-HP:0007430
+                n2n0 HP:0007430-MONDO:0008114
+            """
+        ],
+    },
+        output["message"])
 
 
 @pytest.mark.asyncio
