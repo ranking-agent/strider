@@ -348,45 +348,6 @@ def fix_categories_predicates(query_graph):
     return True
 
 
-def filter_categories_predicates(operation_graph):
-    """
-    Filter out categories and predicates that are not defined in any KP
-    """
-    for node in operation_graph['nodes'].values():
-        node['filtered_categories'] = set()
-    for edge in operation_graph['edges'].values():
-        edge['filtered_predicates'] = set()
-
-    for edge in operation_graph['edges'].values():
-        for kp in edge["kps"].values():
-            for kp_operation in kp["operations"]:
-                source_node = operation_graph["nodes"][edge["source"]]
-                target_node = operation_graph["nodes"][edge["target"]]
-
-                source_node['filtered_categories'].add(
-                    kp_operation["source_category"])
-                target_node['filtered_categories'].add(
-                    kp_operation["target_category"])
-                edge['filtered_predicates'].add(
-                    kp_operation["edge_predicate"]
-                )
-
-    # We only filter nodes that are touching at least one edge ("connected")
-    connected_nodes = set()
-    for edge in operation_graph['edges'].values():
-        connected_nodes.add(edge['source'])
-        connected_nodes.add(edge['target'])
-    for node_id in connected_nodes:
-        node = operation_graph['nodes'][node_id]
-        if 'category' not in node:
-            continue
-        node['category'] = list(node.pop('filtered_categories'))
-
-    # Also filter edge predicates as well
-    for edge in operation_graph['edges'].values():
-        edge['predicate'] = list(edge.pop('filtered_predicates'))
-
-
 def get_next_nodes(
         graph: dict[str, list[str]],
         path: list[str],
