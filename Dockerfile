@@ -3,29 +3,16 @@ FROM python:3.9
 # Add image info
 LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
 
-# install basic tools
-RUN apt-get update
-RUN apt-get install -yq \
-    vim sudo
+# Install pipenv
+RUN pip install pipenv
 
-# set up murphy
-ARG UID=1000
-ARG GID=1000
-RUN groupadd -o -g $GID murphy
-RUN useradd -m -u $UID -g $GID -s /bin/bash murphy
-
-# set up requirements
-WORKDIR /home/murphy
-ADD --chown=murphy:murphy ./requirements.txt .
-RUN pip install -r /home/murphy/requirements.txt
+# Install dependencies
+WORKDIR /app
+ADD Pipfile* .
+RUN pipenv install --system
 
 # Copy in files
-ADD --chown=murphy:murphy . .
-
-# become murphy
-ENV HOME=/home/murphy
-ENV USER=murphy
-USER murphy
+ADD . .
 
 # set up base for command
 ENTRYPOINT ["uvicorn", "strider.server:APP"]

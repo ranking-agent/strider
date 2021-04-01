@@ -1,0 +1,27 @@
+[requires]
+python_version = "3.9"
+
+[packages]
+aiosqlite = "*"
+aiofiles = "*"
+redis = "*"
+bmt = "*"
+httpx = "*"
+numpy = "*"
+pyyaml = "*"
+uvicorn = "*"
+jsonpickle = "*"
+fastapi = "*"
+reasoner-pydantic = {ref = "v1.0.0", git = "git://github.com/ranking-agent/reasoner-pydantic"}
+reasoner-converter = {git = "git://github.com/TranslatorSRI/reasoner-converter"}
+
+[dev-packages]
+fakeredis = "*"
+codecov = "*"
+pylint = "*"
+pytest = "*"
+pytest-asyncio = "*"
+pytest-cov = "*"
+kp_registry = {ref = "v1.0", git = "git://github.com/TranslatorIIPrototypes/kp_registry"}
+simple-kp = {ref = "v1.1.0", git = "git://github.com/ranking-agent/simple-kp"}
+asgiar = {git = "git://github.com/patrickkwang/asgiar"}
