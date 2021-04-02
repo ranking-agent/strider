@@ -25,3 +25,4 @@ pytest-cov = "*"
 kp_registry = {ref = "v1.0", git = "git://github.com/TranslatorIIPrototypes/kp_registry"}
 simple-kp = {ref = "update-reasoner-dep", git = "git://github.com/ranking-agent/simple-kp"}
 asgiar = {git = "git://github.com/patrickkwang/asgiar"}
+small_kg = {git = "git://github.com/patrickkwang/small-kg"}
