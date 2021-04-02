@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "2a1929a902572a8a6723750c1b23437b0164e079b7e973ccd9518ae139a022ec"
+            "sha256": "4515247488647693edba3cb9f9476fe226545f6fe306528d67ff8d0ec7fbfab7"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -837,7 +837,7 @@
         },
         "simple-kp": {
             "git": "git://github.com/ranking-agent/simple-kp",
-            "ref": "a4b92cfac59cbe1bf92125546245aeed43060e1a"
+            "ref": "09581ce827738c55f8e3c02915e19d60e5264c69"
         },
         "six": {
             "hashes": [

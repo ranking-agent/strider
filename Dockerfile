@@ -6,8 +6,10 @@ LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
 # Install pipenv
 RUN pip install pipenv
 
-# Install dependencies
+# Create working directory
 WORKDIR /app
+
+# Install dependencies
 ADD Pipfile* .
 RUN pipenv install --system
 
