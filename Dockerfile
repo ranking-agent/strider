@@ -10,7 +10,7 @@ RUN pip install pipenv
 WORKDIR /app
 
 # Install dependencies
-ADD Pipfile* .
+ADD Pipfile* ./
 RUN pipenv install --system
 
 # Copy in files
