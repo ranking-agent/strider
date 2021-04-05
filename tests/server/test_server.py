@@ -889,3 +889,75 @@ async def test_solve_reverse_edge():
     },
         output["message"]
     )
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+        """,
+        "kp1":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801<-- predicate biolink:has_biomarker --HP:0004324
+            HP:0004324(( category biolink:PhenotypicFeature ))
+        """
+    },
+    normalizer_data="""
+        MONDO:0005148 categories biolink:Disease
+        CHEBI:6801 categories biolink:ChemicalSubstance
+        HP:0004324 categories biolink:PhenotypicFeature
+        """
+)
+async def test_solve_multiple_reverse_edges():
+    """
+    Test that we can solve a query graph
+    where we have to traverse two reverse edges
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1-- biolink:treats -->n0
+        n1(( category biolink:ChemicalSubstance ))
+        n2-- biolink:has_biomarker -->n1
+        n2(( category biolink:PhenotypicFeature ))
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q, log_level="DEBUG")
+
+    validate_message({
+        "knowledge_graph":
+            """
+            CHEBI:6801 biolink:treats MONDO:0005148
+            HP:0004324 biolink:has_biomarker CHEBI:6801
+            """,
+        "results": [
+            """
+            node_bindings:
+                n0 MONDO:0005148
+                n1 CHEBI:6801
+                n2 HP:0004324
+            edge_bindings:
+                n1n0 CHEBI:6801-MONDO:0005148
+                n2n1 HP:0004324-CHEBI:6801
+            """
+        ]
+    },
+        output["message"]
+    )
