@@ -828,3 +828,65 @@ async def test_issue_102():
     },
         output["message"]
     )
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
+        """
+    },
+    normalizer_data="""
+        MONDO:0005148 categories biolink:Disease
+        CHEBI:6801 categories biolink:ChemicalSubstance
+        """
+)
+async def test_solve_reverse_edge():
+    """
+    Test that we can solve a simple query graph
+    where we have to traverse an edge in the opposite
+    direction of one that was given
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id MONDO:0005148 ))
+        n1(( category biolink:ChemicalSubstance ))
+        n1-- biolink:treats -->n0
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q, log_level="DEBUG")
+    breakpoint()
+
+    validate_message({
+        "knowledge_graph":
+            """
+            CHEBI:6801 biolink:treats MONDO:0005148
+            """,
+        "results": [
+            """
+            node_bindings:
+                n0 MONDO:0005148
+                n1 CHEBI:6801
+            edge_bindings:
+                n0n1 CHEBI:6801-MONDO:0005148
+            """
+        ]
+    },
+        output["message"]
+    )

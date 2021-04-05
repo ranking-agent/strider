@@ -203,9 +203,9 @@ async def test_no_path_from_pinned_node(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_solve_reverse_edge(caplog):
+async def test_plan_reverse_edge(caplog):
     """
-    Test that we can solve a simple query graph
+    Test that we can plan a simple query graph
     where we have to traverse an edge in the opposite
     direction of one that was given
     """
