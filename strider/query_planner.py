@@ -311,7 +311,7 @@ def fix_categories_predicates(query_graph):
     Given a permuted query graph with one KP,
     fix the node categories and predicates to match the KP
 
-    Returns false if there is a conflicting node type
+    Raises ValueError if there is a conflicting node type
     """
 
     # Clear existing categories and predicates
@@ -333,19 +333,18 @@ def fix_categories_predicates(query_graph):
 
         if "category" in source_node \
                 and source_node["category"] != kp["source_category"]:
-            return False
+            raise ValueError()
         source_node["category"] = kp["source_category"]
 
         if "category" in target_node \
                 and target_node["category"] != kp["target_category"]:
-            return False
+            raise ValueError()
         target_node["category"] = kp["target_category"]
 
         if "predicate" in edge \
                 and edge["predicate"] != kp["edge_predicate"]:
-            return False
+            raise ValueError()
         edge["predicate"] = kp["edge_predicate"]
-    return True
 
 
 def get_next_nodes(
@@ -481,8 +480,10 @@ async def generate_plans(
     logger.info("Searching query graph permutations for plans")
 
     for current_qg in query_graph_permutations:
-        valid = fix_categories_predicates(current_qg)
-        if not valid:
+        # Skip this query graph if there is a conflicting node type
+        try:
+            fix_categories_predicates(current_qg)
+        except ValueError:
             continue
 
         # Create a graph where all nodes and edges
