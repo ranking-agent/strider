@@ -682,22 +682,24 @@ async def test_inverse_predicate():
     # Run
     output = await sync_query(q)
 
-    validate_message({
-        "knowledge_graph":
-            """
-            CHEBI:6801 biolink:treats MONDO:0005148
-            """,
-        "results": [
-            """
-            node_bindings:
-                n0 MONDO:0005148
-                n1 CHEBI:6801
-            edge_bindings:
-                n0n1 CHEBI:6801-MONDO:0005148
-            """
-        ]
-    },
-        output["message"])
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:0005148
+                    n1 CHEBI:6801
+                edge_bindings:
+                    n0n1 CHEBI:6801-MONDO:0005148
+                """
+            ]
+        },
+        output["message"],
+    )
 
 
 @pytest.mark.asyncio
@@ -872,22 +874,23 @@ async def test_solve_reverse_edge():
     # Run
     output = await sync_query(q, log_level="DEBUG")
 
-    validate_message({
-        "knowledge_graph":
-            """
-            CHEBI:6801 biolink:treats MONDO:0005148
-            """,
-        "results": [
-            """
-            node_bindings:
-                n0 MONDO:0005148
-                n1 CHEBI:6801
-            edge_bindings:
-                n1n0 CHEBI:6801-MONDO:0005148
-            """
-        ]
-    },
-        output["message"]
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:0005148
+                    n1 CHEBI:6801
+                edge_bindings:
+                    n1n0 CHEBI:6801-MONDO:0005148
+                """
+            ]
+        },
+        output["message"],
     )
 
 
@@ -941,23 +944,24 @@ async def test_solve_multiple_reverse_edges():
     # Run
     output = await sync_query(q, log_level="DEBUG")
 
-    validate_message({
-        "knowledge_graph":
-            """
-            CHEBI:6801 biolink:treats MONDO:0005148
-            HP:0004324 biolink:has_biomarker CHEBI:6801
-            """,
-        "results": [
-            """
-            node_bindings:
-                n0 MONDO:0005148
-                n1 CHEBI:6801
-                n2 HP:0004324
-            edge_bindings:
-                n1n0 CHEBI:6801-MONDO:0005148
-                n2n1 HP:0004324-CHEBI:6801
-            """
-        ]
-    },
-        output["message"]
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                HP:0004324 biolink:has_biomarker CHEBI:6801
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:0005148
+                    n1 CHEBI:6801
+                    n2 HP:0004324
+                edge_bindings:
+                    n1n0 CHEBI:6801-MONDO:0005148
+                    n2n1 HP:0004324-CHEBI:6801
+                """
+            ]
+        },
+        output["message"],
     )
