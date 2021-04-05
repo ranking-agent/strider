@@ -871,7 +871,6 @@ async def test_solve_reverse_edge():
 
     # Run
     output = await sync_query(q, log_level="DEBUG")
-    breakpoint()
 
     validate_message({
         "knowledge_graph":
@@ -884,7 +883,7 @@ async def test_solve_reverse_edge():
                 n0 MONDO:0005148
                 n1 CHEBI:6801
             edge_bindings:
-                n0n1 CHEBI:6801-MONDO:0005148
+                n1n0 CHEBI:6801-MONDO:0005148
             """
         ]
     },

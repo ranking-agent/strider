@@ -264,7 +264,7 @@ def get_kp_request_body(
 ) -> Response:
     """Get request to send to KP."""
 
-    predicate, _ = \
+    predicate, reverse = \
         extract_predicate_direction(kp["edge_predicate"])
 
     # Build request edges
@@ -273,11 +273,18 @@ def get_kp_request_body(
     request_target = qgraph["nodes"][step.target].copy()
 
     # Update request properties to match what the KP expects
-    request_edge["subject"] = step.source
     request_edge["predicate"] = predicate
-    request_edge["object"] = step.target
     request_source["category"] = kp["source_category"]
     request_target["category"] = kp["target_category"]
+
+    # If we have a reversed predicate (<-predicate-)
+    # then we look up from object to subject
+    if reverse:
+        request_edge["subject"] = step.target
+        request_edge["object"] = step.source
+    else:
+        request_edge["subject"] = step.source
+        request_edge["object"] = step.target
 
     # Fill in the current curie
     request_source["id"] = curie
