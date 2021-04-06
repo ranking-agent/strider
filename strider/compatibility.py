@@ -195,10 +195,11 @@ class CURIEMap():
                 if category in self.prefixes
             )
         except StopIteration:
-            # no preferred prefixes for these categories
-            self.logger.warning(
-                f"Could not find preferred prefixes for at least one of: {categories}")
-            return curie
+            # no preferred prefixes for these categories, use default
+            if "default" in self.prefixes:
+                prefixes = self.prefixes["default"]
+            else:
+                return curie
 
         # get CURIE with preferred prefix
         try:
