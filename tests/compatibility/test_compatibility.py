@@ -53,6 +53,41 @@ async def test_map_prefixes_small_example():
     # There should be no change to n1
     assert fixed_msg['query_graph']['nodes']['n1']['id'] == ["MONDO:0005148"]
 
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+    normalizer_data="""
+    NOCATEGORY:1 synonyms ALTPREFIX:2
+    """)
+async def test_map_default_prefix():
+    """
+    Test that we use default prefix
+    when we don't have a category for a node.
+    """
+    portal = KnowledgePortal()
+
+    preferred_prefixes = {
+        "default": [
+            "ALTPREFIX"
+        ]
+    }
+
+    query_graph = {
+        "nodes": {
+            "n0": {
+                "id": ["NOCATEGORY:1"]
+            },
+        },
+        "edges": {},
+    }
+
+    fixed_msg = await portal.map_prefixes(
+        {"query_graph": query_graph},
+        preferred_prefixes,
+    )
+
+    # n0 should be converted to ALTPREFIX
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["ALTPREFIX:2"]
 
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
