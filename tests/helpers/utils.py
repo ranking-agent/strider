@@ -140,12 +140,18 @@ def normalizer_data_from_string(s):
     # so we use inspect.cleandoc to remove leading indentation
     s = inspect.cleandoc(s)
 
-    category_mappings = defaultdict(list)
-    synset_mappings = defaultdict(list)
+    category_mappings = {}
+    synset_mappings = {}
     for line in s.splitlines():
         tokens = line.split(" ")
 
         curie = tokens[0]
+        if curie not in category_mappings:
+            category_mappings[curie] = []
+        if curie not in synset_mappings:
+            # Curies are always self-synonyms
+            synset_mappings[curie] = [curie]
+
         action = tokens[1]
         line_data = tokens[2:]
 
