@@ -28,10 +28,14 @@ from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import ensure_list, standardize_graph_lists, extract_predicate_direction
+from .util import ensure_list, standardize_graph_lists, \
+    extract_predicate_direction, WrappedBMT
 
 # Initialize registry
 registry = Registry(settings.kpregistry_url)
+
+# Initialize BMT
+WBMT = WrappedBMT()
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -111,9 +115,8 @@ class StriderWorker(Worker):
         # Pull query graph from Redis
         qgraph = RedisGraph(f"{qid}:qgraph").get()
 
-        # get preferred prefixes
-        with open(settings.prefixes_path, "r") as stream:
-            self.preferred_prefixes = json.load(stream)
+        # Use BMT for preferred prefixes
+        self.preferred_prefixes = WBMT.entity_prefix_mapping
 
         # fix qgraph
         self.qgraph = (await self.portal.map_prefixes(

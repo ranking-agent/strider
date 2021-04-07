@@ -21,7 +21,6 @@ from strider.config import settings
 cwd = Path(__file__).parent
 
 # Switch prefix path before importing server
-settings.prefixes_path = cwd / "prefixes.json"
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 settings.redis_url = "redis://fakeredis"

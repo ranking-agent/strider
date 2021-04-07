@@ -15,6 +15,26 @@ def snake_to_camel(s):
     return ''.join(word.title() for word in s.split(' '))
 
 
+def function_to_mapping(f):
+    """
+    Given a function, generate an instance of a class that
+    implements the __getitem__ interface
+    """
+    class Mapping():
+        def __getitem__(self, lookup):
+            value = f(lookup)
+            if value is None:
+                raise KeyError
+            else:
+                return value
+
+        def __contains__(self, lookup):
+            return f(lookup) is not None
+
+    map_instance = Mapping()
+    return map_instance
+
+
 class WrappedBMT():
     """
     Wrapping around some of the BMT Toolkit functions
@@ -27,6 +47,8 @@ class WrappedBMT():
         self.all_slots_formatted = ['biolink:' + s.replace(' ', '_')
                                     for s in self.all_slots]
         self.prefix = 'biolink:'
+
+        self.entity_prefix_mapping = function_to_mapping(self.entity_prefixes)
 
     def new_case_to_old_case(self, s):
         """
@@ -86,6 +108,17 @@ class WrappedBMT():
         if predicate_inverse_old_format:
             return self.old_case_to_new_case(predicate_inverse_old_format)
         return None
+
+    def entity_prefixes(self, entity):
+        """ Get prefixes for a given entity """
+        old_format = self.new_case_to_old_case(entity)
+        element = self.bmt.get_element(old_format)
+        if not element:
+            return None
+        else:
+            return element.id_prefixes
+
+
 
 
 async def post_json(url, request):
