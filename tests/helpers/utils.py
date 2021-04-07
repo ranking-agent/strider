@@ -147,8 +147,8 @@ def normalizer_data_from_string(s):
         curie = tokens[0]
 
         # Curies are always self-synonyms
-        if curie not in synset_mappings:
-            synset_mappings[curie] = [curie]
+        if curie not in synset_mappings[curie]:
+            synset_mappings[curie].append(curie)
 
         action = tokens[1]
         line_data = tokens[2:]
