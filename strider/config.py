@@ -10,7 +10,6 @@ class Settings(BaseSettings):
     normalizer_url: AnyUrl = "https://nodenormalization-sri.renci.org"
 
     redis_url: RedisDsn = "redis://redis"
-    prefixes_path: FilePath = "strider/prefixes.json"
     store_results_for: timedelta = timedelta(days=7)
     server_url: AnyUrl = "http://robokop.renci.org:5781"
 
