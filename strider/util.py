@@ -1,4 +1,5 @@
 """General utilities."""
+import functools
 import re
 from typing import Callable, Union
 
@@ -31,8 +32,7 @@ def function_to_mapping(f):
         def __contains__(self, lookup):
             return f(lookup) is not None
 
-    map_instance = Mapping()
-    return map_instance
+    return Mapping()
 
 
 class WrappedBMT():
@@ -110,6 +110,7 @@ class WrappedBMT():
             return self.old_case_to_new_case(predicate_inverse_old_format)
         return None
 
+    @functools.cache
     def entity_prefixes(self, entity):
         """ Get prefixes for a given entity """
         old_format = self.new_case_to_old_case(entity)
