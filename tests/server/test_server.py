@@ -789,7 +789,7 @@ async def test_issue_102():
     QGRAPH = query_graph_from_string(
         """
         a(( category biolink:ChemicalSubstance ))
-        b(( id NCBIGene:2710 ))
+        b(( id UniProtKB:P32189 ))
         a-- biolink:related_to -->b
         """
     )
