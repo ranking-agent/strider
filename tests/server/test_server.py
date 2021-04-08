@@ -467,10 +467,10 @@ async def test_plan_ex1():
         content="Internal server error",
     )
 )
-async def test_kp_unavailable():
+async def test_kp_500():
     """
-    Test that when a KP is unavailable we add a message to
-    the log but continue running
+    Test that when a KP returns a 500 error we add
+    a message to the log but continue running
     """
     with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
@@ -492,6 +492,50 @@ async def test_kp_unavailable():
     assert len(output['message']['knowledge_graph']['nodes']) > 0
     assert len(output['message']['knowledge_graph']['edges']) > 0
     assert len(output['message']['results']) > 0
+
+@pytest.mark.asyncio
+@with_norm_overlay(settings.normalizer_url)
+@with_registry_overlay(
+    settings.kpregistry_url, {
+        'ctd': {
+            'url':
+            'http://ctd/query',
+            'operations': [{
+                'source_type': 'biolink:ChemicalSubstance',
+                'edge_type': '-biolink:treats->',
+                'target_type': 'biolink:Disease'
+            }],
+            'details': {
+                'preferred_prefixes': {}
+            }
+        }
+    })
+async def test_kp_unavailable():
+    """
+    Test that when a KP is unavailable we add a message to
+    the log but continue running
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:ChemicalSubstance ))
+        n0(( id CHEBI:6801 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Disease ))
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q, log_level="ERROR")
+
+    # Check that we stored the error
+    assert 'RequestError contacting KP' in output['logs'][0]['message']
 
 
 @pytest.mark.asyncio
