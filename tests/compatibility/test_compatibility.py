@@ -242,11 +242,6 @@ async def test_normalizer_not_reachable(caplog):
 
     assert "RequestError contacting normalizer" in caplog.text
 
-CTD_PREFIXES = {
-    "biolink:Disease": ["MONDO"],
-    "biolink:ChemicalSubstance": ["CHEBI"],
-}
-
 
 CTD_PREFIXES = {
     "biolink:Disease": ["MONDO"],
