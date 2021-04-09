@@ -13,5 +13,8 @@ class Settings(BaseSettings):
     store_results_for: timedelta = timedelta(days=7)
     server_url: AnyUrl = "http://robokop.renci.org:5781"
 
+    class Config:
+        env_file = ".env"
+
 
 settings = Settings()
