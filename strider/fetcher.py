@@ -124,9 +124,16 @@ class StriderWorker(Worker):
             self.preferred_prefixes,
         ))["query_graph"]
 
-        # Expand the query graph using the biolink model hierarchies
+        # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
         standardize_graph_lists(self.qgraph)
+
+        # Replace biolink:Proten with biolink:GeneOrGeneProduct
+        for node in self.qgraph["nodes"].values():
+            categories = node.get("category", [])
+            for category in categories:
+                if category == "biolink:Protein":
+                    category = "biolink:GeneOrGeneProduct"
 
     async def generate_plan(self):
         """
