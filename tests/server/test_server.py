@@ -1068,3 +1068,44 @@ async def test_solve_not_real_predicate():
         },
         output["message"],
     )
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            PR:000014578(( category biolink:GeneOrGeneProduct ))
+            PR:000014578-- predicate biolink:related_to -->PR:000005855
+            PR:000005855(( category biolink:GeneOrGeneProduct ))
+        """,
+    },
+    normalizer_data="""
+        PR:000014578 categories biolink:Protein
+        PR:000005855 categories biolink:Protein
+        """
+)
+async def test_convert_protein_to_gene_product():
+    """
+    Test that when given a protein we can use knowledge sources
+    that provide GeneOrGeneProduct
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id PR:000014578 ))
+        n1(( category biolink:Protein ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
