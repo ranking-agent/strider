@@ -1109,3 +1109,22 @@ async def test_convert_protein_to_gene_product():
 
     # Run
     output = await sync_query(q)
+
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                PR:000014578 biolink:related_to PR:000005855
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 PR:000014578
+                    n1 PR:000005855
+                edge_bindings:
+                    n0n1 PR:000014578-PR:000005855
+                """
+            ]
+        },
+        output["message"],
+    )
