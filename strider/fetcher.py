@@ -131,9 +131,9 @@ class StriderWorker(Worker):
         # Replace biolink:Proten with biolink:GeneOrGeneProduct
         for node in self.qgraph["nodes"].values():
             categories = node.get("category", [])
-            for category in categories:
+            for index, category in enumerate(categories):
                 if category == "biolink:Protein":
-                    category = "biolink:GeneOrGeneProduct"
+                    categories[index] = "biolink:GeneOrGeneProduct"
 
     async def generate_plan(self):
         """
