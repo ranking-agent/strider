@@ -99,16 +99,24 @@ class WrappedBMT():
     def predicate_is_symmetric(self, predicate):
         """ Get whether a given predicate is symmetric """
         predicate_old_format = self.new_case_to_old_case(predicate)
-        return self.bmt.get_element(predicate_old_format).symmetric
+        predicate_element = self.bmt.get_element(predicate_old_format)
+        if not predicate_element:
+            # Not in the biolink model
+            return False
+        return predicate_element.symmetric
 
     def predicate_inverse(self, predicate):
         """ Get the inverse of a predicate if it has one """
         predicate_old_format = self.new_case_to_old_case(predicate)
-        predicate_inverse_old_format = self.bmt.get_element(
-            predicate_old_format).inverse
-        if predicate_inverse_old_format:
-            return self.old_case_to_new_case(predicate_inverse_old_format)
-        return None
+        predicate_element = self.bmt.get_element(predicate_old_format)
+        if not predicate_element:
+            # Not in the biolink model
+            return None
+        predicate_inverse_old_format = predicate_element.inverse
+        if not predicate_inverse_old_format:
+            # No inverse
+            return None
+        return self.old_case_to_new_case(predicate_inverse_old_format)
 
     @functools.cache
     def entity_prefixes(self, entity):
