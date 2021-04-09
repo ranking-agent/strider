@@ -1016,27 +1016,27 @@ async def test_solve_multiple_reverse_edges():
     kp_data={
         "kp0":
         """
-            FAKEPREFIX:1(( category biolink:NotARealCategory ))
-            FAKEPREFIX:1-- predicate biolink:not_a_real_predicate -->FAKEPREFIX:2
-            FAKEPREFIX:2(( category biolink:NotARealCategory ))
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:not_a_real_predicate -->MONDO:0005148
         """
     },
     normalizer_data="""
-        FAKEPREFIX:1 categories biolink:NotARealCategory
-        FAKEPREFIX:2 categories biolink:NotARealCategory
+        CHEBI:6801 categories biolink:ChemicalSubstance
+        MONDO:0005148 categories biolink:Disease
         """
 )
-async def test_solve_not_real_predicate_category():
+async def test_solve_not_real_predicate():
     """
-    Test that we can solve a query graph with predicates,
-    categories, and prefixes that we don't recognize
+    Test that we can solve a query graph with
+    predicates that we don't recognize
     """
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id FAKEPREFIX:1 ))
+        n0(( id CHEBI:6801 ))
+        n1(( category biolink:Disease ))
         n0-- biolink:not_a_real_predicate -->n1
-        n1(( category biolink:NotARealCategory ))
         """
     )
 
@@ -1054,15 +1054,15 @@ async def test_solve_not_real_predicate_category():
         {
             "knowledge_graph":
                 """
-                FAKEPREFIX:1 biolink:not_a_real_predicate FAKEPREFIX:2
+                CHEBI:6801 biolink:not_a_real_predicate MONDO:0005148
                 """,
             "results": [
                 """
                 node_bindings:
-                    n0 FAKEPREFIX:1
-                    n1 FAKEPREFIX:2
+                    n0 CHEBI:6801
+                    n1 MONDO:0005148
                 edge_bindings:
-                    n0n1 FAKEPREFIX:1-FAKEPREFIX:2
+                    n0n1 CHEBI:6801-MONDO:0005148
                 """
             ]
         },
