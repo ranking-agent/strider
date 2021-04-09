@@ -128,7 +128,7 @@ class StriderWorker(Worker):
         await fill_categories_predicates(self.qgraph, self.logger)
         standardize_graph_lists(self.qgraph)
 
-        # Replace biolink:Proten with biolink:GeneOrGeneProduct
+        # Replace biolink:Protein with biolink:GeneOrGeneProduct
         for node in self.qgraph["nodes"].values():
             categories = node.get("category", [])
             for index, category in enumerate(categories):
