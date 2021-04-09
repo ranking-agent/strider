@@ -1008,3 +1008,63 @@ async def test_solve_multiple_reverse_edges():
         },
         output["message"],
     )
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            FAKEPREFIX:1(( category biolink:NotARealCategory ))
+            FAKEPREFIX:1-- predicate biolink:not_a_real_predicate -->FAKEPREFIX:2
+            FAKEPREFIX:2(( category biolink:NotARealCategory ))
+        """
+    },
+    normalizer_data="""
+        FAKEPREFIX:1 categories biolink:NotARealCategory
+        FAKEPREFIX:2 categories biolink:NotARealCategory
+        """
+)
+async def test_solve_not_real_predicate_category():
+    """
+    Test that we can solve a query graph with predicates,
+    categories, and prefixes that we don't recognize
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id FAKEPREFIX:1 ))
+        n0-- biolink:not_a_real_predicate -->n1
+        n1(( category biolink:NotARealCategory ))
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                FAKEPREFIX:1 biolink:not_a_real_predicate FAKEPREFIX:2
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 FAKEPREFIX:1
+                    n1 FAKEPREFIX:2
+                edge_bindings:
+                    n0n1 FAKEPREFIX:1-FAKEPREFIX:2
+                """
+            ]
+        },
+        output["message"],
+    )
