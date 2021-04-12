@@ -4,8 +4,10 @@ import asyncio
 import itertools
 import json
 import os
+from fastapi import testclient
 import httpx
 from fastapi.responses import Response
+from fastapi.testclient import TestClient
 
 from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
@@ -27,7 +29,7 @@ settings.redis_url = "redis://fakeredis:6379/0"
 
 
 from strider.kp_registry import Registry
-from strider.server import sync_query, generate_traversal_plan
+from strider.server import APP, sync_query, generate_traversal_plan
 
 
 setup_logger()
@@ -1203,3 +1205,24 @@ async def test_solve_double_subclass():
         },
         output["message"],
     )
+
+client = TestClient(APP)
+
+def test_exception_response():
+    """
+    Test that an exception's response is a 500 error
+    includes the correct CORS headers,
+    and is a valid TRAPI message with a log included
+    """
+    # Referring to nodes that don't exist will induce a 500 error
+    qgraph = {"nodes" : {}, "edges" : {"n0n1": {"subject" : "n0", "object" : "n1"}}}
+
+    response = client.post(
+        "/query",
+        json = {"message" : {"query_graph" : qgraph}},
+        headers = {"origin" : "http://localhost:80"}
+    )
+
+    assert response.status_code == 500
+    assert "access-control-allow-origin" in response.headers
+    assert len(response.json()["message"]["logs"])
