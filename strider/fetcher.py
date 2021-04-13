@@ -208,6 +208,12 @@ class StriderWorker(Worker):
             "step": self.plan[step],
         })
 
+        # Valid categories for the next KP that we contact
+        # include descendants of any types that we received
+        all_valid_categories = []
+        for c in category:
+            all_valid_categories.extend(WBMT.get_descendants(c))
+
         responses = await asyncio.gather(*(
             self.portal.fetch(
                 kp["url"],
@@ -221,8 +227,8 @@ class StriderWorker(Worker):
                 self.preferred_prefixes,
             )
             for kp in self.plan[step]
-            if kp["source_category"] in category
-            or kp["target_category"] in category
+            if kp["source_category"] in all_valid_categories
+            or kp["target_category"] in all_valid_categories
         ))
         return merge_messages(responses)
 
