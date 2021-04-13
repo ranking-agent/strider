@@ -23,7 +23,7 @@ cwd = Path(__file__).parent
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
-settings.redis_url = "redis://fakeredis"
+settings.redis_url = "redis://fakeredis:6379/0"
 
 
 from strider.kp_registry import Registry
