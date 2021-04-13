@@ -92,15 +92,16 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return await call_next(request)
     except Exception as e:
         response = JSONResponse(
-            {"message" : {
-                "logs": [
-                    {
-                        "message" : f"Exception in Strider: {repr(e)}",
-                        "level" : "ERROR",
-                        "timestamp" : datetime.datetime.now().isoformat(),
-                    }
-                ]
-              }
+            {
+                "message" : {
+                    "logs": [
+                        {
+                            "message" : f"Exception in Strider: {repr(e)}",
+                            "level" : "ERROR",
+                            "timestamp" : datetime.datetime.now().isoformat(),
+                        }
+                    ]
+                }
             },
             status_code=500)
         add_cors_manually(APP, request, response, CORS_OPTIONS)

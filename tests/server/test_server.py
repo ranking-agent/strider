@@ -4,7 +4,6 @@ import asyncio
 import itertools
 import json
 import os
-from fastapi import testclient
 import httpx
 from fastapi.responses import Response
 from fastapi.testclient import TestClient
