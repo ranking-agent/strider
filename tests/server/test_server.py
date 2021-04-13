@@ -1128,3 +1128,78 @@ async def test_convert_protein_to_gene_product():
         },
         output["message"],
     )
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:1(( category biolink:Disease ))
+            MONDO:1-- predicate biolink:treated_by -->MESH:1
+            MESH:1(( category biolink:ChemicalSubstance ))
+        """,
+        "kp1":
+        """
+            MONDO:1(( category biolink:ChemicalSubstance ))
+            MONDO:1-- predicate biolink:ameliorates -->HP:1
+            HP:1(( category biolink:PhenotypicFeature ))
+        """,
+    },
+    normalizer_data="""
+        MONDO:1 categories biolink:NamedThing
+        MESH:1 categories biolink:ChemicalSubstance
+        HP:1 categories biolink:PhenotypicFeature
+        """
+)
+async def test_solve_double_subclass():
+    """
+    Test that when given a node with a general type that we subclass
+    it and contact all KPs available for information about that node
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id MONDO:1 ))
+        n1(( category biolink:NamedThing ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    output = await sync_query(q)
+
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                MONDO:1 biolink:treated_by MESH:1
+                MONDO:1 biolink:ameliorates HP:1
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:1
+                    n1 MESH:1
+                edge_bindings:
+                    n0n1 MONDO:1-MESH:1
+                """,
+                """
+                node_bindings:
+                    n0 MONDO:1
+                    n1 HP:1
+                edge_bindings:
+                    n0n1 MONDO:1-HP:1
+                """
+            ]
+        },
+        output["message"],
+    )
