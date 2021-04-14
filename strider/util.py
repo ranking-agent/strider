@@ -357,3 +357,43 @@ def add_cors_manually(APP, request, response, cors_options):
             response.headers.add_vary_header("Origin")
 
     return response
+
+def get_from_all(
+    dictionaries: list[dict],
+    key,
+    default=None
+):
+    """
+    Get list of values from dictionaries.
+    If it is not present in any dictionary, return the default value.
+    """
+    values = []
+    for dictionary in dictionaries:
+        value = dictionary.get(key, None)
+        if value is not None:
+            values.append(value)
+    if len(values) > 0:
+        return values
+    else:
+        return default
+
+def merge_listify(values):
+    """
+    Merge values by converting them to lists
+    and concatenating them.
+    """
+    output = []
+    for value in values:
+        if isinstance(value, list):
+            output.extend(value)
+        else:
+            output.append(value)
+    return output
+
+def all_equal(values: list):
+    """ Check that all values in given list are equal """
+    return all(values[0] == v for v in values)
+
+def deduplicate(values: list):
+    """ Simple deduplicate that uses python sets """
+    return list(set(values))
