@@ -2,11 +2,12 @@
 from collections import defaultdict
 import logging
 
-from reasoner_pydantic import Message, Result, QNode, Node, Edge
+from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
 
-from strider.util import deduplicate_by, WrappedBMT, \
-    build_predicate_direction, extract_predicate_direction
+from strider.util import deduplicate_by, WrappedBMT, get_from_all, \
+    build_predicate_direction, extract_predicate_direction, \
+    deduplicate, merge_listify, all_equal
 from strider.normalizer import Normalizer
 from strider.config import settings
 
@@ -28,26 +29,101 @@ def result_hash(result):
     )
     return (node_bindings_information, edge_bindings_information)
 
+def merge_nodes(knodes: list[Node]) -> Node:
+    """ Smart merge function for KNodes """
+    output_knode = {}
+
+    # We don't really know how to merge names
+    # so we just pick the first we are given
+    name_values = get_from_all(knodes, "name")
+    if name_values:
+        output_knode["name"] = name_values[0]
+
+    category_values = get_from_all(knodes, "category")
+    if category_values:
+        output_knode["category"] = \
+            deduplicate(merge_listify(category_values))
+
+    attributes_values = get_from_all(knodes, "attributes")
+    if attributes_values:
+        output_knode["attributes"] = \
+            merge_listify(attributes_values)
+
+    return output_knode
+
+def merge_edges(kedges: list[Edge]) -> Edge:
+    """ Smart merge function for KEdges """
+    output_kedge = {}
+
+    predicate_values = get_from_all(kedges, "predicate")
+    if predicate_values:
+        output_kedge["predicate"] = \
+            deduplicate(merge_listify(predicate_values))
+
+    attributes_values = get_from_all(kedges, "attributes")
+    if attributes_values:
+        output_kedge["attributes"] = \
+            merge_listify(attributes_values)
+
+    subject_values = get_from_all(kedges, "subject")
+    if not all_equal(subject_values):
+        raise ValueError("Unable to merge edges with non matching subjects")
+    output_kedge["subject"] = subject_values[0]
+
+    object_values = get_from_all(kedges, "object")
+    if not all_equal(object_values):
+        raise ValueError("Unable to merge edges with non matching objects")
+    output_kedge["object"] = object_values[0]
+
+
+    return output_kedge
+
+def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
+    """ Merge knowledge graphs. """
+
+    knodes = [kgraph["nodes"] for kgraph in kgraphs]
+    kedges = [kgraph["edges"] for kgraph in kgraphs]
+
+    # Merge Nodes
+    output = {"nodes": {}, "edges" : {}}
+
+    all_node_keys = set()
+    for kgraph in kgraphs:
+        all_node_keys.update(kgraph["nodes"].keys())
+    for node_key in all_node_keys:
+        node_values = get_from_all(knodes, node_key)
+        merged_node = merge_nodes(node_values)
+        output["nodes"][node_key] = merged_node
+
+    # Merge Edges
+    all_edge_keys = set()
+    for kgraph in kgraphs:
+        all_edge_keys.update(kgraph["edges"].keys())
+    for edge_key in all_edge_keys:
+        edge_values = get_from_all(kedges, edge_key)
+        merged_edge = merge_edges(edge_values)
+        output["edges"][edge_key] = merged_edge
+
+    return output
+
 
 def merge_messages(messages: list[Message]) -> Message:
     """Merge messages."""
-    knodes = dict()
-    kedges = dict()
+
+    # Build knowledge graph edge IDs so that we can merge duplicates
+    for m in messages:
+        build_unique_kg_edge_ids(m)
+
+    kgraphs = [m["knowledge_graph"] for m in messages]
+
     results = []
     for message in messages:
-        knodes |= message["knowledge_graph"]["nodes"]
-        kedges |= message["knowledge_graph"]["edges"]
-
         results.extend(message["results"])
-
     results_deduplicated = deduplicate_by(results, result_hash)
 
     return {
         "query_graph": messages[0]["query_graph"],
-        "knowledge_graph": {
-            "nodes": knodes,
-            "edges": kedges
-        },
+        "knowledge_graph": merge_kgraphs(kgraphs),
         "results": results_deduplicated
     }
 
@@ -283,3 +359,23 @@ def add_descendants(
     })
 
     return qg
+
+
+def build_unique_kg_edge_ids(message: Message):
+    """
+    Replace KG edge IDs with a string that represents
+    whether the edge can be merged with other edges
+    """
+    for edge_id in list(message["knowledge_graph"]["edges"].keys()):
+        edge = message["knowledge_graph"]["edges"].pop(edge_id)
+        new_edge_id = f"{edge['subject']}-{edge['object']}"
+
+        # Update knowledge graph
+        message["knowledge_graph"]["edges"][new_edge_id] = edge
+
+        # Update results
+        for result in message["results"]:
+            for edge_binding_list in result["edge_bindings"].values():
+                for eb in edge_binding_list:
+                    if eb["id"] == edge_id:
+                        eb["id"] = new_edge_id

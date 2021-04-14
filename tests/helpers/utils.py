@@ -245,7 +245,7 @@ def validate_message(template, value):
         if not any(
                 edge["subject"] == sub and
                 edge["object"] == obj and
-                edge["predicate"] == predicate
+                predicate in edge["predicate"]
             for edge in value["knowledge_graph"]["edges"].values()
         ):
             raise ValueError(
