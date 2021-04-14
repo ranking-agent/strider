@@ -1213,6 +1213,10 @@ async def test_solve_double_subclass():
         output["message"],
     )
 
+    # Check that the knowledge graph node has the correct category
+    assert set(output["message"]["knowledge_graph"]["nodes"]["MONDO:1"]["category"]) == \
+        {"biolink:ChemicalSubstance", "biolink:Disease"}
+
 
 @pytest.mark.asyncio
 async def test_exception_response():
