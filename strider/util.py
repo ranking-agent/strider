@@ -388,6 +388,11 @@ def merge_listify(values):
     return output
 
 
+def filter_none(values):
+    """ Filter out None values from list """
+    return [v for v in values if v is not None]
+
+
 def all_equal(values: list):
     """ Check that all values in given list are equal """
     return all(values[0] == v for v in values)
