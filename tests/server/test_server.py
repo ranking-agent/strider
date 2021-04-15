@@ -6,7 +6,6 @@ import json
 import os
 import httpx
 from fastapi.responses import Response
-from fastapi.testclient import TestClient
 
 from reasoner_pydantic import Query, Message, QueryGraph
 import pytest
@@ -28,8 +27,9 @@ settings.redis_url = "redis://fakeredis:6379/0"
 
 
 from strider.kp_registry import Registry
-from strider.server import APP, sync_query, generate_traversal_plan
+from strider.server import APP, generate_traversal_plan
 
+client = httpx.AsyncClient(app = APP, base_url="http://test")
 
 setup_logger()
 
@@ -47,16 +47,6 @@ CTD_PREFIXES = {
     **DEFAULT_PREFIXES,
     "biolink:Disease": ["DOID"],
 }
-
-
-def assert_no_warnings_trapi(resp):
-    """
-    Check for any errors or warnings in the log of a trapi response
-    """
-    invalid_levels = ['WARNING', 'ERROR', 'CRITICAL']
-    for log in resp['logs']:
-        if log['level'] in invalid_levels:
-            raise Exception(f"Invalid log record: {log}")
 
 
 @pytest.mark.asyncio
@@ -87,9 +77,9 @@ async def test_solve_ex1():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
-    assert output
     validate_message(
         {
             "knowledge_graph":
@@ -151,8 +141,8 @@ async def test_duplicate_results():
     )
 
     # Run
-    output = await sync_query(q)
-    assert_no_warnings_trapi(output)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     assert len(output['message']['results']) == 1
 
@@ -187,8 +177,10 @@ async def test_solve_missing_predicate():
     )
 
     # Run
-    output = await sync_query(q)
-    assert_no_warnings_trapi(output)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
+
+    assert output["message"]["results"]
 
 
 @pytest.mark.asyncio
@@ -221,7 +213,8 @@ async def test_solve_missing_category():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
 
 @pytest.mark.asyncio
@@ -263,8 +256,10 @@ async def test_normalizer_different_category():
     )
 
     # Run
-    output = await sync_query(q)
-    assert_no_warnings_trapi(output)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
+
+    assert output["message"]["results"]
 
 
 @pytest.mark.asyncio
@@ -323,7 +318,8 @@ async def test_solve_loop(caplog):
         )
     )
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message({
         "knowledge_graph":
@@ -364,7 +360,7 @@ async def test_solve_loop(caplog):
     }
 )
 async def test_log_level_param():
-    """Test that changing the log level given to sync_query changes the output """
+    """Test that changing the log level changes the output """
     with open(cwd / "ex1_qg.json", "r") as f:
         QGRAPH = json.load(f)
 
@@ -376,11 +372,14 @@ async def test_log_level_param():
     )
 
     # Check there are no debug logs
-    output = await sync_query(q, 'INFO')
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
     assert not any(l['level'] == 'DEBUG' for l in output['logs'])
 
     # Check there are now debug logs
-    output = await sync_query(q, 'DEBUG')
+    response = await client.post("/query", json = q.dict(),
+                                 params = {"log_level" : "DEBUG"})
+    output = response.json()
     assert any(l['level'] == 'DEBUG' for l in output['logs'])
 
 
@@ -422,11 +421,8 @@ async def test_plan_ex1():
     )
 
     # Run
-    output = await generate_traversal_plan(q)
-    assert output
-
-    # Check that output is JSON serializeable
-    json.dumps(output)
+    response = await client.post("/plan", json = q.dict())
+    output = response.json()
 
     plan = output[0]
 
@@ -484,7 +480,8 @@ async def test_kp_500():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     # Check that we stored the error
     assert 'Error contacting KP' in output['logs'][0]['message']
@@ -533,7 +530,8 @@ async def test_kp_unavailable():
     )
 
     # Run
-    output = await sync_query(q, log_level="ERROR")
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     # Check that we stored the error
     assert 'RequestError contacting KP' in output['logs'][0]['message']
@@ -582,7 +580,8 @@ async def test_predicate_fanout():
     )
 
     # Run
-    output = await sync_query(q, log_level="DEBUG")
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
     assert len(output["message"]["results"]) == 2
 
 
@@ -627,7 +626,8 @@ async def test_subpredicate():
     )
 
     # Run
-    output = await sync_query(q, log_level="DEBUG")
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
     assert output["message"]["results"]
 
 
@@ -681,7 +681,8 @@ async def test_mutability_bug():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
     assert len(output["message"]["results"]) == 2
 
 
@@ -724,7 +725,8 @@ async def test_inverse_predicate():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message(
         {
@@ -786,7 +788,8 @@ async def test_symmetric_predicate():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
     validate_message({
         "knowledge_graph":
             """
@@ -847,7 +850,8 @@ async def test_issue_102():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message({
         "knowledge_graph":
@@ -916,7 +920,8 @@ async def test_solve_reverse_edge():
     )
 
     # Run
-    output = await sync_query(q, log_level="DEBUG")
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message(
         {
@@ -986,7 +991,8 @@ async def test_solve_multiple_reverse_edges():
     )
 
     # Run
-    output = await sync_query(q, log_level="DEBUG")
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message(
         {
@@ -1049,7 +1055,8 @@ async def test_solve_not_real_predicate():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message(
         {
@@ -1109,7 +1116,8 @@ async def test_convert_protein_to_gene_product():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message(
         {
@@ -1176,7 +1184,8 @@ async def test_solve_double_subclass():
     )
 
     # Run
-    output = await sync_query(q)
+    response = await client.post("/query", json = q.dict())
+    output = response.json()
 
     validate_message(
         {
@@ -1205,9 +1214,8 @@ async def test_solve_double_subclass():
         output["message"],
     )
 
-client = TestClient(APP)
-
-def test_exception_response():
+@pytest.mark.asyncio
+async def test_exception_response():
     """
     Test that an exception's response is a 500 error
     includes the correct CORS headers,
@@ -1216,7 +1224,7 @@ def test_exception_response():
     # Referring to nodes that don't exist will induce a 500 error
     qgraph = {"nodes" : {}, "edges" : {"n0n1": {"subject" : "n0", "object" : "n1"}}}
 
-    response = client.post(
+    response = await client.post(
         "/query",
         json = {"message" : {"query_graph" : qgraph}},
         headers = {"origin" : "http://localhost:80"}
