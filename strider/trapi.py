@@ -1,6 +1,7 @@
 """TRAPI utilities."""
 from collections import defaultdict
 import logging
+import hashlib
 
 from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
@@ -368,9 +369,17 @@ def build_unique_kg_edge_ids(message: Message):
     Replace KG edge IDs with a string that represents
     whether the edge can be merged with other edges
     """
+
+    # Make a copy of the edge keys because we're about to change them
     for edge_id in list(message["knowledge_graph"]["edges"].keys()):
         edge = message["knowledge_graph"]["edges"].pop(edge_id)
-        new_edge_id = f"{edge['subject']}-{edge['predicate']}-{edge['object']}"
+        new_edge_id_string = f"{edge['subject']}-{edge['predicate']}-{edge['object']}"
+
+        # Build hash from ID string
+        new_edge_id = hashlib.blake2b(
+            new_edge_id_string.encode(),
+            digest_size=6,
+        ).hexdigest()
 
         # Update knowledge graph
         message["knowledge_graph"]["edges"][new_edge_id] = edge
