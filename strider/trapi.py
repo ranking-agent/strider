@@ -55,15 +55,15 @@ def merge_edges(kedges: list[Edge]) -> Edge:
     """ Smart merge function for KEdges """
     output_kedge = {}
 
-    predicate_values = get_from_all(kedges, "predicate")
-    if predicate_values:
-        output_kedge["predicate"] = \
-            deduplicate(merge_listify(predicate_values))
-
     attributes_values = get_from_all(kedges, "attributes")
     if attributes_values:
         output_kedge["attributes"] = \
             merge_listify(attributes_values)
+
+    predicate_values = get_from_all(kedges, "predicate")
+    if not all_equal(predicate_values):
+        raise ValueError("Unable to merge edges with non matching predicates")
+    output_kedge["predicate"] = predicate_values[0]
 
     subject_values = get_from_all(kedges, "subject")
     if not all_equal(subject_values):
@@ -368,7 +368,7 @@ def build_unique_kg_edge_ids(message: Message):
     """
     for edge_id in list(message["knowledge_graph"]["edges"].keys()):
         edge = message["knowledge_graph"]["edges"].pop(edge_id)
-        new_edge_id = f"{edge['subject']}-{edge['object']}"
+        new_edge_id = f"{edge['subject']}-{edge['predicate']}-{edge['object']}"
 
         # Update knowledge graph
         message["knowledge_graph"]["edges"][new_edge_id] = edge

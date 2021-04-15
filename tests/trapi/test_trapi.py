@@ -142,7 +142,7 @@ def test_merge_knowledge_graph_nodes():
 def test_merge_knowledge_graph_edges():
     """
     Test that we do a smart merge when given knowledge
-    graph edges with the same subject and object
+    graph edges with the same subject, object, predicate
     """
 
     message_a = {
@@ -179,7 +179,7 @@ def test_merge_knowledge_graph_edges():
                 "n0n1" : {
                     "subject" : "MONDO:1",
                     "object" : "CHEBI:1",
-                    "predicate" : "biolink:related_to",
+                    "predicate" : "biolink:treated_by",
                     "attributes" : [
                         {
                             "attribute_type_id" : "biolink:is_bad",
@@ -191,26 +191,7 @@ def test_merge_knowledge_graph_edges():
         "results": []
     }
 
-    # Another one to check that predicates are deduplicated
-    message_c = {
-        "query_graph": {"nodes": {}, "edges": {}},
-        "knowledge_graph": {
-            "nodes": {
-                "MONDO:1" : {},
-                "CHEBI:1" : {}
-            },
-            "edges": {
-                "n0n1" : {
-                    "subject" : "MONDO:1",
-                    "object" : "CHEBI:1",
-                    "predicate" : "biolink:related_to",
-                }
-            }},
-        "results": []
-    }
-
-    output = merge_messages([message_a, message_b, message_c])
-
+    output = merge_messages([message_a, message_b])
 
     merged_message = {
         "query_graph": {"nodes": {}, "edges": {}},
@@ -220,10 +201,10 @@ def test_merge_knowledge_graph_edges():
                 "CHEBI:1" : {}
             },
             "edges": {
-                "MONDO:1-CHEBI:1" : {
+                "MONDO:1-biolink:treated_by-CHEBI:1" : {
                     "subject" : "MONDO:1",
                     "object" : "CHEBI:1",
-                    "predicate" : ["biolink:related_to", "biolink:treated_by"],
+                    "predicate" : "biolink:treated_by",
                     "attributes" : [
                         {
                             "attribute_type_id" : "biolink:knowledge_source",
@@ -232,7 +213,7 @@ def test_merge_knowledge_graph_edges():
                         {
                             "attribute_type_id" : "biolink:is_bad",
                             "value" : True,
-                        }
+                        },
                     ]
                 }
             }},
