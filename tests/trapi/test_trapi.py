@@ -65,6 +65,17 @@ async def test_deduplicate_results_different():
 
     assert len(output["results"]) == 2
 
+
+ATTRIBUTE_A = {
+    "attribute_type_id": "biolink:knowledge_source",
+    "value": "https://automat.renci.org/",
+}
+ATTRIBUTE_B = {
+    "attribute_type_id": "biolink:is_bad",
+    "value": True,
+}
+
+
 def test_merge_knowledge_graph_nodes():
     """
     Test that we do a smart merge when given knowledge
@@ -75,15 +86,10 @@ def test_merge_knowledge_graph_nodes():
         "query_graph": {"nodes": {}, "edges": {}},
         "knowledge_graph": {
             "nodes": {
-                "MONDO:1" : {
-                    "name" : "Ebola",
-                    "category" : "biolink:Disease",
-                    "attributes" : [
-                        {
-                            "attribute_type_id" : "biolink:knowledge_source",
-                            "value" : "https://automat.renci.org/",
-                        }
-                    ]
+                "MONDO:1": {
+                    "name": "Ebola",
+                    "category": "biolink:Disease",
+                    "attributes": [ATTRIBUTE_A]
                 }
             },
             "edges": {}},
@@ -94,15 +100,10 @@ def test_merge_knowledge_graph_nodes():
         "query_graph": {"nodes": {}, "edges": {}},
         "knowledge_graph": {
             "nodes": {
-                "MONDO:1" : {
-                    "name" : "Ebola Hemorrhagic Fever",
-                    "category" : "biolink:DiseaseOrPhenotypicFeature",
-                    "attributes" : [
-                        {
-                            "attribute_type_id" : "biolink:is_bad",
-                            "value" : True,
-                        }
-                    ]
+                "MONDO:1": {
+                    "name": "Ebola Hemorrhagic Fever",
+                    "category": "biolink:DiseaseOrPhenotypicFeature",
+                    "attributes": [ATTRIBUTE_B]
                 }
             },
             "edges": {}},
@@ -111,33 +112,15 @@ def test_merge_knowledge_graph_nodes():
 
     output = merge_messages([message_a, message_b])
 
-    merged_message = {
-        "query_graph": {"nodes": {}, "edges": {}},
-        "knowledge_graph": {
-            "nodes": {
-                "MONDO:1" : {
-                    "name" : "Ebola",
-                    "category" : [
-                        "biolink:Disease",
-                        "biolink:DiseaseOrPhenotypicFeature",
-                    ],
-                    "attributes" : [
-                        {
-                            "attribute_type_id" : "biolink:knowledge_source",
-                            "value" : "https://automat.renci.org/",
-                        },
-                        {
-                            "attribute_type_id" : "biolink:is_bad",
-                            "value" : True,
-                        }
-                    ]
-                }
-            },
-            "edges": {}},
-        "results": []
-    }
+    # Validate output
+    nodes = output["knowledge_graph"]["nodes"]
+    assert len(nodes) == 1
+    node = next(iter(nodes.values()))
+    assert node["attributes"] == [ATTRIBUTE_A, ATTRIBUTE_B]
 
-    assert output == merged_message
+    assert sorted(node["category"]) == \
+        ["biolink:Disease", "biolink:DiseaseOrPhenotypicFeature"]
+
 
 def test_merge_knowledge_graph_edges():
     """
@@ -149,20 +132,15 @@ def test_merge_knowledge_graph_edges():
         "query_graph": {"nodes": {}, "edges": {}},
         "knowledge_graph": {
             "nodes": {
-                "MONDO:1" : {},
-                "CHEBI:1" : {}
+                "MONDO:1": {},
+                "CHEBI:1": {}
             },
             "edges": {
-                "n0n1" : {
-                    "subject" : "MONDO:1",
-                    "object" : "CHEBI:1",
-                    "predicate" : "biolink:treated_by",
-                    "attributes" : [
-                        {
-                            "attribute_type_id" : "biolink:knowledge_source",
-                            "value" : "https://automat.renci.org/",
-                        },
-                    ]
+                "n0n1": {
+                    "subject": "MONDO:1",
+                    "object": "CHEBI:1",
+                    "predicate": "biolink:treated_by",
+                    "attributes": [ATTRIBUTE_A],
                 }
             }},
         "results": []
@@ -172,20 +150,15 @@ def test_merge_knowledge_graph_edges():
         "query_graph": {"nodes": {}, "edges": {}},
         "knowledge_graph": {
             "nodes": {
-                "MONDO:1" : {},
-                "CHEBI:1" : {}
+                "MONDO:1": {},
+                "CHEBI:1": {}
             },
             "edges": {
-                "n0n1" : {
-                    "subject" : "MONDO:1",
-                    "object" : "CHEBI:1",
-                    "predicate" : "biolink:treated_by",
-                    "attributes" : [
-                        {
-                            "attribute_type_id" : "biolink:is_bad",
-                            "value" : True,
-                        }
-                    ]
+                "n0n1": {
+                    "subject": "MONDO:1",
+                    "object": "CHEBI:1",
+                    "predicate": "biolink:treated_by",
+                    "attributes": [ATTRIBUTE_B],
                 }
             }},
         "results": []
@@ -193,31 +166,9 @@ def test_merge_knowledge_graph_edges():
 
     output = merge_messages([message_a, message_b])
 
-    merged_message = {
-        "query_graph": {"nodes": {}, "edges": {}},
-        "knowledge_graph": {
-            "nodes": {
-                "MONDO:1" : {},
-                "CHEBI:1" : {}
-            },
-            "edges": {
-                "MONDO:1-biolink:treated_by-CHEBI:1" : {
-                    "subject" : "MONDO:1",
-                    "object" : "CHEBI:1",
-                    "predicate" : "biolink:treated_by",
-                    "attributes" : [
-                        {
-                            "attribute_type_id" : "biolink:knowledge_source",
-                            "value" : "https://automat.renci.org/",
-                        },
-                        {
-                            "attribute_type_id" : "biolink:is_bad",
-                            "value" : True,
-                        },
-                    ]
-                }
-            }},
-        "results": []
-    }
+    # Validate output
+    edges = output["knowledge_graph"]["edges"]
+    assert len(edges) == 1
+    edge = next(iter(edges.values()))
 
-    assert output == merged_message
+    assert edge["attributes"] == [ATTRIBUTE_A, ATTRIBUTE_B]
