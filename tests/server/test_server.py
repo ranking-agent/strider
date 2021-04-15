@@ -1,4 +1,6 @@
 """Test Strider."""
+from strider.server import APP, generate_traversal_plan
+from strider.kp_registry import Registry
 from pathlib import Path
 import asyncio
 import itertools
@@ -26,10 +28,7 @@ settings.normalizer_url = "http://normalizer"
 settings.redis_url = "redis://fakeredis:6379/0"
 
 
-from strider.kp_registry import Registry
-from strider.server import APP, generate_traversal_plan
-
-client = httpx.AsyncClient(app = APP, base_url="http://test")
+client = httpx.AsyncClient(app=APP, base_url="http://test")
 
 setup_logger()
 
@@ -77,7 +76,7 @@ async def test_solve_ex1():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -141,7 +140,7 @@ async def test_duplicate_results():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     assert len(output['message']['results']) == 1
@@ -177,7 +176,7 @@ async def test_solve_missing_predicate():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     assert output["message"]["results"]
@@ -213,7 +212,7 @@ async def test_solve_missing_category():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
 
@@ -256,7 +255,7 @@ async def test_normalizer_different_category():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     assert output["message"]["results"]
@@ -318,7 +317,7 @@ async def test_solve_loop(caplog):
         )
     )
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message({
@@ -372,13 +371,13 @@ async def test_log_level_param():
     )
 
     # Check there are no debug logs
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
     assert not any(l['level'] == 'DEBUG' for l in output['logs'])
 
     # Check there are now debug logs
-    response = await client.post("/query", json = q.dict(),
-                                 params = {"log_level" : "DEBUG"})
+    response = await client.post("/query", json=q.dict(),
+                                 params={"log_level": "DEBUG"})
     output = response.json()
     assert any(l['level'] == 'DEBUG' for l in output['logs'])
 
@@ -421,7 +420,7 @@ async def test_plan_ex1():
     )
 
     # Run
-    response = await client.post("/plan", json = q.dict())
+    response = await client.post("/plan", json=q.dict())
     output = response.json()
 
     plan = output[0]
@@ -480,7 +479,7 @@ async def test_kp_500():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     # Check that we stored the error
@@ -490,6 +489,7 @@ async def test_kp_500():
     assert len(output['message']['knowledge_graph']['nodes']) > 0
     assert len(output['message']['knowledge_graph']['edges']) > 0
     assert len(output['message']['results']) > 0
+
 
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
@@ -530,7 +530,7 @@ async def test_kp_unavailable():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     # Check that we stored the error
@@ -580,7 +580,7 @@ async def test_predicate_fanout():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
     assert len(output["message"]["results"]) == 2
 
@@ -626,7 +626,7 @@ async def test_subpredicate():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
     assert output["message"]["results"]
 
@@ -681,7 +681,7 @@ async def test_mutability_bug():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
     assert len(output["message"]["results"]) == 2
 
@@ -725,7 +725,7 @@ async def test_inverse_predicate():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -788,7 +788,7 @@ async def test_symmetric_predicate():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
     validate_message({
         "knowledge_graph":
@@ -850,7 +850,7 @@ async def test_issue_102():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message({
@@ -920,7 +920,7 @@ async def test_solve_reverse_edge():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -991,7 +991,7 @@ async def test_solve_multiple_reverse_edges():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -1015,6 +1015,7 @@ async def test_solve_multiple_reverse_edges():
         },
         output["message"],
     )
+
 
 @pytest.mark.asyncio
 @with_translator_overlay(
@@ -1055,7 +1056,7 @@ async def test_solve_not_real_predicate():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -1076,6 +1077,7 @@ async def test_solve_not_real_predicate():
         },
         output["message"],
     )
+
 
 @pytest.mark.asyncio
 @with_translator_overlay(
@@ -1116,7 +1118,7 @@ async def test_convert_protein_to_gene_product():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -1137,6 +1139,7 @@ async def test_convert_protein_to_gene_product():
         },
         output["message"],
     )
+
 
 @pytest.mark.asyncio
 @with_translator_overlay(
@@ -1184,7 +1187,7 @@ async def test_solve_double_subclass():
     )
 
     # Run
-    response = await client.post("/query", json = q.dict())
+    response = await client.post("/query", json=q.dict())
     output = response.json()
 
     validate_message(
@@ -1214,6 +1217,7 @@ async def test_solve_double_subclass():
         output["message"],
     )
 
+
 @pytest.mark.asyncio
 async def test_exception_response():
     """
@@ -1222,12 +1226,13 @@ async def test_exception_response():
     and is a valid TRAPI message with a log included
     """
     # Referring to nodes that don't exist will induce a 500 error
-    qgraph = {"nodes" : {}, "edges" : {"n0n1": {"subject" : "n0", "object" : "n1"}}}
+    qgraph = {"nodes": {}, "edges": {
+        "n0n1": {"subject": "n0", "object": "n1"}}}
 
     response = await client.post(
         "/query",
-        json = {"message" : {"query_graph" : qgraph}},
-        headers = {"origin" : "http://localhost:80"}
+        json={"message": {"query_graph": qgraph}},
+        headers={"origin": "http://localhost:80"}
     )
 
     assert response.status_code == 500
