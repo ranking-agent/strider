@@ -1,36 +1,32 @@
 """Test Strider."""
-from strider.server import APP, generate_traversal_plan
-from strider.kp_registry import Registry
-from pathlib import Path
-import asyncio
-import itertools
 import json
-import os
-import httpx
+from pathlib import Path
+
 from fastapi.responses import Response
-
-from reasoner_pydantic import Query, Message, QueryGraph
+import httpx
 import pytest
+from reasoner_pydantic import Query, Message, QueryGraph
 
-from tests.helpers.logger import setup_logger
 from tests.helpers.context import \
     with_translator_overlay, with_registry_overlay, \
     with_norm_overlay, with_response_overlay
+from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 
 from strider.config import settings
-
-cwd = Path(__file__).parent
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 settings.redis_url = "redis://fakeredis:6379/0"
 
+from strider.server import APP
 
 client = httpx.AsyncClient(app=APP, base_url="http://test")
 
 setup_logger()
+
+cwd = Path(__file__).parent
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
