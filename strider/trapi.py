@@ -29,6 +29,7 @@ def result_hash(result):
     )
     return (node_bindings_information, edge_bindings_information)
 
+
 def merge_nodes(knodes: list[Node]) -> Node:
     """ Smart merge function for KNodes """
     output_knode = {}
@@ -50,6 +51,7 @@ def merge_nodes(knodes: list[Node]) -> Node:
             merge_listify(attributes_values)
 
     return output_knode
+
 
 def merge_edges(kedges: list[Edge]) -> Edge:
     """ Smart merge function for KEdges """
@@ -75,8 +77,8 @@ def merge_edges(kedges: list[Edge]) -> Edge:
         raise ValueError("Unable to merge edges with non matching objects")
     output_kedge["object"] = object_values[0]
 
-
     return output_kedge
+
 
 def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
     """ Merge knowledge graphs. """
@@ -85,7 +87,7 @@ def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
     kedges = [kgraph["edges"] for kgraph in kgraphs]
 
     # Merge Nodes
-    output = {"nodes": {}, "edges" : {}}
+    output = {"nodes": {}, "edges": {}}
 
     all_node_keys = set()
     for kgraph in kgraphs:

@@ -130,8 +130,6 @@ class WrappedBMT():
             return element.id_prefixes
 
 
-
-
 async def post_json(url, request):
     """Make post request."""
     async with httpx.AsyncClient(verify=False, timeout=None) as client:
@@ -318,6 +316,7 @@ def remove_null_values(obj):
     else:
         return obj
 
+
 def add_cors_manually(APP, request, response, cors_options):
     """
     Add CORS to a response manually
@@ -358,6 +357,7 @@ def add_cors_manually(APP, request, response, cors_options):
 
     return response
 
+
 def get_from_all(
     dictionaries: list[dict],
     key,
@@ -367,15 +367,12 @@ def get_from_all(
     Get list of values from dictionaries.
     If it is not present in any dictionary, return the default value.
     """
-    values = []
-    for dictionary in dictionaries:
-        value = dictionary.get(key, None)
-        if value is not None:
-            values.append(value)
+    values = [d[key] for d in dictionaries if key in d]
     if len(values) > 0:
         return values
     else:
         return default
+
 
 def merge_listify(values):
     """
@@ -390,9 +387,11 @@ def merge_listify(values):
             output.append(value)
     return output
 
+
 def all_equal(values: list):
     """ Check that all values in given list are equal """
     return all(values[0] == v for v in values)
+
 
 def deduplicate(values: list):
     """ Simple deduplicate that uses python sets """
