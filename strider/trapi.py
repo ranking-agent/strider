@@ -6,7 +6,7 @@ import hashlib
 from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
 
-from strider.util import deduplicate_by, WrappedBMT, get_from_all, \
+from strider.util import deduplicate_by, WrappedBMT, filter_none, get_from_all, \
     build_predicate_direction, extract_predicate_direction, \
     deduplicate, merge_listify, all_equal
 from strider.normalizer import Normalizer
@@ -49,7 +49,7 @@ def merge_nodes(knodes: list[Node]) -> Node:
     attributes_values = get_from_all(knodes, "attributes")
     if attributes_values:
         output_knode["attributes"] = \
-            merge_listify(attributes_values)
+            filter_none(merge_listify(attributes_values))
 
     return output_knode
 
@@ -61,7 +61,7 @@ def merge_edges(kedges: list[Edge]) -> Edge:
     attributes_values = get_from_all(kedges, "attributes")
     if attributes_values:
         output_kedge["attributes"] = \
-            merge_listify(attributes_values)
+            filter_none(merge_listify(attributes_values))
 
     predicate_values = get_from_all(kedges, "predicate")
     if not all_equal(predicate_values):
