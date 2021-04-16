@@ -161,27 +161,29 @@ class StriderWorker(Worker):
 
         self.logger.debug({"plan": self.plan})
 
-        # add partial results for each curie that we are given
-        for qnode_id, qnode in self.qgraph["nodes"].items():
+        # Initialize results
 
-            # Remove ID from query graph because we will
-            # add it back manually later in the get_kp_request_body
-            # function
-            curies = qnode.pop("id", None)
-            if not curies:
-                continue
+        first_step = next(iter(self.plan.keys()))
+        pinned_node_id = first_step.source
+        pinned_node = self.qgraph["nodes"][pinned_node_id]
 
-            for curie in curies:
-                result = {
-                    "node_bindings": {
-                        qnode_id: [{
-                            "id": curie,
-                            "category": qnode["category"][0],
-                        }]
-                    },
-                    "edge_bindings": {},
-                }
-                await self.put(result)
+        # Remove ID from pinned node because we will
+        # add it back manually later in the get_kp_request_body
+        # function
+        curies = pinned_node.pop("id")
+
+        # Add partial results for each curie we are given
+        for curie in curies:
+            result = {
+                "node_bindings": {
+                    pinned_node_id: [{
+                        "id": curie,
+                        "category": pinned_node["category"][0],
+                    }]
+                },
+                "edge_bindings": {},
+            }
+            await self.put(result)
 
     def next_step(
             self,
