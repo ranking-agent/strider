@@ -1219,6 +1219,68 @@ async def test_solve_double_subclass():
 
 
 @pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:1(( category biolink:Disease ))
+            MONDO:1-- predicate biolink:treated_by -->CHEBI:1
+            CHEBI:1(( category biolink:ChemicalSubstance ))
+        """
+    },
+    normalizer_data="""
+        MONDO:1 categories biolink:Disease
+        CHEBI:1 categories biolink:ChemicalSubstance
+        """
+)
+async def test_pinned_to_pinned():
+    """
+    Test that we can solve a query to check if a pinned node is
+    connected to another pinned node
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id MONDO:1 ))
+        n1(( id CHEBI:1 ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    response = await client.post("/query", json=q.dict())
+    output = response.json()
+
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                MONDO:1 biolink:treated_by CHEBI:1
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:1
+                    n1 CHEBI:1
+                edge_bindings:
+                    n0n1 MONDO:1-CHEBI:1
+                """,
+            ]
+        },
+        output["message"],
+    )
+
+
+@pytest.mark.asyncio
 async def test_exception_response():
     """
     Test that an exception's response is a 500 error
