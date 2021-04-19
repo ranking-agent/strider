@@ -21,7 +21,7 @@ from reasoner_pydantic import QueryGraph, Result, Response
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
-from .trapi import merge_messages, merge_results, \
+from .trapi import filter_bound, merge_messages, merge_results, \
     fill_categories_predicates
 from .worker import Worker
 from .caching import async_locking_cache
@@ -232,6 +232,10 @@ class StriderWorker(Worker):
             if kp["source_category"] in all_valid_categories
             or kp["target_category"] in all_valid_categories
         ))
+
+        for response in responses:
+            filter_bound(response, self.qgraph)
+
         return merge_messages(responses)
 
     async def on_message(
@@ -309,6 +313,9 @@ def get_kp_request_body(
 
     # Fill in the current curie
     request_source["id"] = curie
+    # Remove ID from the target if present
+    # because KPs can't handle it properly
+    request_target.pop("id", None)
 
     # Build request
     request_qgraph = {

@@ -1227,12 +1227,15 @@ async def test_solve_double_subclass():
         """
             MONDO:1(( category biolink:Disease ))
             MONDO:1-- predicate biolink:treated_by -->CHEBI:1
+            MONDO:1-- predicate biolink:treated_by -->CHEBI:2
             CHEBI:1(( category biolink:ChemicalSubstance ))
+            CHEBI:2(( category biolink:ChemicalSubstance ))
         """
     },
     normalizer_data="""
         MONDO:1 categories biolink:Disease
         CHEBI:1 categories biolink:ChemicalSubstance
+        CHEBI:2 categories biolink:ChemicalSubstance
         """
 )
 async def test_pinned_to_pinned():
@@ -1259,6 +1262,8 @@ async def test_pinned_to_pinned():
     # Run
     response = await client.post("/query", json=q.dict())
     output = response.json()
+
+    breakpoint()
 
     validate_message(
         {
