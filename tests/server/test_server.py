@@ -1284,6 +1284,63 @@ async def test_pinned_to_pinned():
 
 
 @pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            CHEBI:1(( category biolink:ChemicalSubstance ))
+            CHEBI:1-- predicate biolink:increases_uptake_of -->CHEBI:1
+        """
+    },
+    normalizer_data="""
+        CHEBI:1 categories biolink:ChemicalSubstance
+        """
+)
+async def test_self_edge():
+    """
+    Test that we can solve a query with a self-edge
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:1 ))
+        n0-- biolink:related_to -->n0
+        """
+    )
+
+    # Create query
+    q = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(QGRAPH)
+        )
+    )
+
+    # Run
+    response = await client.post("/query", json=q.dict())
+    output = response.json()
+
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:1 biolink:increases_uptake_of CHEBI:1
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 CHEBI:1
+                edge_bindings:
+                    n0n0 CHEBI:1-CHEBI:1
+                """,
+            ]
+        },
+        output["message"],
+    )
+
+
+@pytest.mark.asyncio
 async def test_exception_response():
     """
     Test that an exception's response is a 500 error
