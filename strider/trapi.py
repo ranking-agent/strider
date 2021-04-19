@@ -5,10 +5,11 @@ import hashlib
 
 from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
+from reasoner_pydantic.results import NodeBinding
 
-from strider.util import deduplicate_by, WrappedBMT, filter_none, get_from_all, \
+from strider.util import deduplicate_by, WrappedBMT, ensure_list, filter_none, get_from_all, \
     build_predicate_direction, extract_predicate_direction, \
-    deduplicate, merge_listify, all_equal
+    deduplicate, listify_value, merge_listify, all_equal
 from strider.normalizer import Normalizer
 from strider.config import settings
 
@@ -390,3 +391,68 @@ def build_unique_kg_edge_ids(message: Message):
                 for eb in edge_binding_list:
                     if eb["id"] == edge_id:
                         eb["id"] = new_edge_id
+
+def is_valid_node_binding(message, nb, qgraph_node):
+    """
+    Check whether the given kgraph node
+    satisifies the given qgraph node
+    """
+    if "id" in qgraph_node:
+        if nb["id"] not in qgraph_node["id"]:
+            return False
+
+    kgraph_node = message["knowledge_graph"]["nodes"][nb["id"]]
+    if "category" in qgraph_node:
+        # Build list of allowable categories for kgraph nodes
+        qgraph_allowable_categories = []
+        for c in ensure_list(qgraph_node["category"]):
+            qgraph_allowable_categories.extend(
+                WBMT.get_descendants(c)
+            )
+
+        # Check that all categories on this
+        # kgraph node are allowed
+        if not all(
+            c in qgraph_allowable_categories
+            for c in kgraph_node["category"]
+        ):
+            return False
+    return True
+
+
+def filter_bound(message, qgraph):
+    """
+    Validate a message to ensure that all bound nodes
+    and edges match the given query graph
+    """
+
+    for result in message["results"]:
+        for qgraph_id in list(result["node_bindings"].keys()):
+            qgraph_node = qgraph["nodes"][qgraph_id]
+
+            result["node_bindings"][qgraph_id] = [
+                nb for nb in result["node_bindings"][qgraph_id]
+                if is_valid_node_binding(message, nb, qgraph_node)
+            ]
+        for edge_binding_list in result["edge_bindings"].values():
+            for eb in edge_binding_list:
+                pass
+
+
+def remove_unbound_knodes(message, node_id):
+    """
+    Remove all knowledge graph nodes without a binding
+    and remove knowledge graph edges that reference unbound nodes
+    """
+    # Update knowledge graph
+    del message["knowledge_graph"]["nodes"][node_id]
+
+    # Update results
+    for result in message["results"]:
+        for qgraph_id, node_binding_list in result["node_bindings"].items():
+            new_node_binding_list = [
+                nb for nb in node_binding_list
+                if nb["id"] != node_id
+            ]
+            result[qgraph_id] = new_node_binding_list
+
