@@ -36,6 +36,7 @@ registry = Registry(settings.kpregistry_url)
 # Initialize BMT
 WBMT = WrappedBMT()
 
+SELF_EDGE_SUFFIX = ".self"
 
 class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """
@@ -306,14 +307,25 @@ def get_kp_request_body(
     request_source["category"] = kp["source_category"]
     request_target["category"] = kp["target_category"]
 
+    # Fill in the current curie
+    request_source["id"] = curie
+
+    source = step.source
+    target = step.target
+
+    # If this is a self edge add a suffix to the target
+    # to make sure that we send two nodes to the KP
+    if source == target:
+        target += SELF_EDGE_SUFFIX
+
     # If we have a reversed predicate (<-predicate-)
     # then we look up from object to subject
     if reverse:
-        request_edge["subject"] = step.target
-        request_edge["object"] = step.source
+        request_edge["subject"] = target
+        request_edge["object"] = source
     else:
-        request_edge["subject"] = step.source
-        request_edge["object"] = step.target
+        request_edge["subject"] = source
+        request_edge["object"] = target
 
     # Fill in the current curie
     request_source["id"] = curie
@@ -324,8 +336,8 @@ def get_kp_request_body(
     # Build request
     request_qgraph = {
         "nodes": {
-            step.source: request_source,
-            step.target: request_target,
+            source: request_source,
+            target: request_target,
         },
         "edges": {
             step.edge: request_edge
