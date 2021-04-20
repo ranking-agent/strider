@@ -419,6 +419,31 @@ def is_valid_node_binding(message, nb, qgraph_node):
             return False
     return True
 
+def is_valid_edge_binding(message, eb, qgraph_edge):
+    """
+    Check whether the given kgraph edge
+    satisifies the given qgraph edge
+    """
+    if "id" in qgraph_edge:
+        if eb["id"] not in qgraph_edge["id"]:
+            return False
+
+    kgraph_edge = message["knowledge_graph"]["edges"][eb["id"]]
+    if "predicate" in qgraph_edge:
+        # Build list of allowable predicates for kgraph edges
+        allowable_predicates = []
+        for c in ensure_list(qgraph_edge["predicate"]):
+            allowable_predicates.extend(
+                WBMT.get_descendants(c)
+            )
+
+        # Check that all predicates on this
+        # kgraph edge are allowed
+        if kgraph_edge["predicate"] not in allowable_predicates:
+            return False
+
+    return True
+
 
 def filter_bound(message, qgraph):
     """
@@ -434,25 +459,51 @@ def filter_bound(message, qgraph):
                 nb for nb in result["node_bindings"][qgraph_id]
                 if is_valid_node_binding(message, nb, qgraph_node)
             ]
-        for edge_binding_list in result["edge_bindings"].values():
-            for eb in edge_binding_list:
-                pass
+        for qgraph_id in list(result["edge_bindings"].keys()):
+            qgraph_edge = qgraph["edges"][qgraph_id]
 
-
-def remove_unbound_knodes(message, node_id):
-    """
-    Remove all knowledge graph nodes without a binding
-    and remove knowledge graph edges that reference unbound nodes
-    """
-    # Update knowledge graph
-    del message["knowledge_graph"]["nodes"][node_id]
-
-    # Update results
-    for result in message["results"]:
-        for qgraph_id, node_binding_list in result["node_bindings"].items():
-            new_node_binding_list = [
-                nb for nb in node_binding_list
-                if nb["id"] != node_id
+            result["edge_bindings"][qgraph_id] = [
+                eb for eb in result["edge_bindings"][qgraph_id]
+                if is_valid_edge_binding(message, eb, qgraph_edge)
             ]
-            result[qgraph_id] = new_node_binding_list
 
+    remove_unbound(message)
+
+    # Right now we have to do another pass to ensure that
+    # the edge bindings reflect any removed edges
+    for result in message["results"]:
+        for qgraph_id in list(result["edge_bindings"].keys()):
+            result["edge_bindings"][qgraph_id] = [
+                eb for eb in result["edge_bindings"][qgraph_id]
+                if eb["id"] in message["knowledge_graph"]["edges"]
+            ]
+
+
+def remove_unbound(message):
+    """
+    Remove all knowledge graph nodes and edges without a binding
+    Also remove knowledge graph edges that reference unbound nodes
+    """
+
+    bound_knodes = set()
+    for result in message["results"]:
+        for node_binding_list in result["node_bindings"].values():
+            for nb in node_binding_list:
+                bound_knodes.add(nb["id"])
+    bound_kedges = set()
+    for result in message["results"]:
+        for edge_binding_list in result["edge_bindings"].values():
+            for nb in edge_binding_list:
+                bound_kedges.add(nb["id"])
+
+    message["knowledge_graph"]["nodes"] = {
+        nid:node for nid,node in message["knowledge_graph"]["nodes"].items()
+        if nid in bound_knodes
+    }
+
+    message["knowledge_graph"]["edges"] = {
+        eid:edge for eid,edge in message["knowledge_graph"]["edges"].items()
+        if eid in bound_kedges
+        and edge["subject"] in bound_knodes
+        and edge["object"] in bound_knodes
+    }
