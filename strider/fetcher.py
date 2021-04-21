@@ -234,6 +234,15 @@ class StriderWorker(Worker):
         ))
 
         for response in responses:
+
+            # Fix self edges to point to the correct node
+            # (without .self suffix)
+            for result in response["results"]:
+                for qg_id in list(result["node_bindings"].keys()):
+                    if qg_id.endswith(SELF_EDGE_SUFFIX):
+                        nb_list = result["node_bindings"].pop(qg_id)
+                        result["node_bindings"][qg_id[:-len(SELF_EDGE_SUFFIX)]] = nb_list
+
             standardize_graph_lists(
                 response["knowledge_graph"],
                 node_fields = ["category"],
