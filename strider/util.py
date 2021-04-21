@@ -167,14 +167,16 @@ def listify_value(input_dictionary: dict[str, any], key: str):
         input_dictionary[key] = [input_dictionary[key]]
 
 
-def standardize_graph_lists(graph: dict[str, dict]):
+def standardize_graph_lists(
+        graph: dict[str, dict],
+        node_fields: list[str] = ["id", "category"],
+        edge_fields: list[str] = ["predicate"],
+):
     """ Convert fields that are given as a string to a list """
-    node_fields = ['id', 'category']
     for node in graph['nodes'].values():
         for field in node_fields:
             listify_value(node, field)
 
-    edge_fields = ['predicate']
     for edge in graph['edges'].values():
         for field in edge_fields:
             listify_value(edge, field)

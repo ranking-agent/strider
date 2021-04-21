@@ -12,7 +12,6 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 import asyncio
 from collections.abc import Iterable
 import logging
-import json
 from datetime import datetime
 from typing import Optional
 import jsonpickle
@@ -21,7 +20,7 @@ from reasoner_pydantic import QueryGraph, Result, Response
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
-from .trapi import filter_bound, merge_messages, merge_results, \
+from .trapi import filter_by_qgraph, merge_messages, merge_results, \
     fill_categories_predicates
 from .worker import Worker
 from .caching import async_locking_cache
@@ -234,7 +233,12 @@ class StriderWorker(Worker):
         ))
 
         for response in responses:
-            filter_bound(response, self.qgraph)
+            standardize_graph_lists(
+                response["knowledge_graph"],
+                node_fields = ["category"],
+                edge_fields = [],
+            )
+            filter_by_qgraph(response, self.qgraph)
 
         return merge_messages(responses)
 
