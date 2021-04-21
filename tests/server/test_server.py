@@ -1263,8 +1263,6 @@ async def test_pinned_to_pinned():
     response = await client.post("/query", json=q.dict())
     output = response.json()
 
-    breakpoint()
-
     validate_message(
         {
             "knowledge_graph":
