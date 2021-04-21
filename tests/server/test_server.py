@@ -26,8 +26,6 @@ client = httpx.AsyncClient(app=APP, base_url="http://test")
 
 setup_logger()
 
-cwd = Path(__file__).parent
-
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
     "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
@@ -61,8 +59,16 @@ CTD_PREFIXES = {
 )
 async def test_solve_ex1():
     """Test solving the ex1 query graph"""
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
 
     # Create query
     q = Query(
@@ -89,8 +95,8 @@ async def test_solve_ex1():
                     n1 MONDO:0005148
                     n2 HP:0004324
                 edge_bindings:
-                    e01 CHEBI:6801-MONDO:0005148
-                    e12 MONDO:0005148-HP:0004324
+                    n0n1 CHEBI:6801-MONDO:0005148
+                    n1n2 MONDO:0005148-HP:0004324
                 """
             ],
         },
@@ -158,11 +164,19 @@ async def test_duplicate_results():
     }
 )
 async def test_solve_missing_predicate():
-    """Test solving the ex1 query graph, in which one of the predicates is missing. """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
+    """Test solving a query graph, in which one of the predicates is missing. """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
 
-    del QGRAPH['edges']['e01']['predicate']
+    del QGRAPH['edges']['n0n1']['predicate']
 
     # Create query
     q = Query(
@@ -195,8 +209,16 @@ async def test_solve_missing_predicate():
 )
 async def test_solve_missing_category():
     """Test solving the ex1 query graph, in which one of the categories is missing. """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
 
     del QGRAPH['nodes']['n0']['category']
 
@@ -356,8 +378,16 @@ async def test_solve_loop(caplog):
 )
 async def test_log_level_param():
     """Test that changing the log level changes the output """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
 
     # Create query
     q = Query(
@@ -403,10 +433,18 @@ async def test_log_level_param():
         """
     }
 )
-async def test_plan_ex1():
+async def test_plan_endpoint():
     """Test /plan endpoint"""
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
 
     # Create query
     q = Query(
@@ -422,8 +460,8 @@ async def test_plan_ex1():
     plan = output[0]
 
     # Two steps in the plan each with KPs to contact
-    assert len(plan['n0-e01-n1']) == 2
-    assert len(plan['n1-e12-n2']) == 1
+    assert len(plan['n0-n0n1-n1']) == 2
+    assert len(plan['n1-n1n2-n2']) == 1
 
 
 @pytest.mark.asyncio
@@ -464,8 +502,16 @@ async def test_kp_500():
     Test that when a KP returns a 500 error we add
     a message to the log but continue running
     """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        QGRAPH = json.load(f)
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n2(( category biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
 
     # Create query
     q = Query(
