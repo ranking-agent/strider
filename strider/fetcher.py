@@ -234,7 +234,6 @@ class StriderWorker(Worker):
         ))
 
         for response in responses:
-
             # Fix self edges to point to the correct node
             # (without .self suffix)
             for result in response["results"]:
