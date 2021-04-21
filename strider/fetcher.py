@@ -336,8 +336,6 @@ def get_kp_request_body(
         request_edge["subject"] = source
         request_edge["object"] = target
 
-    # Fill in the current curie
-    request_source["id"] = curie
     # Remove ID from the target if present
     # because KPs can't handle it properly
     request_target.pop("id", None)
