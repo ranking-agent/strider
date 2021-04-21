@@ -7,7 +7,7 @@ import pytest
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import load_kps, generate_kps, validate_template, \
+from tests.helpers.utils import generate_kps, validate_template, \
     time_and_display, query_graph_from_string, \
     kps_from_string, plan_template_from_string
 from tests.helpers.logger import assert_no_level
@@ -21,8 +21,6 @@ from strider.trapi import fill_categories_predicates
 
 from strider.config import settings
 from strider.util import standardize_graph_lists
-
-cwd = Path(__file__).parent
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
@@ -335,16 +333,30 @@ async def test_plan_double_loop(caplog):
     assert_no_level(caplog, logging.WARNING)
 
 
-ex1_kps = load_kps(cwd / "ex1_kps.json")
-
-
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
+        kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+        kp1 biolink:Drug -biolink:affects-> biolink:Gene
+        kp2 biolink:MolecularEntity -biolink:decreases_abundance_of-> biolink:GeneOrGeneProduct
+        kp3 biolink:Disease -biolink:treated_by-> biolink:MolecularEntity
+        """
+    )
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        qg = json.load(f)
+    qg = query_graph_from_string(
+        """
+        n0(( category biolink:MolecularEntity ))
+        n1(( id MONDO:0005148 ))
+        n2(( category biolink:GeneOrGeneProduct ))
+        n1-- biolink:treated_by -->n0
+        n0-- biolink:affects_abundance_of -->n2
+        """
+    )
     await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
@@ -601,8 +613,21 @@ async def test_planning_performance_typical_example():
     We should be able to do better on performance using our filtering methods.
     """
 
-    with open(cwd / "ex2_qg.json", "r") as f:
-        qg = json.load(f)
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005737 ))
+        n1(( category biolink:BiologicalProcessOrActivity ))
+        n2(( category biolink:AnatomicalEntity ))
+        n3(( category biolink:PhenotypicFeature ))
+        n4(( category biolink:PhenotypicFeature ))
+        n5(( id MONDO:6801 ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        n2-- biolink:related_to -->n3
+        n3-- biolink:related_to -->n4
+        n4-- biolink:related_to -->n5
+        """
+    )
     await prepare_query_graph(qg)
 
     async def testable_generate_plans():
