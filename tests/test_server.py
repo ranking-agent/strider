@@ -74,7 +74,7 @@ async def test_solve_ex1():
     q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query?log_level=DEBUG", json=q)
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -374,9 +374,10 @@ async def test_log_level_param():
     output = response.json()
     assert not any(l['level'] == 'DEBUG' for l in output['logs'])
 
+    q["log_level"] = "DEBUG"
+
     # Check there are now debug logs
-    response = await client.post("/query", json=q,
-                                 params={"log_level": "DEBUG"})
+    response = await client.post("/query", json=q)
     output = response.json()
     assert any(l['level'] == 'DEBUG' for l in output['logs'])
 

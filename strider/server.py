@@ -29,7 +29,6 @@ from .scoring import score_graph
 from .results import get_db, Database
 from .storage import RedisGraph, RedisList
 from .config import settings
-from .logging import LogLevelEnum
 from .util import add_cors_manually, standardize_graph_lists
 from .trapi import fill_categories_predicates, add_descendants
 
@@ -197,7 +196,6 @@ async def process_query(
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
-        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Start query processing."""
     # Generate Query ID
@@ -209,6 +207,8 @@ async def async_query(
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph")
     redis_query_graph.set(query_graph)
+
+    log_level = query.dict()["log_level"] or "ERROR"
 
     # Start processing
     background_tasks.add_task(process_query, qid, log_level)
@@ -228,7 +228,6 @@ async def get_results(
 @APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
-        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Handle synchronous query."""
     # Generate Query ID
@@ -240,6 +239,8 @@ async def sync_query(
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph")
     redis_query_graph.set(query_graph)
+
+    log_level = query.dict()["log_level"] or "ERROR"
 
     # Process query and wait for results
     query_results = await process_query(qid, log_level)
