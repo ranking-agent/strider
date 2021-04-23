@@ -8,7 +8,7 @@ import pytest
 from reasoner_pydantic import Query, Message, QueryGraph
 
 from tests.helpers.context import \
-    with_translator_overlay, with_registry_overlay, \
+    response_overlay, with_translator_overlay, with_registry_overlay, \
     with_norm_overlay, with_response_overlay
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
@@ -538,6 +538,54 @@ async def test_kp_unavailable():
 
     # Check that we stored the error
     assert 'RequestError contacting KP' in output['logs'][0]['message']
+
+@pytest.mark.asyncio
+@with_norm_overlay(settings.normalizer_url)
+@with_registry_overlay(
+    settings.kpregistry_url, {
+        'ctd': {
+            'url':
+            'http://ctd/query',
+            'operations': [{
+                'source_type': 'biolink:ChemicalSubstance',
+                'edge_type': '-biolink:treats->',
+                'target_type': 'biolink:Disease'
+            }],
+            'details': {
+                'preferred_prefixes': {}
+            }
+        }
+    })
+@with_response_overlay(
+    "http://ctd/query",
+    Response(
+        status_code=200,
+        content=json.dumps({"message": None}),
+    )
+)
+async def test_kp_not_trapi():
+    """
+    Test that when a KP is unavailable we add a message to
+    the log but continue running
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:ChemicalSubstance ))
+        n0(( id CHEBI:6801 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Disease ))
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    # Check that we stored the error
+    assert 'Received non-TRAPI compliant response from KP' in output['logs'][0]['message']
 
 
 @pytest.mark.asyncio
