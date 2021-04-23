@@ -174,6 +174,47 @@ def test_merge_knowledge_graph_edges():
     assert edge["attributes"] == [ATTRIBUTE_A, ATTRIBUTE_B]
 
 
+def test_merge_identical_attributes():
+    """
+    Tests that identical attributes are merged
+    """
+
+    message_a = {
+        "query_graph": {"nodes": {}, "edges": {}},
+        "knowledge_graph": {
+            "nodes": {
+                "MONDO:1": {
+                    "name": "Ebola",
+                    "category": "biolink:Disease",
+                    "attributes": [ATTRIBUTE_A]
+                }
+            },
+            "edges": {}},
+        "results": []
+    }
+
+    message_b = {
+        "query_graph": {"nodes": {}, "edges": {}},
+        "knowledge_graph": {
+            "nodes": {
+                "MONDO:1": {
+                    "name": "Ebola Hemorrhagic Fever",
+                    "category": "biolink:DiseaseOrPhenotypicFeature",
+                    "attributes": [ATTRIBUTE_A]
+                }
+            },
+            "edges": {}},
+        "results": []
+    }
+
+    output = merge_messages([message_a, message_b])
+
+    # Validate output
+    nodes = output["knowledge_graph"]["nodes"]
+    assert len(nodes) == 1
+    node = next(iter(nodes.values()))
+    assert node["attributes"] == [ATTRIBUTE_A]
+
 def test_filter_by_qgraph_id():
     """
     Test that the filter_by_qgraph method
