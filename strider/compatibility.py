@@ -5,8 +5,10 @@ import logging
 import os
 
 import httpx
+import pydantic
 from reasoner_converter.upgrading import upgrade_BiolinkEntity
 from reasoner_pydantic import Message
+from reasoner_pydantic.message import Response
 
 from .util import post_json, remove_null_values
 from .trapi import apply_curie_map, get_curies
@@ -61,6 +63,10 @@ class KnowledgePortal():
 
         try:
             response = await post_json(url, request)
+
+            # Parse with reasoner_pydantic to validate
+            response = Response.parse_obj(response).dict()
+
             message = response["message"]
 
             # Log sucessful request
@@ -85,6 +91,13 @@ class KnowledgePortal():
                 "response": e.response.text,
                 "error": str(e),
             })
+        except pydantic.ValidationError as e:
+            self.logger.error({
+                "message": "Received non-TRAPI compliant response from KP",
+                "response": response,
+                "error": str(e),
+            })
+
 
         if not message:
             # Continue processing with an empty response object
@@ -104,8 +117,7 @@ def add_source(message: Message, source: str):
     """Add source annotation to kedges."""
     for kedge in message["knowledge_graph"]["edges"].values():
         kedge["attributes"] = [dict(
-            name="provenance",
-            type="MetaInformation",
+            attribute_type_id="MetaInformation:Provenance",
             value=source,
         )]
 
