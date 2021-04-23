@@ -138,6 +138,14 @@ class StriderWorker(Worker):
                 for category in node["category"]
             ]
 
+        # Check for constraints
+        for node in self.qgraph["nodes"].values():
+            if node["constraints"]:
+                raise ValueError("Unable to process query due to constraints")
+        for edge in self.qgraph["edges"].values():
+            if edge["constraints"]:
+                raise ValueError("Unable to process query due to constraints")
+
     async def generate_plan(self):
         """
         Use the self.qgraph object to generate a plan and store it
