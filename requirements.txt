@@ -14,5 +14,5 @@ uvicorn==0.11.7
 jsonpickle==1.4.2
 python-dotenv==0.17.0
 git+git://github.com/patrickkwang/fastapi@tos#egg=fastapi
-git+git://github.com/ranking-agent/reasoner-pydantic@v1.0.0#egg=reasoner-pydantic
+git+git://github.com/ranking-agent/reasoner-pydantic@trapi-v1.1#egg=reasoner-pydantic
 git+git://github.com/TranslatorSRI/reasoner-converter
