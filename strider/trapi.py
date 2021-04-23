@@ -1,5 +1,6 @@
 """TRAPI utilities."""
 from collections import defaultdict
+import json
 import logging
 import hashlib
 
@@ -52,7 +53,7 @@ def merge_nodes(knodes: list[Node]) -> Node:
         output_knode["attributes"] = \
             deduplicate_by(
                 filter_none(merge_listify(attributes_values)),
-                lambda d: tuple(d.items()))
+                lambda d: json.dumps(d, sort_keys=True))
 
     return output_knode
 
@@ -66,7 +67,7 @@ def merge_edges(kedges: list[Edge]) -> Edge:
         output_kedge["attributes"] = \
             deduplicate_by(
                 filter_none(merge_listify(attributes_values)),
-                lambda d: tuple(d.items()))
+                lambda d: json.dumps(d, sort_keys=True))
 
     predicate_values = get_from_all(kedges, "predicate")
     if not all_equal(predicate_values):
