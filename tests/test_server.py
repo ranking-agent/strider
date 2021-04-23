@@ -71,14 +71,10 @@ async def test_solve_ex1():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query?log_level=DEBUG", json=q)
     output = response.json()
 
     validate_message(
@@ -135,14 +131,10 @@ async def test_duplicate_results():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     assert len(output['message']['results']) == 1
@@ -179,14 +171,10 @@ async def test_solve_missing_predicate():
     del QGRAPH['edges']['n0n1']['predicate']
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     assert output["message"]["results"]
@@ -223,14 +211,10 @@ async def test_solve_missing_category():
     del QGRAPH['nodes']['n0']['category']
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
 
@@ -266,14 +250,10 @@ async def test_normalizer_different_category():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     assert output["message"]["results"]
@@ -329,13 +309,10 @@ async def test_solve_loop(caplog):
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
+
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message({
@@ -390,19 +367,15 @@ async def test_log_level_param():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Check there are no debug logs
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
     assert not any(l['level'] == 'DEBUG' for l in output['logs'])
 
     # Check there are now debug logs
-    response = await client.post("/query", json=q.dict(),
+    response = await client.post("/query", json=q,
                                  params={"log_level": "DEBUG"})
     output = response.json()
     assert any(l['level'] == 'DEBUG' for l in output['logs'])
@@ -447,14 +420,10 @@ async def test_plan_endpoint():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/plan", json=q.dict())
+    response = await client.post("/plan", json=q)
     output = response.json()
 
     plan = output[0]
@@ -514,14 +483,10 @@ async def test_kp_500():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     # Check that we stored the error
@@ -565,14 +530,10 @@ async def test_kp_unavailable():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     # Check that we stored the error
@@ -595,7 +556,7 @@ async def test_kp_unavailable():
 )
 async def test_predicate_fanout():
     """Test that all predicate descendants are explored."""
-    qgraph = {
+    QGRAPH = {
         "nodes": {
             "a": {
                 "category": "biolink:ChemicalSubstance",
@@ -615,14 +576,10 @@ async def test_predicate_fanout():
     }
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(qgraph)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
     assert len(output["message"]["results"]) == 2
 
@@ -641,7 +598,7 @@ async def test_predicate_fanout():
 )
 async def test_subpredicate():
     """Test that KPs are sent the correct predicate subclasses."""
-    qgraph = {
+    QGRAPH = {
         "nodes": {
             "a": {
                 "category": "biolink:ChemicalSubstance",
@@ -661,14 +618,10 @@ async def test_subpredicate():
     }
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(qgraph)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
     assert output["message"]["results"]
 
@@ -696,7 +649,7 @@ async def test_mutability_bug():
     """
     Test that qgraph is not mutated between KP calls.
     """
-    qg = {
+    QGRAPH = {
         'nodes': {
             'n0': {
                 'id': ['MONDO:0005148'],
@@ -716,14 +669,10 @@ async def test_mutability_bug():
     }
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(qg)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
     assert len(output["message"]["results"]) == 2
 
@@ -760,14 +709,10 @@ async def test_inverse_predicate():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -823,14 +768,10 @@ async def test_symmetric_predicate():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
     validate_message({
         "knowledge_graph":
@@ -885,14 +826,10 @@ async def test_issue_102():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message({
@@ -955,14 +892,10 @@ async def test_solve_reverse_edge():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -1026,14 +959,10 @@ async def test_solve_multiple_reverse_edges():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -1091,14 +1020,10 @@ async def test_solve_not_real_predicate():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -1153,14 +1078,10 @@ async def test_convert_protein_to_gene_product():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -1222,14 +1143,10 @@ async def test_solve_double_subclass():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -1260,7 +1177,7 @@ async def test_solve_double_subclass():
     )
 
     # Check that the knowledge graph node has the correct category
-    assert set(output["message"]["knowledge_graph"]["nodes"]["MONDO:1"]["category"]) == \
+    assert set(output["message"]["knowledge_graph"]["nodes"]["MONDO:1"]["categories"]) == \
         {"biolink:ChemicalSubstance", "biolink:Disease"}
 
 
@@ -1299,14 +1216,10 @@ async def test_pinned_to_pinned():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
@@ -1357,14 +1270,10 @@ async def test_self_edge():
     )
 
     # Create query
-    q = Query(
-        message=Message(
-            query_graph=QueryGraph.parse_obj(QGRAPH)
-        )
-    )
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/query", json=q.dict())
+    response = await client.post("/query", json=q)
     output = response.json()
 
     validate_message(
