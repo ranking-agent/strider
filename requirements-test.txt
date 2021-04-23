@@ -1,10 +1,32 @@
-fakeredis==1.4.5
+asgiar @ git+git://github.com/patrickkwang/asgiar@ee956c00b42d5584e0d82a0f0b4de2373c1a1472
+astroid==2.5
+attrs==20.3.0
+certifi==2020.12.5
+chardet==4.0.0
 codecov==2.1.7
+coverage==5.5
+fakeredis==1.4.5
+idna==2.10
+isort==5.8.0
+kp-registry @ git+git://github.com/TranslatorIIPrototypes/kp_registry@8c463aa346d3bda2278c3357b78ed281c588d08f
+lazy-object-proxy==1.6.0
+mccabe==0.6.1
+more-itertools==8.7.0
+packaging==20.9
+pluggy==0.13.1
+py==1.10.0
 pylint==2.6.0
+pyparsing==2.4.7
 pytest==5.4.3
 pytest-asyncio==0.14.0
 pytest-cov==2.10.0
-git+git://github.com/TranslatorIIPrototypes/kp_registry@v1.0
-git+git://github.com/ranking-agent/simple-kp@v1.1.0
-git+git://github.com/patrickkwang/small-kg@main
-git+git://github.com/patrickkwang/asgiar@main
+redis==3.5.3
+requests==2.25.1
+simple-kp @ git+git://github.com/ranking-agent/simple-kp@a4b92cfac59cbe1bf92125546245aeed43060e1a
+six==1.15.0
+small-kg @ git+git://github.com/patrickkwang/small-kg@9cfa7ca88e4e74163ebd76b22d26ec3a90a14c1d
+sortedcontainers==2.3.0
+toml==0.10.2
+urllib3==1.26.4
+wcwidth==0.2.5
+wrapt==1.12.1
