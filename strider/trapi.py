@@ -50,7 +50,9 @@ def merge_nodes(knodes: list[Node]) -> Node:
     attributes_values = get_from_all(knodes, "attributes")
     if attributes_values:
         output_knode["attributes"] = \
-            filter_none(merge_listify(attributes_values))
+            deduplicate_by(
+                filter_none(merge_listify(attributes_values)),
+                lambda d: tuple(d.items()))
 
     return output_knode
 
@@ -62,7 +64,9 @@ def merge_edges(kedges: list[Edge]) -> Edge:
     attributes_values = get_from_all(kedges, "attributes")
     if attributes_values:
         output_kedge["attributes"] = \
-            filter_none(merge_listify(attributes_values))
+            deduplicate_by(
+                filter_none(merge_listify(attributes_values)),
+                lambda d: tuple(d.items()))
 
     predicate_values = get_from_all(kedges, "predicate")
     if not all_equal(predicate_values):
