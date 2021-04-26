@@ -416,9 +416,9 @@ def is_valid_node_binding(message, nb, qgraph_node):
                 WBMT.get_descendants(c)
             )
 
-        # Check that all categories on this
-        # kgraph node are allowed
-        if not all(
+        # Check that at least one of the categories
+        # on this kgraph node is allowed
+        if not any(
             c in qgraph_allowable_categories
             for c in kgraph_node["category"]
         ):
