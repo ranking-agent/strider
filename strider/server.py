@@ -10,8 +10,9 @@ import enum
 import traceback
 from pathlib import Path
 import pprint
+from typing import Optional
 
-from fastapi import Body, FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -19,6 +20,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
+from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 import yaml
 
@@ -28,7 +30,7 @@ from .fetcher import StriderWorker
 from .query_planner import generate_plans, NoAnswersError
 from .scoring import score_graph
 from .results import get_db, Database
-from .storage import RedisGraph, RedisList
+from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually, standardize_graph_lists, transform_keys
 from .trapi import fill_categories_predicates, add_descendants
@@ -142,11 +144,12 @@ EXAMPLE = {
 
 def get_finished_query(
         qid: str,
+        redis_client: Redis,
 ) -> dict:
-    qgraph = RedisGraph(f"{qid}:qgraph")
-    kgraph = RedisGraph(f"{qid}:kgraph")
-    results = RedisList(f"{qid}:results")
-    logs = RedisList(f"{qid}:log")
+    qgraph = RedisGraph(f"{qid}:qgraph", redis_client)
+    kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
+    results = RedisList(f"{qid}:results", redis_client)
+    logs = RedisList(f"{qid}:log", redis_client)
 
     expiration_seconds = int(settings.store_results_for.total_seconds())
 
@@ -168,13 +171,14 @@ def get_finished_query(
 async def process_query(
         qid: str,
         log_level: str,
+        redis_client: Optional[Redis] = None,
 ):
     # pylint: disable=protected-access
     level_number = logging._nameToLevel[log_level]
 
     # Set up workers
     strider = StriderWorker(num_workers=2)
-    await strider.setup(qid, level_number)
+    await strider.setup(qid, level_number, redis_client)
 
     # Generate plan
     try:
@@ -182,20 +186,21 @@ async def process_query(
     except NoAnswersError:
         # End early with no results
         # (but we should have log messages)
-        return get_finished_query(qid)
+        return get_finished_query(qid, redis_client)
 
     # Process
     await strider.run(qid, wait=True)
 
     # Pull results from redis
     # Also starts timer for expiring results
-    return get_finished_query(qid)
+    return get_finished_query(qid, redis_client)
 
 
 @APP.post('/aquery')
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
+        redis_client: Redis = Depends(get_redis_client),
 ) -> dict:
     """Start query processing."""
     # Generate Query ID
@@ -205,13 +210,13 @@ async def async_query(
     standardize_graph_lists(query_graph)
 
     # Save query graph to redis
-    redis_query_graph = RedisGraph(f"{qid}:qgraph")
+    redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
     redis_query_graph.set(query_graph)
 
     log_level = query.dict()["log_level"] or "ERROR"
 
     # Start processing
-    background_tasks.add_task(process_query, qid, log_level)
+    background_tasks.add_task(process_query, qid, log_level, redis_client)
 
     # Return ID
     return dict(id=qid)
@@ -220,14 +225,16 @@ async def async_query(
 @APP.post('/query_result', response_model=ReasonerResponse)
 async def get_results(
         qid: str,
+        redis_client: Redis = Depends(get_redis_client),
 ) -> dict:
     """ Get results for a running or finished query """
-    return get_finished_query(qid)
+    return get_finished_query(qid, redis_client)
 
 
 @APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
+        redis_client: Redis = Depends(get_redis_client),
 ) -> dict:
     """Handle synchronous query."""
     # Generate Query ID
@@ -237,13 +244,13 @@ async def sync_query(
     standardize_graph_lists(query_graph)
 
     # Save query graph to redis
-    redis_query_graph = RedisGraph(f"{qid}:qgraph")
+    redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
     redis_query_graph.set(query_graph)
 
     log_level = query.dict()["log_level"] or "ERROR"
 
     # Process query and wait for results
-    query_results = await process_query(qid, log_level)
+    query_results = await process_query(qid, log_level, redis_client)
 
     # Return results
     return query_results

@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Optional
 
 from reasoner_pydantic import QueryGraph, Result, Response
+from redis import Redis
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal
@@ -82,14 +83,15 @@ class StriderWorker(Worker):
             self,
             qid: str,
             log_level: int,
+            redis_client: Optional[Redis] = None,
     ):
         """Set up."""
         # Set up DB results objects
-        self.kgraph = RedisGraph(f"{qid}:kgraph")
-        self.results = RedisList(f"{qid}:results")
+        self.kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
+        self.results = RedisList(f"{qid}:results", redis_client)
 
         # Set up logger
-        handler = RedisLogHandler(f"{qid}:log")
+        handler = RedisLogHandler(f"{qid}:log", redis_client)
         handler.setFormatter(
             ReasonerLogEntryFormatter()
         )
@@ -103,7 +105,7 @@ class StriderWorker(Worker):
             self.portal = KnowledgePortal(self.logger)
 
         # Pull query graph from Redis
-        qgraph = RedisGraph(f"{qid}:qgraph").get()
+        qgraph = RedisGraph(f"{qid}:qgraph", redis_client).get()
 
         # Use BMT for preferred prefixes
         self.preferred_prefixes = WBMT.entity_prefix_mapping
