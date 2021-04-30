@@ -54,7 +54,6 @@ def custom_openapi():
     openapi_schema = get_openapi(
         title="",
         version="",
-        servers=[{"url": f"{settings.server_url}"}],
         tags=[
             {
                 "name": "translator",
