@@ -33,6 +33,8 @@ This will start the requisite containers as well as the strider container. Chang
 
 You can also run tests and coverage reports withou the management script. Check the `manage.py` file for instructions on how to do this.
 
+## [Testing](tests/README.md)
+
 ## Deployment
 
 A docker-compose file is included for easy deployment. To use, you also must set up a .env file to specify URLs for external services. Example:
