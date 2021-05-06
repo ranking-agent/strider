@@ -32,7 +32,7 @@ A good bug report shouldn't leave others needing to chase you up for more inform
 - What actually happened?
 - Notes (possibly including why you think this might be happening, or things you tried that didn't work)
 
-All these details will help people to fix any potential bugs.
+All these details will help developers to fix any potential bugs.
 
 ## Pull requests
 
