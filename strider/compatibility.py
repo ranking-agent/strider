@@ -5,8 +5,10 @@ import logging
 import os
 
 import httpx
+import pydantic
 from reasoner_converter.upgrading import upgrade_BiolinkEntity
 from reasoner_pydantic import Message
+from reasoner_pydantic.message import Response
 
 from .util import post_json, remove_null_values
 from .trapi import apply_curie_map, get_curies
@@ -57,24 +59,47 @@ class KnowledgePortal():
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
         request = remove_null_values(request)
 
+        message = None
+
         try:
             response = await post_json(url, request)
+
+            # Parse with reasoner_pydantic to validate
+            response = Response.parse_obj(response).dict()
+
             message = response["message"]
+
+            # Log sucessful request
             self.logger.debug({
                 "message": "Received response from KP",
                 "url": url,
                 "request": request,
                 "response": response,
             })
-        except (httpx.RequestError, httpx.HTTPStatusError) as e:
+        except httpx.RequestError as e:
             # Log error
             self.logger.error({
+                "message": "RequestError contacting KP",
+                "request": e.request,
+                "error": str(e),
+            })
+        except httpx.HTTPStatusError as e:
+            # Log error with response
+            self.logger.error({
                 "message": "Error contacting KP",
-                "url": url,
-                "request": request,
+                "request": e.request,
                 "response": e.response.text,
                 "error": str(e),
             })
+        except pydantic.ValidationError as e:
+            self.logger.error({
+                "message": "Received non-TRAPI compliant response from KP",
+                "response": response,
+                "error": str(e),
+            })
+
+
+        if not message:
             # Continue processing with an empty response object
             message = {}
             message['query_graph'] = request['message']['query_graph']
@@ -92,8 +117,7 @@ def add_source(message: Message, source: str):
     """Add source annotation to kedges."""
     for kedge in message["knowledge_graph"]["edges"].values():
         kedge["attributes"] = [dict(
-            name="provenance",
-            type="MetaInformation",
+            attribute_type_id="MetaInformation:Provenance",
             value=source,
         )]
 
@@ -121,25 +145,30 @@ class Synonymizer():
         """Load CURIES into map."""
         # get all curie synonyms
         url_base = f"{settings.normalizer_url}/get_normalized_nodes"
-        async with httpx.AsyncClient(timeout=None) as client:
-            response = await client.get(
-                url_base,
-                params={"curie": list(curies)},
-            )
-        if response.status_code >= 300:
-            try:
-                response_json = response.json()
-                if not response_json:
-                    raise ValueError()
-                detail = response_json['detail']
-            except (ValueError, KeyError):
-                self.logger.warning(
-                    f"Failed to contact normalizer, \
-                    status code {response.status_code}. \
-                    Results may be incomplete.")
-                return
-            self.logger.warning(
-                f"Error from normalizer: {detail}")
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+              response = await client.get(
+                  url_base,
+                  params={"curie": list(curies)},
+              )
+              response.raise_for_status()
+        except httpx.RequestError as e:
+            # Log error
+            self.logger.warning({
+                "message": "RequestError contacting normalizer. Results may be incomplete",
+                "request": e.request,
+                "error": str(e),
+            })
+            return
+        except httpx.HTTPStatusError as e:
+            # Log error with response
+            self.logger.warning({
+                "message": "Error contacting normalizer. Results may be incomplete",
+                "request": e.request,
+
+                "response": e.response.text,
+                "error": str(e),
+            })
             return
 
         entities = [

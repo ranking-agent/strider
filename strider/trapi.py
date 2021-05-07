@@ -1,12 +1,16 @@
 """TRAPI utilities."""
 from collections import defaultdict
+import json
 import logging
+import hashlib
 
-from reasoner_pydantic import Message, Result, QNode, Node, Edge
+from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
+from reasoner_pydantic.results import NodeBinding
 
-from strider.util import deduplicate_by, WrappedBMT, \
-    build_predicate_direction, extract_predicate_direction
+from strider.util import deduplicate_by, WrappedBMT, ensure_list, filter_none, get_from_all, \
+    build_predicate_direction, extract_predicate_direction, \
+    deduplicate, listify_value, merge_listify, all_equal
 from strider.normalizer import Normalizer
 from strider.config import settings
 
@@ -29,25 +33,106 @@ def result_hash(result):
     return (node_bindings_information, edge_bindings_information)
 
 
+def merge_nodes(knodes: list[Node]) -> Node:
+    """ Smart merge function for KNodes """
+    output_knode = {}
+
+    # We don't really know how to merge names
+    # so we just pick the first we are given
+    name_values = get_from_all(knodes, "name")
+    if name_values:
+        output_knode["name"] = name_values[0]
+
+    category_values = get_from_all(knodes, "category")
+    if category_values:
+        output_knode["category"] = \
+            deduplicate(merge_listify(category_values))
+
+    attributes_values = get_from_all(knodes, "attributes")
+    if attributes_values:
+        output_knode["attributes"] = \
+            deduplicate_by(
+                filter_none(merge_listify(attributes_values)),
+                lambda d: json.dumps(d, sort_keys=True))
+
+    return output_knode
+
+
+def merge_edges(kedges: list[Edge]) -> Edge:
+    """ Smart merge function for KEdges """
+    output_kedge = {}
+
+    attributes_values = get_from_all(kedges, "attributes")
+    if attributes_values:
+        output_kedge["attributes"] = \
+            deduplicate_by(
+                filter_none(merge_listify(attributes_values)),
+                lambda d: json.dumps(d, sort_keys=True))
+
+    predicate_values = get_from_all(kedges, "predicate")
+    if not all_equal(predicate_values):
+        raise ValueError("Unable to merge edges with non matching predicates")
+    output_kedge["predicate"] = predicate_values[0]
+
+    subject_values = get_from_all(kedges, "subject")
+    if not all_equal(subject_values):
+        raise ValueError("Unable to merge edges with non matching subjects")
+    output_kedge["subject"] = subject_values[0]
+
+    object_values = get_from_all(kedges, "object")
+    if not all_equal(object_values):
+        raise ValueError("Unable to merge edges with non matching objects")
+    output_kedge["object"] = object_values[0]
+
+    return output_kedge
+
+
+def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
+    """ Merge knowledge graphs. """
+
+    knodes = [kgraph["nodes"] for kgraph in kgraphs]
+    kedges = [kgraph["edges"] for kgraph in kgraphs]
+
+    # Merge Nodes
+    output = {"nodes": {}, "edges": {}}
+
+    all_node_keys = set()
+    for kgraph in kgraphs:
+        all_node_keys.update(kgraph["nodes"].keys())
+    for node_key in all_node_keys:
+        node_values = get_from_all(knodes, node_key)
+        merged_node = merge_nodes(node_values)
+        output["nodes"][node_key] = merged_node
+
+    # Merge Edges
+    all_edge_keys = set()
+    for kgraph in kgraphs:
+        all_edge_keys.update(kgraph["edges"].keys())
+    for edge_key in all_edge_keys:
+        edge_values = get_from_all(kedges, edge_key)
+        merged_edge = merge_edges(edge_values)
+        output["edges"][edge_key] = merged_edge
+
+    return output
+
+
 def merge_messages(messages: list[Message]) -> Message:
     """Merge messages."""
-    knodes = dict()
-    kedges = dict()
+
+    # Build knowledge graph edge IDs so that we can merge duplicates
+    for m in messages:
+        build_unique_kg_edge_ids(m)
+
+    kgraphs = [m["knowledge_graph"] for m in messages]
+
     results = []
     for message in messages:
-        knodes |= message["knowledge_graph"]["nodes"]
-        kedges |= message["knowledge_graph"]["edges"]
-
         results.extend(message["results"])
-
     results_deduplicated = deduplicate_by(results, result_hash)
 
     return {
         "query_graph": messages[0]["query_graph"],
-        "knowledge_graph": {
-            "nodes": knodes,
-            "edges": kedges
-        },
+        "knowledge_graph": merge_kgraphs(kgraphs),
         "results": results_deduplicated
     }
 
@@ -283,3 +368,140 @@ def add_descendants(
     })
 
     return qg
+
+
+def build_unique_kg_edge_ids(message: Message):
+    """
+    Replace KG edge IDs with a string that represents
+    whether the edge can be merged with other edges
+    """
+
+    # Make a copy of the edge keys because we're about to change them
+    for edge_id in list(message["knowledge_graph"]["edges"].keys()):
+        edge = message["knowledge_graph"]["edges"].pop(edge_id)
+        new_edge_id_string = f"{edge['subject']}-{edge['predicate']}-{edge['object']}"
+
+        # Build hash from ID string
+        new_edge_id = hashlib.blake2b(
+            new_edge_id_string.encode(),
+            digest_size=6,
+        ).hexdigest()
+
+        # Update knowledge graph
+        message["knowledge_graph"]["edges"][new_edge_id] = edge
+
+        # Update results
+        for result in message["results"]:
+            for edge_binding_list in result["edge_bindings"].values():
+                for eb in edge_binding_list:
+                    if eb["id"] == edge_id:
+                        eb["id"] = new_edge_id
+
+
+def is_valid_node_binding(message, nb, qgraph_node):
+    """
+    Check whether the given kgraph node
+    satisifies the given qgraph node
+    """
+    if qgraph_node.get("id", None) is not None:
+        if nb["id"] not in qgraph_node["id"]:
+            return False
+
+    kgraph_node = message["knowledge_graph"]["nodes"][nb["id"]]
+    if qgraph_node.get("category", None) is not None:
+        # Build list of allowable categories for kgraph nodes
+        qgraph_allowable_categories = []
+        for c in ensure_list(qgraph_node["category"]):
+            qgraph_allowable_categories.extend(
+                WBMT.get_descendants(c)
+            )
+
+        # Check that at least one of the categories
+        # on this kgraph node is allowed
+        if not any(
+            c in qgraph_allowable_categories
+            for c in kgraph_node["category"]
+        ):
+            return False
+    return True
+
+def is_valid_edge_binding(message, eb, qgraph_edge):
+    """
+    Check whether the given kgraph edge
+    satisifies the given qgraph edge
+    """
+    if qgraph_edge.get("id", None) is not None:
+        if eb["id"] not in qgraph_edge["id"]:
+            return False
+
+    kgraph_edge = message["knowledge_graph"]["edges"][eb["id"]]
+    if qgraph_edge.get("predicate", None) is not None:
+        # Build list of allowable predicates for kgraph edges
+        allowable_predicates = []
+        for p in ensure_list(qgraph_edge["predicate"]):
+            allowable_predicates.extend(
+                WBMT.get_descendants(p)
+            )
+            p_inverse = WBMT.predicate_inverse(p)
+            if p_inverse:
+                allowable_predicates.extend(
+                    WBMT.get_descendants(p_inverse)
+                )
+
+
+        # Check that all predicates on this
+        # kgraph edge are allowed
+        if kgraph_edge["predicate"] not in allowable_predicates:
+            return False
+
+    return True
+
+
+def filter_by_qgraph(message, qgraph):
+    """
+    Filter a message to ensure that all results
+    and edges match the given query graph
+    """
+
+    # Only keep results where all edge
+    # and node bindings are valid
+    message["results"] = [
+        result for result in message["results"]
+        if all(
+            is_valid_node_binding(message, nb, qgraph["nodes"][qg_id])
+            for qg_id, nb_list in result["node_bindings"].items()
+            for nb in nb_list
+        ) and all(
+            is_valid_edge_binding(message, eb, qgraph["edges"][qg_id])
+            for qg_id, eb_list in result["edge_bindings"].items()
+            for eb in eb_list
+        )
+    ]
+
+    remove_unbound_from_kg(message)
+
+
+def remove_unbound_from_kg(message):
+    """
+    Remove all knowledge graph nodes and edges without a binding
+    """
+
+    bound_knodes = set()
+    for result in message["results"]:
+        for node_binding_list in result["node_bindings"].values():
+            for nb in node_binding_list:
+                bound_knodes.add(nb["id"])
+    bound_kedges = set()
+    for result in message["results"]:
+        for edge_binding_list in result["edge_bindings"].values():
+            for nb in edge_binding_list:
+                bound_kedges.add(nb["id"])
+
+    message["knowledge_graph"]["nodes"] = {
+        nid:node for nid,node in message["knowledge_graph"]["nodes"].items()
+        if nid in bound_knodes
+    }
+    message["knowledge_graph"]["edges"] = {
+        eid:edge for eid,edge in message["knowledge_graph"]["edges"].items()
+        if eid in bound_kedges
+    }

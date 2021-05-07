@@ -1,8 +1,10 @@
 """General utilities."""
+import functools
 import re
 from typing import Callable, Union
 
 import httpx
+from starlette.middleware.cors import CORSMiddleware
 import yaml
 from bmt import Toolkit as BMToolkit
 
@@ -15,6 +17,25 @@ def snake_to_camel(s):
     return ''.join(word.title() for word in s.split(' '))
 
 
+def function_to_mapping(f):
+    """
+    Given a function, generate an instance of a class that
+    implements the __getitem__ interface
+    """
+    class Mapping():
+        def __getitem__(self, lookup):
+            value = f(lookup)
+            if value is None:
+                raise KeyError
+            else:
+                return value
+
+        def __contains__(self, lookup):
+            return f(lookup) is not None
+
+    return Mapping()
+
+
 class WrappedBMT():
     """
     Wrapping around some of the BMT Toolkit functions
@@ -22,11 +43,14 @@ class WrappedBMT():
     """
 
     def __init__(self):
-        self.bmt = BMToolkit()
+        self.bmt = BMToolkit(
+            schema="https://raw.githubusercontent.com/biolink/biolink-model/1.8.0/biolink-model.yaml")
         self.all_slots = self.bmt.get_all_slots()
         self.all_slots_formatted = ['biolink:' + s.replace(' ', '_')
                                     for s in self.all_slots]
         self.prefix = 'biolink:'
+
+        self.entity_prefix_mapping = function_to_mapping(self.entity_prefixes)
 
     def new_case_to_old_case(self, s):
         """
@@ -76,16 +100,34 @@ class WrappedBMT():
     def predicate_is_symmetric(self, predicate):
         """ Get whether a given predicate is symmetric """
         predicate_old_format = self.new_case_to_old_case(predicate)
-        return self.bmt.get_element(predicate_old_format).symmetric
+        predicate_element = self.bmt.get_element(predicate_old_format)
+        if not predicate_element:
+            # Not in the biolink model
+            return False
+        return predicate_element.symmetric
 
     def predicate_inverse(self, predicate):
         """ Get the inverse of a predicate if it has one """
         predicate_old_format = self.new_case_to_old_case(predicate)
-        predicate_inverse_old_format = self.bmt.get_element(
-            predicate_old_format).inverse
-        if predicate_inverse_old_format:
-            return self.old_case_to_new_case(predicate_inverse_old_format)
-        return None
+        predicate_element = self.bmt.get_element(predicate_old_format)
+        if not predicate_element:
+            # Not in the biolink model
+            return None
+        predicate_inverse_old_format = predicate_element.inverse
+        if not predicate_inverse_old_format:
+            # No inverse
+            return None
+        return self.old_case_to_new_case(predicate_inverse_old_format)
+
+    @functools.cache
+    def entity_prefixes(self, entity):
+        """ Get prefixes for a given entity """
+        old_format = self.new_case_to_old_case(entity)
+        element = self.bmt.get_element(old_format)
+        if not element:
+            return None
+        else:
+            return element.id_prefixes
 
 
 async def post_json(url, request):
@@ -125,14 +167,16 @@ def listify_value(input_dictionary: dict[str, any], key: str):
         input_dictionary[key] = [input_dictionary[key]]
 
 
-def standardize_graph_lists(graph: dict[str, dict]):
+def standardize_graph_lists(
+        graph: dict[str, dict],
+        node_fields: list[str] = ["id", "category"],
+        edge_fields: list[str] = ["predicate"],
+):
     """ Convert fields that are given as a string to a list """
-    node_fields = ['id', 'category']
     for node in graph['nodes'].values():
         for field in node_fields:
             listify_value(node, field)
 
-    edge_fields = ['predicate']
     for edge in graph['edges'].values():
         for field in edge_fields:
             listify_value(edge, field)
@@ -273,3 +317,89 @@ def remove_null_values(obj):
         ]
     else:
         return obj
+
+
+def add_cors_manually(APP, request, response, cors_options):
+    """
+    Add CORS to a response manually
+    Based on https://github.com/tiangolo/fastapi/issues/775
+    """
+
+    # Since the CORSMiddleware is not executed when an unhandled server exception
+    # occurs, we need to manually set the CORS headers ourselves if we want the FE
+    # to receive a proper JSON 500, opposed to a CORS error.
+    # Setting CORS headers on server errors is a bit of a philosophical topic of
+    # discussion in many frameworks, and it is currently not handled in FastAPI.
+    # See dotnet core for a recent discussion, where ultimately it was
+    # decided to return CORS headers on server failures:
+    # https://github.com/dotnet/aspnetcore/issues/2378
+    origin = request.headers.get('origin')
+
+    if origin:
+        # Have the middleware do the heavy lifting for us to parse
+        # all the config, then update our response headers
+        cors = CORSMiddleware(APP, **cors_options)
+
+        # Logic directly from Starlette's CORSMiddleware:
+        # https://github.com/encode/starlette/blob/master/starlette/middleware/cors.py#L152
+
+        response.headers.update(cors.simple_headers)
+        has_cookie = "cookie" in request.headers
+
+        # If request includes any cookie headers, then we must respond
+        # with the specific origin instead of '*'.
+        if cors.allow_all_origins and has_cookie:
+            response.headers["Access-Control-Allow-Origin"] = origin
+
+        # If we only allow specific origins, then we have to mirror back
+        # the Origin header in the response.
+        elif not cors.allow_all_origins and cors.is_allowed_origin(origin=origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers.add_vary_header("Origin")
+
+    return response
+
+
+def get_from_all(
+    dictionaries: list[dict],
+    key,
+    default=None
+):
+    """
+    Get list of values from dictionaries.
+    If it is not present in any dictionary, return the default value.
+    """
+    values = [d[key] for d in dictionaries if key in d]
+    if len(values) > 0:
+        return values
+    else:
+        return default
+
+
+def merge_listify(values):
+    """
+    Merge values by converting them to lists
+    and concatenating them.
+    """
+    output = []
+    for value in values:
+        if isinstance(value, list):
+            output.extend(value)
+        else:
+            output.append(value)
+    return output
+
+
+def filter_none(values):
+    """ Filter out None values from list """
+    return [v for v in values if v is not None]
+
+
+def all_equal(values: list):
+    """ Check that all values in given list are equal """
+    return all(values[0] == v for v in values)
+
+
+def deduplicate(values: list):
+    """ Simple deduplicate that uses python sets """
+    return list(set(values))

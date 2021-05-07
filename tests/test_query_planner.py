@@ -7,8 +7,9 @@ import pytest
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import load_kps, generate_kps, \
-    time_and_display, query_graph_from_string, kps_from_string
+from tests.helpers.utils import generate_kps, validate_template, \
+    time_and_display, query_graph_from_string, \
+    kps_from_string, plan_template_from_string
 from tests.helpers.logger import assert_no_level
 
 
@@ -21,18 +22,18 @@ from strider.trapi import fill_categories_predicates
 from strider.config import settings
 from strider.util import standardize_graph_lists
 
-cwd = Path(__file__).parent
-
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 
 LOGGER = logging.getLogger()
 
+
 async def prepare_query_graph(query_graph):
     """ Prepare a query graph for the generate_plans method """
     await fill_categories_predicates(query_graph, logging.getLogger())
     standardize_graph_lists(query_graph)
+
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, [])
@@ -44,7 +45,7 @@ async def test_permute_curies(caplog):
         "edges": {},
     }
 
-    permutations = permute_graph(qg)
+    permutations = permute_graph(qg, node_field_map={"id": "id"})
 
     assert permutations
     # We should have two plans
@@ -54,8 +55,11 @@ async def test_permute_curies(caplog):
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, [])
-async def test_permute_simple(caplog):
-    """ Check that a simple permutation is done correctly using Biolink """
+async def test_permute_categories_predicates(caplog):
+    """ 
+    Check that we can permute categories and predicates
+    and get them from the biolink hierarchy
+    """
 
     qg = query_graph_from_string(
         """
@@ -68,7 +72,11 @@ async def test_permute_simple(caplog):
     await prepare_query_graph(qg)
     operation_graph = await qg_to_og(qg)
     add_descendants(operation_graph)
-    permutations = permute_graph(operation_graph)
+    permutations = permute_graph(
+        operation_graph,
+        node_field_map={"category": "category"},
+        edge_field_map={"predicate": "predicate"},
+    )
     assert permutations
 
     # We should have 2 * 3 * 3 * 7 = 126
@@ -141,6 +149,15 @@ async def test_no_reverse_edge_in_plan(caplog):
     )
     plan = plans[0]
 
+    plan_template = plan_template_from_string(
+        """
+        n0-n0n1-n1 http://kp0 biolink:Disease <-biolink:related_to- biolink:Drug
+        n0-n0n1-n1 http://kp0 biolink:Disease -biolink:related_to-> biolink:Drug
+        """
+    )
+
+    validate_template(plan_template, plan)
+
     # One step in plan
     assert len(plan) == 1
     assert_no_level(caplog, logging.WARNING, 1)
@@ -184,9 +201,9 @@ async def test_no_path_from_pinned_node(caplog):
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
-async def test_solve_reverse_edge(caplog):
+async def test_plan_reverse_edge(caplog):
     """
-    Test that we can solve a simple query graph
+    Test that we can plan a simple query graph
     where we have to traverse an edge in the opposite
     direction of one that was given
     """
@@ -202,6 +219,14 @@ async def test_solve_reverse_edge(caplog):
 
     plans = await generate_plans(qg)
     assert len(plans) == 1
+
+    plan_template = plan_template_from_string(
+        """
+        n0-n1n0-n1 http://kp0 biolink:Disease <-biolink:treats- biolink:Drug
+        """
+    )
+
+    validate_template(plan_template, plans[0])
     assert_no_level(caplog, logging.WARNING)
 
 
@@ -269,7 +294,7 @@ async def test_plan_reuse_pinned():
 
     plans = await generate_plans(qg)
 
-    assert len(plans) == 4
+    assert len(plans) == 16
 
 
 @pytest.mark.asyncio
@@ -304,20 +329,34 @@ async def test_plan_double_loop(caplog):
     await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
-    assert len(plans) == 8
+    assert len(plans) == 76
     assert_no_level(caplog, logging.WARNING)
 
 
-ex1_kps = load_kps(cwd / "ex1_kps.json")
-
-
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, ex1_kps)
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
+        kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+        kp1 biolink:Drug -biolink:affects-> biolink:Gene
+        kp2 biolink:MolecularEntity -biolink:decreases_abundance_of-> biolink:GeneOrGeneProduct
+        kp3 biolink:Disease -biolink:treated_by-> biolink:MolecularEntity
+        """
+    )
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
-    with open(cwd / "ex1_qg.json", "r") as f:
-        qg = json.load(f)
+    qg = query_graph_from_string(
+        """
+        n0(( category biolink:MolecularEntity ))
+        n1(( id MONDO:0005148 ))
+        n2(( category biolink:GeneOrGeneProduct ))
+        n1-- biolink:treated_by -->n0
+        n0-- biolink:affects_abundance_of -->n2
+        """
+    )
     await prepare_query_graph(qg)
 
     plans = await generate_plans(qg)
@@ -512,9 +551,9 @@ async def test_descendant_reverse_category(caplog):
     valid_qg = query_graph_from_string(
         """
         n0(( category biolink:Disease ))
+        n0(( id MONDO:0005737 ))
         n0-- biolink:related_to -->n1
         n1(( category biolink:ChemicalSubstance ))
-        n1(( id CHEBI:6801 ))
         """
     )
     await prepare_query_graph(valid_qg)
@@ -574,8 +613,21 @@ async def test_planning_performance_typical_example():
     We should be able to do better on performance using our filtering methods.
     """
 
-    with open(cwd / "ex2_qg.json", "r") as f:
-        qg = json.load(f)
+    qg = query_graph_from_string(
+        """
+        n0(( id MONDO:0005737 ))
+        n1(( category biolink:BiologicalProcessOrActivity ))
+        n2(( category biolink:AnatomicalEntity ))
+        n3(( category biolink:PhenotypicFeature ))
+        n4(( category biolink:PhenotypicFeature ))
+        n5(( id MONDO:6801 ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        n2-- biolink:related_to -->n3
+        n3-- biolink:related_to -->n4
+        n4-- biolink:related_to -->n5
+        """
+    )
     await prepare_query_graph(qg)
 
     async def testable_generate_plans():

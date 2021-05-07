@@ -173,6 +173,41 @@ async def test_normalizer_no_synonyms_available(caplog):
         content="Internal server error",
     )
 )
+async def test_normalizer_500(caplog):
+    """
+    Test that if the normalizer returns 500 we make
+    no changes to the query graph and continue on while adding a
+    a warning to the log
+    """
+    portal = KnowledgePortal()
+
+    preferred_prefixes = {
+        "biolink:Disease": [
+            "MONDO"
+        ]
+    }
+
+    query_graph = {
+        "nodes": {
+            "n0": {
+                "id": ["DOID:9352"]
+            },
+        },
+        "edges": {
+        },
+    }
+
+    fixed_msg = await portal.map_prefixes(
+        {"query_graph": query_graph},
+        preferred_prefixes,
+    )
+
+    # n0 should be unchanged
+    assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["DOID:9352"]
+
+    assert "Error contacting normalizer" in caplog.text
+
+@pytest.mark.asyncio
 async def test_normalizer_not_reachable(caplog):
     """
     Test that if the normalizer is completely unavailable we make
@@ -205,7 +240,8 @@ async def test_normalizer_not_reachable(caplog):
     # n0 should be unchanged
     assert fixed_msg['query_graph']['nodes']['n0']['id'] == ["DOID:9352"]
 
-    assert "Failed to contact normalizer" in caplog.text
+    assert "RequestError contacting normalizer" in caplog.text
+
 
 CTD_PREFIXES = {
     "biolink:Disease": ["MONDO"],

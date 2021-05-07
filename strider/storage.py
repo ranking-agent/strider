@@ -6,7 +6,7 @@ import logging
 
 from .config import settings
 
-if settings.redis_url == 'redis://fakeredis':
+if settings.redis_url == "redis://fakeredis:6379/0":
     import fakeredis
     r = fakeredis.FakeRedis(
         encoding="utf-8",

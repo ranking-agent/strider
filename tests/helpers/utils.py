@@ -144,10 +144,15 @@ def normalizer_data_from_string(s):
     synset_mappings = defaultdict(list)
     for line in s.splitlines():
         tokens = line.split(" ")
-
         curie = tokens[0]
+
+        # Curies are always self-synonyms
+        if curie not in synset_mappings[curie]:
+            synset_mappings[curie].append(curie)
+
         action = tokens[1]
         line_data = tokens[2:]
+
         if action == 'categories':
             category_mappings[curie].extend(line_data)
         elif action == 'synonyms':
@@ -155,6 +160,184 @@ def normalizer_data_from_string(s):
         else:
             raise ValueError(f"Invalid line: {line}")
     return {"category_mappings": category_mappings, "synset_mappings": synset_mappings}
+
+
+def plan_template_from_string(s):
+    """
+    Create a template to validate a plan from a string format
+
+    Example:
+
+    n0-n0n1-n1 http://kp0 biolink:Drug -biolink:related_to-> biolink:Disease
+    n0-n0n1-n1 http://kp1 biolink:Drug -biolink:treats-> biolink:Disease
+    n1-n1n2-n2 http://kp2 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
+
+    """
+    # This usually comes from triple quoted strings
+    # so we use inspect.cleandoc to remove leading indentation
+    s = inspect.cleandoc(s)
+
+    plan_template = defaultdict(list)
+
+    for line in s.splitlines():
+        tokens = line.split(" ")
+        step = tuple(tokens[0].split("-"))
+
+        plan_template[step].append({
+            "url": tokens[1],
+            "source_category": tokens[2],
+            "edge_predicate": tokens[3],
+            "target_category": tokens[4],
+        })
+
+    return dict(plan_template)
+
+
+def validate_template(template, value):
+    """
+    Assert that value adheres to the provided template
+
+    This means that:
+    1. All dictionary key-value pairs in the template are
+       present and equal to instance values
+    2. All lists must be of the same length and have equal
+       values to the template
+    3. All values that are not lists or dictionaries
+       must compare equal using Python equality
+
+    """
+    if isinstance(template, list):
+        if len(template) != len(value):
+            raise ValueError("Lists are not the same length")
+        for index in range(len(template)):
+            validate_template(template[index], value[index])
+    elif isinstance(template, dict):
+        for key in template.keys():
+            if key not in value:
+                raise ValueError(f"Key {key} not present in value")
+            validate_template(template[key], value[key])
+    else:
+        if template != value:
+            raise ValueError(
+                f"Template value {template} does not equal {value}")
+
+
+def validate_message(template, value):
+    """
+    Validate a message against the given template
+
+    Raises ValueError if anything doesn't match up.
+
+    Templates must be a dictionary with "knowledge_graph" and "results"
+    keys. Knowledge_graph should be a string representation of the knowledge
+    graph edges. Results should be a list of strings each representing a results object.
+    """
+
+    template["knowledge_graph"] = inspect.cleandoc(template["knowledge_graph"])
+
+    nodes = set()
+    # Validate edges
+    for edge_string in template["knowledge_graph"].splitlines():
+        sub, predicate, obj = edge_string.split(" ")
+        nodes.add(sub)
+        nodes.add(obj)
+        # Check that this edge exists
+        if not any(
+                edge["subject"] == sub and
+                edge["object"] == obj and
+                predicate in edge["predicate"]
+            for edge in value["knowledge_graph"]["edges"].values()
+        ):
+            raise ValueError(
+                f"Knowledge graph edge {edge_string} not found in message")
+
+    # Validate nodes
+    for node in nodes:
+        if node not in value["knowledge_graph"]["nodes"].keys():
+            raise ValueError(
+                f"Knowledge graph node {node} not found in message")
+
+    # Check for extra nodes or edges
+    if len(nodes) != len(value["knowledge_graph"]["nodes"]):
+        raise ValueError(
+            "Extra nodes found in message knowledge_graph")
+    if (
+        len(template["knowledge_graph"].splitlines()) !=
+        len(value["knowledge_graph"]["edges"])
+    ):
+        raise ValueError(
+            "Extra edges found in message knowledge_graph")
+
+    # Validate results
+    for index, template_result_string in enumerate(template["results"]):
+
+        # Parse string representation
+        template_result_string = inspect.cleandoc(template_result_string)
+        template_result = {}
+        current_key = None
+        for line in template_result_string.splitlines():
+            if not line.startswith(" "):
+                # Key (remove trailing colon)
+                current_key = line[:-1]
+                template_result[current_key] = []
+            else:
+                # Value
+                template_result[current_key].append(line.strip())
+
+        try:
+            value_result = value["results"][index]
+        except IndexError as e:
+            raise ValueError("Expected more results") from e
+
+        # Validate node bindings
+        for node_binding_string in template_result["node_bindings"]:
+            qg_node_id, *kg_node_ids = node_binding_string.split(" ")
+            if qg_node_id not in value_result["node_bindings"]:
+                raise ValueError(
+                    f"Could not find binding for node {qg_node_id}")
+
+            for kg_node_id in kg_node_ids:
+                if not any(
+                    nb["id"] == kg_node_id
+                    for nb in value_result["node_bindings"][qg_node_id]
+                ):
+                    raise ValueError(
+                        f"Expected node binding {qg_node_id} to {kg_node_id}")
+            if len(value_result["node_bindings"][qg_node_id]) != len(kg_node_ids):
+                raise ValueError(f"Extra node bindings found for {qg_node_id}")
+
+        # Validate edge bindings
+        for edge_binding_string in template_result["edge_bindings"]:
+            qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
+
+            # Find KG edge IDs from the kg edge strings
+            kg_edge_ids = []
+            for kg_edge_string in kg_edge_strings:
+                sub, obj = kg_edge_string.split("-")
+                kg_edge_id = next(
+                    kg_edge_id
+                    for kg_edge_id, kg_edge in value["knowledge_graph"]["edges"].items()
+                    if kg_edge["subject"] == sub and kg_edge["object"] == obj
+                )
+                kg_edge_ids.append(kg_edge_id)
+
+            if qg_edge_id not in value_result["edge_bindings"]:
+                raise ValueError(
+                    f"Could not find binding for edge {qg_edge_id}")
+
+            for kg_edge_id in kg_edge_ids:
+                if not any(
+                    nb["id"] == kg_edge_id
+                    for nb in value_result["edge_bindings"][qg_edge_id]
+                ):
+                    raise ValueError(
+                        f"Expected edge binding {qg_edge_id} to {kg_edge_id}")
+            if len(value_result["edge_bindings"][qg_edge_id]) != len(kg_edge_ids):
+                raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+
+    # Check for extra results
+    if len(template["results"]) != len(value["results"]):
+        raise ValueError("Extra results found")
 
 
 async def time_and_display(f, msg):

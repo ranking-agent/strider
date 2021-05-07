@@ -1,4 +1,5 @@
 """Simple ReasonerStdAPI server."""
+import datetime
 import uuid
 import asyncio
 import itertools
@@ -9,7 +10,7 @@ import enum
 from pathlib import Path
 import pprint
 
-from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks
+from fastapi import Body, FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -28,8 +29,7 @@ from .scoring import score_graph
 from .results import get_db, Database
 from .storage import RedisGraph, RedisList
 from .config import settings
-from .logging import LogLevelEnum
-from .util import standardize_graph_lists
+from .util import add_cors_manually, standardize_graph_lists
 from .trapi import fill_categories_predicates, add_descendants
 
 LOGGER = logging.getLogger(__name__)
@@ -70,15 +70,43 @@ def custom_openapi():
     APP.openapi_schema = openapi_schema
     return APP.openapi_schema
 
-
 APP.openapi = custom_openapi
-APP.add_middleware(
-    CORSMiddleware,
+
+CORS_OPTIONS = dict(
     allow_origins=['*'],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+APP.add_middleware(
+    CORSMiddleware,
+    **CORS_OPTIONS,
+)
+
+# Custom exception handler is necessary to ensure that
+# we add CORS headers to errors and return a TRAPI response
+async def catch_exceptions_middleware(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        response = JSONResponse(
+            {
+                "message" : {
+                    "logs": [
+                        {
+                            "message" : f"Exception in Strider: {repr(e)}",
+                            "level" : "ERROR",
+                            "timestamp" : datetime.datetime.now().isoformat(),
+                        }
+                    ]
+                }
+            },
+            status_code=500)
+        add_cors_manually(APP, request, response, CORS_OPTIONS)
+        return response
+
+APP.middleware('http')(catch_exceptions_middleware)
 
 
 @APP.on_event("startup")
@@ -168,7 +196,6 @@ async def process_query(
 async def async_query(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
-        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Start query processing."""
     # Generate Query ID
@@ -180,6 +207,8 @@ async def async_query(
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph")
     redis_query_graph.set(query_graph)
+
+    log_level = query.dict()["log_level"] or "ERROR"
 
     # Start processing
     background_tasks.add_task(process_query, qid, log_level)
@@ -199,7 +228,6 @@ async def get_results(
 @APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
-        log_level: LogLevelEnum = LogLevelEnum.ERROR,
 ) -> dict:
     """Handle synchronous query."""
     # Generate Query ID
@@ -211,6 +239,8 @@ async def sync_query(
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph")
     redis_query_graph.set(query_graph)
+
+    log_level = query.dict()["log_level"] or "ERROR"
 
     # Process query and wait for results
     query_results = await process_query(qid, log_level)
