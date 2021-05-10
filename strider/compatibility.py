@@ -149,7 +149,7 @@ class Synonymizer():
             async with httpx.AsyncClient(timeout=None) as client:
               response = await client.post(
                   url_base,
-                  data = {"curies": list(curies)} ,
+                  json = {"curies": list(curies)},
               )
               response.raise_for_status()
         except httpx.RequestError as e:
