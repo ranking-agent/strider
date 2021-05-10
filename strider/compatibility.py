@@ -147,9 +147,9 @@ class Synonymizer():
         url_base = f"{settings.normalizer_url}/get_normalized_nodes"
         try:
             async with httpx.AsyncClient(timeout=None) as client:
-              response = await client.get(
+              response = await client.post(
                   url_base,
-                  params={"curie": list(curies)},
+                  data = {"curies": list(curies)} ,
               )
               response.raise_for_status()
         except httpx.RequestError as e:
