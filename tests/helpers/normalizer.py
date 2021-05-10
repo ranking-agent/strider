@@ -3,6 +3,7 @@ import csv
 from typing import List
 
 from fastapi import APIRouter, FastAPI, Query
+from pydantic.main import BaseModel
 from small_kg import synonyms_file
 
 
@@ -68,7 +69,7 @@ def norm_router(
         }
 
     @router.get("/get_normalized_nodes")
-    async def normalize(
+    async def normalize_get(
             curies: List[str] = Query(
                 ...,
                 alias="curie",
@@ -79,6 +80,19 @@ def norm_router(
         return {
             curie: normalize_one(curie)
             for curie in curies
+        }
+
+    class CurieList(BaseModel):
+        curies: list[str]
+
+    @router.post("/get_normalized_nodes")
+    async def normalize_post(
+            curie_list: CurieList,
+    ):
+        """Return synset for each curie."""
+        return {
+            curie: normalize_one(curie)
+            for curie in curie_list.curies
         }
 
     return router
