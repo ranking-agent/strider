@@ -1,5 +1,6 @@
 """General utilities."""
 import functools
+from json.decoder import JSONDecodeError
 import re
 from typing import Callable, Union
 
@@ -130,15 +131,59 @@ class WrappedBMT():
             return element.id_prefixes
 
 
-async def post_json(url, request):
-    """Make post request."""
-    async with httpx.AsyncClient(verify=False, timeout=None) as client:
-        response = await client.post(
-            url,
-            json=request,
-        )
-        response.raise_for_status()
-        return response.json()
+def log_request(r):
+    """ Serialize a httpx.Request object into a dict for logging """
+    return {
+        "method" : r.method,
+        "url" : str(r.url),
+        "headers" : dict(r.headers),
+        "data" : r.read().decode()
+    }
+
+def log_response(r):
+    """ Serialize a httpx.Response object into a dict for logging """
+    return {
+        "status_code" : r.status_code,
+        "headers" : dict(r.headers),
+        "data" : r.text,
+    }
+
+async def post_json(url, request, logger, log_name):
+    """
+    Make post request and write errors to log if present
+    """
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=None) as client:
+            response = await client.post(
+                url,
+                json=request,
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.RequestError as e:
+        # Log error
+        logger.error({
+            "message": f"Request Error contacting {log_name}",
+            "error": str(e),
+            "request": log_request(e.request),
+        })
+    except httpx.HTTPStatusError as e:
+        # Log error with response
+        logger.error({
+            "message": f"Response Error contacting {log_name}",
+            "error": str(e),
+            "request": log_request(e.request),
+            "response": log_response(e.response),
+        })
+    except JSONDecodeError as e:
+        # Log error with response
+        logger.error({
+            "message": f"Received bad JSON data from {log_name}",
+            "request": e.request,
+            "response": e.response.text,
+            "error": str(e),
+        })
+    return None
 
 
 class KPError(Exception):
@@ -403,3 +448,10 @@ def all_equal(values: list):
 def deduplicate(values: list):
     """ Simple deduplicate that uses python sets """
     return list(set(values))
+
+def transform_keys(d, f):
+    """ Transform keys using a function """
+    return {
+        f(key) : val
+        for key, val in d.items()
+    }

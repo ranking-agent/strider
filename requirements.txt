@@ -43,7 +43,7 @@ rdflib==5.0.0
 rdflib-jsonld==0.5.0
 rdflib-pyld-compat==0.1.0
 reasoner-converter @ git+git://github.com/TranslatorSRI/reasoner-converter@2656c684189ef942d75c78a5c5554881a556c9f7
-reasoner-pydantic @ git+git://github.com/ranking-agent/reasoner-pydantic@79be5c1e32aacc1d502f7071d518a4994afba04e
+reasoner-pydantic @ git+git://github.com/ranking-agent/reasoner-pydantic@dee9f5f8fc77508f9c3a828dfdd6765e06a36078
 redis==3.5.3
 requests==2.25.1
 rfc3986==1.4.0
