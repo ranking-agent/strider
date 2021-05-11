@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import enum
+import traceback
 from pathlib import Path
 import pprint
 
@@ -29,7 +30,7 @@ from .scoring import score_graph
 from .results import get_db, Database
 from .storage import RedisGraph, RedisList
 from .config import settings
-from .util import add_cors_manually, standardize_graph_lists
+from .util import add_cors_manually, standardize_graph_lists, transform_keys
 from .trapi import fill_categories_predicates, add_descendants
 
 LOGGER = logging.getLogger(__name__)
@@ -91,15 +92,15 @@ async def catch_exceptions_middleware(request: Request, call_next):
     except Exception as e:
         response = JSONResponse(
             {
-                "message" : {
-                    "logs": [
-                        {
-                            "message" : f"Exception in Strider: {repr(e)}",
-                            "level" : "ERROR",
-                            "timestamp" : datetime.datetime.now().isoformat(),
-                        }
-                    ]
-                }
+                "message" : {},
+                "logs": [
+                    {
+                        "message" : f"Exception in Strider: {repr(e)}",
+                        "level" : "ERROR",
+                        "timestamp" : datetime.datetime.now().isoformat(),
+                        "stack" : traceback.format_exc(),
+                    }
+                ]
             },
             status_code=500)
         add_cors_manually(APP, request, response, CORS_OPTIONS)
@@ -393,15 +394,10 @@ async def generate_traversal_plan(
     standardize_graph_lists(query_graph)
     plans = await generate_plans(query_graph)
 
-    plans_stringified_keys = []
-    for plan in plans:
-        plans_stringified_keys.append(
-            {
-                f"{step.source}-{step.edge}-{step.target}": v
-                for step, v in plan.items()
-            }
-        )
-    return plans_stringified_keys
+    return [
+        transform_keys(plan, lambda step: f"{step.source}-{step.edge}-{step.target}")
+        for plan in plans
+    ]
 
 
 @APP.post('/score', response_model=Message)

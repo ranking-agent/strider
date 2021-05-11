@@ -1,18 +1,23 @@
 """KP registry."""
 import logging
+from strider.util import post_json
 from typing import Union
 
 import httpx
 
-LOGGER = logging.getLogger(__name__)
-
-
 class Registry():
     """KP registry."""
 
-    def __init__(self, url):
+    def __init__(
+            self,
+            url,
+            logger: logging.Logger = None,
+    ):
         """Initialize."""
         self.url = url
+        if not logger:
+            logger = logging.getLogger(__name__)
+        self.logger = logger
 
     async def __aenter__(self):
         """Enter context."""
@@ -78,19 +83,22 @@ class Registry():
             edge_types = [edge_types]
         if isinstance(target_types, str):
             target_types = [target_types]
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f'{self.url}/search',
-                json={
-                    'source_type': source_types,
-                    'target_type': target_types,
-                    'edge_type': edge_types,
-                }
-            )
-            response.raise_for_status()
+
+        response = await post_json(
+            f'{self.url}/search',
+            {
+                'source_type': source_types,
+                'target_type': target_types,
+                'edge_type': edge_types,
+            },
+            self.logger, "KP Registry"
+        )
+        if not response:
+            return {}
+
         return {
             kpid: details
-            for kpid, details in response.json().items()
+            for kpid, details in response.items()
             if (
                 (allowlist is None or kpid in allowlist)
                 and (denylist is None or kpid not in denylist)

@@ -297,7 +297,7 @@ async def fill_categories_predicates(
     """
 
     if normalizer is None:
-        normalizer = Normalizer(settings.normalizer_url)
+        normalizer = Normalizer(settings.normalizer_url, logger)
 
     # Fill in missing predicates with most general term
     for edge in qg['edges'].values():

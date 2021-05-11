@@ -1,31 +1,34 @@
 import logging
+from strider.util import post_json
 import httpx
-
-LOGGER = logging.getLogger(__name__)
 
 
 class Normalizer():
-    def __init__(self, url):
+    def __init__(
+            self,
+            url,
+            logger: logging.Logger = None,
+    ):
         self.url = url
+        if not logger:
+            logger = logging.getLogger(__name__)
+        self.logger = logger
 
     async def get_types(self, curies):
         """Get types for a given curie"""
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f'{self.url}/get_normalized_nodes',
-                params=dict(curie=curies)
-            )
+
+        results = await post_json(
+            f"{self.url}/get_normalized_nodes",
+            {"curies" : curies},
+            self.logger, "Node Normalizer"
+        )
+        if not results:
+            return []
+
         types = []
-        if response.status_code >= 300:
-            LOGGER.warning(
-                f"Received {response.status_code} response from normalizer: "
-                + response.text
-            )
-            return types
-        results = response.json()
         for c in curies:
             if results[c] is None:
-                LOGGER.warning(f"Normalizer knows nothing about {c}")
+                self.logger.warning(f"Normalizer knows nothing about {c}")
                 continue
             types.extend(results[c]['type'])
         return types
