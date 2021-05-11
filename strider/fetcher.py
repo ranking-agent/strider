@@ -11,6 +11,7 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 """
 import asyncio
 from collections.abc import Iterable
+import json
 import logging
 from datetime import datetime
 from typing import Optional
@@ -28,10 +29,8 @@ from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
 from .util import ensure_list, standardize_graph_lists, \
-    extract_predicate_direction, WrappedBMT
+    extract_predicate_direction, WrappedBMT, transform_keys
 
-# Initialize registry
-registry = Registry(settings.kpregistry_url)
 
 # Initialize BMT
 WBMT = WrappedBMT()
@@ -42,35 +41,27 @@ class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """
 
     def format(self, record):
-        # If given a string, convert to dict
-        if isinstance(record.msg, str):
-            record.msg = dict(message=record.msg)
+        log_entry = {}
 
+        # If given a string use that as the message
+        if isinstance(record.msg, str):
+            log_entry["message"] = record.msg
+
+        # If given a dict, just use that as the log entry
+        # Make sure everything is serializeable
+        if isinstance(record.msg, dict):
+            log_entry |= record.msg
+
+        # Add timestamp
         iso_timestamp = datetime.utcfromtimestamp(
             record.created
         ).isoformat()
+        log_entry["timestamp"] = iso_timestamp
 
-        # If given a code, set a code
-        code = None
-        if 'code' in record.msg:
-            code = record.msg['code']
-            del record.msg['code']
+        # Add level
+        log_entry["level"] = record.levelname
 
-        # Extra fields go in the message
-        record.msg['line_number'] = record.lineno
-        if record.exc_info:
-            record.msg['exception_info'] = self.formatException(
-                record.exc_info
-            )
-
-        return dict(
-            code=code,
-            message=jsonpickle.encode(
-                record.msg,
-            ),
-            level=record.levelname,
-            timestamp=iso_timestamp,
-        )
+        return log_entry
 
 
 class StriderWorker(Worker):
@@ -146,6 +137,10 @@ class StriderWorker(Worker):
         Also adds a partial result to the queue so that the
         run method can be called.
         """
+
+        # Initialize registry
+        registry = Registry(settings.kpregistry_url, self.logger)
+
         self.logger.debug("Generating plan")
         # Generate traversal plan
         plans = await generate_plans(
@@ -159,7 +154,12 @@ class StriderWorker(Worker):
 
         self.plan = plans[0]
 
-        self.logger.debug({"plan": self.plan})
+        self.logger.debug({
+            "plan": transform_keys(
+                self.plan,
+                lambda step: f"{step.source}-{step.edge}-{step.target}"
+            )
+        })
 
         # Initialize results
 
@@ -268,7 +268,7 @@ class StriderWorker(Worker):
         self.logger.debug({
             "description": "Recieved results from KPs",
             "data": result,
-            "step": step,
+            "step": f"{step.source}-{step.edge}-{step.target}",
         })
 
         category_list = ensure_list(

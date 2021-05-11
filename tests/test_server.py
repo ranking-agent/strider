@@ -490,8 +490,8 @@ async def test_kp_500():
     output = response.json()
 
     # Check that we stored the error
-    assert 'Error contacting KP' in output['logs'][0]['message']
-    assert 'Internal server error' in output['logs'][0]['message']
+    assert "Error contacting KP" in output["logs"][0]["message"]
+    assert "Internal server error" in output["logs"][0]["response"]["data"]
     # Ensure we have results from the other KPs
     assert len(output['message']['knowledge_graph']['nodes']) > 0
     assert len(output['message']['knowledge_graph']['edges']) > 0
@@ -537,7 +537,7 @@ async def test_kp_unavailable():
     output = response.json()
 
     # Check that we stored the error
-    assert 'RequestError contacting KP' in output['logs'][0]['message']
+    assert 'Request Error contacting KP' in output['logs'][0]['message']
 
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
@@ -1362,4 +1362,70 @@ async def test_exception_response():
 
     assert response.status_code == 500
     assert "access-control-allow-origin" in response.headers
-    assert len(response.json()["message"]["logs"])
+    assert len(response.json()["logs"])
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+)
+async def test_constraint_error():
+    """
+    Test that we throw an error and exit if we encounter
+    any constraints (not implemented yet)
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Disease ))
+        """
+    )
+
+    QGRAPH["nodes"]["n0"]["constraints"] = [
+        {
+            "name" : "Chromosome band",
+            "id" : "NCIT:C13432",
+            "operator" : "==",
+            "value" : "11q13.*",
+        }
+    ]
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    # Check that we stored the error
+    assert 'Unable to process query due to constraints' in output["logs"][0]['message']
+
+@pytest.mark.asyncio
+async def test_registry_normalizer_unavailable():
+    """
+    Test that we log a message properly if the KP Registry
+    and/or the Node Normalizer is not available.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Disease ))
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    output_log_messages = [
+        log_entry["message"] for log_entry in output["logs"]
+    ]
+
+    # Check that the correct error messages are in the log
+    assert "Request Error contacting KP Registry" in output_log_messages
+    assert "Request Error contacting Node Normalizer" in output_log_messages

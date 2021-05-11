@@ -59,53 +59,33 @@ class KnowledgePortal():
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
         request = remove_null_values(request)
 
-        message = None
+        response = await post_json(
+            url, request, self.logger, "KP"
+        )
+
+        if not response:
+            # Continue processing with an empty response object
+            response = {"message" : {}}
+            response['message']['query_graph'] = request['message']['query_graph']
+            response['message']['knowledge_graph'] = {'nodes': {}, 'edges': {}}
+            response['message']['results'] = []
 
         try:
-            response = await post_json(url, request)
-
             # Parse with reasoner_pydantic to validate
             response = Response.parse_obj(response).dict()
-
-            message = response["message"]
-
-            # Log sucessful request
-            self.logger.debug({
-                "message": "Received response from KP",
-                "url": url,
-                "request": request,
-                "response": response,
-            })
-        except httpx.RequestError as e:
-            # Log error
-            self.logger.error({
-                "message": "RequestError contacting KP",
-                "request": e.request,
-                "error": str(e),
-            })
-        except httpx.HTTPStatusError as e:
-            # Log error with response
-            self.logger.error({
-                "message": "Error contacting KP",
-                "request": e.request,
-                "response": e.response.text,
-                "error": str(e),
-            })
         except pydantic.ValidationError as e:
             self.logger.error({
                 "message": "Received non-TRAPI compliant response from KP",
                 "response": response,
                 "error": str(e),
             })
-
-
-        if not message:
             # Continue processing with an empty response object
-            message = {}
-            message['query_graph'] = request['message']['query_graph']
-            message['knowledge_graph'] = {'nodes': {}, 'edges': {}}
-            message['results'] = []
+            response = {"message" : {}}
+            response['message']['query_graph'] = request['message']['query_graph']
+            response['message']['knowledge_graph'] = {'nodes': {}, 'edges': {}}
+            response['message']['results'] = []
 
+        message = response["message"]
         message = await self.map_prefixes(message, output_prefixes)
 
         add_source(message, url)
