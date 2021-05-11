@@ -15,7 +15,6 @@ import json
 import logging
 from datetime import datetime
 from typing import Optional
-import jsonpickle
 
 from reasoner_pydantic import QueryGraph, Result, Response
 
