@@ -2,7 +2,6 @@ name: 'Pull Request Feedback'
 
 on: 
   pull_request:
-    types: [review_requested]
 
 jobs:
   lint:
