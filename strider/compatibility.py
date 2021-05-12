@@ -97,7 +97,8 @@ def add_source(message: Message, source: str):
     """Add source annotation to kedges."""
     for kedge in message["knowledge_graph"]["edges"].values():
         kedge["attributes"] = [dict(
-            attribute_type_id="MetaInformation:Provenance",
+            name="provenance",
+            type="MetaInformation",
             value=source,
         )]
 

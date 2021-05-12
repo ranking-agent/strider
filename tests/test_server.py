@@ -1225,7 +1225,7 @@ async def test_solve_double_subclass():
     )
 
     # Check that the knowledge graph node has the correct category
-    assert set(output["message"]["knowledge_graph"]["nodes"]["MONDO:1"]["categories"]) == \
+    assert set(output["message"]["knowledge_graph"]["nodes"]["MONDO:1"]["category"]) == \
         {"biolink:ChemicalSubstance", "biolink:Disease"}
 
 
@@ -1363,43 +1363,6 @@ async def test_exception_response():
     assert response.status_code == 500
     assert "access-control-allow-origin" in response.headers
     assert len(response.json()["logs"])
-
-@pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
-    settings.normalizer_url,
-)
-async def test_constraint_error():
-    """
-    Test that we throw an error and exit if we encounter
-    any constraints (not implemented yet)
-    """
-    QGRAPH = query_graph_from_string(
-        """
-        n0(( id CHEBI:6801 ))
-        n0-- biolink:treats -->n1
-        n1(( category biolink:Disease ))
-        """
-    )
-
-    QGRAPH["nodes"]["n0"]["constraints"] = [
-        {
-            "name" : "Chromosome band",
-            "id" : "NCIT:C13432",
-            "operator" : "==",
-            "value" : "11q13.*",
-        }
-    ]
-
-    # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
-
-    # Run
-    response = await client.post("/query", json=q)
-    output = response.json()
-
-    # Check that we stored the error
-    assert 'Unable to process query due to constraints' in output["logs"][0]['message']
 
 @pytest.mark.asyncio
 async def test_registry_normalizer_unavailable():
