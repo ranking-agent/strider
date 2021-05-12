@@ -10,7 +10,7 @@ from reasoner_converter.upgrading import upgrade_BiolinkEntity
 from reasoner_pydantic import Message
 from reasoner_pydantic.message import Response
 
-from .util import post_json, remove_null_values
+from .util import StriderRequestError, post_json, remove_null_values
 from .trapi import apply_curie_map, get_curies
 from .config import settings
 
@@ -59,11 +59,11 @@ class KnowledgePortal():
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
         request = remove_null_values(request)
 
-        response = await post_json(
-            url, request, self.logger, "KP"
-        )
-
-        if not response:
+        try:
+            response = await post_json(
+                url, request, self.logger, "KP"
+            )
+        except StriderRequestError:
             # Continue processing with an empty response object
             response = {"message" : {}}
             response['message']['query_graph'] = request['message']['query_graph']
