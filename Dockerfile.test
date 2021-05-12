@@ -7,12 +7,12 @@ LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
 WORKDIR /app
 
 # Normal requirements
-ADD requirements.txt .
-RUN pip install -r requirements.txt
+ADD requirements-lock.txt .
+RUN pip install -r requirements-lock.txt
 
 # Test requirements
-ADD requirements-test.txt .
-RUN pip install -r requirements-test.txt
+ADD requirements-test-lock.txt .
+RUN pip install -r requirements-test-lock.txt
 
 # Copy in files
 ADD . .

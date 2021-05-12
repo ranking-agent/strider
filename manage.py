@@ -71,6 +71,23 @@ def profile(extra_args):
     run_command(command)
 
 
+def lock(extra_args):
+    """
+    Write requirements-lock.txt and requirements-test-lock.txt
+    """
+    requirements_files = {
+        "requirements.txt": "requirements-lock.txt",
+        "requirements-test.txt": "requirements-test-lock.txt",
+    }
+
+    for src, locked in requirements_files.items():
+        command = f"""\
+        docker run -v $(pwd):/app python:3.9 \
+            /bin/bash -c "pip install -qqq -r /app/{src} && pip freeze" > {locked}
+        """
+        run_command(command)
+
+
 def main():
     command = sys.argv[1]
     command_func = globals()[command]
