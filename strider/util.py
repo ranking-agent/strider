@@ -148,6 +148,9 @@ def log_response(r):
         "data" : r.text,
     }
 
+class StriderRequestError(BaseException):
+    """ Custom error indicating an issue with an HTTP request """
+
 async def post_json(url, request, logger, log_name):
     """
     Make post request and write errors to log if present
@@ -183,7 +186,7 @@ async def post_json(url, request, logger, log_name):
             "response": e.response.text,
             "error": str(e),
         })
-    return None
+    raise StriderRequestError
 
 
 class KPError(Exception):

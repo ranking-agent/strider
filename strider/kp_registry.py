@@ -1,6 +1,6 @@
 """KP registry."""
 import logging
-from strider.util import post_json
+from strider.util import StriderRequestError, post_json
 from typing import Union
 
 import httpx
@@ -84,16 +84,17 @@ class Registry():
         if isinstance(target_types, str):
             target_types = [target_types]
 
-        response = await post_json(
-            f'{self.url}/search',
-            {
-                'source_type': source_types,
-                'target_type': target_types,
-                'edge_type': edge_types,
-            },
-            self.logger, "KP Registry"
-        )
-        if not response:
+        try:
+            response = await post_json(
+                f'{self.url}/search',
+                {
+                    'source_type': source_types,
+                    'target_type': target_types,
+                    'edge_type': edge_types,
+                },
+                self.logger, "KP Registry"
+            )
+        except StriderRequestError:
             return {}
 
         return {

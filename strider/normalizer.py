@@ -1,5 +1,5 @@
 import logging
-from strider.util import post_json
+from strider.util import StriderRequestError, post_json
 import httpx
 
 
@@ -17,12 +17,13 @@ class Normalizer():
     async def get_types(self, curies):
         """Get types for a given curie"""
 
-        results = await post_json(
-            f"{self.url}/get_normalized_nodes",
-            {"curies" : curies},
-            self.logger, "Node Normalizer"
-        )
-        if not results:
+        try:
+            results = await post_json(
+                f"{self.url}/get_normalized_nodes",
+                {"curies" : curies},
+                self.logger, "Node Normalizer"
+            )
+        except StriderRequestError:
             return []
 
         types = []
