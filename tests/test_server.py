@@ -1434,3 +1434,44 @@ async def test_registry_normalizer_unavailable():
     # Check that the correct error messages are in the log
     assert "Request Error contacting KP Registry" in output_log_messages
     assert "Request Error contacting Node Normalizer" in output_log_messages
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+    }
+)
+async def test_workflow():
+    """
+    Test query workflow handling.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = {
+        "message": {"query_graph": QGRAPH},
+        "workflow": [
+            {
+                "id": "lookup",
+            },
+        ],
+    }
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()

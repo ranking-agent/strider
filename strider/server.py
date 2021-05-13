@@ -237,6 +237,17 @@ async def sync_query(
         redis_client: Redis = Depends(get_redis_client),
 ) -> dict:
     """Handle synchronous query."""
+    # parse requested workflow
+    workflow = query.dict()["workflow"]
+    if not isinstance(workflow, list):
+        raise HTTPException(400, "workflow must be a list")
+    if not len(workflow) == 1:
+        raise HTTPException(400, "workflow must contain exactly 1 operation")
+    if "id" not in workflow[0]:
+        raise HTTPException(400, "workflow must have property 'id'")
+    if not workflow[0]["id"] == "lookup":
+        raise HTTPException(400, "operations must have id 'lookup'")
+
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
 
