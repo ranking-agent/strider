@@ -6,12 +6,11 @@ import logging
 from typing import Optional
 
 import redis
-from redis import Redis
 
 from .config import settings
 
 
-def get_client() -> Redis:
+def get_client() -> redis.Redis:
     """Create a Redis client."""
     return redis.from_url(
         settings.redis_url,
@@ -28,7 +27,7 @@ def mapd(f, d):
 class RedisValue(ABC):
     """Redis value."""
 
-    def __init__(self, key: str, client: Optional[Redis] = None):
+    def __init__(self, key: str, client: Optional[redis.Redis] = None):
         self.client = client or get_client()
         self.key = key
 
@@ -84,7 +83,7 @@ class RedisList(RedisValue):
 class RedisGraph():
     """Redis graph."""
 
-    def __init__(self, key: str, client: Optional[Redis] = None):
+    def __init__(self, key: str, client: Optional[redis.Redis] = None):
         self.nodes = RedisHash(key + ':nodes', client)
         self.edges = RedisHash(key + ':edges', client)
 
@@ -106,7 +105,7 @@ class RedisGraph():
 class RedisLogHandler(logging.Handler):
     """Redis log handler."""
 
-    def __init__(self, key: str, client: Optional[Redis] = None, **kwargs):
+    def __init__(self, key: str, client: Optional[redis.Redis] = None, **kwargs):
         self.store = RedisList(key, client)
         super().__init__(**kwargs)
 
