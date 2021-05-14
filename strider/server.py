@@ -238,7 +238,10 @@ async def sync_query(
 ) -> dict:
     """Handle synchronous query."""
     # parse requested workflow
-    workflow = query.dict()["workflow"]
+    query_dict = query.dict()
+    if "workflow" not in query_dict:
+        raise HTTPException(400, "workflow must be specified")
+    workflow = query_dict["workflow"]
     if not isinstance(workflow, list):
         raise HTTPException(400, "workflow must be a list")
     if not len(workflow) == 1:
@@ -251,14 +254,14 @@ async def sync_query(
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
 
-    query_graph = query.dict()['message']['query_graph']
+    query_graph = query_dict['message']['query_graph']
     standardize_graph_lists(query_graph)
 
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
     redis_query_graph.set(query_graph)
 
-    log_level = query.dict()["log_level"] or "ERROR"
+    log_level = query_dict["log_level"] or "ERROR"
 
     # Process query and wait for results
     query_results = await process_query(qid, log_level, redis_client)
