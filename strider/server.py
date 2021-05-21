@@ -61,7 +61,7 @@ def custom_openapi():
                 "name": "translator",
             },
             {
-                "name": "reasoner",
+                "name": "trapi",
             }
         ],
         routes=APP.routes
@@ -123,18 +123,18 @@ EXAMPLE = {
         "query_graph": {
             "nodes": {
                 "n0": {
-                    "id": "MONDO:0005148",
-                    "category": "biolink:Disease"
+                    "ids": ["MONDO:0005148"],
+                    "categories": ["biolink:Disease"]
                 },
                 "n1": {
-                    "category": "biolink:PhenotypicFeature"
+                    "categories": ["biolink:PhenotypicFeature"]
                 }
             },
             "edges": {
                 "e01": {
                     "subject": "n0",
                     "object": "n1",
-                    "predicate": "biolink:has_phenotype"
+                    "predicates": ["biolink:has_phenotype"]
                 }
             }
         }
