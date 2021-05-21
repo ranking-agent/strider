@@ -231,7 +231,7 @@ async def get_results(
     return get_finished_query(qid, redis_client)
 
 
-@APP.post('/query', tags=['reasoner'], response_model=ReasonerResponse)
+@APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
         redis_client: Redis = Depends(get_redis_client),
