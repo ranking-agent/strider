@@ -248,8 +248,14 @@ async def sync_query(
         raise HTTPException(400, "workflow must contain exactly 1 operation")
     if "id" not in workflow[0]:
         raise HTTPException(400, "workflow must have property 'id'")
+    if workflow[0]["id"] == "filter_results_top_n":
+        max_results = workflow[0]["parameters"]["max_results"]
+        if max_results < len(query_dict["message"]["results"]):
+            query_dict["message"]["results"] = query_dict["message"]["results"][:max_results]
+        return query_dict
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
+
 
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
