@@ -6,7 +6,6 @@ import os
 
 import httpx
 import pydantic
-from reasoner_converter.upgrading import upgrade_BiolinkEntity
 from reasoner_pydantic import Message
 from reasoner_pydantic.message import Response
 
@@ -153,10 +152,7 @@ class Synonymizer():
 
         entities = [
             Entity(
-                [
-                    upgrade_BiolinkEntity(category)
-                    for category in entity["type"]
-                ],
+                entity["type"],
                 [
                     synonym["identifier"]
                     for synonym in entity["equivalent_identifiers"]
