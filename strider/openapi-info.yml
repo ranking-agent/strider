@@ -6,7 +6,7 @@ contact:
 description: Translator Autonomous Relay Agent
 termsOfService: 'http://robokop.renci.org:7055/tos?service_long=Strider&provider_long=the%20Renaissance%20Computing%20Institute&provider_short=RENCI'
 title: Strider
-version: '1.0.0'
+version: '2.0.0'
 x-translator:
   component: ARA
   team:
