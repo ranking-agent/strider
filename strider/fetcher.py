@@ -325,7 +325,7 @@ def get_kp_request_body(
     request_target["category"] = kp["target_category"]
 
     # Fill in the current curie
-    request_source["id"] = curie
+    request_source["id"] = [curie]
 
     source = step.source
     target = step.target

@@ -185,7 +185,7 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
         kgraph = message["knowledge_graph"]
         new_message['knowledge_graph'] = {
             'nodes': {
-                curie_map.get(knode_id, knode_id): knode
+                curie_map.get(knode_id, [knode_id])[0]: knode
                 for knode_id, knode in kgraph['nodes'].items()
             },
             'edges': {
@@ -218,13 +218,19 @@ def fix_qnode(qnode: QNode, curie_map: dict[str, str]) -> QNode:
     if not qnode.get("id", None):
         return qnode
 
-    if isinstance(qnode["id"], list):
-        fixed_ids = [curie_map.get(curie, curie) for curie in qnode['id']]
-    else:
-        fixed_ids = curie_map.get(qnode["id"], qnode["id"])
+    listify_value(qnode, "id")
+
+    output_curies = []
+    for existing_curie in qnode["id"]:
+        output_curies.extend(
+            curie_map.get(existing_curie, [])
+        )
+    if len(output_curies) == 0:
+        output_curies = qnode["id"]
+
     qnode = {
         **qnode,
-        "id": fixed_ids,
+        "id": output_curies,
     }
     return qnode
 
@@ -233,15 +239,15 @@ def fix_knode(knode: Node, curie_map: dict[str, str]) -> Node:
     """Replace curie with preferred, if possible."""
     knode = {
         **knode,
-        "id": curie_map.get(knode["id"], knode["id"])
+        "id": curie_map.get(knode["id"], [knode["id"]])[0]
     }
     return knode
 
 
 def fix_kedge(kedge: Edge, curie_map: dict[str, str]) -> Edge:
     """Replace curie with preferred, if possible."""
-    kedge["subject"] = curie_map.get(kedge["subject"], kedge["subject"])
-    kedge["object"] = curie_map.get(kedge["object"], kedge["object"])
+    kedge["subject"] = curie_map.get(kedge["subject"], [kedge["subject"]])[0]
+    kedge["object"] = curie_map.get(kedge["object"], [kedge["object"]])[0]
     return kedge
 
 
@@ -253,8 +259,8 @@ def fix_result(result: Result, curie_map: dict[str, str]) -> Result:
                 **node_binding,
                 "id": curie_map.get(
                     node_binding["id"],
-                    node_binding["id"]
-                ),
+                    [node_binding["id"]]
+                )[0],
             }
             for node_binding in node_bindings
         ]
