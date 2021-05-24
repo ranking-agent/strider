@@ -203,21 +203,22 @@ class CURIEMap():
             # no preferred prefixes for these categories
             self.logger.warning(
                 f"Could not find preferred prefixes for at least one of: {categories}")
-            return curie
+            return [curie]
 
-        # get CURIE with preferred prefix
-        try:
-            return next(
-                curie
-                for prefix in prefixes
-                for curie in identifiers
+        # Iterate through prefixes until we find
+        # one with CURIEs
+        for prefix in prefixes:
+            prefix_identifiers = [
+                curie for curie in identifiers
                 if curie.startswith(prefix)
-            )
-        except StopIteration:
-            # no preferred curie with these prefixes
-            self.logger.warning(
-                "Cannot find identifier with a preferred prefix")
-            return curie
+            ]
+            if len(prefix_identifiers) > 0:
+                return prefix_identifiers
+
+        # no preferred curie with these prefixes
+        self.logger.warning(
+            "Cannot find identifier with a preferred prefix")
+        return [curie]
 
     def get(self, *args):
         """Get item."""
