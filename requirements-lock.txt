@@ -13,10 +13,9 @@ deprecation==2.1.0
 fastapi @ git+git://github.com/patrickkwang/fastapi@a6cee833c3b97f81d0d642d2c0471a767a12b9ca
 frozendict==2.0.2
 graphviz==0.16
-h11==0.9.0
+h11==0.12.0
 hbreader==0.9.1
 httpcore==0.12.3
-httptools==0.1.2
 httpx==0.16.1
 idna==2.10
 isodate==0.6.0
@@ -24,7 +23,7 @@ jsonasobj==1.3.1
 jsonpickle==1.4.2
 jsonschema==3.2.0
 lxml==4.6.3
-numpy==1.19.3
+numpy==1.20.3
 packaging==20.9
 parse==1.19.0
 pbr==5.6.0
@@ -42,8 +41,7 @@ PyYAML==5.4
 rdflib==5.0.0
 rdflib-jsonld==0.5.0
 rdflib-pyld-compat==0.1.0
-reasoner-converter @ git+git://github.com/TranslatorSRI/reasoner-converter@2656c684189ef942d75c78a5c5554881a556c9f7
-reasoner-pydantic @ git+git://github.com/ranking-agent/reasoner-pydantic@dee9f5f8fc77508f9c3a828dfdd6765e06a36078
+reasoner-pydantic==1.1.1
 redis==3.5.3
 requests==2.25.1
 rfc3986==1.5.0
@@ -57,7 +55,5 @@ stringcase==1.2.0
 testfixtures==6.17.1
 typing-extensions==3.10.0.0
 urllib3==1.26.4
-uvicorn==0.11.7
-uvloop==0.15.2
-watchdog==2.1.1
-websockets==8.1
+uvicorn==0.13.4
+watchdog==2.1.2
