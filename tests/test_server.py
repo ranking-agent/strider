@@ -1475,3 +1475,4 @@ async def test_workflow():
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
+    assert output["message"]["results"]
