@@ -56,6 +56,10 @@ openapi_args = dict(
         "x-id": "patrickkwang",
         "x-role": "responsible developer",
     },
+    trapi_operations=[
+        "lookup",
+        "filter_results_top_n",
+    ],
 )
 if settings.openapi_server_url:
     openapi_args["servers"] = [

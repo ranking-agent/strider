@@ -20,6 +20,7 @@ class TRAPI(FastAPI):
         terms_of_service: Optional[str] = None,
         translator_component: Optional[str] = None,
         translator_teams: Optional[List[str]] = None,
+        trapi_operations: Optional[List[str]] = None,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
@@ -27,6 +28,7 @@ class TRAPI(FastAPI):
         self.terms_of_service = terms_of_service
         self.translator_component = translator_component
         self.translator_teams = translator_teams
+        self.trapi_operations = trapi_operations
 
     def openapi(self) -> Dict[str, Any]:
         """Build custom OpenAPI schema."""
@@ -62,6 +64,8 @@ class TRAPI(FastAPI):
                 "url": "https://github.com/NCATSTranslator/translator_extensions/blob/production/x-trapi/",
             },
         }
+        if self.trapi_operations:
+            openapi_schema["info"]["x-trapi"]["operations"] = self.trapi_operations
         openapi_schema["info"]["contact"] = self.contact
         openapi_schema["info"]["termsOfService"] = self.terms_of_service
 
