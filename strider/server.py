@@ -41,7 +41,7 @@ LOGGER = logging.getLogger(__name__)
 openapi_args = dict(
     title="Strider",
     description="Translator Autonomous Relay Agent",
-    version="2.0.0",
+    version="2.0.1",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
