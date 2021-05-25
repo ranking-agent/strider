@@ -42,7 +42,12 @@ openapi_args = dict(
     title="Strider",
     description="Translator Autonomous Relay Agent",
     version="2.0.0",
-    terms_of_service="",
+    terms_of_service=(
+        "http://robokop.renci.org:7055/tos"
+        "?service_long=Strider"
+        "&provider_long=the%20Renaissance%20Computing%20Institute"
+        "&provider_short=RENCI"
+    ),
     translator_component="ARA",
     translator_teams=["Ranking Agent"],
     contact={
