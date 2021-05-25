@@ -34,45 +34,29 @@ from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually, standardize_graph_lists, transform_keys
 from .trapi import fill_categories_predicates, add_descendants
+from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
 
-APP = FastAPI(
-    docs_url=None,
-    redoc_url=None,
+openapi_args = dict(
+    title="Strider",
+    description="Translator Autonomous Relay Agent",
+    version="2.0.0",
+    terms_of_service="",
+    translator_component="ARA",
+    translator_teams=["Ranking Agent"],
+    contact={
+        "name": "Patrick Wang",
+        "email": "patrick@covar.com",
+        "x-id": "patrickkwang",
+        "x-role": "responsible developer",
+    },
 )
-
-
-def custom_openapi():
-    """Build custom OpenAPI schema."""
-    if APP.openapi_schema:
-        return APP.openapi_schema
-
-    extra_info_file = Path(__file__).parent / "openapi-info.yml"
-
-    with open(extra_info_file) as stream:
-        extra_info = yaml.load(stream, Loader=yaml.SafeLoader)
-
-    openapi_schema = get_openapi(
-        title="",
-        version="",
-        tags=[
-            {
-                "name": "translator",
-            },
-            {
-                "name": "trapi",
-            }
-        ],
-        routes=APP.routes
-    )
-
-    openapi_schema["info"] |= extra_info
-
-    APP.openapi_schema = openapi_schema
-    return APP.openapi_schema
-
-APP.openapi = custom_openapi
+if settings.openapi_server_url:
+    openapi_args["servers"] = [
+        {"url": settings.openapi_server_url}
+    ]
+APP = TRAPI(**openapi_args)
 
 CORS_OPTIONS = dict(
     allow_origins=['*'],
