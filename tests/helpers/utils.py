@@ -156,9 +156,12 @@ def normalizer_data_from_string(s):
         if action == 'categories':
             category_mappings[curie].extend(line_data)
         elif action == 'synonyms':
-            synset_mappings[curie].extend(line_data)
+            # Add to start of list so that we can override
+            # the primary CURIE
+            synset_mappings[curie][:0] = line_data
         else:
             raise ValueError(f"Invalid line: {line}")
+
     return {"category_mappings": category_mappings, "synset_mappings": synset_mappings}
 
 
