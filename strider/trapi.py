@@ -202,18 +202,26 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
     return new_message
 
 
-def fix_qgraph(qgraph: QueryGraph, curie_map: dict[str, str]) -> QueryGraph:
+def fix_qgraph(
+        qgraph: QueryGraph,
+        curie_map: dict[str, str],
+        primary: bool = False,
+) -> QueryGraph:
     """Replace curies with preferred, if possible."""
     return {
         'nodes': {
-            qnode_id: fix_qnode(qnode, curie_map)
+            qnode_id: fix_qnode(qnode, curie_map, primary)
             for qnode_id, qnode in qgraph['nodes'].items()
         },
         "edges": qgraph["edges"],
     }
 
 
-def fix_qnode(qnode: QNode, curie_map: dict[str, str]) -> QNode:
+def fix_qnode(
+        qnode: QNode,
+        curie_map: dict[str, str],
+        primary: bool = False,
+) -> QNode:
     """Replace curie with preferred, if possible."""
     if not qnode.get("id", None):
         return qnode
@@ -222,9 +230,14 @@ def fix_qnode(qnode: QNode, curie_map: dict[str, str]) -> QNode:
 
     output_curies = []
     for existing_curie in qnode["id"]:
-        output_curies.extend(
-            curie_map.get(existing_curie, [])
-        )
+        if primary:
+            output_curies.append(
+                curie_map.get(existing_curie, [existing_curie])[0]
+            )
+        else:
+            output_curies.extend(
+                curie_map.get(existing_curie, [])
+            )
     if len(output_curies) == 0:
         output_curies = qnode["id"]
 

@@ -20,8 +20,8 @@ from reasoner_pydantic import QueryGraph, Result, Response
 from redis import Redis
 
 from .query_planner import generate_plans, Step, NoAnswersError
-from .compatibility import KnowledgePortal
-from .trapi import filter_by_qgraph, merge_messages, merge_results, \
+from .compatibility import KnowledgePortal, Synonymizer
+from .trapi import filter_by_qgraph, fix_qgraph, merge_messages, merge_results, \
     fill_categories_predicates
 from .worker import Worker
 from .caching import async_locking_cache
@@ -110,11 +110,13 @@ class StriderWorker(Worker):
         # Use BMT for preferred prefixes
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
-        # fix qgraph
-        self.qgraph = (await self.portal.map_prefixes(
-            {"query_graph": qgraph},
-            self.preferred_prefixes,
-        ))["query_graph"]
+        # Update qgraph identifiers
+        synonymizer = Synonymizer(self.logger)
+        await synonymizer.load_message({"query_graph" : qgraph})
+        curie_map = synonymizer.map(self.preferred_prefixes)
+        qgraph = fix_qgraph(qgraph, curie_map, primary = True)
+
+        self.qgraph = qgraph
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
