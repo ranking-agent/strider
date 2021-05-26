@@ -1476,3 +1476,78 @@ async def test_workflow():
     response = await client.post("/query", json=q)
     output = response.json()
     assert output["message"]["results"]
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp1":
+        """
+            CHEBI:2904(( category biolink:ChemicalSubstance ))
+            CHEBI:30146(( category biolink:ChemicalSubstance ))
+            NCIT:C25742(( category biolink:PhenotypicFeature ))
+            NCIT:C25742<-- predicate biolink:contraindicated_for --CHEBI:2904
+            NCIT:C92933(( category biolink:PhenotypicFeature ))
+            NCIT:C92933<-- predicate biolink:contraindicated_for --CHEBI:30146
+        """
+    },
+    normalizer_data="""
+        UMLS:C0032961 categories biolink:PhenotypicFeature
+        UMLS:C0032961 synonyms NCIT:C25742 NCIT:C92933
+        NCIT:C25742 categories biolink:PhenotypicFeature
+        NCIT:C25742 synonyms NCIT:C25742 NCIT:C92933
+        NCIT:C92933 categories biolink:PhenotypicFeature
+        NCIT:C92933 synonyms NCIT:C25742 NCIT:C92933
+        CHEBI:2904 categories biolink:ChemicalSubstance
+        CHEBI:30146 categories biolink:ChemicalSubstance
+        """
+)
+async def test_multiple_identifiers():
+    """
+    Test that we correctly handle the case where we have multiple identifiers
+    for the preferred prefix
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:PhenotypicFeature ))
+        n1(( id UMLS:C0032961 ))
+        n0-- biolink:contraindicated_for -->n1
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:2904 biolink:contraindicated_for NCIT:C25742
+                CHEBI:30146 biolink:contraindicated_for NCIT:C25742
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 CHEBI:30146
+                    n1 NCIT:C25742
+                edge_bindings:
+                    n0n1 CHEBI:30146-NCIT:C25742
+                """,
+                """
+                node_bindings:
+                    n0 CHEBI:2904
+                    n1 NCIT:C25742
+                edge_bindings:
+                    n0n1 CHEBI:2904-NCIT:C25742
+                """,
+            ],
+        },
+        output["message"]
+    )
