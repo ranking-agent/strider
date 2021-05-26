@@ -38,9 +38,16 @@ from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
 
+DESCRIPTION = """
+<img src="/static/favicon.svg" width="300px">
+<br /><br />
+Translator Autonomous Relay Agent
+"""
+
 openapi_args = dict(
     title="Strider",
-    description="Translator Autonomous Relay Agent",
+    description=DESCRIPTION,
+    docs_url=None,
     version="2.0.1",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
@@ -307,7 +314,7 @@ async def custom_swagger_ui_html():
         openapi_url=APP.openapi_url,
         title=APP.title + " - Swagger UI",
         oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
-        swagger_favicon_url="/static/favicon.png",
+        swagger_favicon_url="/static/favicon.svg",
     )
 
 
