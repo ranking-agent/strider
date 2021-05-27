@@ -114,9 +114,7 @@ class StriderWorker(Worker):
         synonymizer = Synonymizer(self.logger)
         await synonymizer.load_message({"query_graph" : qgraph})
         curie_map = synonymizer.map(self.preferred_prefixes)
-        qgraph = fix_qgraph(qgraph, curie_map, primary = True)
-
-        self.qgraph = qgraph
+        self.qgraph = fix_qgraph(qgraph, curie_map, primary = True)
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)

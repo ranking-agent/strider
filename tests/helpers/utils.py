@@ -158,7 +158,7 @@ def normalizer_data_from_string(s):
         elif action == 'synonyms':
             # Add to start of list so that we can override
             # the primary CURIE
-            synset_mappings[curie][:0] = line_data
+            synset_mappings[curie] = line_data + synset_mappings[curie]
         else:
             raise ValueError(f"Invalid line: {line}")
 
