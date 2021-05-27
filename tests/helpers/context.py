@@ -10,7 +10,6 @@ import httpx
 from kp_registry.routers.kps import registry_router
 from simple_kp.testing import kp_overlay
 from simple_kp._types import CURIEMap
-import small_kg
 
 from .normalizer import norm_router
 from .utils import normalizer_data_from_string

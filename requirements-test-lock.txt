@@ -54,9 +54,8 @@ redis==3.5.3
 requests==2.25.1
 rfc3986==1.5.0
 ShExJSG==0.7.1
-simple-kp @ git+git://github.com/ranking-agent/simple-kp@35fdd94bbad26693a88019585b90d102d18e8bea
+simple-kp @ git+git://github.com/ranking-agent/simple-kp@5885dd59e4b0ca1dd35773c287b8a5464ba2c8ab
 six==1.16.0
-small-kg @ git+git://github.com/patrickkwang/small-kg@9cfa7ca88e4e74163ebd76b22d26ec3a90a14c1d
 sniffio==1.2.0
 sortedcontainers==2.4.0
 sparqlslurper==0.4.1
@@ -66,6 +65,6 @@ stringcase==1.2.0
 testfixtures==6.17.1
 toml==0.10.2
 typing-extensions==3.10.0.0
-urllib3==1.26.4
+urllib3==1.26.5
 uvicorn==0.13.4
 watchdog==2.1.2

@@ -169,7 +169,9 @@ async def test_no_reverse_edge_in_plan(caplog):
     kp0 biolink:Drug -biolink:treats-> biolink:Disease
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+""")
 async def test_no_path_from_pinned_node(caplog):
     """
     Check there is no plan when
@@ -200,7 +202,9 @@ async def test_no_path_from_pinned_node(caplog):
     kp0 biolink:Disease <-biolink:treats- biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+""")
 async def test_plan_reverse_edge(caplog):
     """
     Test that we can plan a simple query graph
@@ -304,7 +308,9 @@ async def test_plan_reuse_pinned():
     kp1 biolink:Disease <-biolink:related_to- biolink:Disease
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+""")
 async def test_plan_double_loop(caplog):
     """
     Test valid plan for a more complex query with two loops
@@ -345,7 +351,9 @@ async def test_plan_double_loop(caplog):
         """
     )
 )
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+""")
 async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     qg = query_graph_from_string(
@@ -377,7 +385,10 @@ async def test_plan_ex1(caplog):
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+    MONDO:0011122 categories biolink:Disease
+""")
 async def test_valid_two_pinned_nodes(caplog):
     """
     Test Pinned -> Unbound + Pinned
@@ -407,7 +418,9 @@ async def test_valid_two_pinned_nodes(caplog):
     kp1 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+""")
 async def test_fork(caplog):
     """
     Test Unbound <- Pinned -> Unbound
@@ -438,7 +451,9 @@ async def test_fork(caplog):
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+""")
 async def test_unbound_unconnected_node(caplog):
     """
     Test Pinned -> Unbound + Unbound
@@ -467,7 +482,10 @@ async def test_unbound_unconnected_node(caplog):
     kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
     """
 ))
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+    MONDO:0011122 categories biolink:Disease
+""")
 async def test_invalid_two_disconnected_components(caplog):
     """
     Test Pinned -> Unbound + Pinned -> Unbound

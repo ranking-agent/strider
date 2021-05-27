@@ -21,5 +21,4 @@ fakeredis==1.5.0
 kp-registry @ git+git://github.com/TranslatorIIPrototypes/kp_registry@v0.2.0
 pytest==6.2.4
 pytest-asyncio==0.15.1
-simple-kp @ git+git://github.com/ranking-agent/simple-kp@master
-small-kg @ git+git://github.com/patrickkwang/small-kg@main
+simple-kp @ git+git://github.com/ranking-agent/simple-kp@v1.2.0
