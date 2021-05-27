@@ -39,7 +39,7 @@ from .trapi_openapi import TRAPI
 LOGGER = logging.getLogger(__name__)
 
 DESCRIPTION = """
-<img src="/static/favicon.svg" width="300px">
+<img src="/static/favicon.svg" width="200px">
 <br /><br />
 Translator Autonomous Relay Agent
 """
