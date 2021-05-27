@@ -16,7 +16,10 @@ from strider.compatibility import \
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
+@with_norm_overlay(settings.normalizer_url, """
+    MONDO:0005148 categories biolink:Disease
+    MONDO:0005148 synonyms DOID:9352
+""")
 async def test_map_prefixes_small_example():
     """
     Test that prefixes are mapped properly and that already
