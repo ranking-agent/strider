@@ -7,7 +7,7 @@ import os
 import httpx
 import pydantic
 from reasoner_pydantic import Message
-from reasoner_pydantic.message import Response
+from reasoner_pydantic.message import Query, Response
 
 from .util import StriderRequestError, post_json, remove_null_values
 from .trapi import apply_curie_map, get_curies
@@ -58,9 +58,10 @@ class KnowledgePortal():
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
         request = remove_null_values(request)
 
+        trapi_request = Query.parse_obj(request).dict(by_alias=True)
         try:
             response = await post_json(
-                url, request, self.logger, "KP"
+                url, trapi_request, self.logger, "KP"
             )
         except StriderRequestError:
             # Continue processing with an empty response object
