@@ -7,6 +7,7 @@ from fastapi.responses import Response
 import httpx
 import pytest
 from reasoner_pydantic import Query, Message, QueryGraph
+from starlette.responses import JSONResponse
 
 from tests.helpers.context import \
     response_overlay, with_translator_overlay, with_registry_overlay, \
@@ -1551,3 +1552,47 @@ async def test_multiple_identifiers():
         },
         output["message"]
     )
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+    }
+)
+@with_response_overlay(
+    "http://ctd/query",
+    JSONResponse(
+        status_code=500,
+        content={"message" : "Bad gateway"},
+    )
+)
+async def test_structured_kp_error():
+    """
+    Test that when we recieve a structured error from a KP (a LogEntry)
+    that we directly add it to the logs
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( id CHEBI:6801 ))
+        n0(( category biolink:ChemicalSubstance ))
+        n1(( category biolink:Disease ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    # Check that we stored the error
+    assert output["logs"][0]["message"] == "Bad gateway"

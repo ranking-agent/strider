@@ -5,10 +5,13 @@ import re
 from typing import Callable, Union
 
 import httpx
+import pydantic
+from pydantic.errors import PydanticTypeError
 from starlette.middleware.cors import CORSMiddleware
 import yaml
 from bmt import Toolkit as BMToolkit
 
+from reasoner_pydantic import LogEntry
 
 def camel_to_snake(s, sep=' '):
     return re.sub(r'(?<!^)(?=[A-Z])', sep, s).lower()
@@ -171,13 +174,24 @@ async def post_json(url, request, logger, log_name):
             "request": log_request(e.request),
         })
     except httpx.HTTPStatusError as e:
-        # Log error with response
-        logger.error({
-            "message": f"Response Error contacting {log_name}",
-            "error": str(e),
-            "request": log_request(e.request),
-            "response": log_response(e.response),
-        })
+        # If the response is a LogEntry add it directly to the logs
+        try:
+            log_entry = LogEntry.parse_raw(e.response.text)
+        except pydantic.ValidationError:
+            log_entry = None
+
+        # Log entries are allowed to be empty by TRAPI standard, but in this case
+        # we don't want an empty log entry so we check for a message
+        if log_entry and log_entry.message:
+            logger.error(log_entry.dict())
+        else:
+            # Log error with response
+            logger.error({
+                "message": f"Response Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+                "response": log_response(e.response),
+            })
     except JSONDecodeError as e:
         # Log error with response
         logger.error({
