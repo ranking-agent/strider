@@ -37,7 +37,9 @@ You can also run tests and coverage reports withou the management script. Check 
 
 The local development environment also includes a built-in profiler for debugging performance issues. To use this, set `PROFILER=true` in a `.env` file in the root of the repository. Once the application is running the profiler will automatically be run on all incoming requests. To view profiles you can visit [localhost:5781/profiles](http://localhost:5781/profiles), which will give you a list of the captured profiles. These captured profiles can be used with the [snakeviz](https://jiffyclub.github.io/snakeviz/) utility to easily diagnose performance issues.
 
-## [Testing](tests/README.md)
+## Testing
+
+Documentation for testing can be found in the [tests README](tests/README.md). Additional high level testing architecture overview can be found in the [docs folder](docs/TESTING_INFRASTRUCTURE.md). 
 
 ## Deployment
 
@@ -65,3 +67,7 @@ docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 ## Usage
 
 `http://<HOST>:5781/docs`
+
+## Documentation
+
+High level documentation can be found in the [docs folder](docs/README.md).
