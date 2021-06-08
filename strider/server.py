@@ -22,6 +22,7 @@ from fastapi.staticfiles import StaticFiles
 import httpx
 from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import HTMLResponse
 import yaml
 
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
@@ -308,10 +309,12 @@ APP.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 @APP.get("/docs", include_in_schema=False)
-async def custom_swagger_ui_html():
+async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
     """Customize Swagger UI."""
+    root_path = req.scope.get("root_path", "").rstrip("/")
+    openapi_url = root_path + APP.openapi_url
     return get_swagger_ui_html(
-        openapi_url=APP.openapi_url,
+        openapi_url=openapi_url,
         title=APP.title + " - Swagger UI",
         oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
         swagger_favicon_url="/static/favicon.svg",
