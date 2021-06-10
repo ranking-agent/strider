@@ -86,6 +86,13 @@ class KnowledgePortal():
             response['message']['results'] = []
 
         message = response["message"]
+        if message.get("query_graph") is None:
+            message = {
+                "query_graph": request["message"]["query_graph"],
+                "knowledge_graph": {"nodes": {}, "edges": {}},
+                "results": [],
+            }
+
         message = await self.map_prefixes(message, output_prefixes)
 
         add_source(message, url)
