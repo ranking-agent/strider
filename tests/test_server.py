@@ -594,6 +594,58 @@ async def test_kp_not_trapi():
 
 
 @pytest.mark.asyncio
+@with_norm_overlay(settings.normalizer_url)
+@with_registry_overlay(
+    settings.kpregistry_url, {
+        'ctd': {
+            'url':
+            'http://ctd/query',
+            'operations': [{
+                'source_type': 'biolink:ChemicalSubstance',
+                'edge_type': '-biolink:treats->',
+                'target_type': 'biolink:Disease'
+            }],
+            'details': {
+                'preferred_prefixes': {}
+            }
+        }
+    })
+@with_response_overlay(
+    "http://ctd/query",
+    Response(
+        status_code=200,
+        content=json.dumps({"message": {
+            "query_graph": None,
+            "knowledge_graph": None,
+            "results": None,
+        }}),
+    )
+)
+async def test_kp_response_empty():
+    """
+    Test that when a KP returns null query graph
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( category biolink:ChemicalSubstance ))
+        n0(( id CHEBI:6801 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Disease ))
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    # Check that we stored the error
+    assert not output["logs"]
+
+
+@pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
