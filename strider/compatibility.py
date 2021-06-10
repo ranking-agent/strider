@@ -58,7 +58,7 @@ class KnowledgePortal():
         request['message'] = await self.map_prefixes(request['message'], input_prefixes)
         request = remove_null_values(request)
 
-        trapi_request = Query.parse_obj(request).dict(by_alias=True)
+        trapi_request = Query.parse_obj(request).dict(by_alias=True, exclude_unset=True)
         try:
             response = await post_json(
                 url, trapi_request, self.logger, "KP"
