@@ -65,10 +65,13 @@ class KnowledgePortal():
             )
         except StriderRequestError:
             # Continue processing with an empty response object
-            response = {"message" : {}}
-            response['message']['query_graph'] = request['message']['query_graph']
-            response['message']['knowledge_graph'] = {'nodes': {}, 'edges': {}}
-            response['message']['results'] = []
+            response = {
+                "message" : {
+                    "query_graph": request["message"]["query_graph"],
+                    "knowledge_graph": {"nodes": {}, "edges": {}},
+                    "results": [],
+                }
+            }
 
         try:
             # Parse with reasoner_pydantic to validate
@@ -80,10 +83,13 @@ class KnowledgePortal():
                 "error": str(e),
             })
             # Continue processing with an empty response object
-            response = {"message" : {}}
-            response['message']['query_graph'] = request['message']['query_graph']
-            response['message']['knowledge_graph'] = {'nodes': {}, 'edges': {}}
-            response['message']['results'] = []
+            response = {
+                "message" : {
+                    "query_graph": request["message"]["query_graph"],
+                    "knowledge_graph": {"nodes": {}, "edges": {}},
+                    "results": [],
+                }
+            }
 
         message = response["message"]
         if message.get("query_graph") is None:
