@@ -313,11 +313,12 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
     """Customize Swagger UI."""
     root_path = req.scope.get("root_path", "").rstrip("/")
     openapi_url = root_path + APP.openapi_url
+    swagger_favicon_url = root_path + "/static/favicon.svg"
     return get_swagger_ui_html(
         openapi_url=openapi_url,
         title=APP.title + " - Swagger UI",
         oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
-        swagger_favicon_url="/static/favicon.svg",
+        swagger_favicon_url=swagger_favicon_url,
     )
 
 
