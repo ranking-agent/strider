@@ -635,7 +635,11 @@ async def test_kp_response_empty():
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {
+            "query_graph" : QGRAPH
+        }
+    }
 
     # Run
     response = await client.post("/query", json=q)
