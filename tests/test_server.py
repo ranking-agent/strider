@@ -598,8 +598,7 @@ async def test_kp_not_trapi():
 @with_registry_overlay(
     settings.kpregistry_url, {
         'ctd': {
-            'url':
-            'http://ctd/query',
+            'url': 'http://ctd/query',
             'operations': [{
                 'source_type': 'biolink:ChemicalSubstance',
                 'edge_type': '-biolink:treats->',
