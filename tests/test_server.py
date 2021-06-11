@@ -614,11 +614,13 @@ async def test_kp_not_trapi():
     "http://ctd/query",
     Response(
         status_code=200,
-        content=json.dumps({"message": {
-            "query_graph": None,
-            "knowledge_graph": None,
-            "results": None,
-        }}),
+        content=json.dumps({
+            "message": {
+                "query_graph": None,
+                "knowledge_graph": None,
+                "results": None,
+            }
+        }),
     )
 )
 async def test_kp_response_empty():
