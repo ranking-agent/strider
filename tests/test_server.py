@@ -649,7 +649,7 @@ async def test_kp_response_no_qg():
     response = await client.post("/query", json=q)
     output = response.json()
 
-    # Check that we stored the error
+    # Check that there are no logged errors.
     assert not output["logs"]
 
 
