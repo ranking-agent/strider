@@ -622,9 +622,12 @@ async def test_kp_not_trapi():
         }),
     )
 )
-async def test_kp_response_empty():
+async def test_kp_response_no_qg():
     """
-    Test that when a KP returns null query graph
+    Test when a KP returns null query graph.
+
+    This used to cause an error in our code, which was caught and logged.
+    It is now handled immediately, so we should not log any errors.
     """
     QGRAPH = query_graph_from_string(
         """
