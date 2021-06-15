@@ -75,7 +75,10 @@ class KnowledgePortal():
 
         try:
             # Parse with reasoner_pydantic to validate
-            response = Response.parse_obj(response).dict()
+            response = Response.parse_obj(response).dict(
+                exclude_unset=True,
+                exclude_none=True,
+            )
         except pydantic.ValidationError as e:
             self.logger.error({
                 "message": "Received non-TRAPI compliant response from KP",
