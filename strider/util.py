@@ -131,6 +131,9 @@ class WrappedBMT():
             return element.id_prefixes
 
 
+WBMT = WrappedBMT()
+
+
 def log_request(r):
     """ Serialize a httpx.Request object into a dict for logging """
     return {
