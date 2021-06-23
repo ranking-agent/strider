@@ -29,13 +29,10 @@ from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
 from .util import ensure_list, standardize_graph_lists, \
-    extract_predicate_direction, WrappedBMT, transform_keys
-
-
-# Initialize BMT
-WBMT = WrappedBMT()
+    extract_predicate_direction, WBMT, transform_keys
 
 SELF_EDGE_SUFFIX = ".self"
+
 
 class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """

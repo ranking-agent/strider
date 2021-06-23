@@ -7,7 +7,7 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.util import WrappedBMT
+from strider.util import WBMT
 from strider.config import settings
 from strider.trapi import add_descendants
 
@@ -20,9 +20,6 @@ Operation = namedtuple(
 REVERSE_EDGE_SUFFIX = '.reverse'
 SYMMETRIC_EDGE_SUFFIX = '.symmetric'
 INVERSE_EDGE_SUFFIX = '.inverse'
-
-
-WBMT = WrappedBMT()
 
 
 def find_next_list_property(search_dict, fields_to_check):

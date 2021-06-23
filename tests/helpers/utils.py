@@ -4,8 +4,7 @@ import time
 import json
 import re
 import inspect
-from strider.util import WrappedBMT
-WBMT = WrappedBMT()
+from strider.util import WBMT
 
 
 def load_kps(fpath):

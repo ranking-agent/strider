@@ -8,13 +8,11 @@ from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
 from reasoner_pydantic.results import NodeBinding
 
-from strider.util import deduplicate_by, WrappedBMT, ensure_list, filter_none, get_from_all, \
+from strider.util import deduplicate_by, WBMT, ensure_list, filter_none, get_from_all, \
     build_predicate_direction, extract_predicate_direction, \
     deduplicate, listify_value, merge_listify, all_equal
 from strider.normalizer import Normalizer
 from strider.config import settings
-
-WBMT = WrappedBMT()
 
 
 def result_hash(result):
