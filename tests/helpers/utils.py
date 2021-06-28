@@ -30,9 +30,9 @@ def create_kp(args):
     return {
         "url": "http://mykp",
         "operations": [{
-            "source_type": source,
-            "edge_type": f"-{edge}->",
-            "target_type": target,
+            "subject_category": source,
+            "predicate": f"-{edge}->",
+            "object_category": target,
         }]
     }
 
@@ -107,11 +107,11 @@ def kps_from_string(s):
     Converts a simple KP operation from a string format to JSON
 
     Example:
-    kp0 biolink:ChemicalSubstance -biolink:treats-> biolink:Disease
+    kp0 biolink:ChemicalSubstance biolink:treats biolink:Disease
 
     """
     s = inspect.cleandoc(s)
-    kp_re = r"(?P<name>.*) (?P<src>.*) (?P<predicate>.*) (?P<target>.*)"
+    kp_re = r"(?P<name>.*) (?P<subject>.*) (?P<predicate>.*) (?P<object>.*)"
     kps = {}
     for line in s.splitlines():
         match_kp = re.search(kp_re, line)
@@ -124,9 +124,9 @@ def kps_from_string(s):
                 "operations": [],
             }
         kps[name]['operations'].append({
-            "source_type": match_kp.group('src'),
-            "edge_type": match_kp.group('predicate'),
-            "target_type": match_kp.group('target'),
+            "subject_category": match_kp.group('subject'),
+            "predicate": match_kp.group('predicate'),
+            "object_category": match_kp.group('object'),
         })
     return kps
 

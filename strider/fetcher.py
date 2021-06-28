@@ -11,12 +11,15 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 """
 import asyncio
 from collections.abc import Iterable
+from itertools import chain
 import json
 import logging
 from datetime import datetime
 from typing import Optional
 
+import httpx
 from reasoner_pydantic import QueryGraph, Result, Response
+from reasoner_pydantic.results import NodeBinding
 from redis import Redis
 
 from .query_planner import generate_plans, Step, NoAnswersError
@@ -117,15 +120,15 @@ class StriderWorker(Worker):
         await fill_categories_predicates(self.qgraph, self.logger)
         standardize_graph_lists(self.qgraph)
 
-        # Replace biolink:Protein with biolink:GeneOrGeneProduct
-        for node in self.qgraph["nodes"].values():
-            if not node.get("category"):
-                continue
-            node["category"] = [
-                "biolink:GeneOrGeneProduct"
-                if category == "biolink:Protein" else category
-                for category in node["category"]
-            ]
+        # # Replace biolink:Protein with biolink:GeneOrGeneProduct
+        # for node in self.qgraph["nodes"].values():
+        #     if not node.get("categories"):
+        #         continue
+        #     node["categories"] = [
+        #         "biolink:GeneOrGeneProduct"
+        #         if category == "biolink:Protein" else category
+        #         for category in node["categories"]
+        #     ]
 
         # Check for constraints
         for node in self.qgraph["nodes"].values():
@@ -149,10 +152,11 @@ class StriderWorker(Worker):
 
         self.logger.debug("Generating plan")
         # Generate traversal plan
-        plans = await generate_plans(
+        plans, kps = await generate_plans(
             self.qgraph,
             kp_registry=registry,
             logger=self.logger)
+        self.kps = kps
 
         if len(plans) == 0:
             self.logger.error("Could not find a plan to traverse query graph")
@@ -160,31 +164,60 @@ class StriderWorker(Worker):
 
         self.plan = plans[0]
 
+        # extract KP preferred prefixes from plan
+        self.kp_preferred_prefixes = dict()
+        for _kps in kps.values():
+            for kp in _kps:
+                url = kp["url"][:-5] + "meta_knowledge_graph"
+                # url = kp["url"][:-5] + "metadata"
+                try:
+                    async with httpx.AsyncClient() as client:
+                        response = await client.get(url)
+                except httpx.ConnectError as err:
+                    self.logger.warning(
+                        "Unable to get meta knowledge graph for KP %s: %s",
+                        kp["url"],
+                        str(err),
+                    )
+                    self.kp_preferred_prefixes[kp["url"]] = dict()
+                    continue
+                meta_kg = response.json()
+                self.kp_preferred_prefixes[kp["url"]] = {
+                    category: data["id_prefixes"]
+                    for category, data in meta_kg["nodes"].items()
+                }
+
         self.logger.debug({
-            "plan": transform_keys(
-                self.plan,
-                lambda step: f"{step.source}-{step.edge}-{step.target}"
-            )
+            "plan": self.plan,
         })
 
         # Initialize results
 
-        first_step = next(iter(self.plan.keys()))
-        pinned_node_id = first_step.source
-        pinned_node = self.qgraph["nodes"][pinned_node_id]
+        first_qedge_id = self.plan[0]
+        # first_step = next(iter(self.plan.keys()))
+        # pinned_node_id = first_step.source
+        first_edge = self.qgraph["edges"][first_qedge_id]
+        first_node_id, first_node = next(
+            (node_id, node)
+            for node_id in (
+                first_edge["subject"],
+                first_edge["object"],
+            )
+            if (node := self.qgraph["nodes"][node_id]).get("ids", None)
+        )
 
         # Remove ID from pinned node because we will
         # add it back manually later in the get_kp_request_body
         # function
-        curies = pinned_node.pop("id")
+        curies = first_node.pop("ids")
 
         # Add partial results for each curie we are given
         for curie in curies:
             result = {
                 "node_bindings": {
-                    pinned_node_id: [{
+                    first_node_id: [{
                         "id": curie,
-                        "category": pinned_node["category"][0],
+                        "category": first_node["categories"][0],
                     }]
                 },
                 "edge_bindings": {},
@@ -197,46 +230,54 @@ class StriderWorker(Worker):
     ):
         """Get next step in plan."""
         return next(
-            step
-            for step in self.plan
-            if step.edge not in bound_edges
+            qedge_id
+            for qedge_id in self.plan
+            if qedge_id not in bound_edges
         )
 
     @ async_locking_cache
     async def execute_step(
             self,
             step: Step,
-            curie: str,
-            category: Optional[str],
+            node_bindings: tuple[tuple[str]],
     ):
         """Fetch results for step."""
 
         self.logger.debug({
             "description": "Executing step: ",
-            "step": self.plan[step],
+            "step": step,
         })
 
-        # Valid categories for the next KP that we contact
-        # include descendants of any types that we received
-        all_valid_categories = []
-        for c in category:
-            all_valid_categories.extend(WBMT.get_descendants(c))
-
-        responses = await asyncio.gather(*(
-            self.portal.fetch(
-                kp["url"],
-                get_kp_request_body(
+        responses = await asyncio.gather(*chain(
+            (
+                self.portal.fetch(
+                    kp["url"],
+                    get_kp_request_body(
+                        self.qgraph,
+                        node_bindings,
+                        step,
+                        kp,
+                    ),
+                    self.kp_preferred_prefixes[kp["url"]],
+                    self.preferred_prefixes,
+                )
+                for kp in self.kps[step]
+            ), (
+                self.portal.fetch(
+                    kp["url"],
+                    request,
+                    self.kp_preferred_prefixes[kp["url"]],
+                    self.preferred_prefixes,
+                )
+                for kp in self.kps[step]
+                if (request := get_kp_request_body(
                     self.qgraph,
-                    curie,
+                    node_bindings,
                     step,
                     kp,
-                ),
-                kp["preferred_prefixes"],
-                self.preferred_prefixes,
-            )
-            for kp in self.plan[step]
-            if kp["source_category"] in all_valid_categories
-            or kp["target_category"] in all_valid_categories
+                    invert=True,
+                ))
+            ),
         ))
 
         for response in responses:
@@ -250,7 +291,7 @@ class StriderWorker(Worker):
 
             standardize_graph_lists(
                 response["knowledge_graph"],
-                node_fields = ["category"],
+                node_fields = ["categories"],
                 edge_fields = [],
             )
             filter_by_qgraph(response, self.qgraph)
@@ -264,7 +305,7 @@ class StriderWorker(Worker):
         """Process partial result."""
         # find the next step in the plan
         try:
-            step = self.next_step(result["edge_bindings"])
+            qedge_id = self.next_step(result["edge_bindings"])
         except StopIteration:
             # Mission accomplished!
             self.results.append(result)
@@ -274,17 +315,15 @@ class StriderWorker(Worker):
         self.logger.debug({
             "description": "Recieved results from KPs",
             "data": result,
-            "step": f"{step.source}-{step.edge}-{step.target}",
+            "step": qedge_id,
         })
 
-        category_list = ensure_list(
-            result["node_bindings"][step.source][0].get("category", [])
-        )
-
         response = await self.execute_step(
-            step,
-            result["node_bindings"][step.source][0]["id"],
-            category=tuple(category_list),
+            qedge_id,
+            tuple(
+                (qnode_id, bindings[0]["id"])
+                for qnode_id, bindings in result["node_bindings"].items()
+            ),
         )
 
         # process kgraph
@@ -296,64 +335,61 @@ class StriderWorker(Worker):
             # queue the results for further processing
             for nbs in new_result["node_bindings"].values():
                 for nb in nbs:
-                    nb["category"] = response["knowledge_graph"]["nodes"][nb["id"]]["category"]
+                    nb["category"] = response["knowledge_graph"]["nodes"][nb["id"]].get("categories", None)
             await self.put(merge_results([result, new_result]))
 
 
 def get_kp_request_body(
         qgraph: QueryGraph,
-        curie: str,
-        step: Step,
+        node_bindings: tuple[tuple[str]],
+        qedge_id: str,
         kp: dict,
+        invert: bool = False,
 ) -> Response:
     """Get request to send to KP."""
 
-    predicate, reverse = \
-        extract_predicate_direction(kp["edge_predicate"])
-
     # Build request edges
-    request_edge = qgraph["edges"][step.edge].copy()
-    request_source = qgraph["nodes"][step.source].copy()
-    request_target = qgraph["nodes"][step.target].copy()
-
-    # Update request properties to match what the KP expects
-    request_edge["predicate"] = predicate
-    request_source["category"] = kp["source_category"]
-    request_target["category"] = kp["target_category"]
-
-    # Fill in the current curie
-    request_source["id"] = [curie]
-
-    source = step.source
-    target = step.target
+    request_edge = qgraph["edges"][qedge_id].copy()
+    subject_id = request_edge["subject"]
+    request_subject = qgraph["nodes"][subject_id].copy()
+    object_id = request_edge["object"]
+    request_object = qgraph["nodes"][object_id].copy()
 
     # If this is a self edge add a suffix to the target
     # to make sure that we send two nodes to the KP
-    if source == target:
-        target += SELF_EDGE_SUFFIX
+    if subject_id == object_id:
+        object_id += SELF_EDGE_SUFFIX
 
-    # If we have a reversed predicate (<-predicate-)
-    # then we look up from object to subject
-    if reverse:
-        request_edge["subject"] = target
-        request_edge["object"] = source
-    else:
-        request_edge["subject"] = source
-        request_edge["object"] = target
-
-    # Remove ID from the target if present
-    # because KPs can't handle it properly
-    request_target.pop("id", None)
+    if invert:
+        predicates = [
+            inverse
+            for predicate in request_edge.pop("predicates")
+            if (inverse := WBMT.predicate_inverse(predicate)) is not None
+        ]
+        if not predicates:
+            # logger.warning("No inverse predicates: %s", str(predicates))
+            return None
+        request_edge = {
+            "subject": request_edge.pop("object"),
+            "object": request_edge.pop("subject"),
+            "predicates": predicates,
+            **request_edge,
+        }
 
     # Build request
     request_qgraph = {
         "nodes": {
-            source: request_source,
-            target: request_target,
+            subject_id: request_subject,
+            object_id: request_object,
         },
         "edges": {
-            step.edge: request_edge
+            qedge_id: request_edge
         },
     }
+
+    for qnode_key, bound_id in node_bindings:
+        if qnode_key not in request_qgraph["nodes"]:
+            continue
+        request_qgraph["nodes"][qnode_key]["ids"] = [bound_id]
 
     return {"message": {"query_graph": request_qgraph}}

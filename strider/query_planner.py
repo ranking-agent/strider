@@ -9,7 +9,7 @@ from reasoner_pydantic import QueryGraph
 from strider.kp_registry import Registry
 from strider.util import WBMT
 from strider.config import settings
-from strider.trapi import add_descendants
+from strider.traversal import get_traversals, NoAnswersError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -142,10 +142,6 @@ def count_permutations(
             if field in edge and isinstance(edge[field], list):
                 total_permutations *= len(edge[field])
     return total_permutations
-
-
-class NoAnswersError(Exception):
-    """No answers can be found."""
 
 
 async def annotate_operation_graph(
@@ -428,138 +424,30 @@ async def generate_plans(
     """
 
     qgraph = copy.deepcopy(qgraph)
+    traversals = get_traversals(qgraph)
 
-    logger.info("Generating plan for query graph")
+    if kp_registry is None:
+        kp_registry = Registry(settings.kpregistry_url)
 
-    operation_graph = await qg_to_og(qgraph)
+    kps = dict()
+    for qedge_id in qgraph["edges"]:
+        qedge = qgraph["edges"][qedge_id]
+        kp_results = await kp_registry.search(
+            qgraph["nodes"][qedge["subject"]]['categories'],
+            qedge['predicates'],
+            qgraph["nodes"][qedge["object"]]['categories'],
+        )
+        if not kp_results:
+            msg = f"No KPs for qedge '{qedge_id}'"
+            logger.error(msg)
+            raise NoAnswersError(msg)
+        for kp in kp_results.values():
+            for op in kp["operations"]:
+                op["subject"] = (qedge["subject"], op.pop("subject_category"))
+                op["object"] = (qedge["object"], op.pop("object_category"))
+        kps[qedge_id] = list(kp_results.values())
 
-    add_descendants(operation_graph, logger)
-
-    logger.info(
-        "Contacting KP registry to ask for KPs to solve this query graph")
-
-    await annotate_operation_graph(operation_graph, kp_registry)
-
-    logger.debug({
-        "message": "Annotated operation graph with KPs",
-        "operation_graph": operation_graph,
-    })
-
-    annotate_query_graph(qgraph, operation_graph)
-
-    logger.debug({
-        "message": "Annotated query graph with KPs",
-        "filtered_qgraph": qgraph,
-    })
-
-    num_permutations = count_permutations(qgraph, edge_fields=["kps"])
-    logger.info({
-        "message": "Number of permutations to evaluate for planning",
-        "permutations": num_permutations,
-    })
-
-    query_graph_permutations = permute_graph(
-        qgraph, edge_field_map={"kps": "kp"})
-
-    # Build a list of pinned nodes
-    pinned_nodes = [
-        key for key, value in qgraph["nodes"].items()
-        if value.get("id", None) is not None
-    ]
-
-    logger.debug({
-        "message": "Pinned nodes to search from",
-        "pinned": pinned_nodes,
-    })
-
-    plans = []
-
-    logger.info("Searching query graph permutations for plans")
-
-    for current_qg in query_graph_permutations:
-        # Skip this query graph if there is a conflicting node type
-        try:
-            fix_categories_predicates(current_qg)
-        except ValueError:
-            continue
-
-        # Create a graph where all nodes and edges
-        # from the operation graph are nodes ("reified")
-        #
-        # This graph is stored as an adjacency list
-        reified_graph = {}
-        for node_id in current_qg['nodes'].keys():
-            reified_graph[node_id] = []
-        for edge_id in current_qg['edges'].keys():
-            reified_graph[edge_id] = []
-
-        # Fill in adjacencies
-        for edge_id, edge in current_qg['edges'].items():
-            reverse = edge["kp"]["reverse"]
-            if not reverse:
-                # Adjacency for forward edge
-                reified_graph[edge['subject']].append(edge_id)
-                reified_graph[edge_id].append(edge['object'])
-            else:
-                # Adjacency for reverse edge
-                reified_graph[edge['object']].append(edge_id)
-                reified_graph[edge_id].append(edge['subject'])
-
-        # Starting at each pinned node, find possible traversals through
-        # the operation graph
-        possible_traversals = []
-        for pinned in pinned_nodes:
-            possible_traversals.extend(
-                traversals_from_node(reified_graph, pinned)
-            )
-
-        # pylint: disable=cell-var-from-loop
-        possible_traversals = filter(
-            lambda t: ensure_traversal_connected(current_qg, t),
-            possible_traversals)
-
-        possible_traversals = list(possible_traversals)
-
-        for traversal in possible_traversals:
-            # Build our list of steps in the plan
-            plan = defaultdict(list)
-            for edge_id in traversal:
-                # Skip iteration for non-edges
-                if edge_id not in current_qg['edges'].keys():
-                    continue
-
-                # We need to know which way to step through the edge
-                # so we use the previous value in the traversal
-                # which is always the source node
-                edge = current_qg['edges'][edge_id]
-
-                kp = edge["kp"]
-                reverse = kp["reverse"]
-                if reverse:
-                    step = Step(edge['object'], edge_id, edge['subject'])
-                else:
-                    step = Step(edge['subject'], edge_id, edge['object'])
-
-                # Attach information about categorys to kp info
-                plan[step].append(kp)
-            plans.append(plan)
-
-    num_duplicated_plans = len(plans)
-
-    # collapse plans
-    unique_map = defaultdict(lambda: defaultdict(list))
-    for plan in plans:
-        key = tuple(plan.keys())
-        for step, kps in plan.items():
-            for kp in kps:
-                if kp not in unique_map[key][step]:
-                    unique_map[key][step].append(kp)
-    plans = list(unique_map.values())
-
-    logger.info(
-        f"Found {num_duplicated_plans} plans, collapsed down to {len(plans)} plans")
-
-    if len(plans) == 0:
+    if len(traversals) == 0:
         logger.warning({
             "code": "QueryNotTraversable",
             "message":
@@ -569,7 +457,7 @@ async def generate_plans(
             """
         })
 
-    return plans
+    return traversals, kps
 
 
 def annotate_query_graph(
@@ -608,23 +496,15 @@ def get_query_graph_edge_kps(
 
 # pylint: disable=too-many-arguments
 async def step_to_kps(
-        source, edge, target,
+        subject, edge, object,
         kp_registry: Registry,
         allowlist=None, denylist=None,
 ):
     """Find KP endpoint(s) that enable step."""
-    response = await kp_registry.search(
-        source['category'],
-        edge['predicate'],
-        target['category'],
+    return await kp_registry.search(
+        subject['categories'],
+        edge['predicates'],
+        object['categories'],
         allowlist=allowlist,
         denylist=denylist,
     )
-    # rename node type -> category
-    # rename edge type -> predicate
-    for kp in response.values():
-        for op in kp['operations']:
-            op['edge_predicate'] = op.pop('edge_type')
-            op['source_category'] = op.pop('source_type')
-            op['target_category'] = op.pop('target_type')
-    return response
