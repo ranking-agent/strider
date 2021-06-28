@@ -126,7 +126,7 @@ normalizer_error_no_matches = "No matches found for the specified curie(s)"
 
 @pytest.mark.asyncio
 @with_response_overlay(
-    settings.normalizer_url,
+    settings.normalizer_url+"/get_normalized_nodes",
     JSONResponse(
         content={"detail": normalizer_error_no_matches},
         status_code=404
