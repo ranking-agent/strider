@@ -114,6 +114,8 @@ class WrappedBMT():
         if not predicate_element:
             # Not in the biolink model
             return None
+        if predicate_element.symmetric:
+            return predicate
         predicate_inverse_old_format = predicate_element.inverse
         if not predicate_inverse_old_format:
             # No inverse
