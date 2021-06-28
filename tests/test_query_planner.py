@@ -2,6 +2,7 @@ from pathlib import Path
 from functools import partial
 import json
 import logging
+from strider.traversal import NoAnswersError
 
 import pytest
 
@@ -15,7 +16,7 @@ from tests.helpers.logger import assert_no_level
 
 from strider.query_planner import \
     permute_graph, qg_to_og, \
-    generate_plans, add_descendants
+    generate_plans
 
 from strider.trapi import fill_categories_predicates
 
@@ -33,57 +34,6 @@ async def prepare_query_graph(query_graph):
     """ Prepare a query graph for the generate_plans method """
     await fill_categories_predicates(query_graph, logging.getLogger())
     standardize_graph_lists(query_graph)
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, [])
-async def test_permute_curies(caplog):
-    """ Check that nodes with ID are correctly permuted """
-
-    qg = {
-        "nodes": {"n0": {"id": ["MONDO:0005737", "MONDO:0005738"]}},
-        "edges": {},
-    }
-
-    permutations = permute_graph(qg, node_field_map={"id": "id"})
-
-    assert permutations
-    # We should have two plans
-    assert len(list(permutations)) == 2
-    assert_no_level(caplog, logging.WARNING)
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, [])
-async def test_permute_categories_predicates(caplog):
-    """ 
-    Check that we can permute categories and predicates
-    and get them from the biolink hierarchy
-    """
-
-    qg = query_graph_from_string(
-        """
-        n0(( category biolink:AnatomicalEntity ))
-        n1(( category biolink:Protein ))
-        n0-- biolink:affects_abundance_of -->n1
-        """
-    )
-
-    await prepare_query_graph(qg)
-    operation_graph = await qg_to_og(qg)
-    add_descendants(operation_graph)
-    permutations = permute_graph(
-        operation_graph,
-        node_field_map={"category": "category"},
-        edge_field_map={"predicate": "predicate"},
-    )
-    assert permutations
-
-    # We should have 2 * 3 * 3 * 7 = 126
-    # permutations because seven of our predicates
-    # have inverses / are symmetric
-    assert len(list(permutations)) == 126
-    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
@@ -109,97 +59,17 @@ async def test_not_enough_kps(caplog):
 
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(
-        qg,
-        logger=logging.getLogger()
-    )
-    assert len(plans) == 0
-    assert_no_level(caplog, logging.WARNING, 1)
+    with pytest.raises(NoAnswersError, match=r"cannot reach"):
+        plans = await generate_plans(
+            qg,
+            logger=logging.getLogger()
+        )
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:related_to-> biolink:Drug
-    kp0 biolink:Disease <-biolink:related_to- biolink:Drug
-    kp0 biolink:Drug <-biolink:related_to- biolink:Disease
-    kp0 biolink:Drug -biolink:related_to-> biolink:Disease
-    """
-))
-@with_norm_overlay(settings.normalizer_url)
-async def test_no_reverse_edge_in_plan(caplog):
-    """
-    Check that we don't include
-    both reverse and forward edges in plan even
-    if we have KPs that can solve both
-    """
-
-    qg = query_graph_from_string(
-        """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
-        n0-- biolink:related_to -->n1
-        """
-    )
-    await prepare_query_graph(qg)
-
-    plans = await generate_plans(
-        qg,
-        logger=logging.getLogger(),
-    )
-    plan = plans[0]
-
-    plan_template = plan_template_from_string(
-        """
-        n0-n0n1-n1 http://kp0 biolink:Disease <-biolink:related_to- biolink:Drug
-        n0-n0n1-n1 http://kp0 biolink:Disease -biolink:related_to-> biolink:Drug
-        """
-    )
-
-    validate_template(plan_template, plan)
-
-    # One step in plan
-    assert len(plan) == 1
-    assert_no_level(caplog, logging.WARNING, 1)
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
-    kp0 biolink:Drug -biolink:treats-> biolink:Disease
-    """
-))
-@with_norm_overlay(settings.normalizer_url, """
-    MONDO:0005148 categories biolink:Disease
-""")
-async def test_no_path_from_pinned_node(caplog):
-    """
-    Check there is no plan when
-    we submit a graph where there is a pinned node
-    but no path through it
-    """
-
-    qg = query_graph_from_string(
-        """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
-        n1-- biolink:treats -->n0
-        """
-    )
-    await prepare_query_graph(qg)
-
-    plans = await generate_plans(
-        qg,
-        logger=logging.getLogger(),
-    )
-    assert len(plans) == 0
-    assert_no_level(caplog, logging.WARNING, 1)
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
-    kp0 biolink:Disease <-biolink:treats- biolink:Drug
+    kp0 biolink:Drug biolink:treats biolink:Disease
     """
 ))
 @with_norm_overlay(settings.normalizer_url, """
@@ -221,25 +91,18 @@ async def test_plan_reverse_edge(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
-    assert len(plans) == 1
+    plans, kps = await generate_plans(qg)
+    assert plans == [["n1n0"]]
 
-    plan_template = plan_template_from_string(
-        """
-        n0-n1n0-n1 http://kp0 biolink:Disease <-biolink:treats- biolink:Drug
-        """
-    )
-
-    validate_template(plan_template, plans[0])
-    assert_no_level(caplog, logging.WARNING)
+    assert len(kps["n1n0"]) == 1
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp1 biolink:ChemicalSubstance -biolink:treats-> biolink:Disease
-    kp2 biolink:PhenotypicFeature <-biolink:treats- biolink:ChemicalSubstance
-    kp3 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
+    kp1 biolink:ChemicalSubstance biolink:treats biolink:Disease
+    kp2 biolink:ChemicalSubstance biolink:treats biolink:PhenotypicFeature
+    kp3 biolink:Disease biolink:has_phenotype biolink:PhenotypicFeature
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -261,9 +124,9 @@ async def test_plan_loop():
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
+    plans, kps = await generate_plans(qg)
 
-    assert len(plans) == 1
+    assert len(plans) == 4
     plan = plans[0]
     assert len(plan) == 3
 
@@ -271,8 +134,7 @@ async def test_plan_loop():
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:related_to-> biolink:Disease
-    kp1 biolink:Disease <-biolink:related_to- biolink:Disease
+    kp0 biolink:Disease biolink:related_to biolink:Disease
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -296,7 +158,7 @@ async def test_plan_reuse_pinned():
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
+    plans, kps = await generate_plans(qg)
 
     assert len(plans) == 16
 
@@ -304,8 +166,7 @@ async def test_plan_reuse_pinned():
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:related_to-> biolink:Disease
-    kp1 biolink:Disease <-biolink:related_to- biolink:Disease
+    kp0 biolink:Disease biolink:related_to biolink:Disease
     """
 ))
 @with_norm_overlay(settings.normalizer_url, """
@@ -334,9 +195,8 @@ async def test_plan_double_loop(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
-    assert len(plans) == 76
-    assert_no_level(caplog, logging.WARNING)
+    plans, kps = await generate_plans(qg)
+    assert len(plans) == 112
 
 
 @pytest.mark.asyncio
@@ -344,10 +204,10 @@ async def test_plan_double_loop(caplog):
     settings.kpregistry_url,
     kps_from_string(
         """
-        kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
-        kp1 biolink:Drug -biolink:affects-> biolink:Gene
-        kp2 biolink:MolecularEntity -biolink:decreases_abundance_of-> biolink:GeneOrGeneProduct
-        kp3 biolink:Disease -biolink:treated_by-> biolink:MolecularEntity
+        kp0 biolink:Disease biolink:treated_by biolink:Drug
+        kp1 biolink:Drug biolink:affects biolink:Gene
+        kp2 biolink:MolecularEntity biolink:decreases_abundance_of biolink:GeneOrGeneProduct
+        kp3 biolink:Disease biolink:treated_by biolink:MolecularEntity
         """
     )
 )
@@ -367,22 +227,22 @@ async def test_plan_ex1(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
+    plans, kps = await generate_plans(qg)
     plan = plans[0]
     # One step per edge
-    assert len(plan.keys()) == len(qg['edges'])
+    assert len(plan) == len(qg['edges'])
 
-    # First step in the plan starts
-    # at a pinned node
-    step_1 = next(iter(plan.keys()))
-    assert 'id' in qg['nodes'][step_1.source]
-    assert_no_level(caplog, logging.WARNING)
+    first_edge = qg["edges"][plan[0]]
+    assert any(
+        qg["nodes"][nid].get("ids")
+        for nid in (first_edge["subject"], first_edge["object"])
+    )
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
 ))
 @with_norm_overlay(settings.normalizer_url, """
@@ -406,16 +266,15 @@ async def test_valid_two_pinned_nodes(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
+    plans, kps = await generate_plans(qg)
     assert len(plans) == 1
-    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
-    kp1 biolink:Disease -biolink:has_phenotype-> biolink:PhenotypicFeature
+    kp0 biolink:Disease biolink:treated_by biolink:Drug
+    kp1 biolink:Disease biolink:has_phenotype biolink:PhenotypicFeature
     """
 ))
 @with_norm_overlay(settings.normalizer_url, """
@@ -440,15 +299,14 @@ async def test_fork(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
+    plans, kps = await generate_plans(qg)
     assert len(plans) == 2
-    assert_no_level(caplog, logging.WARNING)
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
 ))
 @with_norm_overlay(settings.normalizer_url, """
@@ -471,15 +329,14 @@ async def test_unbound_unconnected_node(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
-    assert len(plans) == 0
-    assert_no_level(caplog, logging.WARNING, 1)
+    with pytest.raises(NoAnswersError, match=r"cannot reach"):
+        plans, kps = await generate_plans(qg)
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
 ))
 @with_norm_overlay(settings.normalizer_url, """
@@ -489,7 +346,7 @@ async def test_unbound_unconnected_node(caplog):
 async def test_invalid_two_disconnected_components(caplog):
     """
     Test Pinned -> Unbound + Pinned -> Unbound
-    This should be invalid because there is no path from
+    This should be valid because there is a path from
     a pinned node to all unbound nodes.
     """
     qg = query_graph_from_string(
@@ -504,15 +361,14 @@ async def test_invalid_two_disconnected_components(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
-    assert len(plans) == 0
-    assert_no_level(caplog, logging.WARNING, 1)
+    plans, kps = await generate_plans(qg)
+    assert len(plans) == 2
 
 
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
+    kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -542,7 +398,7 @@ async def test_bad_norm(caplog):
     }
     await prepare_query_graph(qg)
 
-    plans = await generate_plans(qg)
+    plans, kps = await generate_plans(qg)
     assert any(
         (
             record.levelname == "WARNING"
@@ -557,7 +413,7 @@ async def test_bad_norm(caplog):
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease <-biolink:treats- biolink:ChemicalSubstance
+    kp0 biolink:ChemicalSubstance biolink:treats biolink:Disease
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -575,7 +431,7 @@ async def test_descendant_reverse_category(caplog):
         """
     )
     await prepare_query_graph(valid_qg)
-    plans = await generate_plans(valid_qg)
+    plans, kps = await generate_plans(valid_qg)
     assert len(plans) == 1
     assert_no_level(caplog, logging.WARNING, 1)
 
@@ -588,8 +444,9 @@ async def test_descendant_reverse_category(caplog):
         """
     )
     await prepare_query_graph(invalid_qg)
-    plans = await generate_plans(invalid_qg)
-    assert len(plans) == 0
+
+    with pytest.raises(NoAnswersError, match=r"No KPs"):
+        plans, kps = await generate_plans(invalid_qg)
 
 
 @pytest.mark.asyncio
@@ -660,8 +517,7 @@ async def test_planning_performance_typical_example():
 @pytest.mark.asyncio
 @with_registry_overlay(settings.kpregistry_url, kps_from_string(
     """
-    kp0 biolink:Disease -biolink:treated_by-> biolink:Drug
-    kp0 biolink:Drug <-biolink:treated_by- biolink:Disease
+    kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
 ))
 @with_norm_overlay(settings.normalizer_url)
@@ -679,6 +535,6 @@ async def test_double_sided(caplog):
         """
     )
     await prepare_query_graph(qg)
-    plans = await generate_plans(qg, logger=logging.getLogger())
+    plans, kps = await generate_plans(qg, logger=logging.getLogger())
     assert len(plans) == 1
-    assert len(list(plans[0].values())[0]) == 1
+    assert len(kps["n0n1"]) == 1
