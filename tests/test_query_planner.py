@@ -101,8 +101,8 @@ async def test_not_enough_kps(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( category biolink:ExposureEvent ))
-        n1(( category biolink:Drug ))
+        n0(( categories[] biolink:ExposureEvent ))
+        n1(( categories[] biolink:Drug ))
         n0-- biolink:related_to -->n1
         """
     )
@@ -214,8 +214,8 @@ async def test_plan_reverse_edge(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
         n1-- biolink:treats -->n0
         """
     )
@@ -250,10 +250,10 @@ async def test_plan_loop():
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0008114 ))
-        n0(( category biolink:Disease ))
-        n1(( category biolink:PhenotypicFeature ))
-        n2(( category biolink:ChemicalSubstance ))
+        n0(( ids[] MONDO:0008114 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:PhenotypicFeature ))
+        n2(( categories[] biolink:ChemicalSubstance ))
         n0-- biolink:has_phenotype -->n1
         n2-- biolink:treats -->n0
         n2-- biolink:treats -->n1
@@ -283,11 +283,11 @@ async def test_plan_reuse_pinned():
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n0(( category biolink:Disease ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:Disease ))
-        n3(( category biolink:Disease ))
+        n0(( ids[] MONDO:0005148 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:Disease ))
+        n3(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
         n2-- biolink:related_to -->n0
@@ -318,12 +318,12 @@ async def test_plan_double_loop(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n0(( category biolink:Disease ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:Disease ))
-        n3(( category biolink:Disease ))
-        n4(( category biolink:Disease ))
+        n0(( ids[] MONDO:0005148 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:Disease ))
+        n3(( categories[] biolink:Disease ))
+        n4(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
         n2-- biolink:related_to -->n0
@@ -358,9 +358,9 @@ async def test_plan_ex1(caplog):
     """ Test that we get a good plan for our first example """
     qg = query_graph_from_string(
         """
-        n0(( category biolink:MolecularEntity ))
-        n1(( id MONDO:0005148 ))
-        n2(( category biolink:GeneOrGeneProduct ))
+        n0(( categories[] biolink:MolecularEntity ))
+        n1(( ids[] MONDO:0005148 ))
+        n2(( categories[] biolink:GeneOrGeneProduct ))
         n1-- biolink:treated_by -->n0
         n0-- biolink:affects_abundance_of -->n2
         """
@@ -398,10 +398,10 @@ async def test_valid_two_pinned_nodes(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
-        n2(( id MONDO:0011122 ))
+        n2(( ids[] MONDO:0011122 ))
         """
     )
     await prepare_query_graph(qg)
@@ -431,9 +431,9 @@ async def test_fork(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treated_by -->n1
         n0-- biolink:has_phenotype -->n2
         """
@@ -463,10 +463,10 @@ async def test_unbound_unconnected_node(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
-        n2(( category biolink:PhenotypicFeature ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         """
     )
     await prepare_query_graph(qg)
@@ -494,11 +494,11 @@ async def test_invalid_two_disconnected_components(caplog):
     """
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
-        n2(( id MONDO:0011122 ))
-        n3(( category biolink:Drug ))
+        n2(( ids[] MONDO:0011122 ))
+        n3(( categories[] biolink:Drug ))
         n2-- biolink:treated_by -->n3
         """
     )
@@ -525,18 +525,18 @@ async def test_bad_norm(caplog):
     qg = {
         "nodes": {
             "n0": {
-                "id": "XXX:123",
-                "category": "biolink:Disease"
+                "ids": ["XXX:123"],
+                "categories": ["biolink:Disease"],
             },
             "n1": {
-                "category": "biolink:Drug"
+                "categories": ["biolink:Drug"],
             }
         },
         "edges": {
             "e01": {
                 "subject": "n0",
                 "object": "n1",
-                "predicate": "biolink:treated_by"
+                "predicates": ["biolink:treated_by"],
             }
         }
     }
@@ -568,10 +568,10 @@ async def test_descendant_reverse_category(caplog):
     """
     valid_qg = query_graph_from_string(
         """
-        n0(( category biolink:Disease ))
-        n0(( id MONDO:0005737 ))
+        n0(( categories[] biolink:Disease ))
+        n0(( ids[] MONDO:0005737 ))
         n0-- biolink:related_to -->n1
-        n1(( category biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:ChemicalSubstance ))
         """
     )
     await prepare_query_graph(valid_qg)
@@ -581,10 +581,10 @@ async def test_descendant_reverse_category(caplog):
 
     invalid_qg = query_graph_from_string(
         """
-        n0(( category biolink:Disease ))
-        n0(( id MONDO:0005737 ))
+        n0(( categories[] biolink:Disease ))
+        n0(( ids[] MONDO:0005737 ))
         n0-- biolink:treats -->n1
-        n1(( category biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:ChemicalSubstance ))
         """
     )
     await prepare_query_graph(invalid_qg)
@@ -605,9 +605,9 @@ async def test_planning_performance_generic_qg():
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005737 ))
-        n1(( category biolink:NamedThing ))
-        n2(( category biolink:NamedThing ))
+        n0(( ids[] MONDO:0005737 ))
+        n1(( categories[] biolink:NamedThing ))
+        n2(( categories[] biolink:NamedThing ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
         """
@@ -633,12 +633,12 @@ async def test_planning_performance_typical_example():
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005737 ))
-        n1(( category biolink:BiologicalProcessOrActivity ))
-        n2(( category biolink:AnatomicalEntity ))
-        n3(( category biolink:PhenotypicFeature ))
-        n4(( category biolink:PhenotypicFeature ))
-        n5(( id MONDO:6801 ))
+        n0(( ids[] MONDO:0005737 ))
+        n1(( categories[] biolink:BiologicalProcessOrActivity ))
+        n2(( categories[] biolink:AnatomicalEntity ))
+        n3(( categories[] biolink:PhenotypicFeature ))
+        n4(( categories[] biolink:PhenotypicFeature ))
+        n5(( ids[] MONDO:6801 ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
         n2-- biolink:related_to -->n3
@@ -672,9 +672,9 @@ async def test_double_sided(caplog):
 
     qg = query_graph_from_string(
         """
-        n0(( id MONDO:0005737 ))
-        n0(( category biolink:Disease ))
-        n1(( category biolink:Drug ))
+        n0(( ids[] MONDO:0005737 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
         """
     )

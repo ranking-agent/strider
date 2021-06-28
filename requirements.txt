@@ -13,5 +13,4 @@ pyyaml==5.4
 uvicorn==0.13.4
 jsonpickle==1.4.2
 python-dotenv==0.17.0
-git+git://github.com/patrickkwang/fastapi@tos#egg=fastapi
-reasoner-pydantic==1.1.1
+reasoner-pydantic==1.1.2
