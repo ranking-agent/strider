@@ -64,7 +64,7 @@ redis==3.5.3
 requests==2.25.1
 rfc3986==1.5.0
 ShExJSG==0.7.1
-simple-kp @ git+git://github.com/ranking-agent/simple-kp@5b9526eb1cec618f8b8976014adf9dd868313577
+simple-kp @ git+git://github.com/ranking-agent/simple-kp@52118160399348ed03b2037c25f05f796d9ac499
 six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.4.0
