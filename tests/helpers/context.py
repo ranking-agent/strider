@@ -130,8 +130,8 @@ async def translator_overlay(
                 node_type
                 for operation in operations
                 for node_type in (
-                    operation["source_type"],
-                    operation["target_type"],
+                    operation["subject_category"],
+                    operation["object_category"],
                 )
             }
             kps[host] = {

@@ -1,9 +1,13 @@
 """KP registry."""
+from itertools import chain
 import logging
 from strider.util import StriderRequestError, post_json
 from typing import Union
 
 import httpx
+
+from strider.util import WBMT
+
 
 class Registry():
     """KP registry."""
@@ -71,26 +75,48 @@ class Registry():
 
     async def search(
             self,
-            source_types: Union[str, list[str]] = None,
-            edge_types: Union[str, list[str]] = None,
-            target_types: Union[str, list[str]] = None,
+            subject_categories: Union[str, list[str]] = None,
+            predicates: Union[str, list[str]] = None,
+            object_categories: Union[str, list[str]] = None,
             allowlist=None, denylist=None,
     ):
         """Search for KPs matching a pattern."""
-        if isinstance(source_types, str):
-            source_types = [source_types]
-        if isinstance(edge_types, str):
-            edge_types = [edge_types]
-        if isinstance(target_types, str):
-            target_types = [target_types]
+        if isinstance(subject_categories, str):
+            subject_categories = [subject_categories]
+        if isinstance(predicates, str):
+            predicates = [predicates]
+        if isinstance(object_categories, str):
+            object_categories = [object_categories]
+        subject_categories = [desc for cat in subject_categories for desc in WBMT.get_descendants(cat)]
+        predicates = [desc for pred in predicates for desc in WBMT.get_descendants(pred)]
+        inverse_predicates = [
+            desc
+            for pred in predicates
+            if (inverse := WBMT.predicate_inverse(pred))
+            for desc in WBMT.get_descendants(inverse)
+        ]
+        object_categories = [desc for cat in object_categories for desc in WBMT.get_descendants(cat)]
 
         try:
             response = await post_json(
                 f'{self.url}/search',
                 {
-                    'source_type': source_types,
-                    'target_type': target_types,
-                    'edge_type': edge_types,
+                    'subject_category': subject_categories,
+                    'object_category': object_categories,
+                    'predicate': predicates,
+                },
+                self.logger, "KP Registry"
+            )
+        except StriderRequestError:
+            return {}
+
+        try:
+            inverse_response = await post_json(
+                f'{self.url}/search',
+                {
+                    'subject_category': object_categories,
+                    'object_category': subject_categories,
+                    'predicate': inverse_predicates,
                 },
                 self.logger, "KP Registry"
             )
@@ -99,7 +125,7 @@ class Registry():
 
         return {
             kpid: details
-            for kpid, details in response.items()
+            for kpid, details in chain(*(response.items(), inverse_response.items()))
             if (
                 (allowlist is None or kpid in allowlist)
                 and (denylist is None or kpid not in denylist)

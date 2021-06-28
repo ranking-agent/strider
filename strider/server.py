@@ -412,21 +412,18 @@ async def extract_results(query_id, since, limit, offset, database):
     ]
 
 
-@APP.post('/plan', response_model=list[dict])
+@APP.post('/plan', response_model=list[list[str]])
 async def generate_traversal_plan(
         query: Query,
-) -> list[dict]:
+) -> list[list[str]]:
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
 
-    await fill_categories_predicates(query_graph, logging.getLogger())
-    standardize_graph_lists(query_graph)
-    plans = await generate_plans(query_graph)
+    # await fill_categories_predicates(query_graph, logging.getLogger())
+    # standardize_graph_lists(query_graph)
+    plans, kps = await generate_plans(query_graph)
 
-    return [
-        transform_keys(plan, lambda step: f"{step.source}-{step.edge}-{step.target}")
-        for plan in plans
-    ]
+    return plans
 
 
 @APP.post('/score', response_model=Message)
