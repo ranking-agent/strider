@@ -88,7 +88,7 @@ def test_merge_knowledge_graph_nodes():
             "nodes": {
                 "MONDO:1": {
                     "name": "Ebola",
-                    "category": "biolink:Disease",
+                    "categories": ["biolink:Disease"],
                     "attributes": [ATTRIBUTE_A]
                 }
             },
@@ -102,7 +102,7 @@ def test_merge_knowledge_graph_nodes():
             "nodes": {
                 "MONDO:1": {
                     "name": "Ebola Hemorrhagic Fever",
-                    "category": "biolink:DiseaseOrPhenotypicFeature",
+                    "categories": ["biolink:DiseaseOrPhenotypicFeature"],
                     "attributes": [ATTRIBUTE_B]
                 }
             },
@@ -118,7 +118,7 @@ def test_merge_knowledge_graph_nodes():
     node = next(iter(nodes.values()))
     assert node["attributes"] == [ATTRIBUTE_A, ATTRIBUTE_B]
 
-    assert sorted(node["category"]) == \
+    assert sorted(node["categories"]) == \
         ["biolink:Disease", "biolink:DiseaseOrPhenotypicFeature"]
 
 

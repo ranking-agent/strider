@@ -80,16 +80,22 @@ def query_graph_from_string(s):
         match_edge = re.search(edge_re, line)
         if match_node:
             node_id = match_node.group('id')
+            node = qg["nodes"].get(node_id, dict())
             if node_id not in qg['nodes']:
-                qg['nodes'][node_id] = {}
-            qg['nodes'][node_id][match_node.group('key')] = \
-                match_node.group('val')
+                qg['nodes'][node_id] = node
+            key = match_node.group('key')
+            if key.endswith("[]"):
+                node[key[:-2]] = \
+                    node.get(key[:-2], []) + [match_node.group('val')]
+            else:
+                node[key] = \
+                    match_node.group('val')
         elif match_edge:
             edge_id = match_edge.group('src') + match_edge.group('target')
             qg['edges'][edge_id] = {
                 "subject": match_edge.group('src'),
                 "object": match_edge.group('target'),
-                "predicate": match_edge.group('predicate'),
+                "predicates": [match_edge.group('predicate')],
             }
         else:
             raise ValueError(f"Invalid line: {line}")

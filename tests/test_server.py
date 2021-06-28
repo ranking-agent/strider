@@ -65,10 +65,10 @@ async def test_solve_ex1():
     """Test solving the ex1 query graph"""
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         n1-- biolink:has_phenotype -->n2
         """
@@ -127,9 +127,9 @@ async def test_duplicate_results():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:DiseaseOrPhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:DiseaseOrPhenotypicFeature ))
         n0-- biolink:treats -->n1
         """
     )
@@ -163,16 +163,16 @@ async def test_solve_missing_predicate():
     """Test solving a query graph, in which one of the predicates is missing. """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         n1-- biolink:has_phenotype -->n2
         """
     )
 
-    del QGRAPH['edges']['n0n1']['predicate']
+    del QGRAPH['edges']['n0n1']['predicates']
 
     # Create query
     q = {"message" : {"query_graph" : QGRAPH}}
@@ -203,16 +203,16 @@ async def test_solve_missing_category():
     """Test solving the ex1 query graph, in which one of the categories is missing. """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         n1-- biolink:has_phenotype -->n2
         """
     )
 
-    del QGRAPH['nodes']['n0']['category']
+    del QGRAPH['nodes']['n0']['categories']
 
     # Create query
     q = {"message" : {"query_graph" : QGRAPH}}
@@ -246,9 +246,9 @@ async def test_normalizer_different_category():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:ChemicalSubstance ))
-        n0(( id CHEBI:6801 ))
-        n1(( category biolink:Disease ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( ids[] CHEBI:6801 ))
+        n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
         """
     )
@@ -303,9 +303,9 @@ async def test_solve_loop(caplog):
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id MONDO:0008114 ))
-        n1(( category biolink:ChemicalSubstance ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] MONDO:0008114 ))
+        n1(( categories[] biolink:ChemicalSubstance ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
         n2-- biolink:related_to -->n0
@@ -361,10 +361,10 @@ async def test_log_level_param():
     """Test that changing the log level changes the output """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         n1-- biolink:has_phenotype -->n2
         """
@@ -415,10 +415,10 @@ async def test_plan_endpoint():
     """Test /plan endpoint"""
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         n1-- biolink:has_phenotype -->n2
         """
@@ -478,10 +478,10 @@ async def test_kp_500():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
-        n2(( category biolink:PhenotypicFeature ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         n1-- biolink:has_phenotype -->n2
         """
@@ -527,8 +527,8 @@ async def test_kp_unavailable():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:ChemicalSubstance ))
-        n0(( id CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( category biolink:Disease ))
         """
@@ -575,8 +575,8 @@ async def test_kp_not_trapi():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:ChemicalSubstance ))
-        n0(( id CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( category biolink:Disease ))
         """
@@ -631,8 +631,8 @@ async def test_kp_response_no_qg():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:ChemicalSubstance ))
-        n0(( id CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( category biolink:Disease ))
         """
@@ -672,18 +672,18 @@ async def test_predicate_fanout():
     QGRAPH = {
         "nodes": {
             "a": {
-                "category": "biolink:ChemicalSubstance",
-                "id": "CHEBI:34253"
+                "categories": ["biolink:ChemicalSubstance"],
+                "ids": ["CHEBI:34253"]
             },
             "b": {
-                "category": "biolink:Gene"
+                "categories": ["biolink:Gene"]
             }
         },
         "edges": {
             "ab": {
                 "subject": "a",
                 "object": "b",
-                "predicate": "biolink:interacts_with"
+                "predicates": ["biolink:interacts_with"]
             }
         }
     }
@@ -714,18 +714,18 @@ async def test_subpredicate():
     QGRAPH = {
         "nodes": {
             "a": {
-                "category": "biolink:ChemicalSubstance",
-                "id": "CHEBI:34253"
+                "categories": ["biolink:ChemicalSubstance"],
+                "ids": ["CHEBI:34253"]
             },
             "b": {
-                "category": "biolink:Gene"
+                "categories": ["biolink:Gene"]
             }
         },
         "edges": {
             "ab": {
                 "subject": "a",
                 "object": "b",
-                "predicate": "biolink:interacts_with"
+                "predicates": ["biolink:interacts_with"]
             }
         }
     }
@@ -765,18 +765,18 @@ async def test_mutability_bug():
     QGRAPH = {
         'nodes': {
             'n0': {
-                'id': ['MONDO:0005148'],
-                'category': ["biolink:Disease"],
+                'ids': ['MONDO:0005148'],
+                'categories': ["biolink:Disease"],
             },
             'n1': {
-                'category': ['biolink:PhenotypicFeature'],
+                'categories': ['biolink:PhenotypicFeature'],
             },
         },
         'edges': {
             'n0n1': {
                 'subject': 'n0',
                 'object': 'n1',
-                'predicate': ['biolink:related_to'],
+                'predicates': ['biolink:related_to'],
             },
         }
     }
@@ -815,8 +815,8 @@ async def test_inverse_predicate():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:Disease ))
-        n1(( id CHEBI:6801 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( ids[] CHEBI:6801 ))
         n0-- biolink:treated_by -->n1
         """
     )
@@ -873,9 +873,9 @@ async def test_symmetric_predicate():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:Disease ))
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:Drug ))
+        n0(( categories[] biolink:Disease ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
         n1-- biolink:correlated_with -->n0
         """
     )
@@ -932,8 +932,8 @@ async def test_issue_102():
 
     QGRAPH = query_graph_from_string(
         """
-        a(( category biolink:ChemicalSubstance ))
-        b(( id UniProtKB:P32189 ))
+        a(( categories[] biolink:ChemicalSubstance ))
+        b(( ids[] UniProtKB:P32189 ))
         a-- biolink:related_to -->b
         """
     )
@@ -998,8 +998,8 @@ async def test_solve_reverse_edge():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
-        n1(( category biolink:ChemicalSubstance ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:ChemicalSubstance ))
         n1-- biolink:treats -->n0
         """
     )
@@ -1063,11 +1063,11 @@ async def test_solve_multiple_reverse_edges():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id MONDO:0005148 ))
+        n0(( ids[] MONDO:0005148 ))
         n1-- biolink:treats -->n0
-        n1(( category biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:ChemicalSubstance ))
         n2-- biolink:has_biomarker -->n1
-        n2(( category biolink:PhenotypicFeature ))
+        n2(( categories[] biolink:PhenotypicFeature ))
         """
     )
 
@@ -1126,8 +1126,8 @@ async def test_solve_not_real_predicate():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n1(( category biolink:Disease ))
+        n0(( ids[] CHEBI:6801 ))
+        n1(( categories[] biolink:Disease ))
         n0-- biolink:not_a_real_predicate -->n1
         """
     )
@@ -1249,8 +1249,8 @@ async def test_solve_double_subclass():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id MONDO:1 ))
-        n1(( category biolink:NamedThing ))
+        n0(( ids[] MONDO:1 ))
+        n1(( categories[] biolink:NamedThing ))
         n0-- biolink:related_to -->n1
         """
     )
@@ -1322,8 +1322,8 @@ async def test_pinned_to_pinned():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id MONDO:1 ))
-        n1(( id CHEBI:1 ))
+        n0(( ids[] MONDO:1 ))
+        n1(( ids[] CHEBI:1 ))
         n0-- biolink:related_to -->n1
         """
     )
@@ -1377,7 +1377,7 @@ async def test_self_edge():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:1 ))
+        n0(( ids[] CHEBI:1 ))
         n0-- biolink:related_to -->n0
         """
     )
@@ -1441,9 +1441,9 @@ async def test_constraint_error():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
+        n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
-        n1(( category biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
         """
     )
 
@@ -1474,9 +1474,9 @@ async def test_registry_normalizer_unavailable():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
+        n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
-        n1(( category biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
         """
     )
 
@@ -1515,9 +1515,9 @@ async def test_workflow():
     """
     QGRAPH = query_graph_from_string(
         """
-        n0(( id CHEBI:6801 ))
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:Disease ))
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
         """
     )
@@ -1571,9 +1571,9 @@ async def test_multiple_identifiers():
 
     QGRAPH = query_graph_from_string(
         """
-        n0(( category biolink:ChemicalSubstance ))
-        n1(( category biolink:PhenotypicFeature ))
-        n1(( id UMLS:C0032961 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:PhenotypicFeature ))
+        n1(( ids[] UMLS:C0032961 ))
         n0-- biolink:contraindicated_for -->n1
         """
     )
