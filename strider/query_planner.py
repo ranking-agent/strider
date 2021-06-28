@@ -225,12 +225,12 @@ def make_og_edge(
 
     # Default value
     if not predicates:
-        predicates = qg_edge["predicate"]
+        predicates = qg_edge["predicates"]
 
     if predicate_reverse:
-        og_edge["predicate"] = [f"<-{p}-" for p in predicates]
+        og_edge["predicates"] = [f"<-{p}-" for p in predicates]
     else:
-        og_edge["predicate"] = [f"-{p}->" for p in predicates]
+        og_edge["predicates"] = [f"-{p}->" for p in predicates]
     return og_edge
 
 
@@ -261,7 +261,7 @@ async def qg_to_og(qgraph):
         )
 
         symmetric_predicates = [
-            p for p in edge["predicate"]
+            p for p in edge["predicates"]
             if WBMT.predicate_is_symmetric(p)
         ]
         if len(symmetric_predicates) > 0:
@@ -281,7 +281,7 @@ async def qg_to_og(qgraph):
 
         # Inverse edge
         inverse_predicates = [
-            WBMT.predicate_inverse(p) for p in edge["predicate"]
+            WBMT.predicate_inverse(p) for p in edge["predicates"]
         ]
         inverse_predicates = list(filter(None, inverse_predicates))
         if len(inverse_predicates) > 0:
