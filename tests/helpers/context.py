@@ -90,7 +90,7 @@ async def response_overlay(url, response: Response):
             return response
 
         await stack.enter_async_context(
-            ASGIAR(app, host=url_to_host(url))
+            ASGIAR(app, url=url)
         )
         yield
 
