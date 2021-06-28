@@ -41,9 +41,9 @@ def merge_nodes(knodes: list[Node]) -> Node:
     if name_values:
         output_knode["name"] = name_values[0]
 
-    category_values = get_from_all(knodes, "category")
+    category_values = get_from_all(knodes, "categories")
     if category_values:
-        output_knode["category"] = \
+        output_knode["categories"] = \
             deduplicate(merge_listify(category_values))
 
     attributes_values = get_from_all(knodes, "attributes")
@@ -168,7 +168,7 @@ def get_curies(message: Message) -> list[str]:
     curies = set()
     if 'query_graph' in message:
         for qnode in message['query_graph']['nodes'].values():
-            if qnode_id := qnode.get("id", False):
+            if qnode_id := qnode.get("ids", False):
                 curies |= set(qnode_id)
     if 'knowledge_graph' in message:
         curies |= set(message['knowledge_graph']['nodes'])
@@ -221,13 +221,13 @@ def fix_qnode(
         primary: bool = False,
 ) -> QNode:
     """Replace curie with preferred, if possible."""
-    if not qnode.get("id", None):
+    if not qnode.get("ids", None):
         return qnode
 
-    listify_value(qnode, "id")
+    listify_value(qnode, "ids")
 
     output_curies = []
-    for existing_curie in qnode["id"]:
+    for existing_curie in qnode["ids"]:
         if primary:
             output_curies.append(
                 curie_map.get(existing_curie, [existing_curie])[0]
@@ -237,11 +237,11 @@ def fix_qnode(
                 curie_map.get(existing_curie, [])
             )
     if len(output_curies) == 0:
-        output_curies = qnode["id"]
+        output_curies = qnode["ids"]
 
     qnode = {
         **qnode,
-        "id": output_curies,
+        "ids": output_curies,
     }
     return qnode
 
@@ -318,20 +318,20 @@ async def fill_categories_predicates(
 
     # Fill in missing predicates with most general term
     for edge in qg['edges'].values():
-        if ('predicate' not in edge) or (edge['predicate'] is None):
-            edge['predicate'] = 'biolink:related_to'
+        if ('predicates' not in edge) or (edge['predicates'] is None):
+            edge['predicates'] = ['biolink:related_to']
 
     # Fill in missing categories with most general term
     for node in qg['nodes'].values():
-        if ('category' not in node) or (node['category'] is None):
-            node['category'] = 'biolink:NamedThing'
+        if ('categories' not in node) or (node['categories'] is None):
+            node['categories'] = ['biolink:NamedThing']
 
     logger.debug("Contacting node normalizer to get categorys for curies")
 
     # Use node normalizer to add
     # a category to nodes with a curie
     for node in qg['nodes'].values():
-        node_id = node.get('id', None)
+        node_id = node.get('ids', None)
         if not node_id:
             continue
         if not isinstance(node_id, list):
@@ -342,9 +342,9 @@ async def fill_categories_predicates(
 
         if categories:
             # Filter categorys that are ancestors of other categorys we were given
-            node['category'] = filter_ancestor_types(categories)
-        elif "category" not in node:
-            node["category"] = []
+            node['categories'] = filter_ancestor_types(categories)
+        elif "categories" not in node:
+            node["categories"] = []
 
 
 def add_descendants(
