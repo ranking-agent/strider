@@ -229,13 +229,13 @@ async def test_solve_missing_category():
     kp_data={
         "ctd":
         """
-            CHEBI:6801(( category biolink:Drug ))
+            CHEBI:6801(( category biolink:Vitamin ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """
     },
     normalizer_data="""
-        CHEBI:6801 categories biolink:Drug
+        CHEBI:6801 categories biolink:Vitamin
         """
 )
 async def test_normalizer_different_category():
@@ -431,11 +431,7 @@ async def test_plan_endpoint():
     response = await client.post("/plan", json=q)
     output = response.json()
 
-    plan = output[0]
-
-    # Two steps in the plan each with KPs to contact
-    assert len(plan['n0-n0n1-n1']) == 2
-    assert len(plan['n1-n1n2-n2']) == 1
+    assert output == [["n0n1", "n1n2"]]
 
 
 @pytest.mark.asyncio
@@ -508,12 +504,11 @@ async def test_kp_500():
 @with_registry_overlay(
     settings.kpregistry_url, {
         'ctd': {
-            'url':
-            'http://ctd/query',
+            'url': 'http://ctd/query',
             'operations': [{
-                'source_type': 'biolink:ChemicalSubstance',
-                'edge_type': '-biolink:treats->',
-                'target_type': 'biolink:Disease'
+                'subject_category': 'biolink:ChemicalSubstance',
+                'predicate': 'biolink:treats',
+                'object_category': 'biolink:Disease'
             }],
             'details': {
                 'preferred_prefixes': {}
@@ -549,12 +544,11 @@ async def test_kp_unavailable():
 @with_registry_overlay(
     settings.kpregistry_url, {
         'ctd': {
-            'url':
-            'http://ctd/query',
+            'url': 'http://ctd/query',
             'operations': [{
-                'source_type': 'biolink:ChemicalSubstance',
-                'edge_type': '-biolink:treats->',
-                'target_type': 'biolink:Disease'
+                'subject_category': 'biolink:ChemicalSubstance',
+                'predicate': 'biolink:treats',
+                'object_category': 'biolink:Disease'
             }],
             'details': {
                 'preferred_prefixes': {}
@@ -600,9 +594,9 @@ async def test_kp_not_trapi():
         'ctd': {
             'url': 'http://ctd/query',
             'operations': [{
-                'source_type': 'biolink:ChemicalSubstance',
-                'edge_type': '-biolink:treats->',
-                'target_type': 'biolink:Disease'
+                'subject_category': 'biolink:ChemicalSubstance',
+                'predicate': 'biolink:treats',
+                'object_category': 'biolink:Disease'
             }],
             'details': {
                 'preferred_prefixes': {}
@@ -822,7 +816,10 @@ async def test_inverse_predicate():
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level": "DEBUG",
+    }
 
     # Run
     response = await client.post("/query", json=q)
@@ -881,11 +878,15 @@ async def test_symmetric_predicate():
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level": "DEBUG",
+    }
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
+
     validate_message({
         "knowledge_graph":
             """
@@ -926,8 +927,7 @@ async def test_symmetric_predicate():
 )
 async def test_issue_102():
     """
-    Test solving a query graph where the category provided doesn't match
-    the one in the node normalizer.
+    Test that related_to is reversed.
     """
 
     QGRAPH = query_graph_from_string(
@@ -1273,17 +1273,17 @@ async def test_solve_double_subclass():
                 """
                 node_bindings:
                     n0 MONDO:1
-                    n1 MESH:1
+                    n1 HP:1
                 edge_bindings:
-                    n0n1 MONDO:1-MESH:1
+                    n0n1 MONDO:1-HP:1
                 """,
                 """
                 node_bindings:
                     n0 MONDO:1
-                    n1 HP:1
+                    n1 MESH:1
                 edge_bindings:
-                    n0n1 MONDO:1-HP:1
-                """
+                    n0n1 MONDO:1-MESH:1
+                """,
             ]
         },
         output["message"],
@@ -1421,7 +1421,10 @@ async def test_exception_response():
 
     response = await client.post(
         "/query",
-        json={"message": {"query_graph": qgraph}},
+        json={
+            "message": {"query_graph": qgraph},
+            "log_level": "DEBUG",
+        },
         headers={"origin": "http://localhost:80"}
     )
 
@@ -1579,7 +1582,7 @@ async def test_multiple_identifiers():
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message" : {"query_graph" : QGRAPH}, "log_level": "DEBUG"}
 
     # Run
     response = await client.post("/query", json=q)
