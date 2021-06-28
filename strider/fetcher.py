@@ -120,16 +120,6 @@ class StriderWorker(Worker):
         await fill_categories_predicates(self.qgraph, self.logger)
         standardize_graph_lists(self.qgraph)
 
-        # # Replace biolink:Protein with biolink:GeneOrGeneProduct
-        # for node in self.qgraph["nodes"].values():
-        #     if not node.get("categories"):
-        #         continue
-        #     node["categories"] = [
-        #         "biolink:GeneOrGeneProduct"
-        #         if category == "biolink:Protein" else category
-        #         for category in node["categories"]
-        #     ]
-
         # Check for constraints
         for node in self.qgraph["nodes"].values():
             if node["constraints"]:
