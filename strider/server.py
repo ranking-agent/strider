@@ -159,11 +159,18 @@ def get_finished_query(
     results.expire(expiration_seconds)
     logs.expire(expiration_seconds)
 
+    # strip categories from node bindings
+    results = list(results.get())
+    for result in results:
+        for bindings in result["node_bindings"].values():
+            for binding in bindings:
+                binding.pop("category")
+
     return dict(
         message=dict(
             query_graph=qgraph.get(),
             knowledge_graph=kgraph.get(),
-            results=list(results.get()),
+            results=results,
         ),
         logs=list(logs.get()),
     )
