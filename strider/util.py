@@ -88,14 +88,12 @@ class WrappedBMT():
             descendants.append(concept)
         return descendants
 
-    def get_ancestors(self, concept):
+    def get_ancestors(self, concept, reflexive=True):
         """ Wrapped BMT ancestors function that does case conversions """
         concept_old_format = self.new_case_to_old_case(concept)
-        ancestors_old_format = self.bmt.get_ancestors(concept_old_format)
+        ancestors_old_format = self.bmt.get_ancestors(concept_old_format, reflexive=reflexive)
         ancestors = [self.old_case_to_new_case(a)
                      for a in ancestors_old_format]
-        if len(ancestors) == 0:
-            ancestors.append(concept)
         return ancestors
 
     def predicate_is_symmetric(self, predicate):

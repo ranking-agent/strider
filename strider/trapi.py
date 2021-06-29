@@ -280,27 +280,28 @@ def fix_result(result: Result, curie_map: dict[str, str]) -> Result:
     return result
 
 
-def filter_ancestor_types(types):
+def filter_ancestor_types(categories):
     """ Filter out types that are ancestors of other types in the list """
 
     def is_ancestor(a, b):
         """ Check if one biolink type is an ancestor of the other """
-        ancestors = WBMT.get_ancestors(b)
+        ancestors = WBMT.get_ancestors(b, reflexive=False)
         if a in ancestors:
             return True
         return False
 
-    specific_types = ['biolink:NamedThing']
-    for new_type in types:
-        for existing_type_id, existing_type in enumerate(specific_types):
-            existing_type = specific_types[existing_type_id]
-            if is_ancestor(new_type, existing_type):
-                continue
-            if is_ancestor(existing_type, new_type):
-                specific_types[existing_type_id] = new_type
-            else:
-                specific_types.append(new_type)
-    return specific_types
+    has_descendant = [
+        any(
+            is_ancestor(categories[idx], a)
+            for a in categories[:idx] + categories[idx + 1:]
+        )
+        for idx in range(len(categories))
+    ]
+    return [
+        category
+        for category, drop in zip(categories, has_descendant)
+        if not drop
+    ]
 
 
 async def fill_categories_predicates(
