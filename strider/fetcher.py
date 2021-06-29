@@ -340,6 +340,7 @@ def get_kp_request_body(
 
     # Build request edges
     request_edge = qgraph["edges"][qedge_id].copy()
+    request_edge.pop("provided_by", None)
     subject_id = request_edge["subject"]
     request_subject = qgraph["nodes"][subject_id].copy()
     object_id = request_edge["object"]
