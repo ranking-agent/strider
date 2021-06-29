@@ -432,10 +432,13 @@ async def generate_plans(
     kps = dict()
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
+        provided_by = {"allowlist": None, "denylist": None} | qedge.get("provided_by", {})
         kp_results = await kp_registry.search(
             qgraph["nodes"][qedge["subject"]]['categories'],
             qedge['predicates'],
             qgraph["nodes"][qedge["object"]]['categories'],
+            allowlist=provided_by["allowlist"],
+            denylist=provided_by["denylist"],
         )
         if not kp_results:
             msg = f"No KPs for qedge '{qedge_id}'"
