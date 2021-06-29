@@ -341,6 +341,9 @@ async def fill_categories_predicates(
         # Get full list of categorys
         categories = await normalizer.get_types(node_id)
 
+        # Remove duplicates
+        categories = list(set(categories))
+
         if categories:
             # Filter categorys that are ancestors of other categorys we were given
             node['categories'] = filter_ancestor_types(categories)
