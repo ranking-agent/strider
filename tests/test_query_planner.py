@@ -1,6 +1,4 @@
-from pathlib import Path
 from functools import partial
-import json
 import logging
 from strider.traversal import NoAnswersError
 
@@ -8,14 +6,13 @@ import pytest
 
 from tests.helpers.context import \
     with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import generate_kps, validate_template, \
+from tests.helpers.utils import generate_kps, \
     time_and_display, query_graph_from_string, \
-    kps_from_string, plan_template_from_string
+    kps_from_string
 from tests.helpers.logger import assert_no_level
 
 
 from strider.query_planner import \
-    permute_graph, qg_to_og, \
     generate_plans
 
 from strider.trapi import fill_categories_predicates
