@@ -13,6 +13,7 @@ import asyncio
 from collections.abc import Iterable
 from itertools import chain
 import json
+from json.decoder import JSONDecodeError
 import logging
 from datetime import datetime
 from typing import Optional
@@ -171,7 +172,16 @@ class StriderWorker(Worker):
                     )
                     self.kp_preferred_prefixes[kp["url"]] = dict()
                     continue
-                meta_kg = response.json()
+                try:
+                    meta_kg = response.json()
+                except JSONDecodeError as err:
+                    self.logger.warning(
+                        "Unable to get meta knowledge graph for KP %s: %s",
+                        kp["url"],
+                        str(err),
+                    )
+                    self.kp_preferred_prefixes[kp["url"]] = dict()
+                    continue
                 self.kp_preferred_prefixes[kp["url"]] = {
                     category: data["id_prefixes"]
                     for category, data in meta_kg["nodes"].items()
