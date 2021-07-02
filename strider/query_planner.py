@@ -226,19 +226,3 @@ def get_query_graph_edge_kps(
                 "reverse": og_edge["edge_reverse"],
             })
     return kps
-
-
-# pylint: disable=too-many-arguments
-async def step_to_kps(
-        subject, edge, object,
-        kp_registry: Registry,
-        allowlist=None, denylist=None,
-):
-    """Find KP endpoint(s) that enable step."""
-    return await kp_registry.search(
-        subject['categories'],
-        edge['predicates'],
-        object['categories'],
-        allowlist=allowlist,
-        denylist=denylist,
-    )
