@@ -1,5 +1,5 @@
 """Query planner."""
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 import logging
 import copy
 from typing import Generator
@@ -7,7 +7,6 @@ from typing import Generator
 from reasoner_pydantic import QueryGraph
 
 from strider.kp_registry import Registry
-from strider.util import WBMT
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
 
