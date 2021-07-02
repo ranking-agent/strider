@@ -328,9 +328,6 @@ class StriderWorker(Worker):
         # process results
         for new_result in response["results"]:
             # queue the results for further processing
-            for nbs in new_result["node_bindings"].values():
-                for nb in nbs:
-                    nb["category"] = response["knowledge_graph"]["nodes"][nb["id"]].get("categories", None)
             await self.put(merge_results([result, new_result]))
 
 
