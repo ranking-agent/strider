@@ -340,7 +340,7 @@ async def test_unbound_unconnected_node(caplog):
     MONDO:0005148 categories biolink:Disease
     MONDO:0011122 categories biolink:Disease
 """)
-async def test_invalid_two_disconnected_components(caplog):
+async def test_valid_two_disconnected_components(caplog):
     """
     Test Pinned -> Unbound + Pinned -> Unbound
     This should be valid because there is a path from
