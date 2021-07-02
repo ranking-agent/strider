@@ -243,6 +243,7 @@ class StriderWorker(Worker):
             "step": step,
         })
 
+        # For each KP used in this step, make the appropriate request and inverse-predicate request
         responses = await asyncio.gather(*chain(
             (
                 self.portal.fetch(
