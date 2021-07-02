@@ -5,7 +5,7 @@ anyio==3.2.1
 asgiar==0.2.0
 attrs==21.2.0
 biolinkml==1.7.6
-bmt==0.6.0
+bmt==0.7.2
 cachetools==4.2.2
 certifi==2021.5.30
 CFGraph==0.2.1
@@ -31,7 +31,6 @@ jsonpickle==1.4.2
 jsonschema==3.2.0
 kp-registry @ git+git://github.com/TranslatorIIPrototypes/kp_registry@6abe90af6b439e0c045f2ae7e3ad4442dcceb3ad
 linkml==1.0.0
-linkml-model==1.0.0
 linkml-runtime==1.0.10
 lxml==4.6.3
 numpy==1.20.3
@@ -47,7 +46,7 @@ PyJSG==0.11.6
 PyLD==2.0.3
 PyLDmod==2.0.5
 pyparsing==2.4.7
-pyrsistent==0.17.3
+pyrsistent==0.18.0
 PyShEx==0.7.20
 PyShExC==0.8.3
 pytest==6.2.4
@@ -59,18 +58,18 @@ rdflib==5.0.0
 rdflib-jsonld==0.5.0
 rdflib-pyld-compat==0.1.0
 rdflib-pyldmod-compat==0.1.1
-reasoner-pydantic==1.1.2
+reasoner-pydantic==1.1.2.1
 redis==3.5.3
 requests==2.25.1
 rfc3986==1.5.0
 ShExJSG==0.7.1
-simple-kp @ git+git://github.com/ranking-agent/simple-kp@52118160399348ed03b2037c25f05f796d9ac499
+simple-kp @ git+git://github.com/ranking-agent/simple-kp@2bbeaedf70e837f9ef385bd6d4933ab353e1522a
 six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.4.0
 sparqlslurper==0.4.1
 SPARQLWrapper==1.8.5
-SQLAlchemy==1.4.19
+SQLAlchemy==1.4.20
 starlette==0.14.2
 stringcase==1.2.0
 testfixtures==6.17.1
