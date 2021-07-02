@@ -212,7 +212,6 @@ class StriderWorker(Worker):
                 "node_bindings": {
                     first_node_id: [{
                         "id": curie,
-                        "category": first_node["categories"][0],
                     }]
                 },
                 "edge_bindings": {},
