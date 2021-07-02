@@ -12,7 +12,6 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 import asyncio
 from collections.abc import Iterable
 from itertools import chain
-import json
 from json.decoder import JSONDecodeError
 import logging
 from datetime import datetime
@@ -20,7 +19,6 @@ from typing import Optional
 
 import httpx
 from reasoner_pydantic import QueryGraph, Result, Response
-from reasoner_pydantic.results import NodeBinding
 from redis import Redis
 
 from .query_planner import generate_plans, Step, NoAnswersError
@@ -32,8 +30,7 @@ from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import ensure_list, standardize_graph_lists, \
-    extract_predicate_direction, WBMT, transform_keys
+from .util import standardize_graph_lists, WBMT
 
 SELF_EDGE_SUFFIX = ".self"
 
