@@ -194,8 +194,6 @@ class StriderWorker(Worker):
         # Initialize results
 
         first_qedge_id = self.plan[0]
-        # first_step = next(iter(self.plan.keys()))
-        # pinned_node_id = first_step.source
         first_edge = self.qgraph["edges"][first_qedge_id]
         first_node_id, first_node = next(
             (node_id, node)
