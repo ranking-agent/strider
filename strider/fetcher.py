@@ -166,7 +166,7 @@ class StriderWorker(Worker):
                         response = await client.get(url)
                 except httpx.ConnectError as err:
                     self.logger.warning(
-                        "Unable to get meta knowledge graph for KP %s: %s",
+                        "Unable to get meta knowledge graph from KP %s: %s",
                         kp["url"],
                         str(err),
                     )
@@ -176,7 +176,7 @@ class StriderWorker(Worker):
                     meta_kg = response.json()
                 except JSONDecodeError as err:
                     self.logger.warning(
-                        "Unable to get meta knowledge graph for KP %s: %s",
+                        "Unable to parse meta knowledge graph from KP %s: %s",
                         kp["url"],
                         str(err),
                     )
