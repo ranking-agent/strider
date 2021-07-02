@@ -426,9 +426,7 @@ async def generate_traversal_plan(
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
 
-    # await fill_categories_predicates(query_graph, logging.getLogger())
-    # standardize_graph_lists(query_graph)
-    plans, kps = await generate_plans(query_graph)
+    plans, _ = await generate_plans(query_graph)
 
     return plans
 
