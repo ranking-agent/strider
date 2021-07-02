@@ -1524,7 +1524,7 @@ async def test_multiple_identifiers():
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}, "log_level": "DEBUG"}
+    q = {"message" : {"query_graph" : QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
