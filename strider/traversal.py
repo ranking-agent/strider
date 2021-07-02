@@ -1,4 +1,4 @@
-"""Traversal."""
+"""Query-graph traversal planning."""
 
 class NoAnswersError(Exception):
     """No answers can be found."""
@@ -27,7 +27,7 @@ def traverse_edge(qgraph: dict, qedge_id):
 
 
 def get_traversals(qgraph: dict):
-    """Get all possible traversals.
+    """Get all possible traversals of the query graph starting at a pinned node or nodes.
 
     A traversal is a sequence of edges.
     The direction that each edge is traversed is irrelevant.
