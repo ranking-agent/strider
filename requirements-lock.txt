@@ -4,7 +4,7 @@ antlr4-python3-runtime==4.9.2
 anyio==3.2.1
 attrs==21.2.0
 biolinkml==1.7.6
-bmt==0.6.0
+bmt==0.7.2
 cachetools==4.2.2
 certifi==2021.5.30
 CFGraph==0.2.1
@@ -28,7 +28,6 @@ jsonasobj2==1.0.4
 jsonpickle==1.4.2
 jsonschema==3.2.0
 linkml==1.0.0
-linkml-model==1.0.0
 linkml-runtime==1.0.10
 lxml==4.6.3
 numpy==1.20.3
@@ -44,7 +43,7 @@ PyJSG==0.11.6
 PyLD==2.0.3
 PyLDmod==2.0.5
 pyparsing==2.4.7
-pyrsistent==0.17.3
+pyrsistent==0.18.0
 PyShEx==0.7.20
 PyShExC==0.8.3
 pytest==6.2.4
@@ -64,7 +63,7 @@ six==1.16.0
 sniffio==1.2.0
 sparqlslurper==0.4.1
 SPARQLWrapper==1.8.5
-SQLAlchemy==1.4.19
+SQLAlchemy==1.4.20
 starlette==0.14.2
 stringcase==1.2.0
 testfixtures==6.17.1
