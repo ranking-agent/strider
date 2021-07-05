@@ -14,6 +14,7 @@ from tests.helpers.context import \
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 
+import strider
 from strider.config import settings
 from strider.server import APP
 from strider.storage import get_client
@@ -1357,9 +1358,11 @@ async def test_exception_response():
     includes the correct CORS headers,
     and is a valid TRAPI message with a log included
     """
-    # Referring to nodes that don't exist will induce a 500 error
-    qgraph = {"nodes": {}, "edges": {
-        "n0n1": {"subject": "n0", "object": "n1"}}}
+    qgraph = {"nodes": {}, "edges": {}}
+
+    # Temporarily break the fetcher module to induce a 500 error
+    _Registry = strider.fetcher.Registry
+    strider.fetcher.Registry = None
 
     response = await client.post(
         "/query",
@@ -1369,6 +1372,9 @@ async def test_exception_response():
         },
         headers={"origin": "http://localhost:80"}
     )
+
+    # Put fetcher back together
+    strider.fetcher.Registry = _Registry
 
     assert response.status_code == 500
     assert "access-control-allow-origin" in response.headers
