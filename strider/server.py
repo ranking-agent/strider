@@ -159,7 +159,6 @@ def get_finished_query(
     results.expire(expiration_seconds)
     logs.expire(expiration_seconds)
 
-    # strip categories from node bindings
     results = list(results.get())
 
     return dict(
