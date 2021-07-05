@@ -819,7 +819,6 @@ async def test_inverse_predicate():
     # Create query
     q = {
         "message" : {"query_graph" : QGRAPH},
-        "log_level": "DEBUG",
     }
 
     # Run
@@ -881,7 +880,6 @@ async def test_symmetric_predicate():
     # Create query
     q = {
         "message" : {"query_graph" : QGRAPH},
-        "log_level": "DEBUG",
     }
 
     # Run
