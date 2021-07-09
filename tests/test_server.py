@@ -589,6 +589,55 @@ async def test_kp_not_trapi():
 
 
 @pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "mychem":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+    }
+)
+@with_response_overlay(
+    "http://ctd/query",
+    Response(
+        status_code=200,
+        content=json.dumps({"message": {"query_graph": {"nodes": {}, "edges": {}}}}),
+    )
+)
+async def test_kp_no_kg():
+    """
+    Test when a KP returns a TRAPI-valid qgraph but no kgraph.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( ids[] CHEBI:6801 ))
+        n0-- biolink:treats -->n1
+        n1(( category biolink:Disease ))
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    assert response.status_code < 300
+    output = response.json()
+    assert output["message"]["results"]
+
+
+@pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
 @with_registry_overlay(
     settings.kpregistry_url, {
