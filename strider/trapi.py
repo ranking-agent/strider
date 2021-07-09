@@ -451,10 +451,6 @@ def is_valid_edge_binding(message, eb, qgraph_edge):
     Check whether the given kgraph edge
     satisifies the given qgraph edge
     """
-    if qgraph_edge.get("id", None) is not None:
-        if eb["id"] not in qgraph_edge["id"]:
-            return False
-
     kgraph_edge = message["knowledge_graph"]["edges"][eb["id"]]
     if qgraph_edge.get("predicates", None) is not None:
         # Build list of allowable predicates for kgraph edges
