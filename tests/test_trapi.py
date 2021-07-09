@@ -243,7 +243,7 @@ def test_filter_by_qgraph_id():
 
     qgraph = {
         "nodes" : {
-            "n0" : {"id" : ["MONDO:1"]},
+            "n0" : {"ids" : ["MONDO:1"]},
         }
     }
 
@@ -265,10 +265,10 @@ def test_filter_by_qgraph_category():
         "knowledge_graph" : {
             "nodes" : {
                 "MONDO:1" : {
-                    "category" : ["biolink:Disease"]
+                    "categories" : ["biolink:Disease"]
                 },
                 "MONDO:2" : {
-                    "category" : ["biolink:ChemicalSubstance"]
+                    "categories" : ["biolink:ChemicalSubstance"]
                 }
             },
             "edges" : {}
@@ -287,7 +287,7 @@ def test_filter_by_qgraph_category():
 
     qgraph = {
         "nodes" : {
-            "n0" : {"category" : ["biolink:DiseaseOrPhenotypicFeature"]},
+            "n0" : {"categories" : ["biolink:DiseaseOrPhenotypicFeature"]},
         }
     }
 
@@ -340,7 +340,7 @@ def test_filter_by_qgraph_predicate():
         },
         "edges" : {
             "e1" : {
-                "predicate" : ["biolink:treats"]
+                "predicates" : ["biolink:treats"]
             }
         },
     }
