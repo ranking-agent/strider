@@ -424,15 +424,15 @@ def is_valid_node_binding(message, nb, qgraph_node):
     Check whether the given kgraph node
     satisifies the given qgraph node
     """
-    if qgraph_node.get("id", None) is not None:
-        if nb["id"] not in qgraph_node["id"]:
+    if qgraph_node.get("ids", None) is not None:
+        if nb["id"] not in qgraph_node["ids"]:
             return False
 
     kgraph_node = message["knowledge_graph"]["nodes"][nb["id"]]
-    if qgraph_node.get("category", None) is not None:
+    if qgraph_node.get("categories", None) is not None:
         # Build list of allowable categories for kgraph nodes
         qgraph_allowable_categories = []
-        for c in ensure_list(qgraph_node["category"]):
+        for c in ensure_list(qgraph_node["categories"]):
             qgraph_allowable_categories.extend(
                 WBMT.get_descendants(c)
             )
@@ -441,7 +441,7 @@ def is_valid_node_binding(message, nb, qgraph_node):
         # on this kgraph node is allowed
         if not any(
             c in qgraph_allowable_categories
-            for c in kgraph_node["category"]
+            for c in kgraph_node["categories"]
         ):
             return False
     return True
@@ -456,10 +456,10 @@ def is_valid_edge_binding(message, eb, qgraph_edge):
             return False
 
     kgraph_edge = message["knowledge_graph"]["edges"][eb["id"]]
-    if qgraph_edge.get("predicate", None) is not None:
+    if qgraph_edge.get("predicates", None) is not None:
         # Build list of allowable predicates for kgraph edges
         allowable_predicates = []
-        for p in ensure_list(qgraph_edge["predicate"]):
+        for p in ensure_list(qgraph_edge["predicates"]):
             allowable_predicates.extend(
                 WBMT.get_descendants(p)
             )
