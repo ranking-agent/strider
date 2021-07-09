@@ -101,6 +101,10 @@ class KnowledgePortal():
                 "knowledge_graph": {"nodes": {}, "edges": {}},
                 "results": [],
             }
+        if message.get("knowledge_graph") is None:
+            message["knowledge_graph"] = {"nodes": {}, "edges": {}}
+        if message.get("results") is None:
+            message["results"] = []
 
         message = await self.map_prefixes(message, output_prefixes)
 
