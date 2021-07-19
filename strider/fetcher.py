@@ -160,8 +160,11 @@ class StriderWorker(Worker):
                 # url = kp["url"][:-5] + "metadata"
                 try:
                     async with httpx.AsyncClient() as client:
-                        response = await client.get(url)
-                except httpx.ConnectError as err:
+                        response = await client.get(
+                            url,
+                            timeout=10,
+                        )
+                except (httpx.ConnectError, httpx.ReadTimeout) as err:
                     self.logger.warning(
                         "Unable to get meta knowledge graph from KP %s: %s",
                         kp["url"],
