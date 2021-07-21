@@ -9,7 +9,7 @@ bmt==0.7.2
 cachetools==4.2.2
 certifi==2021.5.30
 CFGraph==0.2.1
-chardet==4.0.0
+charset-normalizer==2.0.3
 click==7.1.2
 coverage==5.5
 Deprecated==1.2.12
@@ -17,22 +17,22 @@ deprecation==2.1.0
 fakeredis==1.5.0
 fastapi==0.65.2
 frozendict==2.0.3
-graphviz==0.16
+graphviz==0.17
 greenlet==1.1.0
 h11==0.12.0
 hbreader==0.9.1
 httpcore==0.13.6
 httpx==0.18.2
-idna==2.10
+idna==3.2
 iniconfig==1.1.1
 isodate==0.6.0
 jsonasobj==1.3.1
 jsonasobj2==1.0.4
 jsonpickle==1.4.2
 jsonschema==3.2.0
-kp-registry @ git+git://github.com/TranslatorIIPrototypes/kp_registry@6abe90af6b439e0c045f2ae7e3ad4442dcceb3ad
-linkml==1.0.1
-linkml-runtime==1.0.10
+kp-registry @ git+git://github.com/ranking-agent/kp_registry@f55bde83e3c3c0921d8c724a6c5dd55341a2bf4a
+linkml==1.0.3
+linkml-runtime==1.0.11
 lxml==4.6.3
 numpy==1.20.3
 packaging==21.0
@@ -53,28 +53,28 @@ PyShExC==0.8.3
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1
-python-dateutil==2.8.1
+python-dateutil==2.8.2
 python-dotenv==0.17.0
 PyYAML==5.4
 rdflib==5.0.0
 rdflib-jsonld==0.5.0
 rdflib-pyld-compat==0.1.0
-rdflib-pyldmod-compat==0.1.1
+rdflib-pyldmod-compat==0.1.2
 reasoner-pydantic==1.1.2.1
 redis==3.5.3
-requests==2.25.1
+requests==2.26.0
 rfc3986==1.5.0
 ShExJSG==0.7.1
-simple-kp @ git+git://github.com/ranking-agent/simple-kp@2bbeaedf70e837f9ef385bd6d4933ab353e1522a
+simple-kp @ git+git://github.com/TranslatorSRI/simple-kp@59c5d66294240d00a0e37e0366a28f0433ef4f01
 six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.4.0
 sparqlslurper==0.4.1
 SPARQLWrapper==1.8.5
-SQLAlchemy==1.4.20
+SQLAlchemy==1.4.21
 starlette==0.14.2
 stringcase==1.2.0
-testfixtures==6.17.1
+testfixtures==6.18.0
 toml==0.10.2
 typing-extensions==3.10.0.0
 urllib3==1.26.6
