@@ -18,8 +18,8 @@ reasoner-pydantic==1.1.2.1
 
 asgiar==0.2.0
 fakeredis==1.5.0
-kp-registry @ git+git://github.com/TranslatorIIPrototypes/kp_registry@2.2
+kp-registry @ git+git://github.com/ranking-agent/kp_registry
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1
-simple-kp @ git+git://github.com/ranking-agent/simple-kp@v2.0
+simple-kp @ git+git://github.com/TranslatorSRI/simple-kp
