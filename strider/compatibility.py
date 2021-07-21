@@ -108,17 +108,18 @@ class KnowledgePortal():
 
         message = await self.map_prefixes(message, output_prefixes)
 
-        add_source(message, url)
+        add_source(message)
 
         return message
 
 
-def add_source(message: Message, source: str):
-    """Add source annotation to kedges."""
+def add_source(message: Message):
+    """Add provenance annotation to kedges.
+       Sources from which we retrieve data add their own prov, we add prov for aragorn."""
     for kedge in message["knowledge_graph"]["edges"].values():
         kedge["attributes"] = [dict(
-            attribute_type_id="MetaInformation:Provenance",
-            value=source,
+            attribute_type_id="biolink:aggregator_knowledge_source",
+            value="infores:aragorn",
         )]
 
 
