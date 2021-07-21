@@ -44,9 +44,7 @@ class WrappedBMT():
     """
 
     def __init__(self):
-        self.bmt = BMToolkit(
-            schema="https://raw.githubusercontent.com/biolink/biolink-model/1.8.2/biolink-model.yaml",
-        )
+        self.bmt = BMToolkit()
         self.all_slots = self.bmt.get_all_slots()
         self.all_slots_formatted = ['biolink:' + s.replace(' ', '_')
                                     for s in self.all_slots]
