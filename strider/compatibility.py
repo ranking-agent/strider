@@ -229,13 +229,14 @@ class CURIEMap():
 
         # Iterate through prefixes until we find
         # one with CURIEs
-        for prefix in prefixes:
-            prefix_identifiers = [
-                curie for curie in identifiers
-                if curie.startswith(prefix)
-            ]
-            if len(prefix_identifiers) > 0:
-                return prefix_identifiers
+        prefix_identifiers = [
+            curie
+            for prefix in prefixes
+            for curie in identifiers
+            if curie.startswith(prefix)
+        ]
+        if len(prefix_identifiers) > 0:
+            return prefix_identifiers
 
         # no preferred curie with these prefixes
         self.logger.warning(
