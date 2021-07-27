@@ -1,4 +1,5 @@
 aiofiles==0.6.0
+aiosqlite==0.16.0
 anyio==3.3.0
 asgiar==0.2.0
 attrs==21.2.0
@@ -29,7 +30,7 @@ PyYAML==5.4
 reasoner-pydantic==1.1.2.1
 redis==3.5.3
 rfc3986==1.5.0
-simple-kp @ git+git://github.com/TranslatorSRI/simple-kp@59c5d66294240d00a0e37e0366a28f0433ef4f01
+simple-kp @ git+git://github.com/TranslatorSRI/simple-kp@1ca37c73d4d6e08b21be1ddaa4572b17879f7e6e
 six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.4.0
