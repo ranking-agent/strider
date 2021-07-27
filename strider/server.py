@@ -49,7 +49,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="3.0.2",
+    version="3.1.0",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
