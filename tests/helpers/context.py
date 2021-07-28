@@ -8,8 +8,7 @@ from asgiar import ASGIAR
 from fastapi import FastAPI, Response
 import httpx
 from kp_registry.routers.kps import registry_router
-from simple_kp.testing import kp_overlay
-from simple_kp._types import CURIEMap
+from binder.testing import kp_overlay
 
 from .normalizer import norm_router
 from .utils import normalizer_data_from_string
@@ -120,25 +119,24 @@ async def translator_overlay(
             )
 
             async with httpx.AsyncClient() as client:
-                response = await client.get(f"http://{host}/ops")
+                response = await client.get(f"http://{host}/meta_knowledge_graph")
                 response.raise_for_status()
-                operations = response.json()
-                response = await client.get(f"http://{host}/metadata")
-                response.raise_for_status()
-                metadata = response.json()
-            node_types = {
-                node_type
-                for operation in operations
-                for node_type in (
-                    operation["subject_category"],
-                    operation["object_category"],
-                )
-            }
+                metakg = response.json()
             kps[host] = {
                 "url": f"http://{host}/query",
-                "operations": operations,
+                "operations": [
+                    {
+                        "subject_category": edge["subject"],
+                        "predicate": edge["predicate"],
+                        "object_category": edge["object"],
+                    }
+                    for edge in metakg["edges"]
+                ],
                 "details": {
-                    "preferred_prefixes": metadata["curie_prefixes"]
+                    "preferred_prefixes": {
+                        category: value["id_prefixes"]
+                        for category, value in metakg["nodes"].items()
+                    }
                 }
             }
 
