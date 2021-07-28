@@ -1609,3 +1609,47 @@ async def test_multiple_identifiers():
         },
         output["message"]
     )
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+        """,
+        "kp1":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801<-- predicate biolink:has_biomarker --HP:0004324
+            HP:0004324(( category biolink:PhenotypicFeature ))
+        """
+    },
+    normalizer_data="""
+        MONDO:0005148 categories biolink:Disease
+        CHEBI:6801 categories biolink:ChemicalSubstance
+        HP:0004324 categories biolink:PhenotypicFeature
+        """
+)
+async def test_provenance():
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:NamedThing ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+    print(output)
+    edges = output["message"]["knowledge_graph"]["edges"]
+    attributes = [
+        edges[edge]["attributes"] for edge in edges
+    ]
+    assert "infores:aragorn" in attributes[0][0]["value"]
