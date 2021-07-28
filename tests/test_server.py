@@ -1635,6 +1635,9 @@ async def test_multiple_identifiers():
         """
 )
 async def test_provenance():
+    """
+    Tests that provenance is properly reported by strider.
+    """
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -1647,13 +1650,15 @@ async def test_provenance():
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
-    edges = output["message"]["knowledge_graph"]["edges"]
-    attribute = [
-        edge["attributes"][0] for edge in edges.values()
+    edge = list(output["message"]["knowledge_graph"]["edges"].values())[0]
+    attributes = [
+        attribute for attribute in edge["attributes"]
     ]
     provenance = [
-        [i["value"] for i in attribute],
-        [i["attribute_type_id"] for i in attribute]
+        [i["value"] for i in attributes],
+        [i["attribute_type_id"] for i in attributes]
     ]
     assert "infores:aragorn" in provenance[0]
+    assert "infores:None" in provenance[0]
     assert "biolink:aggregator_knowledge_source" in provenance[1]
+    assert "biolink:knowledge_source" in provenance[1]
