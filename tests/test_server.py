@@ -1651,14 +1651,16 @@ async def test_provenance():
     response = await client.post("/query", json=q)
     output = response.json()
     edge = list(output["message"]["knowledge_graph"]["edges"].values())[0]
-    attributes = [
-        attribute for attribute in edge["attributes"]
+    attributes = edge["attributes"]
+    values = [
+        i["value"] for i in attributes
     ]
-    provenance = [
-        [i["value"] for i in attributes],
-        [i["attribute_type_id"] for i in attributes]
+    attribute_type_ids = [
+        i["attribute_type_id"] for i in attributes
     ]
-    assert "infores:aragorn" in provenance[0]
-    assert "infores:kp0" in provenance[0]
-    assert "biolink:aggregator_knowledge_source" in provenance[1]
-    assert "biolink:knowledge_source" in provenance[1]
+    assert "infores:aragorn" in values
+    assert "infores:kp0" in values
+    assert "biolink:aggregator_knowledge_source" in attribute_type_ids
+    assert "biolink:knowledge_source" in attribute_type_ids
+    assert values.index("infores:aragorn") == attribute_type_ids.index("biolink:aggregator_knowledge_source")
+    assert values.index("infores:kp0") == attribute_type_ids.index("biolink:knowledge_source")
