@@ -1659,6 +1659,6 @@ async def test_provenance():
         [i["attribute_type_id"] for i in attributes]
     ]
     assert "infores:aragorn" in provenance[0]
-    assert "infores:None" in provenance[0]
+    assert "infores:kp0" in provenance[0]
     assert "biolink:aggregator_knowledge_source" in provenance[1]
     assert "biolink:knowledge_source" in provenance[1]
