@@ -1,4 +1,4 @@
-aiosqlite==0.13.0
+aiosqlite==0.16.0
 aiofiles==0.6.0
 redis==3.5.3
 

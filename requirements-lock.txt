@@ -1,5 +1,5 @@
 aiofiles==0.6.0
-aiosqlite==0.13.0
+aiosqlite==0.16.0
 anyio==3.3.0
 bmt-lite-1.8.2==1.0.2
 certifi==2021.5.30
