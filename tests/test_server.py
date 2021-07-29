@@ -1660,6 +1660,7 @@ async def test_provenance():
     ]
     assert "infores:aragorn" in values
     assert "infores:kp0" in values
+    assert "infores:kp1" not in values
     assert "biolink:aggregator_knowledge_source" in attribute_type_ids
     assert "biolink:knowledge_source" in attribute_type_ids
     assert values.index("infores:aragorn") == attribute_type_ids.index("biolink:aggregator_knowledge_source")
