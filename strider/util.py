@@ -158,13 +158,19 @@ async def post_json(url, request, logger, log_name):
     Make post request and write errors to log if present
     """
     try:
-        async with httpx.AsyncClient(verify=False, timeout=None) as client:
+        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
             response = await client.post(
                 url,
                 json=request,
             )
             response.raise_for_status()
             return response.json()
+    except httpx.ReadTimeout as e:
+        logger.error({
+            "message": f"{log_name} took >60 seconds to respond",
+            "error": str(e),
+            "request": log_request(e.request),
+        })
     except httpx.RequestError as e:
         # Log error
         logger.error({
