@@ -20,6 +20,7 @@ from typing import Optional
 import httpx
 from reasoner_pydantic import QueryGraph, Result, Response
 from redis import Redis
+from trapi_throttle.throttle import ThrottledServer
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal, Synonymizer
@@ -154,38 +155,41 @@ class StriderWorker(Worker):
 
         # extract KP preferred prefixes from plan
         self.kp_preferred_prefixes = dict()
+        self.portal.tservers = dict()
         for _kps in kps.values():
             for kp in _kps:
                 url = kp["url"][:-5] + "meta_knowledge_graph"
-                # url = kp["url"][:-5] + "metadata"
                 try:
                     async with httpx.AsyncClient() as client:
                         response = await client.get(
                             url,
                             timeout=10,
                         )
+                    meta_kg = response.json()
+                    self.kp_preferred_prefixes[kp["id"]] = {
+                        category: data["id_prefixes"]
+                        for category, data in meta_kg["nodes"].items()
+                    }
                 except (httpx.ConnectError, httpx.ReadTimeout) as err:
                     self.logger.warning(
                         "Unable to get meta knowledge graph from KP %s: %s",
                         kp["url"],
                         str(err),
                     )
-                    self.kp_preferred_prefixes[kp["url"]] = dict()
-                    continue
-                try:
-                    meta_kg = response.json()
+                    self.kp_preferred_prefixes[kp["id"]] = dict()
                 except JSONDecodeError as err:
                     self.logger.warning(
                         "Unable to parse meta knowledge graph from KP %s: %s",
                         kp["url"],
                         str(err),
                     )
-                    self.kp_preferred_prefixes[kp["url"]] = dict()
-                    continue
-                self.kp_preferred_prefixes[kp["url"]] = {
-                    category: data["id_prefixes"]
-                    for category, data in meta_kg["nodes"].items()
-                }
+                    self.kp_preferred_prefixes[kp["id"]] = dict()
+                self.portal.tservers[kp["id"]] = ThrottledServer(
+                    kp["id"],
+                    url=kp["url"],
+                    request_qty=1,
+                    request_duration=1,
+                )
 
         self.logger.debug({
             "plan": self.plan,
@@ -221,6 +225,18 @@ class StriderWorker(Worker):
             }
             await self.put(result)
 
+    async def __aenter__(self):
+        """Enter context."""
+        for tserver in self.portal.tservers.values():
+            await tserver.__aenter__()
+        return self
+
+    async def __aexit__(self, *args):
+        """Exit context."""
+        for tserver in self.portal.tservers.values():
+            await tserver.__aexit__()
+
+
     def next_step(
             self,
             bound_edges: Iterable[str],
@@ -249,22 +265,22 @@ class StriderWorker(Worker):
         responses = await asyncio.gather(*chain(
             (
                 self.portal.fetch(
-                    kp["url"],
+                    kp["id"],
                     get_kp_request_body(
                         self.qgraph,
                         node_bindings,
                         step,
                         kp,
                     ),
-                    self.kp_preferred_prefixes[kp["url"]],
+                    self.kp_preferred_prefixes[kp["id"]],
                     self.preferred_prefixes,
                 )
                 for kp in self.kps[step]
             ), (
                 self.portal.fetch(
-                    kp["url"],
+                    kp["id"],
                     request,
-                    self.kp_preferred_prefixes[kp["url"]],
+                    self.kp_preferred_prefixes[kp["id"]],
                     self.preferred_prefixes,
                 )
                 for kp in self.kps[step]
