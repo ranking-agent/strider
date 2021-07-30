@@ -66,7 +66,14 @@ class ReasonerLogEntryFormatter(logging.Formatter):
 class StriderWorker(Worker):
     """Async worker to process query"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(
+            self,
+            qid: str,
+            *args,
+            log_level: int = logging.DEBUG,
+            redis_client: Optional[Redis] = None,
+            **kwargs,
+    ):
         """Initialize."""
         self.plan: dict[Step, list]
         self.preferred_prefixes: dict[str, list[str]]
@@ -77,14 +84,6 @@ class StriderWorker(Worker):
         self.portal: KnowledgePortal = None
         super().__init__(*args, **kwargs)
 
-    # pylint: disable=arguments-differ
-    async def setup(
-            self,
-            qid: str,
-            log_level: int,
-            redis_client: Optional[Redis] = None,
-    ):
-        """Set up."""
         # Set up DB results objects
         self.kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
         self.results = RedisList(f"{qid}:results", redis_client)
@@ -104,16 +103,21 @@ class StriderWorker(Worker):
             self.portal = KnowledgePortal(self.logger)
 
         # Pull query graph from Redis
-        qgraph = RedisGraph(f"{qid}:qgraph", redis_client).get()
+        self.qgraph = RedisGraph(f"{qid}:qgraph", redis_client).get()
 
         # Use BMT for preferred prefixes
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
+    # pylint: disable=arguments-differ
+    async def setup(
+            self,
+    ):
+        """Set up."""
         # Update qgraph identifiers
         synonymizer = Synonymizer(self.logger)
-        await synonymizer.load_message({"query_graph" : qgraph})
+        await synonymizer.load_message({"query_graph": self.qgraph})
         curie_map = synonymizer.map(self.preferred_prefixes)
-        self.qgraph = fix_qgraph(qgraph, curie_map, primary = True)
+        self.qgraph = fix_qgraph(self.qgraph, curie_map, primary = True)
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
