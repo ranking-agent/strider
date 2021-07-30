@@ -179,7 +179,13 @@ async def generate_plans(
             for op in kp["operations"]:
                 op["subject"] = (qedge["subject"], op.pop("subject_category"))
                 op["object"] = (qedge["object"], op.pop("object_category"))
-        kps[qedge_id] = list(kp_results.values())
+        kps[qedge_id] = [
+            {
+                "id": key,
+                **value,
+            }
+            for key, value in kp_results.items()
+        ]
 
     if len(traversals) == 0:
         logger.warning({

@@ -192,7 +192,8 @@ async def process_query(
         return get_finished_query(qid, redis_client)
 
     # Process
-    await strider.run(qid, wait=True)
+    async with strider:
+        await strider.run(qid, wait=True)
 
     # Pull results from redis
     # Also starts timer for expiring results

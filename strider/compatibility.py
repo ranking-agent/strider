@@ -1,15 +1,16 @@
 """Compatibility utilities."""
 from collections import namedtuple
 from functools import cache
+from json.decoder import JSONDecodeError
 import logging
-import os
 
 import httpx
 import pydantic
 from reasoner_pydantic import Message
 from reasoner_pydantic.message import Query, Response
+from trapi_throttle.throttle import ThrottledServer
 
-from .util import StriderRequestError, post_json, remove_null_values
+from .util import StriderRequestError, remove_null_values, log_response, log_request
 from .trapi import apply_curie_map, get_curies
 from .config import settings
 
@@ -26,6 +27,54 @@ class KnowledgePortal():
             logger = logging.getLogger(__name__)
         self.logger = logger
         self.synonymizer = Synonymizer(self.logger)
+        self.tservers: dict[str, ThrottledServer] = dict()
+
+    async def make_throttled_request(self, kp_id, request, logger, log_name):
+        """
+        Make post request and write errors to log if present
+        """
+        try:
+            return await self.tservers[kp_id].query(request)
+        except httpx.ReadTimeout as e:
+            logger.error({
+                "message": f"{log_name} took >60 seconds to respond",
+                "error": str(e),
+                "request": log_request(e.request),
+            })
+        except httpx.RequestError as e:
+            # Log error
+            logger.error({
+                "message": f"Request Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+            })
+        except httpx.HTTPStatusError as e:
+            # Log error with response
+            logger.error({
+                "message": f"Response Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+                "response": log_response(e.response),
+            })
+        except JSONDecodeError as e:
+            # Log error with response
+            logger.error({
+                "message": f"Received bad JSON data from {log_name}",
+                "request": e.request,
+                "response": e.response.text,
+                "error": str(e),
+            })
+        except pydantic.ValidationError as e:
+            logger.error({
+                "message": "Received non-TRAPI compliant response from KP",
+                "error": str(e),
+            })
+        except Exception as e:
+            logger.error({
+                "message": "Something went wrong while querying KP",
+                "error": str(e),
+            })
+        raise StriderRequestError
 
     async def map_prefixes(
             self,
@@ -49,7 +98,7 @@ class KnowledgePortal():
 
     async def fetch(
             self,
-            url: str,
+            kp_id: str,
             request: dict,
             input_prefixes: dict = None,
             output_prefixes: dict = None,
@@ -60,9 +109,7 @@ class KnowledgePortal():
 
         trapi_request = Query.parse_obj(request).dict(by_alias=True, exclude_unset=True)
         try:
-            response = await post_json(
-                url, trapi_request, self.logger, "KP"
-            )
+            response = await self.make_throttled_request(kp_id, trapi_request, self.logger, "KP")
         except StriderRequestError:
             # Continue processing with an empty response object
             response = {

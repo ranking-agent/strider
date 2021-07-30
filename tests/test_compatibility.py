@@ -1,6 +1,7 @@
 import json
 import pytest
 from fastapi.responses import JSONResponse, Response
+from trapi_throttle.throttle import ThrottledServer
 
 from tests.helpers.context import \
     with_norm_overlay, with_response_overlay, with_translator_overlay
@@ -271,6 +272,12 @@ async def test_fetch():
     the specified prefixes when contacting a KP
     """
     portal = KnowledgePortal()
+    portal.tservers["ctd"] = ThrottledServer(
+        "ctd",
+        url="http://ctd/query",
+        request_qty=1,
+        request_duration=1,
+    )
 
     preferred_prefixes = {
         "biolink:Disease": ["DOID"],
@@ -295,12 +302,13 @@ async def test_fetch():
         },
     }
 
-    response = await portal.fetch(
-        url="http://ctd/query",
-        request={"message": {"query_graph": query_graph}},
-        input_prefixes=CTD_PREFIXES,
-        output_prefixes=preferred_prefixes,
-    )
+    async with portal.tservers["ctd"]:
+        response = await portal.fetch(
+            kp_id="ctd",
+            request={"message": {"query_graph": query_graph}},
+            input_prefixes=CTD_PREFIXES,
+            output_prefixes=preferred_prefixes,
+        )
 
     allowed_response_prefixes = [
         prefix for prefix_list in preferred_prefixes.values()
