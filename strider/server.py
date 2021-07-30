@@ -180,8 +180,13 @@ async def process_query(
     level_number = logging._nameToLevel[log_level]
 
     # Set up workers
-    strider = StriderWorker(num_workers=2)
-    await strider.setup(qid, level_number, redis_client)
+    strider = StriderWorker(
+        qid,
+        log_level=level_number,
+        redis_client=redis_client,
+        num_workers=2,
+    )
+    await strider.setup()
 
     # Generate plan
     try:
