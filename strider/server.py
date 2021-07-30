@@ -1,40 +1,31 @@
 """Simple ReasonerStdAPI server."""
 import datetime
 import uuid
-import asyncio
-import itertools
 import json
 import logging
-import os
-import enum
 import traceback
-from pathlib import Path
 import pprint
 from typing import Optional
 
-from fastapi import Body, Depends, FastAPI, HTTPException, BackgroundTasks, Request
+from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
-from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
 from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
-import yaml
 
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
 from .fetcher import StriderWorker
 from .query_planner import generate_plans, NoAnswersError
 from .scoring import score_graph
-from .results import get_db, Database
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
-from .util import add_cors_manually, standardize_graph_lists, transform_keys
-from .trapi import fill_categories_predicates, add_descendants
+from .util import add_cors_manually, standardize_graph_lists
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
