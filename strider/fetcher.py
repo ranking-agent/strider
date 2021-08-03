@@ -174,7 +174,7 @@ class StriderWorker(Worker):
                         category: data["id_prefixes"]
                         for category, data in meta_kg["nodes"].items()
                     }
-                except (httpx.ConnectError, httpx.ReadTimeout) as err:
+                except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as err:
                     self.logger.warning(
                         "Unable to get meta knowledge graph from KP {}: {}".format(
                             kp["id"],
