@@ -176,16 +176,18 @@ class StriderWorker(Worker):
                     }
                 except (httpx.ConnectError, httpx.ReadTimeout) as err:
                     self.logger.warning(
-                        "Unable to get meta knowledge graph from KP %s: %s",
-                        kp["url"],
-                        str(err),
+                        "Unable to get meta knowledge graph from KP {}: {}".format(
+                            kp["id"],
+                            str(err),
+                        ),
                     )
                     self.kp_preferred_prefixes[kp["id"]] = dict()
                 except JSONDecodeError as err:
                     self.logger.warning(
-                        "Unable to parse meta knowledge graph from KP %s: %s",
-                        kp["url"],
-                        str(err),
+                        "Unable to parse meta knowledge graph from KP {}: {}".format(
+                            kp["id"],
+                            str(err),
+                        ),
                     )
                     self.kp_preferred_prefixes[kp["id"]] = dict()
                 self.portal.tservers[kp["id"]] = ThrottledServer(
