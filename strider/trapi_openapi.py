@@ -3,6 +3,17 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
+import orjson
+from starlette.responses import JSONResponse
+
+
+class ORJSONResponse(JSONResponse):
+    """JSON response using orjson."""
+    media_type = "application/json"
+
+    def render(self, content: Any) -> bytes:
+        """Render content as str."""
+        return orjson.dumps(content)
 
 
 class TRAPI(FastAPI):
@@ -23,7 +34,11 @@ class TRAPI(FastAPI):
         trapi_operations: Optional[List[str]] = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        super().__init__(
+            *args,
+            **kwargs,
+            default_response_class=ORJSONResponse,
+        )
         self.contact = contact
         self.terms_of_service = terms_of_service
         self.translator_component = translator_component
