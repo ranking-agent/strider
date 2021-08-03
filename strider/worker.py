@@ -1,5 +1,6 @@
 """Base Worker class."""
 from abc import ABC, abstractmethod
+from asyncio.queues import QueueEmpty
 import asyncio
 from contextlib import suppress
 import itertools
@@ -33,27 +34,29 @@ class Worker(ABC):
             self,
             num_workers: int = 1,
             logger: logging.Logger = LOGGER,
+            max_batch_size: int = 1,
             **kwargs,
     ):
         """Initialize."""
         self.num_workers = num_workers
         self.logger = logger
+        self.max_batch_size = max_batch_size
 
         self.queue = asyncio.PriorityQueue()
         self.counter = itertools.count()
 
     @abstractmethod
-    async def on_message(self, message):
+    async def on_message(self, *message):
         """Handle message from results queue."""
 
-    async def _on_message(self, message):
+    async def _on_message(self, *messages):
         """Handle message from results queue."""
         try:
-            await self.on_message(message)
+            await self.on_message(*messages)
         except Exception as err:
             self.logger.exception({
-                "message": "Aborted processing of queue item due to exception",
-                "queue_item": message,
+                "message": "Aborted processing of queue item or batch due to exception",
+                "queue_items": messages,
             })
 
     async def consume(self):
@@ -61,9 +64,16 @@ class Worker(ABC):
         while True:
             # wait for an item from the producer
             _, item = await self.queue.get()
+            items = [item]
+            for _ in range(self.max_batch_size - 1):
+                try:
+                    _, item = self.queue.get_nowait()
+                    items.append(item)
+                except QueueEmpty:
+                    break
 
             # process message
-            await self._on_message(item)
+            await self._on_message(*items)
 
             # Notify the queue that the item has been processed
             self.queue.task_done()
