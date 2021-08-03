@@ -9,6 +9,7 @@ import pydantic
 from reasoner_pydantic import Message
 from reasoner_pydantic.message import Query, Response
 from trapi_throttle.throttle import ThrottledServer
+from trapi_throttle.utils import log_request
 
 from .util import StriderRequestError, remove_null_values, log_response, log_request
 from .trapi import apply_curie_map, get_curies
@@ -204,7 +205,7 @@ class Synonymizer():
             # Log error
             self.logger.warning({
                 "message": "RequestError contacting normalizer. Results may be incomplete",
-                "request": e.request,
+                "request": log_request(e.request),
                 "error": str(e),
             })
             return
@@ -212,8 +213,7 @@ class Synonymizer():
             # Log error with response
             self.logger.warning({
                 "message": "Error contacting normalizer. Results may be incomplete",
-                "request": e.request,
-
+                "request": log_request(e.request),
                 "response": e.response.text,
                 "error": str(e),
             })
