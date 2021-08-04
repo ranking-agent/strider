@@ -13,3 +13,5 @@ jsonpickle==1.4.2
 python-dotenv==0.17.0
 fastapi==0.65.2
 reasoner-pydantic==1.1.2.1
+trapi-throttle @ git+git://github.com/ranking-agent/trapi-throttle@v1.0.0
+orjson==3.6.0

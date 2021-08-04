@@ -11,6 +11,7 @@ httpx==0.18.2
 idna==3.2
 jsonpickle==1.4.2
 numpy==1.20.3
+orjson==3.6.0
 pydantic==1.8.2
 python-dotenv==0.17.0
 PyYAML==5.4
@@ -19,5 +20,6 @@ redis==3.5.3
 rfc3986==1.5.0
 sniffio==1.2.0
 starlette==0.14.2
+trapi-throttle @ git+git://github.com/ranking-agent/trapi-throttle@87c4f5cf9ad727bb1a30d43d1c9c6ec2950d73f5
 typing-extensions==3.10.0.0
 uvicorn==0.13.4
