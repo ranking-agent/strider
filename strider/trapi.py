@@ -340,6 +340,8 @@ async def fill_categories_predicates(
 
         # Get full list of categorys
         categories = await normalizer.get_types(node_id)
+        if "biolink:SmallMolecule" in categories:
+            categories.append("biolink:ChemicalSubstance")
 
         # Remove duplicates
         categories = list(set(categories))
