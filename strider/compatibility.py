@@ -165,10 +165,10 @@ def add_source(message: Message):
     """Add provenance annotation to kedges.
        Sources from which we retrieve data add their own prov, we add prov for aragorn."""
     for kedge in message["knowledge_graph"]["edges"].values():
-        kedge["attributes"].append(dict(
+        kedge["attributes"] = kedge.get("attributes", []) + [dict(
             attribute_type_id="biolink:aggregator_knowledge_source",
             value="infores:aragorn",
-        ))
+        )]
 
 
 Entity = namedtuple("Entity", ["categories", "identifiers"])
