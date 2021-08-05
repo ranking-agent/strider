@@ -1,7 +1,7 @@
 aiofiles==0.6.0
 aiosqlite==0.16.0
 anyio==3.3.0
-bmt-lite-1.8.2==1.0.2
+bmt-lite-2.1.0==1.0.2
 certifi==2021.5.30
 click==7.1.2
 fastapi==0.65.2
