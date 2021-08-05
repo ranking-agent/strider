@@ -3,7 +3,7 @@ aiosqlite==0.16.0
 anyio==3.3.0
 asgiar==0.2.0
 attrs==21.2.0
-binder @ git+git://github.com/TranslatorSRI/binder@b8a925dd8a7b2cdb4730eed6625e5ca8e975c37f
+binder @ git+git://github.com/TranslatorSRI/binder@2d3227c24230a68311b1f8167f4ab5b4670708fd
 bmt-lite-2.1.0==1.0.2
 certifi==2021.5.30
 click==7.1.2
