@@ -175,7 +175,7 @@ async def process_query(
         qid,
         log_level=level_number,
         redis_client=redis_client,
-        num_workers=2,
+        num_workers=100,
     )
     await strider.setup()
 
