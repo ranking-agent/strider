@@ -83,6 +83,8 @@ class WrappedBMT():
         descendants_old_format = self.bmt.get_descendants(concept_old_format)
         descendants = [self.old_case_to_new_case(d)
                        for d in descendants_old_format]
+        if "biolink:SmallMolecule" in descendants:
+            descendants.append("biolink:ChemicalSubstance")
         if len(descendants) == 0:
             descendants.append(concept)
         return descendants
