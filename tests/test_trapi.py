@@ -1,7 +1,7 @@
 import pytest
 
 from strider.trapi import \
-    filter_by_qgraph, merge_messages
+    filter_by_qgraph, fix_qgraph, merge_messages
 
 
 @pytest.mark.asyncio
@@ -251,6 +251,27 @@ def test_filter_by_qgraph_id():
 
     assert len(message["results"]) == 1
     assert len(message["knowledge_graph"]["nodes"]) == 1
+
+
+def test_fix_qgraph():
+    """Test fix_qgraph()."""
+    qgraph = {
+        "nodes": {},
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "predicate": "biolink:treated_by",
+                "object": "n1",
+            },
+        },
+    }
+    fixed_qgraph = fix_qgraph(qgraph, dict())
+    e01 = fixed_qgraph["edges"]["e01"]
+    assert e01["subject"] == "n1"
+    assert e01["predicate"] == "biolink:treats"
+    assert e01["object"] == "n0"
+    assert fixed_qgraph == fix_qgraph(fixed_qgraph, dict())
+
 
 def test_filter_by_qgraph_category():
     """
