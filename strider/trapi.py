@@ -1,12 +1,13 @@
 """TRAPI utilities."""
 from collections import defaultdict
+import copy
 import json
 import logging
 import hashlib
 
+import bmt
 from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
-from reasoner_pydantic.results import NodeBinding
 
 from strider.util import deduplicate_by, WBMT, ensure_list, filter_none, get_from_all, \
     build_predicate_direction, extract_predicate_direction, \
@@ -211,8 +212,27 @@ def fix_qgraph(
             qnode_id: fix_qnode(qnode, curie_map, primary)
             for qnode_id, qnode in qgraph['nodes'].items()
         },
-        "edges": qgraph["edges"],
+        "edges": {
+            qedge_id: fix_qedge(qedge)
+            for qedge_id, qedge in qgraph["edges"].items()
+        },
     }
+
+
+def fix_qedge(
+    qedge: dict,
+):
+    """Use canonical predicate direction."""
+    qedge = copy.deepcopy(qedge)
+    if "predicate" not in qedge:
+        return qedge
+    slot = WBMT.bmt.get_element(qedge["predicate"])
+    if slot is None:
+        return qedge
+    if not slot.annotations.get("biolink:canonical_predicate", False):
+        qedge["subject"], qedge["object"] = qedge["object"], qedge["subject"]
+        qedge["predicate"] = bmt.util.format(slot.inverse)
+    return qedge
 
 
 def fix_qnode(
@@ -221,6 +241,7 @@ def fix_qnode(
         primary: bool = False,
 ) -> QNode:
     """Replace curie with preferred, if possible."""
+    qnode = copy.deepcopy(qnode)
     if not qnode.get("ids", None):
         return qnode
 
