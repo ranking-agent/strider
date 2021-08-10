@@ -237,7 +237,7 @@ def fix_qedge(
         elif flipped == is_canonical:
             raise NotImplementedError("There are multiple predicates, mixed canonical and not")
         if flipped:
-            predicates.append(bmt.util.format(slot.inverse))
+            predicates.append(bmt.util.format(slot.inverse, case="snake"))
     if flipped:
         qedge["subject"], qedge["object"] = qedge["object"], qedge["subject"]
         qedge["predicates"] = predicates
