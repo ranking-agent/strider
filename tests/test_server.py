@@ -1093,7 +1093,7 @@ async def test_solve_reverse_edge():
         "kp1":
         """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
-            CHEBI:6801<-- predicate biolink:has_biomarker --HP:0004324
+            CHEBI:6801-- predicate biolink:biomarker_for -->HP:0004324
             HP:0004324(( category biolink:PhenotypicFeature ))
         """
     },
@@ -1131,7 +1131,7 @@ async def test_solve_multiple_reverse_edges():
             "knowledge_graph":
                 """
                 CHEBI:6801 biolink:treats MONDO:0005148
-                HP:0004324 biolink:has_biomarker CHEBI:6801
+                CHEBI:6801 biolink:biomarker_for HP:0004324
                 """,
             "results": [
                 """
@@ -1141,7 +1141,7 @@ async def test_solve_multiple_reverse_edges():
                     n2 HP:0004324
                 edge_bindings:
                     n1n0 CHEBI:6801-MONDO:0005148
-                    n2n1 HP:0004324-CHEBI:6801
+                    n2n1 CHEBI:6801-HP:0004324
                 """
             ]
         },
