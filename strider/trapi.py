@@ -224,11 +224,9 @@ def fix_qedge(
 ):
     """Use canonical predicate direction."""
     qedge = copy.deepcopy(qedge)
-    if "predicates" not in qedge:
-        return qedge
     flipped = None
     predicates = []
-    for predicate in qedge["predicates"]:
+    for predicate in qedge.get("predicates") or []:
         slot = WBMT.bmt.get_element(predicate)
         if slot is None:
             flipped = False
