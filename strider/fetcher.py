@@ -268,36 +268,19 @@ class StriderWorker(Worker):
         })
 
         # For each KP used in this step, make the appropriate request and inverse-predicate request
-        responses = await asyncio.gather(*chain(
-            (
-                self.portal.fetch(
-                    kp["id"],
-                    get_kp_request_body(
-                        self.qgraph,
-                        node_bindings,
-                        step,
-                        kp,
-                    ),
-                    self.kp_preferred_prefixes[kp["id"]],
-                    self.preferred_prefixes,
-                )
-                for kp in self.kps[step]
-            ), (
-                self.portal.fetch(
-                    kp["id"],
-                    request,
-                    self.kp_preferred_prefixes[kp["id"]],
-                    self.preferred_prefixes,
-                )
-                for kp in self.kps[step]
-                if (request := get_kp_request_body(
+        responses = await asyncio.gather(*(
+            self.portal.fetch(
+                kp["id"],
+                get_kp_request_body(
                     self.qgraph,
                     node_bindings,
                     step,
                     kp,
-                    invert=True,
-                ))
-            ),
+                ),
+                self.kp_preferred_prefixes[kp["id"]],
+                self.preferred_prefixes,
+            )
+            for kp in self.kps[step]
         ))
 
         for response in responses:
