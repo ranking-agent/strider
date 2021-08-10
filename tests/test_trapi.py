@@ -260,7 +260,7 @@ def test_fix_qgraph():
         "edges": {
             "e01": {
                 "subject": "n0",
-                "predicate": "biolink:treated_by",
+                "predicates": ["biolink:treated_by"],
                 "object": "n1",
             },
         },
@@ -268,9 +268,28 @@ def test_fix_qgraph():
     fixed_qgraph = fix_qgraph(qgraph, dict())
     e01 = fixed_qgraph["edges"]["e01"]
     assert e01["subject"] == "n1"
-    assert e01["predicate"] == "biolink:treats"
+    assert e01["predicates"] == ["biolink:treats"]
     assert e01["object"] == "n0"
     assert fixed_qgraph == fix_qgraph(fixed_qgraph, dict())
+
+
+def test_unfixable_qgraph():
+    """Test qgraph with mixed canonical and non-canonical predicates."""
+    qgraph = {
+        "nodes": {},
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+                "predicates": [
+                    "biolink:treats",
+                    "biolink:caused_by",
+                ],
+            },
+        },
+    }
+    with pytest.raises(NotImplementedError):
+        fix_qgraph(qgraph, dict())
 
 
 def test_filter_by_qgraph_category():
