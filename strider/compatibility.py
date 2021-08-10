@@ -87,16 +87,6 @@ class KnowledgePortal():
         curie_map = self.synonymizer.map(prefixes)
         return apply_curie_map(message, curie_map)
 
-    async def map_curie(
-        self,
-        curie: str,
-        prefixes: dict[str, list[str]],
-    ) -> str:
-        """Map CURIE."""
-        await self.synonymizer.load_curies(curie)
-        curie_map = self.synonymizer.map(prefixes)
-        return curie_map.get(curie, curie)
-
     async def fetch(
             self,
             kp_id: str,
