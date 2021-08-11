@@ -33,8 +33,6 @@ from .kp_registry import Registry
 from .config import settings
 from .util import standardize_graph_lists, WBMT
 
-SELF_EDGE_SUFFIX = ".self"
-
 
 class ReasonerLogEntryFormatter(logging.Formatter):
     """ Format to match Reasoner API LogEntry """
@@ -285,14 +283,6 @@ class StriderWorker(Worker):
         ))
 
         for response in responses:
-            # Fix self edges to point to the correct node
-            # (without .self suffix)
-            for result in response["results"]:
-                for qg_id in list(result["node_bindings"].keys()):
-                    if qg_id.endswith(SELF_EDGE_SUFFIX):
-                        nb_list = result["node_bindings"].pop(qg_id)
-                        result["node_bindings"][qg_id[:-len(SELF_EDGE_SUFFIX)]] = nb_list
-
             standardize_graph_lists(
                 response["knowledge_graph"],
                 node_fields = ["categories"],
@@ -356,11 +346,6 @@ def get_kp_request_body(
     request_subject = qgraph["nodes"][subject_id].copy()
     object_id = request_edge["object"]
     request_object = qgraph["nodes"][object_id].copy()
-
-    # If this is a self edge add a suffix to the target
-    # to make sure that we send two nodes to the KP
-    if subject_id == object_id:
-        object_id += SELF_EDGE_SUFFIX
 
     if invert:
         predicates = [
