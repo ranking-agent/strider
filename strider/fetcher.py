@@ -335,7 +335,6 @@ def get_kp_request_body(
         node_bindings: tuple[tuple[str]],
         qedge_id: str,
         kp: dict,
-        invert: bool = False,
 ) -> Response:
     """Get request to send to KP."""
 
@@ -346,22 +345,6 @@ def get_kp_request_body(
     request_subject = qgraph["nodes"][subject_id].copy()
     object_id = request_edge["object"]
     request_object = qgraph["nodes"][object_id].copy()
-
-    if invert:
-        predicates = [
-            inverse
-            for predicate in request_edge.pop("predicates")
-            if (inverse := WBMT.predicate_inverse(predicate)) is not None
-        ]
-        if not predicates:
-            # logger.warning("No inverse predicates: %s", str(predicates))
-            return None
-        request_edge = {
-            "subject": request_edge.pop("object"),
-            "object": request_edge.pop("subject"),
-            "predicates": predicates,
-            **request_edge,
-        }
 
     # Build request
     request_qgraph = {
