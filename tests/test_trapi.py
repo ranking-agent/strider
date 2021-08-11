@@ -1,7 +1,7 @@
 import pytest
 
 from strider.trapi import \
-    filter_by_qgraph, fix_qgraph, merge_messages
+    filter_by_qgraph, canonicalize_qgraph, merge_messages
 
 
 @pytest.mark.asyncio
@@ -253,8 +253,8 @@ def test_filter_by_qgraph_id():
     assert len(message["knowledge_graph"]["nodes"]) == 1
 
 
-def test_fix_qgraph():
-    """Test fix_qgraph()."""
+def test_canonicalize_qgraph():
+    """Test canonicalize_qgraph()."""
     qgraph = {
         "nodes": {},
         "edges": {
@@ -265,15 +265,15 @@ def test_fix_qgraph():
             },
         },
     }
-    fixed_qgraph = fix_qgraph(qgraph, dict())
+    fixed_qgraph = canonicalize_qgraph(qgraph)
     e01 = fixed_qgraph["edges"]["e01"]
     assert e01["subject"] == "n1"
     assert e01["predicates"] == ["biolink:treats"]
     assert e01["object"] == "n0"
-    assert fixed_qgraph == fix_qgraph(fixed_qgraph, dict())
+    assert fixed_qgraph == canonicalize_qgraph(fixed_qgraph)
 
 
-def test_unfixable_qgraph():
+def test_uncanonicalizable_qgraph():
     """Test qgraph with mixed canonical and non-canonical predicates."""
     qgraph = {
         "nodes": {},
@@ -289,7 +289,7 @@ def test_unfixable_qgraph():
         },
     }
     with pytest.raises(NotImplementedError):
-        fix_qgraph(qgraph, dict())
+        canonicalize_qgraph(qgraph)
 
 
 def test_filter_by_qgraph_category():

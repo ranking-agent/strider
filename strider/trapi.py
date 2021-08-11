@@ -179,7 +179,7 @@ def get_curies(message: Message) -> list[str]:
 def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
     """Translate all pinned qnodes to preferred prefix."""
     new_message = dict()
-    new_message["query_graph"] = fix_qgraph(message["query_graph"], curie_map)
+    new_message["query_graph"] = map_qgraph_curies(message["query_graph"], curie_map)
     if "knowledge_graph" in message:
         kgraph = message["knowledge_graph"]
         new_message['knowledge_graph'] = {
@@ -201,7 +201,7 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
     return new_message
 
 
-def fix_qgraph(
+def map_qgraph_curies(
         qgraph: QueryGraph,
         curie_map: dict[str, str],
         primary: bool = False,
@@ -209,17 +209,27 @@ def fix_qgraph(
     """Replace curies with preferred, if possible."""
     return {
         'nodes': {
-            qnode_id: fix_qnode(qnode, curie_map, primary)
+            qnode_id: map_qnode_curies(qnode, curie_map, primary)
             for qnode_id, qnode in qgraph['nodes'].items()
         },
+        "edges": qgraph["edges"],
+    }
+
+
+def canonicalize_qgraph(
+        qgraph: QueryGraph,
+) -> QueryGraph:
+    """Replace predicates with canonical directions."""
+    return {
+        'nodes': qgraph['nodes'],
         "edges": {
-            qedge_id: fix_qedge(qedge)
+            qedge_id: canonicalize_qedge(qedge)
             for qedge_id, qedge in qgraph["edges"].items()
         },
     }
 
 
-def fix_qedge(
+def canonicalize_qedge(
     qedge: dict,
 ):
     """Use canonical predicate direction."""
@@ -244,7 +254,7 @@ def fix_qedge(
     return qedge
 
 
-def fix_qnode(
+def map_qnode_curies(
         qnode: QNode,
         curie_map: dict[str, str],
         primary: bool = False,
