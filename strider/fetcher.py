@@ -24,7 +24,7 @@ from trapi_throttle.throttle import ThrottledServer
 
 from .query_planner import generate_plans, Step, NoAnswersError
 from .compatibility import KnowledgePortal, Synonymizer
-from .trapi import filter_by_qgraph, fix_qgraph, merge_messages, merge_results, \
+from .trapi import canonicalize_qgraph, filter_by_qgraph, map_qgraph_curies, merge_messages, merge_results, \
     fill_categories_predicates
 from .worker import Worker
 from .caching import async_locking_cache
@@ -117,7 +117,8 @@ class StriderWorker(Worker):
         synonymizer = Synonymizer(self.logger)
         await synonymizer.load_message({"query_graph": self.qgraph})
         curie_map = synonymizer.map(self.preferred_prefixes)
-        self.qgraph = fix_qgraph(self.qgraph, curie_map, primary = True)
+        self.qgraph = map_qgraph_curies(self.qgraph, curie_map, primary=True)
+        self.qgraph = canonicalize_qgraph(self.qgraph)
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
