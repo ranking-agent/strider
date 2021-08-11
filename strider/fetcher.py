@@ -267,15 +267,15 @@ class StriderWorker(Worker):
         })
 
         # For each KP used in this step, make the appropriate request and inverse-predicate request
+        request = get_kp_request_body(
+            self.qgraph,
+            node_bindings,
+            step,
+        )
         responses = await asyncio.gather(*(
             self.portal.fetch(
                 kp["id"],
-                get_kp_request_body(
-                    self.qgraph,
-                    node_bindings,
-                    step,
-                    kp,
-                ),
+                request,
                 self.kp_preferred_prefixes[kp["id"]],
                 self.preferred_prefixes,
             )
@@ -334,7 +334,6 @@ def get_kp_request_body(
         qgraph: QueryGraph,
         node_bindings: tuple[tuple[str]],
         qedge_id: str,
-        kp: dict,
 ) -> Response:
     """Get request to send to KP."""
 
