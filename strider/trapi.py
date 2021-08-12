@@ -395,46 +395,6 @@ async def fill_categories_predicates(
             node["categories"] = []
 
 
-def add_descendants(
-        qg: QueryGraph,
-        logger: logging.Logger = logging.getLogger(),
-) -> QueryGraph:
-    """
-    Use the Biolink Model Toolkit to add descendants
-    to categories and predicates in a graph.
-    """
-
-    logger.debug("Using BMT to get descendants of node and edge types")
-
-    # Use BMT to convert node categorys to categorys + descendants
-    for node in qg['nodes'].values():
-        if 'category' not in node:
-            continue
-        new_category_list = []
-        for t in node['category']:
-            new_category_list.extend(WBMT.get_descendants(t))
-        node['category'] = new_category_list
-
-    # Same with edges
-    for edge in qg['edges'].values():
-        if 'predicate' not in edge:
-            continue
-        new_predicate_list = []
-        for t in edge['predicate']:
-            predicate, direction = extract_predicate_direction(t)
-            for new_predicate in WBMT.get_descendants(predicate):
-                new_predicate_list.append(
-                    build_predicate_direction(new_predicate, direction))
-        edge['predicate'] = new_predicate_list
-
-    logger.debug({
-        "description": "Expanded query graph with descendants",
-        "qg": qg,
-    })
-
-    return qg
-
-
 def build_unique_kg_edge_ids(message: Message):
     """
     Replace KG edge IDs with a string that represents
