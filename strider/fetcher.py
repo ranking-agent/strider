@@ -61,6 +61,25 @@ class ReasonerLogEntryFormatter(logging.Formatter):
         return log_entry
 
 
+class KnowledgeProvider():
+    """Knowledge provider."""
+    def __init__(self, details, portal, id, in_prefixes, out_prefixes, *args, **kwargs):
+        self.details = details
+        self.portal = portal
+        self.id = id
+        self.in_prefixes = in_prefixes
+        self.out_prefixes = out_prefixes
+
+    async def solve_onehop(self, request):
+        """Solve one-hop query."""
+        return await self.portal.fetch(
+            self.id,
+            request,
+            self.in_prefixes,
+            self.out_prefixes,
+        )
+
+
 class StriderWorker(Worker):
     """Async worker to process query"""
 
@@ -148,7 +167,6 @@ class StriderWorker(Worker):
             self.qgraph,
             kp_registry=registry,
             logger=self.logger)
-        self.kps = kps
 
         if len(plans) == 0:
             self.logger.error("Could not find a plan to traverse query graph")
@@ -195,6 +213,19 @@ class StriderWorker(Worker):
                     request_qty=1,
                     request_duration=1,
                 )
+        self.kp_details = {
+            step: [
+                KnowledgeProvider(
+                    details,
+                    self.portal,
+                    details["id"],
+                    self.kp_preferred_prefixes[details["id"]],
+                    self.preferred_prefixes,
+                )
+                for details in options
+            ]
+            for step, options in kps.items()
+        }
 
         self.logger.debug({
             "plan": self.plan,
@@ -273,13 +304,8 @@ class StriderWorker(Worker):
             step,
         )
         responses = await asyncio.gather(*(
-            self.portal.fetch(
-                kp["id"],
-                request,
-                self.kp_preferred_prefixes[kp["id"]],
-                self.preferred_prefixes,
-            )
-            for kp in self.kps[step]
+            kp.solve_onehop(request)
+            for kp in self.kp_details[step]
         ))
 
         for response in responses:
