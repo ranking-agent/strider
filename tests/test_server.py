@@ -27,7 +27,14 @@ APP.dependency_overrides[get_client] = lambda: fakeredis.FakeRedis(
     encoding="utf-8",
     decode_responses=True,
 )
-client = httpx.AsyncClient(app=APP, base_url="http://test")
+
+
+@pytest.fixture()
+async def client():
+    """Yield httpx client."""
+    async with httpx.AsyncClient(app=APP, base_url="http://test") as client_:
+        yield client_
+
 
 setup_logger()
 
@@ -62,7 +69,7 @@ CTD_PREFIXES = {
         """
     }
 )
-async def test_solve_ex1():
+async def test_solve_ex1(client):
     """Test solving the ex1 query graph"""
     QGRAPH = query_graph_from_string(
         """
@@ -119,7 +126,7 @@ async def test_solve_ex1():
         """
     }
 )
-async def test_duplicate_results():
+async def test_duplicate_results(client):
     """
     Some KPs will advertise multiple operations from the biolink hierarchy.
 
@@ -160,7 +167,7 @@ async def test_duplicate_results():
         """
     }
 )
-async def test_solve_missing_predicate():
+async def test_solve_missing_predicate(client):
     """Test solving a query graph, in which one of the predicates is missing. """
     QGRAPH = query_graph_from_string(
         """
@@ -200,7 +207,7 @@ async def test_solve_missing_predicate():
         """
     }
 )
-async def test_solve_missing_category():
+async def test_solve_missing_category(client):
     """Test solving the ex1 query graph, in which one of the categories is missing. """
     QGRAPH = query_graph_from_string(
         """
@@ -239,7 +246,7 @@ async def test_solve_missing_category():
         CHEBI:6801 categories biolink:Vitamin
         """
 )
-async def test_normalizer_different_category():
+async def test_normalizer_different_category(client):
     """
     Test solving a query graph where the category provided doesn't match
     the one in the node normalizer.
@@ -294,7 +301,7 @@ async def test_normalizer_different_category():
         MESH:C035133 categories biolink:ChemicalSubstance
         """
 )
-async def test_solve_loop(caplog):
+async def test_solve_loop(client, caplog):
     """
     Test that we correctly solve a query with a loop
     """
@@ -358,7 +365,7 @@ async def test_solve_loop(caplog):
         """
     }
 )
-async def test_log_level_param():
+async def test_log_level_param(client):
     """Test that changing the log level changes the output """
     QGRAPH = query_graph_from_string(
         """
@@ -412,7 +419,7 @@ async def test_log_level_param():
         """
     }
 )
-async def test_plan_endpoint():
+async def test_plan_endpoint(client):
     """Test /plan endpoint"""
     QGRAPH = query_graph_from_string(
         """
@@ -468,7 +475,7 @@ async def test_plan_endpoint():
         content="Internal server error",
     )
 )
-async def test_kp_500():
+async def test_kp_500(client):
     """
     Test that when a KP returns a 500 error we add
     a message to the log but continue running
@@ -516,7 +523,7 @@ async def test_kp_500():
             }
         }
     })
-async def test_kp_unavailable():
+async def test_kp_unavailable(client):
     """
     Test that when a KP is unavailable we add a message to
     the log but continue running
@@ -563,7 +570,7 @@ async def test_kp_unavailable():
         content=json.dumps({"message": None}),
     )
 )
-async def test_kp_not_trapi():
+async def test_kp_not_trapi(client):
     """
     Test that when a KP is unavailable we add a message to
     the log but continue running
@@ -614,7 +621,7 @@ async def test_kp_not_trapi():
         content=json.dumps({"message": {"query_graph": {"nodes": {}, "edges": {}}}}),
     )
 )
-async def test_kp_no_kg():
+async def test_kp_no_kg(client):
     """
     Test when a KP returns a TRAPI-valid qgraph but no kgraph.
     """
@@ -666,7 +673,7 @@ async def test_kp_no_kg():
         }),
     )
 )
-async def test_kp_response_no_qg():
+async def test_kp_response_no_qg(client):
     """
     Test when a KP returns null query graph.
     """
@@ -711,7 +718,7 @@ async def test_kp_response_no_qg():
         """,
     },
 )
-async def test_predicate_fanout():
+async def test_predicate_fanout(client):
     """Test that all predicate descendants are explored."""
     QGRAPH = {
         "nodes": {
@@ -753,7 +760,7 @@ async def test_predicate_fanout():
         """,
     },
 )
-async def test_subpredicate():
+async def test_subpredicate(client):
     """Test that KPs are sent the correct predicate subclasses."""
     QGRAPH = {
         "nodes": {
@@ -802,7 +809,7 @@ async def test_subpredicate():
         """,
     }
 )
-async def test_mutability_bug():
+async def test_mutability_bug(client):
     """
     Test that qgraph is not mutated between KP calls.
     """
@@ -851,7 +858,7 @@ async def test_mutability_bug():
         MONDO:0005148 categories biolink:Disease
         """
 )
-async def test_inverse_predicate():
+async def test_inverse_predicate(client):
     """
     Test solving a query graph where we have to look up
     the inverse of a given predicate to get the right answer.
@@ -911,7 +918,7 @@ async def test_inverse_predicate():
         MONDO:0005148 categories biolink:Disease
         """
 )
-async def test_symmetric_predicate():
+async def test_symmetric_predicate(client):
     """
     Test solving a query graph where we have a symmetric predicate
     that we have to look up in reverse.
@@ -973,7 +980,7 @@ async def test_symmetric_predicate():
         NCBIGene:2710 synonyms UniProtKB:P32189
         """
 )
-async def test_issue_102():
+async def test_issue_102(client):
     """
     Test that related_to is reversed.
     """
@@ -1037,7 +1044,7 @@ async def test_issue_102():
         CHEBI:6801 categories biolink:ChemicalSubstance
         """
 )
-async def test_solve_reverse_edge():
+async def test_solve_reverse_edge(client):
     """
     Test that we can solve a simple query graph
     where we have to traverse an edge in the opposite
@@ -1103,7 +1110,7 @@ async def test_solve_reverse_edge():
         HP:0004324 categories biolink:PhenotypicFeature
         """
 )
-async def test_solve_multiple_reverse_edges():
+async def test_solve_multiple_reverse_edges(client):
     """
     Test that we can solve a query graph
     where we have to traverse two reverse edges
@@ -1166,7 +1173,7 @@ async def test_solve_multiple_reverse_edges():
         MONDO:0005148 categories biolink:Disease
         """
 )
-async def test_solve_not_real_predicate():
+async def test_solve_not_real_predicate(client):
     """
     Test that we can solve a query graph with
     predicates that we don't recognize
@@ -1231,7 +1238,7 @@ async def test_solve_not_real_predicate():
         HP:1 categories biolink:PhenotypicFeature
         """
 )
-async def test_solve_double_subclass():
+async def test_solve_double_subclass(client):
     """
     Test that when given a node with a general type that we subclass
     it and contact all KPs available for information about that node
@@ -1304,7 +1311,7 @@ async def test_solve_double_subclass():
         CHEBI:2 categories biolink:ChemicalSubstance
         """
 )
-async def test_pinned_to_pinned():
+async def test_pinned_to_pinned(client):
     """
     Test that we can solve a query to check if a pinned node is
     connected to another pinned node
@@ -1360,7 +1367,7 @@ async def test_pinned_to_pinned():
         CHEBI:1 categories biolink:ChemicalSubstance
         """
 )
-async def test_self_edge():
+async def test_self_edge(client):
     """
     Test that we can solve a query with a self-edge
     """
@@ -1399,7 +1406,7 @@ async def test_self_edge():
 
 
 @pytest.mark.asyncio
-async def test_exception_response():
+async def test_exception_response(client):
     """
     Test that an exception's response is a 500 error
     includes the correct CORS headers,
@@ -1427,12 +1434,13 @@ async def test_exception_response():
     assert "access-control-allow-origin" in response.headers
     assert len(response.json()["logs"])
 
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
 )
-async def test_constraint_error():
+async def test_constraint_error(client):
     """
     Test that we throw an error and exit if we encounter
     any constraints (not implemented yet)
@@ -1464,8 +1472,9 @@ async def test_constraint_error():
     # Check that we stored the error
     assert 'Unable to process query due to constraints' in output["logs"][0]['message']
 
+
 @pytest.mark.asyncio
-async def test_registry_normalizer_unavailable():
+async def test_registry_normalizer_unavailable(client):
     """
     Test that we log a message properly if the KP Registry
     and/or the Node Normalizer is not available.
@@ -1507,7 +1516,7 @@ async def test_registry_normalizer_unavailable():
         """,
     }
 )
-async def test_workflow():
+async def test_workflow(client):
     """
     Test query workflow handling.
     """
@@ -1535,6 +1544,7 @@ async def test_workflow():
     output = response.json()
     assert output["message"]["results"]
 
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -1561,7 +1571,7 @@ async def test_workflow():
         CHEBI:30146 categories biolink:ChemicalSubstance
         """
 )
-async def test_multiple_identifiers():
+async def test_multiple_identifiers(client):
     """
     Test that we correctly handle the case where we have multiple identifiers
     for the preferred prefix
@@ -1610,6 +1620,7 @@ async def test_multiple_identifiers():
         output["message"]
     )
 
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -1634,7 +1645,7 @@ async def test_multiple_identifiers():
         HP:0004324 categories biolink:PhenotypicFeature
         """
 )
-async def test_provenance():
+async def test_provenance(client):
     """
     Tests that provenance is properly reported by strider.
     """
