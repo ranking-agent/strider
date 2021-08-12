@@ -20,12 +20,13 @@ from starlette.responses import HTMLResponse
 
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
-from .fetcher import StriderWorker
+from .fetcher import Binder
 from .query_planner import generate_plans, NoAnswersError
 from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually
+from .trapi import merge_kgraphs
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
@@ -232,17 +233,59 @@ async def get_results(
     return get_finished_query(qid, redis_client)
 
 
-async def lookup(query_dict: dict, redis_client: Redis) -> dict:
+async def lookup(
+    query_dict: dict,
+    redis_client: Redis,
+) -> dict:
     """Perform lookup operation."""
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
 
-    query_graph = query_dict['message']['query_graph']
+    qgraph = query_dict['message']['query_graph']
 
     log_level = query_dict["log_level"] or "ERROR"
 
-    # Process query and wait for results
-    return await process_query(qid, query_graph, log_level, redis_client)
+    level_number = logging._nameToLevel[log_level]
+
+    binder = Binder(
+        qid,
+        level_number,
+        name = "me",
+        redis_client=redis_client,
+    )
+    kgraph = {
+        "nodes": {},
+        "edges": {},
+    }
+    results = []
+    try:
+        await binder.setup(qgraph)
+    except NoAnswersError:
+        return {
+            "message": {
+                "query_graph": qgraph,
+                "knowledge_graph": kgraph,
+                "results": results,
+            },
+            "logs": list(RedisList(f"{qid}:log", redis_client).get()),
+        }
+
+    async with binder:
+        async for result_kgraph, result in binder.lookup(None, use_cache=False):
+            kgraph = merge_kgraphs([
+                kgraph,
+                result_kgraph,
+            ])
+            results.append(result)
+    logs = list(RedisList(f"{qid}:log", redis_client).get())
+    return {
+        "message": {
+            "query_graph": qgraph,
+            "knowledge_graph": kgraph,
+            "results": results,
+        },
+        "logs": logs,
+    }
 
 
 @APP.post('/query', response_model=ReasonerResponse)

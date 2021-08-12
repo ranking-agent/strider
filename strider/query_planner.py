@@ -9,6 +9,7 @@ from reasoner_pydantic import QueryGraph
 from strider.kp_registry import Registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
+from strider.util import KnowledgeProvider
 
 LOGGER = logging.getLogger(__name__)
 
@@ -138,6 +139,32 @@ def ensure_traversal_connected(graph, path):
     return pinned_nodes | path_nodes == graph_nodes
 
 
+async def pick_kps(qgraph, kp_registry, logger) -> tuple[dict[str, list[str]], dict[str, KnowledgeProvider]]:
+    kps = dict()
+    plan = dict()
+    for qedge_id in qgraph["edges"]:
+        qedge = qgraph["edges"][qedge_id]
+        provided_by = {"allowlist": None, "denylist": None} | qedge.get("provided_by", {})
+        kp_results = await kp_registry.search(
+            qgraph["nodes"][qedge["subject"]]['categories'],
+            qedge['predicates'],
+            qgraph["nodes"][qedge["object"]]['categories'],
+            allowlist=provided_by["allowlist"],
+            denylist=provided_by["denylist"],
+        )
+        if not kp_results:
+            msg = f"No KPs for qedge '{qedge_id}'"
+            logger.error(msg)
+            raise NoAnswersError(msg)
+        for kp in kp_results.values():
+            for op in kp["operations"]:
+                op["subject"] = (qedge["subject"], op.pop("subject_category"))
+                op["object"] = (qedge["object"], op.pop("object_category"))
+        plan[qedge_id] = list(kp_results.keys())
+        kps.update(kp_results)
+    return plan, kps
+
+
 # pylint: disable=too-many-locals
 # pylint: disable=too-many-branches
 # pylint: disable=too-many-statements
@@ -160,32 +187,7 @@ async def generate_plans(
     if kp_registry is None:
         kp_registry = Registry(settings.kpregistry_url)
 
-    kps = dict()
-    for qedge_id in qgraph["edges"]:
-        qedge = qgraph["edges"][qedge_id]
-        provided_by = {"allowlist": None, "denylist": None} | qedge.get("provided_by", {})
-        kp_results = await kp_registry.search(
-            qgraph["nodes"][qedge["subject"]]['categories'],
-            qedge['predicates'],
-            qgraph["nodes"][qedge["object"]]['categories'],
-            allowlist=provided_by["allowlist"],
-            denylist=provided_by["denylist"],
-        )
-        if not kp_results:
-            msg = f"No KPs for qedge '{qedge_id}'"
-            logger.error(msg)
-            raise NoAnswersError(msg)
-        for kp in kp_results.values():
-            for op in kp["operations"]:
-                op["subject"] = (qedge["subject"], op.pop("subject_category"))
-                op["object"] = (qedge["object"], op.pop("object_category"))
-        kps[qedge_id] = [
-            {
-                "id": key,
-                **value,
-            }
-            for key, value in kp_results.items()
-        ]
+    kps = await pick_kps(qgraph, kp_registry, logger)
 
     if len(traversals) == 0:
         logger.warning({
