@@ -31,7 +31,7 @@ from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import WBMT
+from .util import KnowledgeProvider, WBMT
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -59,26 +59,6 @@ class ReasonerLogEntryFormatter(logging.Formatter):
         log_entry["level"] = record.levelname
 
         return log_entry
-
-
-class KnowledgeProvider():
-    """Knowledge provider."""
-    def __init__(self, details, portal, id, in_prefixes, out_prefixes, *args, **kwargs):
-        """Initialize."""
-        self.details = details
-        self.portal = portal
-        self.id = id
-        self.in_prefixes = in_prefixes
-        self.out_prefixes = out_prefixes
-
-    async def solve_onehop(self, request):
-        """Solve one-hop query."""
-        return await self.portal.fetch(
-            self.id,
-            {"message": {"query_graph": request}},
-            self.in_prefixes,
-            self.out_prefixes,
-        )
 
 
 class StriderWorker(Worker):
