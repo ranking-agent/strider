@@ -292,56 +292,58 @@ def validate_message(template, value):
                 # Value
                 template_result[current_key].append(line.strip())
 
-        try:
-            value_result = value["results"][index]
-        except IndexError as e:
-            raise ValueError("Expected more results") from e
+        for value_result in value["results"]:
+            try:
+                # Validate node bindings
+                for node_binding_string in template_result["node_bindings"]:
+                    qg_node_id, *kg_node_ids = node_binding_string.split(" ")
+                    if qg_node_id not in value_result["node_bindings"]:
+                        raise ValueError(
+                            f"Could not find binding for node {qg_node_id}")
 
-        # Validate node bindings
-        for node_binding_string in template_result["node_bindings"]:
-            qg_node_id, *kg_node_ids = node_binding_string.split(" ")
-            if qg_node_id not in value_result["node_bindings"]:
-                raise ValueError(
-                    f"Could not find binding for node {qg_node_id}")
+                    for kg_node_id in kg_node_ids:
+                        if not any(
+                            nb["id"] == kg_node_id
+                            for nb in value_result["node_bindings"][qg_node_id]
+                        ):
+                            raise ValueError(
+                                f"Expected node binding {qg_node_id} to {kg_node_id}")
+                    if len(value_result["node_bindings"][qg_node_id]) != len(kg_node_ids):
+                        raise ValueError(f"Extra node bindings found for {qg_node_id}")
 
-            for kg_node_id in kg_node_ids:
-                if not any(
-                    nb["id"] == kg_node_id
-                    for nb in value_result["node_bindings"][qg_node_id]
-                ):
-                    raise ValueError(
-                        f"Expected node binding {qg_node_id} to {kg_node_id}")
-            if len(value_result["node_bindings"][qg_node_id]) != len(kg_node_ids):
-                raise ValueError(f"Extra node bindings found for {qg_node_id}")
+                # Validate edge bindings
+                for edge_binding_string in template_result["edge_bindings"]:
+                    qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
 
-        # Validate edge bindings
-        for edge_binding_string in template_result["edge_bindings"]:
-            qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
+                    # Find KG edge IDs from the kg edge strings
+                    kg_edge_ids = []
+                    for kg_edge_string in kg_edge_strings:
+                        sub, obj = kg_edge_string.split("-")
+                        kg_edge_id = next(
+                            kg_edge_id
+                            for kg_edge_id, kg_edge in value["knowledge_graph"]["edges"].items()
+                            if kg_edge["subject"] == sub and kg_edge["object"] == obj
+                        )
+                        kg_edge_ids.append(kg_edge_id)
 
-            # Find KG edge IDs from the kg edge strings
-            kg_edge_ids = []
-            for kg_edge_string in kg_edge_strings:
-                sub, obj = kg_edge_string.split("-")
-                kg_edge_id = next(
-                    kg_edge_id
-                    for kg_edge_id, kg_edge in value["knowledge_graph"]["edges"].items()
-                    if kg_edge["subject"] == sub and kg_edge["object"] == obj
-                )
-                kg_edge_ids.append(kg_edge_id)
+                    if qg_edge_id not in value_result["edge_bindings"]:
+                        raise ValueError(
+                            f"Could not find binding for edge {qg_edge_id}")
 
-            if qg_edge_id not in value_result["edge_bindings"]:
-                raise ValueError(
-                    f"Could not find binding for edge {qg_edge_id}")
-
-            for kg_edge_id in kg_edge_ids:
-                if not any(
-                    nb["id"] == kg_edge_id
-                    for nb in value_result["edge_bindings"][qg_edge_id]
-                ):
-                    raise ValueError(
-                        f"Expected edge binding {qg_edge_id} to {kg_edge_id}")
-            if len(value_result["edge_bindings"][qg_edge_id]) != len(kg_edge_ids):
-                raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+                    for kg_edge_id in kg_edge_ids:
+                        if not any(
+                            nb["id"] == kg_edge_id
+                            for nb in value_result["edge_bindings"][qg_edge_id]
+                        ):
+                            raise ValueError(
+                                f"Expected edge binding {qg_edge_id} to {kg_edge_id}")
+                    if len(value_result["edge_bindings"][qg_edge_id]) != len(kg_edge_ids):
+                        raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+            except ValueError as err:
+                continue
+            break
+        else:
+            raise err
 
     # Check for extra results
     if len(template["results"]) != len(value["results"]):
