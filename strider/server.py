@@ -274,36 +274,6 @@ async def sync_query(
     return query_results
 
 
-@APP.post('/ars')
-async def handle_ars(
-        data: dict,
-):
-    """Handle ARS message."""
-    if data.get('model', None) != 'tr_ars.message':
-        raise HTTPException(
-            status_code=400,
-            detail='Not a valid Translator message',
-        )
-    data = data['fields']
-    if data.get('ref', None) is not None:
-        raise HTTPException(
-            status_code=400,
-            detail='Not head message',
-        )
-    if data.get('data', None) is not None:
-        data = json.loads(data['data'])
-    elif data.get('url', None) is not None:
-        data = httpx.get(data['url'], timeout=60).json()
-    else:
-        raise HTTPException(
-            status_code=400,
-            detail='Not a valid tr_ars.message',
-        )
-
-    content = await sync_answer(data)
-    headers = {'tr_ars.message.status': 'A'}
-    return JSONResponse(content=content, headers=headers)
-
 APP.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -319,38 +289,6 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
         oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
         swagger_favicon_url=swagger_favicon_url,
     )
-
-
-async def _get_results(
-        query_id: str,
-        since: float = None,
-        limit: int = None,
-        offset: int = 0,
-        database=None,
-):
-    """Get results."""
-    # get column names from results db
-    columns = await database.get_columns(query_id)
-
-    kgraph = {
-        'nodes': dict(),
-        'edges': dict(),
-    }
-    results = []
-    for row in await extract_results(query_id, since, limit, offset, database):
-        result, _kgraph = parse_bindings(dict(zip(columns, row)))
-        results.append(result)
-        kgraph['nodes'].update(_kgraph['nodes'])
-        kgraph['edges'].update(_kgraph['edges'])
-    # convert kgraph nodes and edges to list format
-    kgraph = {
-        'nodes': list(kgraph['nodes'].values()),
-        'edges': list(kgraph['edges'].values()),
-    }
-    return {
-        'knowledge_graph': kgraph,
-        'results': results
-    }
 
 
 def parse_bindings(bindings):
