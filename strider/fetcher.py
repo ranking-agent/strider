@@ -31,7 +31,7 @@ from .caching import async_locking_cache
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import standardize_graph_lists, WBMT
+from .util import WBMT
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -139,7 +139,6 @@ class StriderWorker(Worker):
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
-        standardize_graph_lists(self.qgraph)
 
         # Check for constraints
         for node in self.qgraph["nodes"].values():
@@ -309,11 +308,6 @@ class StriderWorker(Worker):
         ))
 
         for response in responses:
-            standardize_graph_lists(
-                response["knowledge_graph"],
-                node_fields = ["categories"],
-                edge_fields = [],
-            )
             filter_by_qgraph(response, self.qgraph)
 
         return merge_messages(responses)

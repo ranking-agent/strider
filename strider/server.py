@@ -25,7 +25,7 @@ from .query_planner import generate_plans, NoAnswersError
 from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
-from .util import add_cors_manually, standardize_graph_lists
+from .util import add_cors_manually
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
@@ -207,7 +207,6 @@ async def async_query(
     qid = str(uuid.uuid4())[:8]
 
     query_graph = query.dict()['message']['query_graph']
-    standardize_graph_lists(query_graph)
 
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
@@ -259,7 +258,6 @@ async def sync_query(
     qid = str(uuid.uuid4())[:8]
 
     query_graph = query_dict['message']['query_graph']
-    standardize_graph_lists(query_graph)
 
     # Save query graph to redis
     redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
