@@ -64,6 +64,7 @@ class ReasonerLogEntryFormatter(logging.Formatter):
 class KnowledgeProvider():
     """Knowledge provider."""
     def __init__(self, details, portal, id, in_prefixes, out_prefixes, *args, **kwargs):
+        """Initialize."""
         self.details = details
         self.portal = portal
         self.id = id
@@ -74,7 +75,7 @@ class KnowledgeProvider():
         """Solve one-hop query."""
         return await self.portal.fetch(
             self.id,
-            request,
+            {"message": {"query_graph": request}},
             self.in_prefixes,
             self.out_prefixes,
         )
@@ -86,6 +87,7 @@ class StriderWorker(Worker):
     def __init__(
             self,
             qid: str,
+            qgraph: dict,
             *args,
             log_level: int = logging.DEBUG,
             redis_client: Optional[Redis] = None,
@@ -120,7 +122,7 @@ class StriderWorker(Worker):
             self.portal = KnowledgePortal(self.logger)
 
         # Pull query graph from Redis
-        self.qgraph = RedisGraph(f"{qid}:qgraph", redis_client).get()
+        self.qgraph = qgraph
 
         # Use BMT for preferred prefixes
         self.preferred_prefixes = WBMT.entity_prefix_mapping
@@ -297,13 +299,13 @@ class StriderWorker(Worker):
         })
 
         # For each KP used in this step, make the appropriate request and inverse-predicate request
-        request = get_kp_request_body(
+        qgraph = get_kp_request_qgraph(
             self.qgraph,
             node_bindings,
             step,
         )
         responses = await asyncio.gather(*(
-            kp.solve_onehop(request)
+            kp.solve_onehop(qgraph)
             for kp in self.kp_details[step]
         ))
 
@@ -350,7 +352,7 @@ class StriderWorker(Worker):
             await self.put(merge_results([result, new_result]))
 
 
-def get_kp_request_body(
+def get_kp_request_qgraph(
         qgraph: QueryGraph,
         node_bindings: tuple[tuple[str]],
         qedge_id: str,
@@ -381,4 +383,4 @@ def get_kp_request_body(
             continue
         request_qgraph["nodes"][qnode_key]["ids"] = [bound_id]
 
-    return {"message": {"query_graph": request_qgraph}}
+    return request_qgraph

@@ -164,6 +164,7 @@ def get_finished_query(
 
 async def process_query(
         qid: str,
+        qgraph: dict,
         log_level: str,
         redis_client: Optional[Redis] = None,
 ):
@@ -173,6 +174,7 @@ async def process_query(
     # Set up workers
     strider = StriderWorker(
         qid,
+        qgraph,
         log_level=level_number,
         redis_client=redis_client,
         num_workers=100,
@@ -230,6 +232,19 @@ async def get_results(
     return get_finished_query(qid, redis_client)
 
 
+async def lookup(query_dict: dict, redis_client: Redis) -> dict:
+    """Perform lookup operation."""
+    # Generate Query ID
+    qid = str(uuid.uuid4())[:8]
+
+    query_graph = query_dict['message']['query_graph']
+
+    log_level = query_dict["log_level"] or "ERROR"
+
+    # Process query and wait for results
+    return await process_query(qid, query_graph, log_level, redis_client)
+
+
 @APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
         query: Query = Body(..., example=EXAMPLE),
@@ -253,20 +268,7 @@ async def sync_query(
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
 
-
-    # Generate Query ID
-    qid = str(uuid.uuid4())[:8]
-
-    query_graph = query_dict['message']['query_graph']
-
-    # Save query graph to redis
-    redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
-    redis_query_graph.set(query_graph)
-
-    log_level = query_dict["log_level"] or "ERROR"
-
-    # Process query and wait for results
-    query_results = await process_query(qid, log_level, redis_client)
+    query_results = await lookup(query_dict, redis_client)
 
     # Return results
     return query_results
