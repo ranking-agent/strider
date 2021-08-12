@@ -18,7 +18,6 @@ from strider.query_planner import \
 from strider.trapi import fill_categories_predicates
 
 from strider.config import settings
-from strider.util import standardize_graph_lists
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
@@ -30,7 +29,6 @@ LOGGER = logging.getLogger()
 async def prepare_query_graph(query_graph):
     """ Prepare a query graph for the generate_plans method """
     await fill_categories_predicates(query_graph, logging.getLogger())
-    standardize_graph_lists(query_graph)
 
 
 @pytest.mark.asyncio

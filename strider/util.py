@@ -222,21 +222,6 @@ def listify_value(input_dictionary: dict[str, any], key: str):
         input_dictionary[key] = [input_dictionary[key]]
 
 
-def standardize_graph_lists(
-        graph: dict[str, dict],
-        node_fields: list[str] = ["ids", "categories"],
-        edge_fields: list[str] = ["predicates"],
-):
-    """ Convert fields that are given as a string to a list """
-    for node in graph['nodes'].values():
-        for field in node_fields:
-            listify_value(node, field)
-
-    for edge in graph['edges'].values():
-        for field in edge_fields:
-            listify_value(edge, field)
-
-
 def extract_predicate_direction(predicate: str) -> tuple[str, bool]:
     """ Extract predicate direction from string with enclosing arrows """
     if "<-" in predicate:
