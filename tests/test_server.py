@@ -697,12 +697,6 @@ async def test_kp_response_no_qg(client):
     response = await client.post("/query", json=q)
     output = response.json()
 
-    # Check that there are no logged errors.
-    assert any(
-        "qgraph not returned" in log["error"]
-        for log in output["logs"]
-    )
-
 
 @pytest.mark.asyncio
 @with_translator_overlay(
