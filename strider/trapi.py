@@ -167,11 +167,11 @@ def get_curies(message: Message) -> list[str]:
     knodes.
     """
     curies = set()
-    if 'query_graph' in message:
+    if message.get("query_graph") is not None:
         for qnode in message['query_graph']['nodes'].values():
             if qnode_id := qnode.get("ids", False):
                 curies |= set(qnode_id)
-    if 'knowledge_graph' in message:
+    if message.get("knowledge_graph") is not None:
         curies |= set(message['knowledge_graph']['nodes'])
     return curies
 
@@ -180,7 +180,7 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
     """Translate all pinned qnodes to preferred prefix."""
     new_message = dict()
     new_message["query_graph"] = map_qgraph_curies(message["query_graph"], curie_map)
-    if "knowledge_graph" in message:
+    if message.get("knowledge_graph") is not None:
         kgraph = message["knowledge_graph"]
         new_message['knowledge_graph'] = {
             'nodes': {
@@ -192,7 +192,7 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
                 for kedge_id, kedge in kgraph['edges'].items()
             },
         }
-    if "results" in message:
+    if message.get("results") is not None:
         results = message["results"]
         new_message['results'] = [
             fix_result(result, curie_map)
@@ -207,6 +207,8 @@ def map_qgraph_curies(
         primary: bool = False,
 ) -> QueryGraph:
     """Replace curies with preferred, if possible."""
+    if qgraph is None:
+        return None
     return {
         'nodes': {
             qnode_id: map_qnode_curies(qnode, curie_map, primary)
