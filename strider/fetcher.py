@@ -25,12 +25,11 @@ from redis import Redis
 from trapi_throttle.throttle import ThrottledServer
 
 from .graph import Graph
-from .query_planner import generate_plans, Step, NoAnswersError, pick_kps
 from .compatibility import KnowledgePortal, Synonymizer
 from .trapi import canonicalize_qgraph, filter_by_qgraph, map_qgraph_curies, merge_messages, merge_results, \
     fill_categories_predicates
-from .worker import Worker
 from .caching import async_locking_cache
+from .query_planner import generate_plan
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
@@ -297,7 +296,7 @@ class Binder():
 
         self.logger.debug("Generating plan")
         # Generate traversal plan
-        self.plan, kps = await pick_kps(
+        self.plan, kps = await generate_plan(
             self.qgraph,
             kp_registry=registry,
             logger=self.logger,

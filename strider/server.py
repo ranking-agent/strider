@@ -21,7 +21,7 @@ from starlette.responses import HTMLResponse
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
 from .fetcher import Binder
-from .query_planner import generate_plans, NoAnswersError
+from .query_planner import NoAnswersError, generate_plan
 from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
@@ -392,16 +392,16 @@ async def extract_results(query_id, since, limit, offset, database):
     ]
 
 
-@APP.post('/plan', response_model=list[list[str]])
+@APP.post('/plan', response_model=dict[str, list[str]])
 async def generate_traversal_plan(
         query: Query,
 ) -> list[list[str]]:
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
 
-    plans, _ = await generate_plans(query_graph)
+    plan, _ = await generate_plan(query_graph)
 
-    return plans
+    return plan
 
 
 @APP.post('/score', response_model=Message)

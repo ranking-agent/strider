@@ -139,12 +139,24 @@ def ensure_traversal_connected(graph, path):
     return pinned_nodes | path_nodes == graph_nodes
 
 
-async def pick_kps(qgraph, kp_registry, logger) -> tuple[dict[str, list[str]], dict[str, KnowledgeProvider]]:
+async def generate_plan(
+    qgraph: dict,
+    kp_registry: Registry = None,
+    logger: logging.Logger = None,
+) -> tuple[dict[str, list[str]], dict[str, KnowledgeProvider]]:
+    """Generate traversal plan."""
+    # check that qgraph is traversable
+    get_traversals(qgraph)
+
+    if logger is None:
+        logger = logging.getLogger(__name__)
+    if kp_registry is None:
+        kp_registry = Registry(settings.kpregistry_url)
     kps = dict()
     plan = dict()
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
-        provided_by = {"allowlist": None, "denylist": None} | qedge.get("provided_by", {})
+        provided_by = {"allowlist": None, "denylist": None} | qedge.pop("provided_by", {})
         kp_results = await kp_registry.search(
             qgraph["nodes"][qedge["subject"]]['categories'],
             qedge['predicates'],
@@ -163,43 +175,6 @@ async def pick_kps(qgraph, kp_registry, logger) -> tuple[dict[str, list[str]], d
         plan[qedge_id] = list(kp_results.keys())
         kps.update(kp_results)
     return plan, kps
-
-
-# pylint: disable=too-many-locals
-# pylint: disable=too-many-branches
-# pylint: disable=too-many-statements
-async def generate_plans(
-        qgraph: QueryGraph,
-        kp_registry: Registry = None,
-        logger: logging.Logger = LOGGER,
-) -> list[dict[Step, list]]:
-    """
-    Given a query graph, build plans that consists of steps
-    and the KPs we need to contact to evaluate those steps.
-
-    Also return the expanded query graph so that we can use it during the
-    solving process.
-    """
-
-    qgraph = copy.deepcopy(qgraph)
-    traversals = get_traversals(qgraph)
-
-    if kp_registry is None:
-        kp_registry = Registry(settings.kpregistry_url)
-
-    kps = await pick_kps(qgraph, kp_registry, logger)
-
-    if len(traversals) == 0:
-        logger.warning({
-            "code": "QueryNotTraversable",
-            "message":
-            """
-                We couldn't find any possible plans starting from a pinned node
-                that traverse every edge and node in your query graph
-            """
-        })
-
-    return traversals, kps
 
 
 def annotate_query_graph(
