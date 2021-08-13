@@ -84,9 +84,9 @@ class Binder():
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         self.logger.addHandler(handler)
-        self.logger.debug("Initialized strider worker")
 
-        self.portal = KnowledgePortal(self.logger)
+        self.synonymizer = Synonymizer(self.logger)
+        self.portal = KnowledgePortal(self.synonymizer, self.logger)
 
         # Set up DB results objects
         self.kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
@@ -274,9 +274,8 @@ class Binder():
         """Set up."""
         # Update qgraph identifiers
         self.qgraph = qgraph
-        synonymizer = Synonymizer(self.logger)
-        await synonymizer.load_message({"query_graph": self.qgraph})
-        curie_map = synonymizer.map(self.preferred_prefixes)
+        await self.synonymizer.load_message({"query_graph": self.qgraph})
+        curie_map = self.synonymizer.map(self.preferred_prefixes)
         self.qgraph = map_qgraph_curies(self.qgraph, curie_map, primary=True)
         self.qgraph = canonicalize_qgraph(self.qgraph)
 
