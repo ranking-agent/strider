@@ -186,11 +186,11 @@ class Synonymizer():
         url_base = f"{settings.normalizer_url}/get_normalized_nodes"
         try:
             async with httpx.AsyncClient(timeout=None) as client:
-              response = await client.post(
-                  url_base,
-                  json = {"curies": list(curies)},
-              )
-              response.raise_for_status()
+                response = await client.post(
+                    url_base,
+                    json = {"curies": list(curies)},
+                )
+                response.raise_for_status()
         except httpx.RequestError as e:
             # Log error
             self.logger.warning({
@@ -211,7 +211,11 @@ class Synonymizer():
 
         entities = [
             Entity(
-                entity["type"] + (["biolink:ChemicalSubstance"] if "biolink:SmallMolecule" in entity["type"] else []),
+                entity["type"] + (
+                    ["biolink:ChemicalSubstance"]
+                    if "biolink:SmallMolecule" in entity["type"] else
+                    []
+                ),
                 [
                     synonym["identifier"]
                     for synonym in entity["equivalent_identifiers"]
@@ -248,7 +252,7 @@ class CURIEMap():
         self.lookup = lookup
         self.logger = logger
 
-    @ cache
+    @cache
     def __getitem__(self, curie):
         """Get preferred curie."""
         categories, identifiers = self.lookup[curie]
