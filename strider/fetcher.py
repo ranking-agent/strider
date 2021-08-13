@@ -266,6 +266,14 @@ class Binder():
         for tserver in self.portal.tservers.values():
             await tserver.__aexit__()
 
+    def get_processor(self, preferred_prefixes):
+        """Get processor."""
+        async def processor(request):
+            """Map message CURIE prefixes."""
+            request["message"] = await self.portal.map_prefixes(request["message"], preferred_prefixes)
+            return request
+        return processor
+
     # pylint: disable=arguments-differ
     async def setup(
             self,
@@ -338,6 +346,8 @@ class Binder():
                 url=kp["url"],
                 request_qty=1,
                 request_duration=1,
+                preproc=self.get_processor(self.kp_preferred_prefixes[kp_id]),
+                postproc=self.get_processor(self.preferred_prefixes),
             )
         self.kps = {
             kp_id: KnowledgeProvider(
