@@ -12,8 +12,7 @@ from tests.helpers.utils import generate_kps, \
 from tests.helpers.logger import assert_no_level
 
 
-from strider.query_planner import \
-    generate_plans
+from strider.query_planner import generate_plan
 
 from strider.trapi import fill_categories_predicates
 
@@ -55,7 +54,7 @@ async def test_not_enough_kps(caplog):
     await prepare_query_graph(qg)
 
     with pytest.raises(NoAnswersError, match=r"cannot reach"):
-        plans = await generate_plans(
+        plan, kps = await generate_plan(
             qg,
             logger=logging.getLogger()
         )
@@ -86,10 +85,10 @@ async def test_plan_reverse_edge(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-    assert plans == [["n1n0"]]
+    plan, kps = await generate_plan(qg)
+    assert plan == {"n1n0": ["kp0"]}
 
-    assert len(kps["n1n0"]) == 1
+    assert "kp0" in kps
 
 
 @pytest.mark.asyncio
@@ -119,10 +118,8 @@ async def test_plan_loop():
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
+    plan, _ = await generate_plan(qg)
 
-    assert len(plans) == 4
-    plan = plans[0]
     assert len(plan) == 3
 
 
@@ -153,9 +150,7 @@ async def test_plan_reuse_pinned():
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-
-    assert len(plans) == 16
+    plan, kps = await generate_plan(qg)
 
 
 @pytest.mark.asyncio
@@ -190,8 +185,7 @@ async def test_plan_double_loop(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-    assert len(plans) == 112
+    plan, kps = await generate_plan(qg)
 
 
 @pytest.mark.asyncio
@@ -222,16 +216,9 @@ async def test_plan_ex1(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-    plan = plans[0]
+    plan, kps = await generate_plan(qg)
     # One step per edge
     assert len(plan) == len(qg['edges'])
-
-    first_edge = qg["edges"][plan[0]]
-    assert any(
-        qg["nodes"][nid].get("ids")
-        for nid in (first_edge["subject"], first_edge["object"])
-    )
 
 
 @pytest.mark.asyncio
@@ -261,8 +248,7 @@ async def test_valid_two_pinned_nodes(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-    assert len(plans) == 1
+    plan, kps = await generate_plan(qg)
 
 
 @pytest.mark.asyncio
@@ -294,8 +280,7 @@ async def test_fork(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-    assert len(plans) == 2
+    plan, kps = await generate_plan(qg)
 
 
 @pytest.mark.asyncio
@@ -325,7 +310,7 @@ async def test_unbound_unconnected_node(caplog):
     await prepare_query_graph(qg)
 
     with pytest.raises(NoAnswersError, match=r"cannot reach"):
-        plans, kps = await generate_plans(qg)
+        plan, kps = await generate_plan(qg)
 
 
 @pytest.mark.asyncio
@@ -356,8 +341,7 @@ async def test_valid_two_disconnected_components(caplog):
     )
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
-    assert len(plans) == 2
+    plan, kps = await generate_plan(qg)
 
 
 @pytest.mark.asyncio
@@ -393,7 +377,7 @@ async def test_bad_norm(caplog):
     }
     await prepare_query_graph(qg)
 
-    plans, kps = await generate_plans(qg)
+    plan, kps = await generate_plan(qg)
     assert any(
         (
             record.levelname == "WARNING"
@@ -401,8 +385,6 @@ async def test_bad_norm(caplog):
         )
         for record in caplog.records
     )
-
-    assert len(plans) == 1
 
 
 @pytest.mark.asyncio
@@ -426,8 +408,7 @@ async def test_descendant_reverse_category(caplog):
         """
     )
     await prepare_query_graph(valid_qg)
-    plans, kps = await generate_plans(valid_qg)
-    assert len(plans) == 1
+    plan, kps = await generate_plan(valid_qg)
     assert_no_level(caplog, logging.WARNING, 1)
 
     invalid_qg = query_graph_from_string(
@@ -441,7 +422,7 @@ async def test_descendant_reverse_category(caplog):
     await prepare_query_graph(invalid_qg)
 
     with pytest.raises(NoAnswersError, match=r"No KPs"):
-        plans, kps = await generate_plans(invalid_qg)
+        plan, kps = await generate_plan(invalid_qg)
 
 
 @pytest.mark.asyncio
@@ -466,7 +447,7 @@ async def test_planning_performance_generic_qg():
     )
     await prepare_query_graph(qg)
     await time_and_display(
-        partial(generate_plans, qg, logger=logging.getLogger()),
+        partial(generate_plan, qg, logger=logging.getLogger()),
         "generate plan for a generic query graph (1000 kps)",
     )
 
@@ -501,7 +482,7 @@ async def test_planning_performance_typical_example():
     await prepare_query_graph(qg)
 
     async def testable_generate_plans():
-        await generate_plans(qg, logger=logging.getLogger())
+        await generate_plan(qg, logger=logging.getLogger())
 
     await time_and_display(
         testable_generate_plans,
@@ -530,6 +511,6 @@ async def test_double_sided(caplog):
         """
     )
     await prepare_query_graph(qg)
-    plans, kps = await generate_plans(qg, logger=logging.getLogger())
-    assert len(plans) == 1
-    assert len(kps["n0n1"]) == 1
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"n0n1": ["kp0"]}
+    assert "kp0" in kps
