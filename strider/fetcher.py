@@ -151,7 +151,6 @@ class Binder():
         **kwargs,
     ):
         """Generate one-hop results from KP."""
-        print("sending", onehop_qgraph)
         onehop_response = await kp.solve_onehop(
             onehop_qgraph,
             # **kwargs,
