@@ -1,4 +1,5 @@
 """Compatibility utilities."""
+import asyncio
 from collections import namedtuple
 from functools import cache
 from json.decoder import JSONDecodeError
@@ -33,12 +34,25 @@ class KnowledgePortal():
         self.synonymizer = synonymizer
         self.tservers: dict[str, ThrottledServer] = dict()
 
-    async def make_throttled_request(self, kp_id, request, logger, log_name):
+    async def make_throttled_request(
+        self,
+        kp_id: str,
+        request: dict,
+        logger: logging.Logger,
+        log_name: str,
+        timeout: float = 60.0,
+    ):
         """
         Make post request and write errors to log if present
         """
         try:
-            return await self.tservers[kp_id].query(request)
+            return await self.tservers[kp_id].query(request, timeout=timeout)
+        except asyncio.TimeoutError as e:
+            logger.error({
+                "message": f"{log_name} took >60 seconds to respond",
+                "error": str(e),
+                "request": request,
+            })
         except httpx.ReadTimeout as e:
             logger.error({
                 "message": f"{log_name} took >60 seconds to respond",
