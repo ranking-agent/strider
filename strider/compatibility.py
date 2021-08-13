@@ -281,7 +281,11 @@ class CURIEMap():
 
         # no preferred curie with these prefixes
         self.logger.warning(
-            "Cannot find identifier with a preferred prefix")
+            "Cannot find identifier in {} with a preferred prefix in {}".format(
+                identifiers,
+                prefixes,
+            ),
+        )
         return [curie]
 
     def get(self, *args):
