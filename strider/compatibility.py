@@ -21,13 +21,16 @@ class KnowledgePortal():
 
     def __init__(
             self,
+            synonymizer: "Synonymizer" = None,
             logger: logging.Logger = None,
     ):
         """Initialize."""
         if not logger:
             logger = logging.getLogger(__name__)
+        if not synonymizer:
+            synonymizer = Synonymizer(logger=logger)
         self.logger = logger
-        self.synonymizer = Synonymizer(self.logger)
+        self.synonymizer = synonymizer
         self.tservers: dict[str, ThrottledServer] = dict()
 
     async def make_throttled_request(self, kp_id, request, logger, log_name):
