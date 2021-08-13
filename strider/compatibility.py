@@ -112,7 +112,6 @@ class KnowledgePortal():
             output_prefixes: dict = None,
     ):
         """Wrap fetch with CURIE mapping(s)."""
-        request['message'] = await self.map_prefixes(request['message'], input_prefixes)
         request = remove_null_values(request)
 
         trapi_request = Query.parse_obj(request).dict(by_alias=True, exclude_unset=True)
@@ -160,8 +159,6 @@ class KnowledgePortal():
             message["knowledge_graph"] = {"nodes": {}, "edges": {}}
         if message.get("results") is None:
             message["results"] = []
-
-        message = await self.map_prefixes(message, output_prefixes)
 
         add_source(message)
 
