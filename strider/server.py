@@ -163,42 +163,6 @@ def get_finished_query(
     )
 
 
-async def process_query(
-        qid: str,
-        qgraph: dict,
-        log_level: str,
-        redis_client: Optional[Redis] = None,
-):
-    # pylint: disable=protected-access
-    level_number = logging._nameToLevel[log_level]
-
-    # Set up workers
-    strider = StriderWorker(
-        qid,
-        qgraph,
-        log_level=level_number,
-        redis_client=redis_client,
-        num_workers=100,
-    )
-    await strider.setup()
-
-    # Generate plan
-    try:
-        await strider.generate_plan()
-    except NoAnswersError:
-        # End early with no results
-        # (but we should have log messages)
-        return get_finished_query(qid, redis_client)
-
-    # Process
-    async with strider:
-        await strider.run(qid, wait=True)
-
-    # Pull results from redis
-    # Also starts timer for expiring results
-    return get_finished_query(qid, redis_client)
-
-
 @APP.post('/aquery')
 async def async_query(
         background_tasks: BackgroundTasks,
