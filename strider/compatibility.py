@@ -249,7 +249,7 @@ class Synonymizer():
 
     def map(self, prefixes: dict[str, list[str]]):
         """Generate CURIE map."""
-        return CURIEMap(self, prefixes, self.logger)
+        return CURIEMap(self._data, prefixes, self.logger)
 
 
 class CURIEMap():
@@ -257,7 +257,7 @@ class CURIEMap():
 
     def __init__(
             self,
-            lookup: Synonymizer,
+            lookup: dict[str, Entity],
             prefixes: dict[str, list[str]],
             logger: logging.Logger
     ):
