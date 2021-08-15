@@ -89,6 +89,19 @@ def merge_edges(kedges: list[Edge]) -> Edge:
 def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
     """ Merge knowledge graphs. """
 
+    return {
+        "nodes": {
+            knode_id: knode
+            for kgraph in kgraphs
+            for knode_id, knode in kgraph["nodes"].items()
+        },
+        "edges": {
+            kedge_id: kedge
+            for kgraph in kgraphs
+            for kedge_id, kedge in kgraph["edges"].items()
+        }
+    }
+
     knodes = [kgraph["nodes"] for kgraph in kgraphs]
     kedges = [kgraph["edges"] for kgraph in kgraphs]
 
