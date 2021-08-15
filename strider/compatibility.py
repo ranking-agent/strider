@@ -48,27 +48,27 @@ class KnowledgePortal():
         try:
             return await self.tservers[kp_id].query(request, timeout=timeout)
         except asyncio.TimeoutError as e:
-            logger.error({
+            logger.warning({
                 "message": f"{log_name} took >60 seconds to respond",
                 "error": str(e),
                 "request": request,
             })
         except httpx.ReadTimeout as e:
-            logger.error({
+            logger.warning({
                 "message": f"{log_name} took >60 seconds to respond",
                 "error": str(e),
                 "request": log_request(e.request),
             })
         except httpx.RequestError as e:
             # Log error
-            logger.error({
+            logger.warning({
                 "message": f"Request Error contacting {log_name}",
                 "error": str(e),
                 "request": log_request(e.request),
             })
         except httpx.HTTPStatusError as e:
             # Log error with response
-            logger.error({
+            logger.warning({
                 "message": f"Response Error contacting {log_name}",
                 "error": str(e),
                 "request": log_request(e.request),
@@ -76,20 +76,20 @@ class KnowledgePortal():
             })
         except JSONDecodeError as e:
             # Log error with response
-            logger.error({
+            logger.warning({
                 "message": f"Received bad JSON data from {log_name}",
                 "request": e.request,
                 "response": e.response.text,
                 "error": str(e),
             })
         except pydantic.ValidationError as e:
-            logger.error({
-                "message": "Received non-TRAPI compliant response from KP",
+            logger.warning({
+                "message": f"Received non-TRAPI compliant response from {log_name}",
                 "error": str(e),
             })
         except Exception as e:
-            logger.error({
-                "message": "Something went wrong while querying KP",
+            logger.warning({
+                "message": f"Something went wrong while querying {log_name}",
                 "error": str(e),
             })
         raise StriderRequestError
