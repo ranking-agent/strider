@@ -347,6 +347,7 @@ class Binder():
                 request_duration=1,
                 preproc=self.get_processor(self.kp_preferred_prefixes[kp_id]),
                 postproc=self.get_processor(self.preferred_prefixes),
+                logger=self.logger,
             )
         self.kps = {
             kp_id: KnowledgeProvider(
