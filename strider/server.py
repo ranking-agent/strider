@@ -237,8 +237,8 @@ async def lookup(
     async with binder:
         async for result_kgraph, result in binder.lookup(None, use_cache=False):
             kgraph = merge_kgraphs([
-                kgraph,
                 result_kgraph,
+                kgraph,
             ])
             results.append(result)
     logs = list(RedisList(f"{qid}:log", redis_client).get())
