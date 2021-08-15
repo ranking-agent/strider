@@ -114,9 +114,13 @@ class KnowledgePortal():
         """Wrap fetch with CURIE mapping(s)."""
         request = remove_null_values(request)
 
-        trapi_request = Query.parse_obj(request).dict(by_alias=True, exclude_unset=True)
         try:
-            response = await self.make_throttled_request(kp_id, trapi_request, self.logger, "KP")
+            response = await self.make_throttled_request(
+                kp_id,
+                request,
+                self.logger,
+                "KP",
+            )
         except StriderRequestError:
             # Continue processing with an empty response object
             response = {
