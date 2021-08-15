@@ -20,6 +20,6 @@ redis==3.5.3
 rfc3986==1.5.0
 sniffio==1.2.0
 starlette==0.14.2
-trapi-throttle @ git+git://github.com/ranking-agent/trapi-throttle@08e5ab250f9c960e74a027bf4363ff9cad19b5b5
+trapi-throttle @ git+git://github.com/ranking-agent/trapi-throttle@ce9c92b6b434d2ece233640608ea14615a0cec3c
 typing-extensions==3.10.0.0
 uvicorn==0.13.4
