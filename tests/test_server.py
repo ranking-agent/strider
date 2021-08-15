@@ -1282,7 +1282,7 @@ async def test_solve_double_subclass(client):
 
     # Check that the knowledge graph node has the correct category
     assert set(output["message"]["knowledge_graph"]["nodes"]["MONDO:1"]["categories"]) == \
-        {"biolink:ChemicalSubstance", "biolink:Disease"}
+        {"biolink:Disease"}
 
 
 @pytest.mark.asyncio

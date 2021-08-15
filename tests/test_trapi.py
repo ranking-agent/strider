@@ -116,10 +116,9 @@ def test_merge_knowledge_graph_nodes():
     nodes = output["knowledge_graph"]["nodes"]
     assert len(nodes) == 1
     node = next(iter(nodes.values()))
-    assert node["attributes"] == [ATTRIBUTE_A, ATTRIBUTE_B]
+    assert node["attributes"] == [ATTRIBUTE_B]
 
-    assert sorted(node["categories"]) == \
-        ["biolink:Disease", "biolink:DiseaseOrPhenotypicFeature"]
+    assert sorted(node["categories"]) == ["biolink:DiseaseOrPhenotypicFeature"]
 
 
 def test_merge_knowledge_graph_edges():
@@ -171,7 +170,7 @@ def test_merge_knowledge_graph_edges():
     assert len(edges) == 1
     edge = next(iter(edges.values()))
 
-    assert edge["attributes"] == [ATTRIBUTE_A, ATTRIBUTE_B]
+    assert edge["attributes"] == [ATTRIBUTE_B]
 
 
 def test_merge_identical_attributes():
