@@ -39,7 +39,6 @@ class KnowledgePortal():
         kp_id: str,
         request: dict,
         logger: logging.Logger,
-        log_name: str,
         timeout: float = 60.0,
     ):
         """
@@ -49,27 +48,27 @@ class KnowledgePortal():
             return await self.tservers[kp_id].query(request, timeout=timeout)
         except asyncio.TimeoutError as e:
             logger.warning({
-                "message": f"{log_name} took >60 seconds to respond",
+                "message": f"{kp_id} took >60 seconds to respond",
                 "error": str(e),
                 "request": request,
             })
         except httpx.ReadTimeout as e:
             logger.warning({
-                "message": f"{log_name} took >60 seconds to respond",
+                "message": f"{kp_id} took >60 seconds to respond",
                 "error": str(e),
                 "request": log_request(e.request),
             })
         except httpx.RequestError as e:
             # Log error
             logger.warning({
-                "message": f"Request Error contacting {log_name}",
+                "message": f"Request Error contacting {kp_id}",
                 "error": str(e),
                 "request": log_request(e.request),
             })
         except httpx.HTTPStatusError as e:
             # Log error with response
             logger.warning({
-                "message": f"Response Error contacting {log_name}",
+                "message": f"Response Error contacting {kp_id}",
                 "error": str(e),
                 "request": log_request(e.request),
                 "response": log_response(e.response),
@@ -77,19 +76,19 @@ class KnowledgePortal():
         except JSONDecodeError as e:
             # Log error with response
             logger.warning({
-                "message": f"Received bad JSON data from {log_name}",
+                "message": f"Received bad JSON data from {kp_id}",
                 "request": e.request,
                 "response": e.response.text,
                 "error": str(e),
             })
         except pydantic.ValidationError as e:
             logger.warning({
-                "message": f"Received non-TRAPI compliant response from {log_name}",
+                "message": f"Received non-TRAPI compliant response from {kp_id}",
                 "error": str(e),
             })
         except Exception as e:
             logger.warning({
-                "message": f"Something went wrong while querying {log_name}",
+                "message": f"Something went wrong while querying {kp_id}",
                 "error": str(e),
             })
         raise StriderRequestError
@@ -119,7 +118,6 @@ class KnowledgePortal():
                 kp_id,
                 request,
                 self.logger,
-                "KP",
             )
         except StriderRequestError:
             # Continue processing with an empty response object
