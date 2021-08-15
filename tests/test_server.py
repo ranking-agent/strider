@@ -492,14 +492,17 @@ async def test_kp_500(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level" : "WARNING",
+    }
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
     # Check that we stored the error
-    assert "Error contacting KP" in output["logs"][0]["message"]
+    assert "Error contacting mychem" in output["logs"][0]["message"]
     assert "Internal server error" in output["logs"][0]["response"]["data"]
     # Ensure we have results from the other KPs
     assert len(output['message']['knowledge_graph']['nodes']) > 0
@@ -538,14 +541,17 @@ async def test_kp_unavailable(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level": "WARNING",
+    }
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
     # Check that we stored the error
-    assert 'Request Error contacting KP' in output['logs'][0]['message']
+    assert 'Request Error contacting ctd' in output['logs'][0]['message']
 
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
@@ -585,14 +591,17 @@ async def test_kp_not_trapi(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level" : "WARNING",
+    }
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
     # Check that we stored the error
-    assert 'Received non-TRAPI compliant response from KP' in output['logs'][0]['message']
+    assert 'Received non-TRAPI compliant response from ctd' in output['logs'][0]['message']
 
 
 @pytest.mark.asyncio
