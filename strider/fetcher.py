@@ -286,8 +286,10 @@ class Binder():
 
     def get_processor(self, preferred_prefixes):
         """Get processor."""
-        async def processor(request):
+        async def processor(request, logger: logging.Logger = None):
             """Map message CURIE prefixes."""
+            if logger is None:
+                logger = self.logger
             request["message"] = await self.portal.map_prefixes(request["message"], preferred_prefixes)
             return request
         return processor
