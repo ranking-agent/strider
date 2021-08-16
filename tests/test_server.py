@@ -1491,7 +1491,10 @@ async def test_registry_normalizer_unavailable(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level": "WARNING",
+    }
 
     # Run
     response = await client.post("/query", json=q)
