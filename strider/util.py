@@ -2,7 +2,7 @@
 import functools
 from json.decoder import JSONDecodeError
 import re
-from typing import Callable, Union
+from typing import Callable, Iterable, Union
 
 import httpx
 from starlette.middleware.cors import CORSMiddleware
@@ -233,6 +233,13 @@ def ensure_list(arg: Union[str, list[str]]) -> list[str]:
     if isinstance(arg, list):
         return arg
     return [arg]
+
+
+def batch(iterable: Iterable, n: int = 1):
+    """Batch things into batches of size n."""
+    N = len(iterable)
+    for ndx in range(0, N, n):
+        yield iterable[ndx:min(ndx + n, N)]
 
 
 def listify_value(input_dictionary: dict[str, any], key: str):
