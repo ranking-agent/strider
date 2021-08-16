@@ -359,37 +359,3 @@ class Binder():
             )
             for kp_id, details in kps.items()
         }
-
-
-def get_kp_request_qgraph(
-        qgraph: QueryGraph,
-        node_bindings: tuple[tuple[str]],
-        qedge_id: str,
-) -> Response:
-    """Get request to send to KP."""
-
-    # Build request edges
-    request_edge = qgraph["edges"][qedge_id].copy()
-    request_edge.pop("provided_by", None)
-    subject_id = request_edge["subject"]
-    request_subject = qgraph["nodes"][subject_id].copy()
-    object_id = request_edge["object"]
-    request_object = qgraph["nodes"][object_id].copy()
-
-    # Build request
-    request_qgraph = {
-        "nodes": {
-            subject_id: request_subject,
-            object_id: request_object,
-        },
-        "edges": {
-            qedge_id: request_edge
-        },
-    }
-
-    for qnode_key, bound_id in node_bindings:
-        if qnode_key not in request_qgraph["nodes"]:
-            continue
-        request_qgraph["nodes"][qnode_key]["ids"] = [bound_id]
-
-    return request_qgraph
