@@ -158,7 +158,7 @@ class Binder():
         )
         onehop_kgraph = onehop_response["knowledge_graph"]
         onehop_results = onehop_response["results"]
-        qedge_id = next(iter(qgraph["edges"].keys()))
+        qedge_id = next(iter(onehop_qgraph["edges"].keys()))
         generators = []
 
         if onehop_results:
