@@ -97,10 +97,13 @@ class KnowledgePortal():
             self,
             message: Message,
             prefixes: dict[str, list[str]],
+            logger: logging.Logger = None,
     ) -> Message:
         """Map prefixes."""
+        if not logger:
+            logger = self.logger
         await self.synonymizer.load_message(message)
-        curie_map = self.synonymizer.map(prefixes)
+        curie_map = self.synonymizer.map(prefixes, logger)
         return apply_curie_map(message, curie_map)
 
     async def fetch(
@@ -228,9 +231,11 @@ class Synonymizer():
         """Get preferred curie."""
         return self._data[curie]
 
-    def map(self, prefixes: dict[str, list[str]]):
+    def map(self, prefixes: dict[str, list[str]], logger: logging.Logger = None):
         """Generate CURIE map."""
-        return CURIEMap(self._data, prefixes, self.logger)
+        if not logger:
+            logger = self.logger
+        return CURIEMap(self._data, prefixes, logger)
 
 
 class CURIEMap():
@@ -276,7 +281,8 @@ class CURIEMap():
 
         # no preferred curie with these prefixes
         self.logger.warning(
-            "Cannot find identifier in {} with a preferred prefix in {}".format(
+            "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
+                getattr(self.logger, "context"),
                 identifiers,
                 prefixes,
             ),
