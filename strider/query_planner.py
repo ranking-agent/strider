@@ -166,7 +166,7 @@ async def generate_plan(
         )
         if not kp_results:
             msg = f"No KPs for qedge '{qedge_id}'"
-            logger.error(msg)
+            logger.info(msg)
             raise NoAnswersError(msg)
         for kp in kp_results.values():
             for op in kp["operations"]:
