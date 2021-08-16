@@ -10,13 +10,14 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 
 """
 import asyncio
+from collections import defaultdict
 from collections.abc import Iterable
 import copy
 from itertools import chain
 from json.decoder import JSONDecodeError
 import logging
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 import aiostream
 import httpx
@@ -33,7 +34,7 @@ from .query_planner import generate_plan
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import KnowledgeProvider, WBMT
+from .util import KnowledgeProvider, WBMT, batch
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -159,35 +160,53 @@ class Binder():
         onehop_results = onehop_response["results"]
         qedge_id = next(iter(qgraph["edges"].keys()))
         generators = []
-        for result in onehop_results:
-            # add edge to results and kgraph
-            result_kgraph = {
-                "nodes": {
-                    binding["id"]: onehop_kgraph["nodes"][binding["id"]]
-                    for _, bindings in result["node_bindings"].items()
-                    for binding in bindings
-                },
-                "edges": {
-                    binding["id"]: onehop_kgraph["edges"][binding["id"]]
-                    for _, bindings in result["edge_bindings"].items()
-                    for binding in bindings
-                },
-            }
 
-            # now solve the smaller question
+        if onehop_results:
             subqgraph = copy.deepcopy(qgraph)
             # remove edge
             subqgraph["edges"].pop(qedge_id)
-            # pin node
-            for qnode_id, bindings in result["node_bindings"].items():
-                subqgraph["nodes"][qnode_id]["ids"] = [
-                    binding["id"]
-                    for binding in bindings
-                ]
             # remove orphaned nodes
             subqgraph.remove_orphaned()
+        for batch_results in batch(onehop_results, 1_000_000):
+            result_map = defaultdict(list)
+            for result in batch_results:
+                # add edge to results and kgraph
+                result_kgraph = {
+                    "nodes": {
+                        binding["id"]: onehop_kgraph["nodes"][binding["id"]]
+                        for _, bindings in result["node_bindings"].items()
+                        for binding in bindings
+                    },
+                    "edges": {
+                        binding["id"]: onehop_kgraph["edges"][binding["id"]]
+                        for _, bindings in result["edge_bindings"].items()
+                        for binding in bindings
+                    },
+                }
 
-            generators.append(self.generate_from_result(subqgraph, result_kgraph, result))
+                # pin nodes
+                for qnode_id, bindings in result["node_bindings"].items():
+                    if qnode_id not in subqgraph["nodes"]:
+                        continue
+                    subqgraph["nodes"][qnode_id]["ids"] = (subqgraph["nodes"][qnode_id].get("ids") or []) + [
+                        binding["id"]
+                        for binding in bindings
+                    ]
+                qnode_ids = set(subqgraph["nodes"].keys()) & set(result["node_bindings"].keys())
+                key_fcn = lambda res: tuple(
+                    (qnode_id, tuple(
+                        binding["id"]
+                        for binding in bindings  # probably only one
+                    ))
+                    for qnode_id, bindings in res["node_bindings"].items()
+                    if qnode_id in qnode_ids
+                )
+                result_map[key_fcn(result)].append((result, result_kgraph))
+
+            generators.append(self.generate_from_result(
+                copy.deepcopy(subqgraph),
+                lambda result: result_map[key_fcn(result)],
+            ))
 
         async with aiostream.stream.merge(*generators).stream() as streamer:
             async for result in streamer:
@@ -196,8 +215,7 @@ class Binder():
     async def generate_from_result(
         self,
         qgraph,
-        kgraph,
-        result,
+        get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
         **kwargs,
     ):
         # LOGGER.debug(
@@ -208,20 +226,21 @@ class Binder():
             qgraph,
             **kwargs,
         ):
-            # combine one-hop with subquery results
-            subresult = {
-                "node_bindings": {
-                    **subresult["node_bindings"],
-                    **result["node_bindings"],
-                },
-                "edge_bindings": {
-                    **subresult["edge_bindings"],
-                    **result["edge_bindings"],
-                },
-            }
-            subkgraph["nodes"].update(kgraph["nodes"])
-            subkgraph["edges"].update(kgraph["edges"])
-            yield subkgraph, subresult
+            for result, kgraph in get_results(subresult):
+                # combine one-hop with subquery results
+                subresult = {
+                    "node_bindings": {
+                        **subresult["node_bindings"],
+                        **result["node_bindings"],
+                    },
+                    "edge_bindings": {
+                        **subresult["edge_bindings"],
+                        **result["edge_bindings"],
+                    },
+                }
+                subkgraph["nodes"].update(kgraph["nodes"])
+                subkgraph["edges"].update(kgraph["edges"])
+                yield subkgraph, subresult
 
     async def get_results(
         self,
