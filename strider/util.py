@@ -165,21 +165,21 @@ async def post_json(url, request, logger, log_name):
             response.raise_for_status()
             return response.json()
     except httpx.ReadTimeout as e:
-        logger.error({
+        logger.warning({
             "message": f"{log_name} took >60 seconds to respond",
             "error": str(e),
             "request": log_request(e.request),
         })
     except httpx.RequestError as e:
         # Log error
-        logger.error({
+        logger.warning({
             "message": f"Request Error contacting {log_name}",
             "error": str(e),
             "request": log_request(e.request),
         })
     except httpx.HTTPStatusError as e:
         # Log error with response
-        logger.error({
+        logger.warning({
             "message": f"Response Error contacting {log_name}",
             "error": str(e),
             "request": log_request(e.request),
@@ -187,7 +187,7 @@ async def post_json(url, request, logger, log_name):
         })
     except JSONDecodeError as e:
         # Log error with response
-        logger.error({
+        logger.warning({
             "message": f"Received bad JSON data from {log_name}",
             "request": e.request,
             "response": e.response.text,
