@@ -1,5 +1,6 @@
 aiofiles==0.6.0
 aiosqlite==0.16.0
+aiostream==0.4.3
 anyio==3.3.0
 asgiar==0.2.0
 attrs==21.2.0
