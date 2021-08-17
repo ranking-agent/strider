@@ -64,6 +64,13 @@ class ReasonerLogEntryFormatter(logging.Formatter):
         return log_entry
 
 
+_logger = logging.getLogger(__name__)
+sh = logging.StreamHandler()
+formatter = logging.Formatter("[%(asctime)s: %(levelname)s/%(name)s]: %(message)s")
+sh.setFormatter(formatter)
+_logger.addHandler(sh)
+
+
 class Binder():
     """Binder."""
 
