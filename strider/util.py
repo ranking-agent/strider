@@ -31,6 +31,13 @@ def function_to_mapping(f):
             else:
                 return value
 
+        def get(self, lookup, default=None):
+            value = f(lookup)
+            if value is None:
+                return default
+            else:
+                return value
+
         def __contains__(self, lookup):
             return f(lookup) is not None
 
