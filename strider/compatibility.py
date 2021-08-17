@@ -280,7 +280,7 @@ class CURIEMap():
             return prefix_identifiers
 
         # no preferred curie with these prefixes
-        self.logger.warning(
+        self.logger.debug(
             "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
                 getattr(self.logger, "context"),
                 identifiers,
