@@ -356,7 +356,7 @@ class Binder():
             except JSONDecodeError as err:
                 self.logger.warning(
                     "Unable to parse meta knowledge graph from KP {}: {}".format(
-                        kp["id"],
+                        kp_id,
                         str(err),
                     ),
                 )
