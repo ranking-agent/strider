@@ -264,8 +264,12 @@ class CURIEMap():
             )
         except StopIteration:
             # no preferred prefixes for these categories
-            self.logger.warning(
-                f"Could not find preferred prefixes for at least one of: {categories}")
+            self.logger.debug(
+                "[{}] Cannot not find preferred prefixes for at least one of: {}".format(
+                    getattr(self.logger, "context"),
+                    categories,
+                )
+            )
             return [curie]
 
         # Iterate through prefixes until we find
