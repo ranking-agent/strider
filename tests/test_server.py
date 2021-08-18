@@ -1442,6 +1442,73 @@ async def test_exception_response(client):
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "mychem":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:XXX(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:XXX
+        """,
+    }
+)
+# Add attributes to ctd response
+@with_response_overlay(
+    "http://ctd/query",
+    Response(
+        status_code=200,
+        content=json.dumps({"message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {"ids": ["CHEBI:6801"]},
+                    "n1": {"categories": ["biolink:Disease"]},
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "n0",
+                        "predicate": "biolink:treats",
+                        "object": "n1",
+                    },
+                },
+            },
+            "knowledge_graph": {
+                "nodes": {
+                    "CHEBI:6801": {},
+                    "MONDO:0005148": {
+                        "attributes": [
+                            {
+                                "attribute_type_id": "test_constraint",
+                                "value": "foo",
+                            },
+                        ],
+                    },
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "CHEBI:6801",
+                        "predicate": "biolink:treats",
+                        "object": "MONDO:0005148",
+                    },
+                },
+            },
+            "results": [
+                {
+                    "node_bindings": {
+                        "n0": [{"id": "CHEBI:6801"}],
+                        "n1": [{"id": "MONDO:0005148"}],
+                    },
+                    "edge_bindings": {
+                        "n0n1": [{"id": "n0n1"}],
+                    },
+                },
+            ],
+        }}),
+    )
 )
 async def test_constraint_error(client):
     """
@@ -1456,12 +1523,12 @@ async def test_constraint_error(client):
         """
     )
 
-    QGRAPH["nodes"]["n0"]["constraints"] = [
+    QGRAPH["nodes"]["n1"]["constraints"] = [
         {
-            "name" : "Chromosome band",
-            "id" : "NCIT:C13432",
+            "name" : "test_constraint",
+            "id" : "test_constraint",
             "operator" : "==",
-            "value" : "11q13.*",
+            "value" : "foo",
         }
     ]
 
@@ -1472,8 +1539,24 @@ async def test_constraint_error(client):
     response = await client.post("/query", json=q)
     output = response.json()
 
-    # Check that we stored the error
-    assert 'Unable to process query due to constraints' in output["logs"][0]['message']
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 CHEBI:6801
+                    n1 MONDO:0005148
+                edge_bindings:
+                    n0n1 CHEBI:6801-MONDO:0005148
+                """,
+            ],
+        },
+        output["message"]
+    )
 
 
 @pytest.mark.asyncio
