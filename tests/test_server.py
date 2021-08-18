@@ -1527,8 +1527,9 @@ async def test_constraint_error(client):
         {
             "name" : "test_constraint",
             "id" : "test_constraint",
+            "not": True,
             "operator" : "==",
-            "value" : "foo",
+            "value" : "bar",
         }
     ]
 
