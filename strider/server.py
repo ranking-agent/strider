@@ -260,7 +260,7 @@ async def sync_query(
     """Handle synchronous query."""
     # parse requested workflow
     query_dict = query.dict()
-    workflow = query_dict.get("workflow", [{"id": "lookup"}])
+    workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
     if not isinstance(workflow, list):
         raise HTTPException(400, "workflow must be a list")
     if not len(workflow) == 1:
