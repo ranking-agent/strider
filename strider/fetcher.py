@@ -17,6 +17,7 @@ from itertools import chain
 from json.decoder import JSONDecodeError
 import logging
 from datetime import datetime
+from strider.constraints import enforce_constraints
 from typing import Any, Callable, Optional
 
 import aiostream
@@ -163,6 +164,7 @@ class Binder():
             onehop_qgraph,
             # **kwargs,
         )
+        onehop_response = enforce_constraints(onehop_response)
         onehop_kgraph = onehop_response["knowledge_graph"]
         onehop_results = onehop_response["results"]
         qedge_id = next(iter(onehop_qgraph["edges"].keys()))
@@ -316,14 +318,6 @@ class Binder():
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
-
-        # Check for constraints
-        for node in self.qgraph["nodes"].values():
-            if node.get("constraints"):
-                raise ValueError("Unable to process query due to constraints")
-        for edge in self.qgraph["edges"].values():
-            if edge.get("constraints"):
-                raise ValueError("Unable to process query due to constraints")
 
         # Initialize registry
         registry = Registry(settings.kpregistry_url, self.logger)
