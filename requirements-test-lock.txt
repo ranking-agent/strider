@@ -4,7 +4,7 @@ aiostream==0.4.3
 anyio==3.3.0
 asgiar==0.2.0
 attrs==21.2.0
-binder @ git+git://github.com/TranslatorSRI/binder@524030d613efcbe9afb9ff38298bdcf8cd8b1550
+binder @ git+git://github.com/TranslatorSRI/binder@4a2038338cfcfd254b51f6a28c3aeb6a9a8ec51a
 bmt-lite-2.1.0==2.1.1
 certifi==2021.5.30
 click==7.1.2
@@ -30,7 +30,7 @@ pytest-asyncio==0.15.1
 pytest-cov==2.12.1
 python-dotenv==0.17.0
 PyYAML==5.4
-reasoner-pydantic==1.1.2.1
+reasoner-pydantic==1.1.2.2
 redis==3.5.3
 rfc3986==1.5.0
 six==1.16.0
