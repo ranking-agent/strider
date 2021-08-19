@@ -38,6 +38,5 @@ sniffio==1.2.0
 sortedcontainers==2.4.0
 starlette==0.14.2
 toml==0.10.2
-trapi-throttle @ git+git://github.com/ranking-agent/trapi-throttle@e9ba94941cb04c72e41551de53c0e92f262a8721
 typing-extensions==3.10.0.0
 uvicorn==0.13.4

@@ -24,8 +24,8 @@ import aiostream
 import httpx
 from reasoner_pydantic import QueryGraph, Result, Response
 from redis import Redis
-from trapi_throttle.throttle import ThrottledServer
 
+from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
 from .compatibility import KnowledgePortal, Synonymizer
 from .trapi import canonicalize_qgraph, filter_by_qgraph, map_qgraph_curies, merge_messages, merge_results, \
