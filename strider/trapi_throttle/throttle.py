@@ -225,11 +225,17 @@ class ThrottledServer():
                 response.raise_for_status()
 
                 # Parse with reasoner_pydantic to validate
-                response = ReasonerResponse.parse_obj(response.json()).dict()
-                response = await self.postproc(response)
-                message = response["message"]
+                response_body = ReasonerResponse.parse_obj(response.json()).dict()
+                response_body = await self.postproc(response_body)
+                message = response_body["message"]
                 results = message.get("results") or []
-                self.logger.info(f"[{self.id}] Received response with {len(results)} results")
+                self.logger.info(
+                    "[{}] Received response with {} results in {} seconds".format(
+                        self.id,
+                        len(results),
+                        response.elapsed.total_seconds(),
+                    )
+                )
 
                 # Split using the request_curie_mapping
                 for request_id, curie_mapping in request_curie_mapping.items():
