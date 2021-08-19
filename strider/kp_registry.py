@@ -109,19 +109,21 @@ class Registry():
             )
         except StriderRequestError:
             return {}
-
-        try:
-            inverse_response = await post_json(
-                f'{self.url}/search',
-                {
-                    'subject_category': object_categories,
-                    'object_category': subject_categories,
-                    'predicate': inverse_predicates,
-                },
-                self.logger, "KP Registry"
-            )
-        except StriderRequestError:
-            return {}
+        if inverse_predicates:
+            try:
+                inverse_response = await post_json(
+                    f'{self.url}/search',
+                    {
+                        'subject_category': object_categories,
+                        'object_category': subject_categories,
+                        'predicate': inverse_predicates,
+                    },
+                    self.logger, "KP Registry"
+                )
+            except StriderRequestError:
+                return {}
+        else:
+            inverse_response = dict()
 
         return {
             kpid: details
