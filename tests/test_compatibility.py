@@ -1,11 +1,11 @@
 import json
 import pytest
 from fastapi.responses import JSONResponse, Response
-from trapi_throttle.throttle import ThrottledServer
 
 from tests.helpers.context import \
     with_norm_overlay, with_response_overlay, with_translator_overlay
 
+from strider.trapi_throttle.throttle import ThrottledServer
 from strider.config import settings
 
 # Modify settings before importing things
