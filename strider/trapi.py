@@ -89,17 +89,21 @@ def merge_edges(kedges: list[Edge]) -> Edge:
 def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
     """ Merge knowledge graphs. """
 
+    if len(kgraphs) == 1:
+        return {
+            "nodes": kgraphs[0]["nodes"],
+            "edges": kgraphs[0]["edges"],
+        }
+    assert len(kgraphs) == 2
     return {
         "nodes": {
-            knode_id: knode
-            for kgraph in kgraphs
-            for knode_id, knode in kgraph["nodes"].items()
+            **kgraphs[0]["nodes"],
+            **kgraphs[1]["nodes"],
         },
         "edges": {
-            kedge_id: kedge
-            for kgraph in kgraphs
-            for kedge_id, kedge in kgraph["edges"].items()
-        }
+            **kgraphs[0]["edges"],
+            **kgraphs[1]["edges"],
+        },
     }
 
     knodes = [kgraph["nodes"] for kgraph in kgraphs]
