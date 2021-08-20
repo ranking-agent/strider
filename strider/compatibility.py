@@ -102,8 +102,9 @@ class KnowledgePortal():
         """Map prefixes."""
         if not logger:
             logger = self.logger
-        await self.synonymizer.load_message(message)
-        curie_map = self.synonymizer.map(prefixes, logger)
+        curies = get_curies(message)
+        await self.synonymizer.load_curies(*curies)
+        curie_map = self.synonymizer.map(curies, prefixes, logger)
         return apply_curie_map(message, curie_map)
 
     async def fetch(
@@ -231,46 +232,41 @@ class Synonymizer():
         """Get preferred curie."""
         return self._data[curie]
 
-    def map(self, prefixes: dict[str, list[str]], logger: logging.Logger = None):
+    def map(self, curies: list[str], prefixes: dict[str, list[str]], logger: logging.Logger = None):
         """Generate CURIE map."""
         if not logger:
             logger = self.logger
-        return CURIEMap(self._data, prefixes, logger)
+        return {
+            curie: self.map_curie(curie, self._data, prefixes, logger)
+            for curie in curies
+        }
 
-
-class CURIEMap():
-    """CURIE map."""
-
-    def __init__(
-            self,
-            lookup: dict[str, Entity],
-            prefixes: dict[str, list[str]],
-            logger: logging.Logger
+    def map_curie(
+        self,
+        curie: str,
+        data: dict[str, Entity],
+        prefixes: dict[str, list[str]],
+        logger: logging.Logger = None,
     ):
-        """Initialize."""
-        self.prefixes = prefixes
-        self.lookup = lookup
-        self.logger = logger
-
-    @cache
-    def __getitem__(self, curie):
-        """Get preferred curie."""
-        categories, identifiers = self.lookup[curie]
+        """Map single CURIE."""
         try:
-            prefixes = next(
-                self.prefixes[category]
-                for category in categories
-                if category in self.prefixes
-            )
-        except StopIteration:
+            categories, identifiers = data[curie]
+        except KeyError:
+            return [curie]
+        prefixes = [
+            prefix
+            for category in categories
+            for prefix in prefixes.get(category, [])
+        ]
+        if not prefixes:
             # no preferred prefixes for these categories
-            self.logger.debug(
+            logger.debug(
                 "[{}] Cannot not find preferred prefixes for at least one of: {}".format(
-                    getattr(self.logger, "context"),
+                    getattr(logger, "context", ""),
                     categories,
                 )
             )
-            return [curie]
+            return identifiers
 
         # Iterate through prefixes until we find
         # one with CURIEs
@@ -280,24 +276,14 @@ class CURIEMap():
             for curie in identifiers
             if curie.startswith(prefix)
         ]
-        if len(prefix_identifiers) > 0:
-            return prefix_identifiers
-
-        # no preferred curie with these prefixes
-        self.logger.debug(
-            "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
-                getattr(self.logger, "context"),
-                identifiers,
-                prefixes,
-            ),
-        )
-        return [curie]
-
-    def get(self, *args):
-        """Get item."""
-        try:
-            return self.__getitem__(args[0])
-        except KeyError:
-            if len(args) > 1:
-                return args[1]
-            raise
+        if not prefix_identifiers:
+            # no preferred curie with these prefixes
+            logger.debug(
+                "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
+                    getattr(logger, "context", ""),
+                    identifiers,
+                    prefixes,
+                ),
+            )
+            return [curie]
+        return prefix_identifiers

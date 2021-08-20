@@ -7,6 +7,7 @@ from typing import Callable, Iterable, Union
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 import yaml
+import bmt
 from bmt import Toolkit as BMToolkit
 
 
@@ -16,32 +17,6 @@ def camel_to_snake(s, sep=' '):
 
 def snake_to_camel(s):
     return ''.join(word.title() for word in s.split(' '))
-
-
-def function_to_mapping(f):
-    """
-    Given a function, generate an instance of a class that
-    implements the __getitem__ interface
-    """
-    class Mapping():
-        def __getitem__(self, lookup):
-            value = f(lookup)
-            if value is None:
-                raise KeyError
-            else:
-                return value
-
-        def get(self, lookup, default=None):
-            value = f(lookup)
-            if value is None:
-                return default
-            else:
-                return value
-
-        def __contains__(self, lookup):
-            return f(lookup) is not None
-
-    return Mapping()
 
 
 class WrappedBMT():
@@ -57,7 +32,12 @@ class WrappedBMT():
                                     for s in self.all_slots]
         self.prefix = 'biolink:'
 
-        self.entity_prefix_mapping = function_to_mapping(self.entity_prefixes)
+        self.entity_prefix_mapping = {
+            bmt.util.format(el_name, case="pascal"): id_prefixes
+            for el_name in self.bmt.get_all_classes()
+            if (el := self.bmt.get_element(el_name)) is not None
+            if (id_prefixes := getattr(el, "id_prefixes", []))
+        }
 
     def new_case_to_old_case(self, s):
         """
@@ -124,16 +104,6 @@ class WrappedBMT():
             # No inverse
             return None
         return self.old_case_to_new_case(predicate_inverse_old_format)
-
-    @functools.cache
-    def entity_prefixes(self, entity):
-        """ Get prefixes for a given entity """
-        old_format = self.new_case_to_old_case(entity)
-        element = self.bmt.get_element(old_format)
-        if not element:
-            return None
-        else:
-            return element.id_prefixes
 
 
 WBMT = WrappedBMT()

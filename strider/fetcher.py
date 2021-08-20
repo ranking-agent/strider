@@ -28,7 +28,7 @@ from redis import Redis
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
 from .compatibility import KnowledgePortal, Synonymizer
-from .trapi import canonicalize_qgraph, filter_by_qgraph, map_qgraph_curies, merge_messages, merge_results, \
+from .trapi import canonicalize_qgraph, filter_by_qgraph, get_curies, map_qgraph_curies, merge_messages, merge_results, \
     fill_categories_predicates
 from .caching import async_locking_cache
 from .query_planner import generate_plan
@@ -311,8 +311,10 @@ class Binder():
         """Set up."""
         # Update qgraph identifiers
         self.qgraph = qgraph
-        await self.synonymizer.load_message({"query_graph": self.qgraph})
-        curie_map = self.synonymizer.map(self.preferred_prefixes)
+        message = {"query_graph": self.qgraph}
+        curies = get_curies(message)
+        await self.synonymizer.load_curies(*curies)
+        curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
         self.qgraph = map_qgraph_curies(self.qgraph, curie_map, primary=True)
         self.qgraph = canonicalize_qgraph(self.qgraph)
 
