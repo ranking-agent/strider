@@ -12,7 +12,7 @@ from reasoner_pydantic.message import Query, Response
 
 from .trapi_throttle.throttle import ThrottledServer
 from .trapi_throttle.utils import log_request
-from .util import StriderRequestError, remove_null_values, log_response, log_request
+from .util import StriderRequestError, elide_curies, remove_null_values, log_response, log_request
 from .trapi import apply_curie_map, get_curies
 from .config import settings
 
@@ -50,7 +50,7 @@ class KnowledgePortal():
             logger.warning({
                 "message": f"{kp_id} took >60 seconds to respond",
                 "error": str(e),
-                "request": request,
+                "request": elide_curies(request),
             })
         except httpx.ReadTimeout as e:
             logger.warning({
