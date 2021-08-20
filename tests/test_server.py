@@ -1762,3 +1762,40 @@ async def test_provenance(client):
     assert "biolink:knowledge_source" in attribute_type_ids
     assert values.index("infores:aragorn") == attribute_type_ids.index("biolink:aggregator_knowledge_source")
     assert values.index("infores:kp0") == attribute_type_ids.index("biolink:knowledge_source")
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:0005148(( category biolink:NoPrefixes ))
+            MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+        """,
+    },
+    normalizer_data="""
+        MONDO:0006X categories biolink:NoPrefixes
+        MONDO:0006X synonyms MONDO:0005148
+        """
+)
+async def test_same_prefix_synonyms(client):
+    """
+    Tests that synonyms with the same prefix are handled correctly.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:0006X ))
+        n0(( categories[] biolink:NoPrefixes ))
+        n1(( categories[] biolink:NamedThing ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+    assert output["message"]["results"]

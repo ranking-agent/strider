@@ -186,7 +186,7 @@ def get_curies(message: Message) -> list[str]:
                 curies |= set(qnode_id)
     if message.get("knowledge_graph") is not None:
         curies |= set(message['knowledge_graph']['nodes'])
-    return curies
+    return list(curies)
 
 
 def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
