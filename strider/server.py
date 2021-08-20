@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 import httpx
 from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import HTMLResponse
+from starlette.responses import HTMLResponse, Response
 
 from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
@@ -278,7 +278,7 @@ async def sync_query(
     query_results = await lookup(query_dict, redis_client)
 
     # Return results
-    return query_results
+    return Response(content=json.dumps(query_results).encode())
 
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")
