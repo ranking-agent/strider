@@ -1,5 +1,7 @@
 """General utilities."""
+import copy
 import functools
+import json
 from json.decoder import JSONDecodeError
 import re
 from typing import Callable, Iterable, Union
@@ -109,13 +111,24 @@ class WrappedBMT():
 WBMT = WrappedBMT()
 
 
+def elide_curies(payload):
+    """Elide CURIES in TRAPI request/response."""
+    payload = copy.deepcopy(payload)
+    if "message" not in payload:
+        return payload
+    for qnode in payload["message"]["query_graph"]["nodes"].values():
+        if (num_curies := len(qnode.get("ids", None) or [])) > 10:
+            qnode["ids"] = f"**{num_curies} CURIEs not shown for brevity**"
+    return payload
+
+
 def log_request(r):
     """ Serialize a httpx.Request object into a dict for logging """
     return {
         "method" : r.method,
         "url" : str(r.url),
         "headers" : dict(r.headers),
-        "data" : r.read().decode()
+        "data" : elide_curies(json.loads(r.read().decode()))
     }
 
 def log_response(r):
