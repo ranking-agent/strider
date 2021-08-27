@@ -73,7 +73,7 @@ def query_graph_from_string(s):
     s = inspect.cleandoc(s)
 
     node_re = r"(?P<id>.*)\(\( (?P<key>.*) (?P<val>.*) \)\)"
-    edge_re = r"(?P<src>.*)-- (?P<predicate>.*) -->(?P<target>.*)"
+    edge_re = r"(?P<src>.*)-- (?P<predicates>.*) -->(?P<target>.*)"
     qg = {"nodes": {}, "edges": {}}
     for line in s.splitlines():
         match_node = re.search(node_re, line)
@@ -95,7 +95,7 @@ def query_graph_from_string(s):
             qg['edges'][edge_id] = {
                 "subject": match_edge.group('src'),
                 "object": match_edge.group('target'),
-                "predicates": [match_edge.group('predicate')],
+                "predicates": match_edge.group('predicates').split(" "),
             }
         else:
             raise ValueError(f"Invalid line: {line}")
