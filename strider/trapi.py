@@ -236,6 +236,8 @@ def canonicalize_qgraph(
         qgraph: QueryGraph,
 ) -> QueryGraph:
     """Replace predicates with canonical directions."""
+    if qgraph is None:
+        return qgraph
     return {
         'nodes': qgraph['nodes'],
         "edges": {
