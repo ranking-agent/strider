@@ -252,11 +252,11 @@ class Synonymizer():
             categories, identifiers = data[curie]
         except KeyError:
             return [curie]
-        prefixes = [
+        prefixes = {
             prefix
             for category in categories
             for prefix in prefixes.get(category, [])
-        ]
+        }
         if not prefixes:
             # no preferred prefixes for these categories
             logger.debug(
