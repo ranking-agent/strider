@@ -252,23 +252,23 @@ def canonicalize_qedge(
 ):
     """Use canonical predicate direction."""
     qedge = copy.deepcopy(qedge)
-    flipped = None
     predicates = []
+    flipped_predicates = []
     for predicate in qedge.get("predicates") or []:
         slot = WBMT.bmt.get_element(predicate)
         if slot is None:
-            flipped = False
+            predicates.append(predicate)
             continue
         is_canonical = slot.annotations.get("biolink:canonical_predicate", False)
-        if flipped is None:
-            flipped = not is_canonical
-        elif flipped == is_canonical:
-            raise NotImplementedError("There are multiple predicates, mixed canonical and not")
-        if flipped:
-            predicates.append(bmt.util.format(slot.inverse, case="snake"))
-    if flipped:
+        if is_canonical:
+            predicates.append(predicate)
+        else:
+            flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
+    if predicates and flipped_predicates:
+        raise NotImplementedError("There are multiple predicates, mixed canonical and not")
+    if flipped_predicates:
         qedge["subject"], qedge["object"] = qedge["object"], qedge["subject"]
-        qedge["predicates"] = predicates
+        qedge["predicates"] = flipped_predicates
     return qedge
 
 
