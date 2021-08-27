@@ -255,7 +255,14 @@ class ThrottledServer():
             ) as e:
                 for request_id, curie_mapping in request_curie_mapping.items():
                     response_values[request_id] = {
-                        "message": request_value_mapping[request_id]["message"],
+                        "message": {
+                            "query_graph": request_value_mapping[request_id]["message"]["query_graph"],
+                            "knowledge_graph": {
+                                "nodes": {},
+                                "edges": {},
+                            },
+                            "results": [],
+                        },
                     }
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning({
