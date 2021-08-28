@@ -264,12 +264,12 @@ def test_canonicalize_qgraph():
             },
         },
     }
-    fixed_qgraph = canonicalize_qgraph(qgraph)
+    fixed_qgraph = canonicalize_qgraph(qgraph)[0]
     e01 = fixed_qgraph["edges"]["e01"]
     assert e01["subject"] == "n1"
     assert e01["predicates"] == ["biolink:treats"]
     assert e01["object"] == "n0"
-    assert fixed_qgraph == canonicalize_qgraph(fixed_qgraph)
+    assert fixed_qgraph == canonicalize_qgraph(fixed_qgraph)[0]
 
 
 def test_uncanonicalizable_qgraph():
@@ -287,8 +287,7 @@ def test_uncanonicalizable_qgraph():
             },
         },
     }
-    with pytest.raises(NotImplementedError):
-        canonicalize_qgraph(qgraph)
+    assert len(canonicalize_qgraph(qgraph)) == 2
 
 
 def test_filter_by_qgraph_category():
