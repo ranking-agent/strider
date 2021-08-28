@@ -316,7 +316,6 @@ class Binder():
         await self.synonymizer.load_curies(*curies)
         curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
         self.qgraph = map_qgraph_curies(self.qgraph, curie_map, primary=True)
-        self.qgraph = canonicalize_qgraph(self.qgraph)
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)

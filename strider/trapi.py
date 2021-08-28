@@ -1,6 +1,7 @@
 """TRAPI utilities."""
 from collections import defaultdict
 import copy
+from itertools import product
 import json
 import logging
 import hashlib
@@ -238,20 +239,34 @@ def canonicalize_qgraph(
     """Replace predicates with canonical directions."""
     if qgraph is None:
         return qgraph
-    return {
-        'nodes': qgraph['nodes'],
-        "edges": {
-            qedge_id: canonicalize_qedge(qedge)
+
+    qedge_sets = [
+        {
+            qedge_id: qedge
+            for qedge_id, qedge in qedges
+        }
+        for qedges in product(*[
+            [
+                (qedge_id, dir_qedge)
+                for dir_qedge in canonicalize_qedge(qedge)
+                if dir_qedge["predicates"]
+            ]
             for qedge_id, qedge in qgraph["edges"].items()
-        },
-    }
+        ])
+    ]
+    return [
+        {
+            'nodes': qgraph['nodes'],
+            "edges": qedges,
+        }
+        for qedges in qedge_sets
+    ]
 
 
 def canonicalize_qedge(
     qedge: dict,
 ):
     """Use canonical predicate direction."""
-    qedge = copy.deepcopy(qedge)
     predicates = []
     flipped_predicates = []
     for predicate in qedge.get("predicates") or []:
@@ -264,12 +279,19 @@ def canonicalize_qedge(
             predicates.append(predicate)
         else:
             flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
-    if predicates and flipped_predicates:
-        raise NotImplementedError("There are multiple predicates, mixed canonical and not")
-    if flipped_predicates:
-        qedge["subject"], qedge["object"] = qedge["object"], qedge["subject"]
-        qedge["predicates"] = flipped_predicates
-    return qedge
+    qedge = copy.deepcopy(qedge)
+    qedge["predicates"] = predicates
+    flipped_qedge = {
+        "subject": qedge["object"],
+        "object": qedge["subject"],
+        "predicates": flipped_predicates,
+        **{
+            key: value
+            for key, value in qedge.items()
+            if key not in ("subject", "object", "predicates")
+        },
+    }
+    return qedge, flipped_qedge
 
 
 def map_qnode_curies(
