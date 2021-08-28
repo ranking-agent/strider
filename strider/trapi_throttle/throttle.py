@@ -18,6 +18,7 @@ import uuid
 
 from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_mapping
 from .utils import get_keys_with_value, log_response
+from ..trapi import canonicalize_qgraph
 from ..util import elide_curies, log_request
 
 
@@ -359,23 +360,58 @@ class ThrottledServer():
         if self.worker is None:
             raise RuntimeError("Cannot send a request until a worker is running - enter the context")
 
-        request_id = str(uuid.uuid1())
         response_queue = asyncio.Queue()
 
-        # Queue query for processing
-        await self.request_queue.put((
-            (priority, next(self.counter)),
-            (request_id, query, response_queue),
-        ))
+        qgraphs = canonicalize_qgraph(query["message"]["query_graph"])
 
-        # Wait for response
-        output: Union[dict, Exception] = await asyncio.wait_for(
-            response_queue.get(),
-            timeout=timeout,
-        )
+        for qgraph in qgraphs:
+            subquery = {
+                "message": {
+                    "query_graph": qgraph,
+                },
+            }
 
-        if isinstance(output, Exception):
-            raise output
+            # Queue query for processing
+            request_id = str(uuid.uuid1())
+            await self.request_queue.put((
+                (priority, next(self.counter)),
+                (request_id, subquery, response_queue),
+            ))
+
+        outputs = []
+        for _ in qgraphs:
+            # Wait for response
+            output: Union[dict, Exception] = await asyncio.wait_for(
+                response_queue.get(),
+                timeout=timeout,
+            )
+
+            if isinstance(output, Exception):
+                raise output
+
+            outputs.append(output)
+        output = {
+            "message": {
+                "query_graph": query["message"]["query_graph"],
+                "knowledge_graph": {
+                    "nodes": {
+                        key: value
+                        for output in outputs
+                        for key, value in output["message"]["knowledge_graph"]["nodes"].items()
+                    },
+                    "edges": {
+                        key: value
+                        for output in outputs
+                        for key, value in output["message"]["knowledge_graph"]["edges"].items()
+                    },
+                },
+                "results": [
+                    result
+                    for output in outputs
+                    for result in output["message"]["results"]
+                ],
+            }
+        }
 
         return output
 
