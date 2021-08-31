@@ -19,8 +19,6 @@ import uuid
 from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_mapping
 from .utils import get_keys_with_value, log_request, log_response
 
-LOGGER = logging.getLogger(__name__)
-
 
 class KPInformation(pydantic.main.BaseModel):
     url: pydantic.AnyHttpUrl
@@ -117,10 +115,6 @@ class ThrottledServer():
                 priorities[request_id] = priority
                 request_value_mapping[request_id] = payload
                 response_queues[request_id] = response_queue
-
-            LOGGER.debug(
-                f"Processing batch of size {len(request_value_mapping)} for KP {self.id}"
-            )
 
             # Extract a curie mapping from each request
             request_curie_mapping = {
@@ -318,7 +312,6 @@ class ThrottledServer():
 
                 # Wait for TAT
                 if time_remaining_seconds > 0:
-                    LOGGER.debug(f"Waiting {time_remaining_seconds} seconds")
                     await asyncio.sleep(time_remaining_seconds)
 
                 # Update TAT
@@ -346,7 +339,7 @@ class ThrottledServer():
         try:
             await task
         except asyncio.CancelledError:
-            LOGGER.debug(f"Task cancelled: {task}")
+            pass
 
     async def query(
             self,
