@@ -164,7 +164,7 @@ def get_finished_query(
 
 
 @APP.post('/aquery')
-async def async_query(
+async def asyncquery(
         background_tasks: BackgroundTasks,
         query: Query = Body(..., example=EXAMPLE),
         redis_client: Redis = Depends(get_redis_client),
@@ -251,6 +251,18 @@ async def lookup(
         "logs": logs,
     }
 
+async def async_lookup(
+    callback,
+    query_dict: dict,
+    redis_client: Redis,
+):
+    query_results = await lookup(query_dict, redis_client)
+    async with httpx.AsyncClient() as client:
+        try:
+            await client.post(callback, data=query_results)
+        except Exception as e:
+            raise e
+
 
 @APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
@@ -297,6 +309,35 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
         swagger_favicon_url=swagger_favicon_url,
     )
 
+@APP.post('/asyncquery', response_model=ReasonerResponse)
+async def async_query(
+        callback: str,
+        background_tasks: BackgroundTasks,
+        query: Query = Body(..., example=EXAMPLE),
+        redis_client: Redis = Depends(get_redis_client),
+):
+    """Handle asynchronous query."""
+    # parse requested workflow
+    query_dict = query.dict()
+    workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
+    if not isinstance(workflow, list):
+        raise HTTPException(400, "workflow must be a list")
+    if not len(workflow) == 1:
+        raise HTTPException(400, "workflow must contain exactly 1 operation")
+    if "id" not in workflow[0]:
+        raise HTTPException(400, "workflow must have property 'id'")
+    if workflow[0]["id"] == "filter_results_top_n":
+        max_results = workflow[0]["parameters"]["max_results"]
+        if max_results < len(query_dict["message"]["results"]):
+            query_dict["message"]["results"] = query_dict["message"]["results"][:max_results]
+        return query_dict
+    if not workflow[0]["id"] == "lookup":
+        raise HTTPException(400, "operations must have id 'lookup'")
+
+    background_tasks.add_task(async_lookup, callback, query_dict, redis_client)
+
+    print(callback)
+    return
 
 def parse_bindings(bindings):
     """Parse bindings into message format."""
