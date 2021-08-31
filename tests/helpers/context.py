@@ -147,9 +147,36 @@ async def translator_overlay(
 
         yield
 
+@asynccontextmanager
+async def callback_overlay(url,):
+    """
+    Create a router that is able to recieve a POST request,
+    save the information, and then provide that response again
+    with a GET request
+    """
+    async with AsyncExitStack() as stack:
+        app = FastAPI()
+        callback_results = dict
+
+        # pylint: disable=unused-variable disable=unused-argument
+        @app.post('/{results}')
+        async def save_response(results):
+            callback_results = results
+
+        @app.get('/')
+        async def get_response():
+            return callback_results
+
+        await stack.enter_async_context(
+            ASGIAR(app, url=url)
+        )
+        yield
+
+
 
 with_kp_overlay = partial(with_context, kp_overlay)
 with_registry_overlay = partial(with_context, registry_overlay)
 with_translator_overlay = partial(with_context, translator_overlay)
 with_norm_overlay = partial(with_context, norm_overlay)
 with_response_overlay = partial(with_context, response_overlay)
+with_callback_overlay = partial(with_context, callback_overlay)
