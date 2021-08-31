@@ -10,7 +10,7 @@ from reasoner_pydantic import Query, Message, QueryGraph
 
 from tests.helpers.context import \
     response_overlay, with_translator_overlay, with_registry_overlay, \
-    with_norm_overlay, with_response_overlay
+    with_norm_overlay, with_response_overlay, with_callback_overlay
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 
@@ -1763,7 +1763,10 @@ async def test_provenance(client):
     assert values.index("infores:aragorn") == attribute_type_ids.index("biolink:aggregator_knowledge_source")
     assert values.index("infores:kp0") == attribute_type_ids.index("biolink:knowledge_source")
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 7eb992c (start testing asyncquery)
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -1799,3 +1802,60 @@ async def test_same_prefix_synonyms(client):
     response = await client.post("/query", json=q)
     output = response.json()
     assert output["message"]["results"]
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    }
+)
+@with_callback_overlay(
+    "http://test",
+)
+async def test_async_query(client):
+    """Test asyncquery endpoint using the ex1 query graph"""
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
+
+    # Create query
+    q = {"message" : {"query_graph" : QGRAPH}}
+
+    # Run
+    response = await client.post("/asyncquery?callback=http://test/", json=q)
+    assert response.status_code==200
+    async with httpx.AsyncClient() as aclient:
+        results = await aclient.get("http://test/")
+        output = results.json()
+        validate_message(
+            {
+                "knowledge_graph":
+                    """
+                    CHEBI:6801 biolink:treats MONDO:0005148
+                    MONDO:0005148 biolink:has_phenotype HP:0004324
+                    """,
+                "results": [
+                    """
+                    node_bindings:
+                        n0 CHEBI:6801
+                        n1 MONDO:0005148
+                        n2 HP:0004324
+                    edge_bindings:
+                        n0n1 CHEBI:6801-MONDO:0005148
+                        n1n2 MONDO:0005148-HP:0004324
+                    """
+                ],
+            },
+            output["message"]
+        )
