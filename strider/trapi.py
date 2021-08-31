@@ -90,10 +90,7 @@ def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
     """ Merge knowledge graphs. """
 
     if len(kgraphs) == 1:
-        return {
-            "nodes": kgraphs[0]["nodes"],
-            "edges": kgraphs[0]["edges"],
-        }
+        return kgraphs[0]
     assert len(kgraphs) == 2
     return {
         "nodes": {
