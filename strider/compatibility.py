@@ -48,7 +48,7 @@ class KnowledgePortal():
             return await self.tservers[kp_id].query(request, timeout=timeout)
         except asyncio.TimeoutError as e:
             logger.warning({
-                "message": f"{kp_id} took >60 seconds to respond",
+                "message": f"{kp_id} took >{timeout} seconds to respond",
                 "error": str(e),
                 "request": elide_curies(request),
             })
