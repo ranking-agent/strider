@@ -156,7 +156,7 @@ async def callback_overlay(url,):
     """
     async with AsyncExitStack() as stack:
         app = FastAPI()
-        callback_results = dict
+        callback_results = None
 
         # pylint: disable=unused-variable disable=unused-argument
         @app.post('/{results}')
