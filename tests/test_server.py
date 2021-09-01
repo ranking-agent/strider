@@ -1862,3 +1862,129 @@ async def test_async_query(client):
         },
         output["message"]
     )
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "mychem":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """,
+        "hetio":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """,
+    }
+)
+# Override one KP with an invalid response
+@with_response_overlay(
+    "http://mychem/meta_knowledge_graph",
+    Response(
+        status_code=500,
+        content="Internal server error",
+    )
+)
+async def test_metakg_500(client):
+    """Test that when a KP gives a bad response to /meta_knowledge_graph,
+    we add a message to the log but continue running.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
+
+    # Create query
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level" : "WARNING",
+    }
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+
+    # Check that we stored the error
+    assert "/meta_knowledge_graph for KP mychem" in output["logs"][0]["message"]
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "mychem":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """,
+        "hetio":
+        """
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """,
+    }
+)
+# Override one KP with an invalid response
+@with_response_overlay(
+    "http://mychem/meta_knowledge_graph",
+    Response(
+        status_code=200,
+        content=json.dumps({"nodes": {}}),
+    )
+)
+async def test_metakg_noncompliant(client):
+    """Test that when a KP gives a non-TRAPI-compliant meta_knowledge_graph,
+    we add a message to the log but continue running.
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
+
+    # Create query
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level" : "WARNING",
+    }
+
+    # Run
+    response = await client.post("/query", json=q)
+    output = response.json()
+    print(output)
+
+    # Check that we stored the error
+    assert "field required" in output["logs"][0]["message"]
+    assert len(output["message"]["results"]) == 2
