@@ -17,7 +17,8 @@ from reasoner_pydantic import Response as ReasonerResponse
 import uuid
 
 from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_mapping
-from .utils import get_keys_with_value, log_request, log_response
+from .utils import get_keys_with_value, log_response
+from ..util import elide_curies, log_request
 
 
 class KPInformation(pydantic.main.BaseModel):
@@ -260,7 +261,7 @@ class ThrottledServer():
                     self.logger.warning({
                         "message": f"{self.id} took >60 seconds to respond",
                         "error": str(e),
-                        "request": merged_request_value,
+                        "request": elide_curies(merged_request_value),
                     })
                 elif isinstance(e, httpx.ReadTimeout):
                     self.logger.warning({
