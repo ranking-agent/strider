@@ -1833,10 +1833,10 @@ async def test_async_query(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"callback" : "http://test/", "message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/asyncquery?callback=http://test/", json=q)
+    response = await client.post("/asyncquery", json=q)
     assert response.status_code==200
     async with httpx.AsyncClient() as aclient:
         results = await aclient.get("http://test/")
