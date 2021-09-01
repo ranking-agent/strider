@@ -11,7 +11,6 @@ from reasoner_pydantic import Message
 from reasoner_pydantic.message import Query, Response
 
 from .trapi_throttle.throttle import ThrottledServer
-from .trapi_throttle.utils import log_request
 from .util import StriderRequestError, elide_curies, remove_null_values, log_response, log_request
 from .trapi import apply_curie_map, get_curies
 from .config import settings
