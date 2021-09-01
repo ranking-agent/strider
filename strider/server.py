@@ -18,7 +18,7 @@ from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
 
-from reasoner_pydantic import Query, Message, Response as ReasonerResponse
+from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse
 
 from .fetcher import Binder
 from .query_planner import NoAnswersError, generate_plan
@@ -112,6 +112,30 @@ async def print_config():
     LOGGER.info(f" App Configuration:\n {pretty_config}")
 
 EXAMPLE = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {
+                    "ids": ["MONDO:0005148"],
+                    "categories": ["biolink:Disease"]
+                },
+                "n1": {
+                    "categories": ["biolink:PhenotypicFeature"]
+                }
+            },
+            "edges": {
+                "e01": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicates": ["biolink:has_phenotype"]
+                }
+            }
+        }
+    }
+}
+
+AEXAMPLE = {
+    "callback": "",
     "message": {
         "query_graph": {
             "nodes": {
@@ -311,14 +335,14 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
 
 @APP.post('/asyncquery', response_model=ReasonerResponse)
 async def async_query(
-        callback: str,
         background_tasks: BackgroundTasks,
-        query: Query = Body(..., example=EXAMPLE),
+        query: AsyncQuery = Body(..., example=AEXAMPLE),
         redis_client: Redis = Depends(get_redis_client),
 ):
     """Handle asynchronous query."""
     # parse requested workflow
     query_dict = query.dict()
+    callback = query_dict["callback"]
     workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
     if not isinstance(workflow, list):
         raise HTTPException(400, "workflow must be a list")
