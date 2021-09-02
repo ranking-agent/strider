@@ -13,5 +13,5 @@ uvicorn==0.13.4
 jsonpickle==1.4.2
 python-dotenv==0.17.0
 fastapi==0.65.2
-reasoner-pydantic==1.1.2.2
+reasoner-pydantic==1.2.0.2
 orjson==3.6.0

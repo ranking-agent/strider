@@ -13,7 +13,7 @@ uvicorn==0.13.4
 jsonpickle==1.4.2
 python-dotenv==0.17.0
 fastapi==0.65.2
-reasoner-pydantic==1.1.2.2
+reasoner-pydantic==1.2.0.2
 
 asgiar==0.2.0
 fakeredis==1.5.0
@@ -21,5 +21,5 @@ kp-registry @ git+git://github.com/ranking-agent/kp_registry@v2.2.0
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1
-binder @ git+git://github.com/TranslatorSRI/binder@v4.2.4
+binder @ git+git://github.com/TranslatorSRI/binder@v4.3.0
 orjson==3.6.0
