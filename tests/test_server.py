@@ -1765,10 +1765,6 @@ async def test_provenance(client):
     assert values.index("infores:aragorn") == attribute_type_ids.index("biolink:aggregator_knowledge_source")
     assert values.index("infores:kp0") == attribute_type_ids.index("biolink:knowledge_source")
 
-<<<<<<< HEAD
-
-=======
->>>>>>> 7eb992c (start testing asyncquery)
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -1804,6 +1800,11 @@ async def test_same_prefix_synonyms(client):
     response = await client.post("/query", json=q)
     output = response.json()
     assert output["message"]["results"]
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
     {
         "ctd":
         """
@@ -1832,14 +1833,14 @@ async def test_async_query(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"callback" : "http://test/", "message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/asyncquery?callback=http://test/", json=q)
+    response = await client.post("/asyncquery", json=q)
     assert response.status_code==200
     async with httpx.AsyncClient() as aclient:
         #Wait to make sure query has processed
-        sleep(10)
+        sleep(5)
         results = await aclient.get("http://test/")
         output = results.json()
         validate_message(
