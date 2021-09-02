@@ -280,13 +280,11 @@ async def async_lookup(
     query_dict: dict,
     redis_client: Redis,
 ):
+    """Preform lookup and send results to callback url"""
     query_results = await lookup(query_dict, redis_client)
     async with httpx.AsyncClient() as client:
-        try:
-            await client.post(callback, data=query_results)
-        except Exception as e:
-            raise e
-
+        r = await client.post(callback, json=query_results)
+        print(r)
 
 @APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
