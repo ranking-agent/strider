@@ -1838,30 +1838,32 @@ async def test_async_query(client):
 
     # Run
     response = await client.post("/asyncquery", json=q)
+    output = response.json()
     assert response.status_code==200
+    assert not output
     async with httpx.AsyncClient() as aclient:
         #Wait to make sure query has processed
         sleep(10)
         results = await aclient.get("http://test/")
-        output = results.json()
-        validate_message(
-            {
-                "knowledge_graph":
-                    """
-                    CHEBI:6801 biolink:treats MONDO:0005148
-                    MONDO:0005148 biolink:has_phenotype HP:0004324
-                    """,
-                "results": [
-                    """
-                    node_bindings:
-                        n0 CHEBI:6801
-                        n1 MONDO:0005148
-                        n2 HP:0004324
-                    edge_bindings:
-                        n0n1 CHEBI:6801-MONDO:0005148
-                        n1n2 MONDO:0005148-HP:0004324
-                    """
-                ],
-            },
-            output["message"]
-        )
+    output = results.json()
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                MONDO:0005148 biolink:has_phenotype HP:0004324
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 CHEBI:6801
+                    n1 MONDO:0005148
+                    n2 HP:0004324
+                edge_bindings:
+                    n0n1 CHEBI:6801-MONDO:0005148
+                    n1n2 MONDO:0005148-HP:0004324
+                """
+            ],
+        },
+        output["message"]
+    )
