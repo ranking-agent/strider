@@ -257,7 +257,7 @@ async def async_lookup(
     """Preform lookup and send results to callback url"""
     query_results = await lookup(query_dict, redis_client)
     async with httpx.AsyncClient() as client:
-        r = await client.post(callback, json=query_results)
+        await client.post(callback, json=query_results)
 
 @APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
