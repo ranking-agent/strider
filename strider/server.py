@@ -186,32 +186,6 @@ def get_finished_query(
         logs=list(logs.get()),
     )
 
-
-@APP.post('/aquery')
-async def asyncquery(
-        background_tasks: BackgroundTasks,
-        query: Query = Body(..., example=EXAMPLE),
-        redis_client: Redis = Depends(get_redis_client),
-) -> dict:
-    """Start query processing."""
-    # Generate Query ID
-    qid = str(uuid.uuid4())[:8]
-
-    query_graph = query.dict()['message']['query_graph']
-
-    # Save query graph to redis
-    redis_query_graph = RedisGraph(f"{qid}:qgraph", redis_client)
-    redis_query_graph.set(query_graph)
-
-    log_level = query.dict()["log_level"] or "ERROR"
-
-    # Start processing
-    background_tasks.add_task(process_query, qid, log_level, redis_client)
-
-    # Return ID
-    return dict(id=qid)
-
-
 @APP.post('/query_result', response_model=ReasonerResponse)
 async def get_results(
         qid: str,
