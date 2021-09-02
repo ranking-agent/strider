@@ -284,7 +284,6 @@ async def async_lookup(
     query_results = await lookup(query_dict, redis_client)
     async with httpx.AsyncClient() as client:
         r = await client.post(callback, json=query_results)
-        print(r)
 
 @APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
@@ -358,7 +357,6 @@ async def async_query(
 
     background_tasks.add_task(async_lookup, callback, query_dict, redis_client)
 
-    print(callback)
     return
 
 def parse_bindings(bindings):
