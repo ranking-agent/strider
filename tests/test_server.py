@@ -1,4 +1,5 @@
 """Test Strider."""
+import asyncio
 import json
 from os import wait
 from pathlib import Path
@@ -12,7 +13,7 @@ from reasoner_pydantic import Query, Message, QueryGraph
 
 from tests.helpers.context import \
     response_overlay, with_translator_overlay, with_registry_overlay, \
-    with_norm_overlay, with_response_overlay, with_callback_overlay
+    with_norm_overlay, with_response_overlay, callback_overlay
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 
@@ -1801,6 +1802,7 @@ async def test_same_prefix_synonyms(client):
     output = response.json()
     assert output["message"]["results"]
 
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -1815,9 +1817,6 @@ async def test_same_prefix_synonyms(client):
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
     }
-)
-@with_callback_overlay(
-    "http://test/",
 )
 async def test_async_query(client):
     """Test asyncquery endpoint using the ex1 query graph"""
@@ -1836,15 +1835,13 @@ async def test_async_query(client):
     q = {"callback" : "http://test/", "message" : {"query_graph" : QGRAPH}}
 
     # Run
-    response = await client.post("/asyncquery", json=q)
-    output = response.json()
-    assert response.status_code==200
-    assert not output
-    async with httpx.AsyncClient() as aclient:
-        #Wait to make sure query has processed
-        sleep(5)
-        results = await aclient.get("http://test/")
-    output = results.json()
+    queue = asyncio.Queue()
+    async with callback_overlay("http://test/", queue):
+        response = await client.post("/asyncquery", json=q)
+        output = response.json()
+        assert response.status_code==200
+        assert not output
+        output = await queue.get()
     validate_message(
         {
             "knowledge_graph":
