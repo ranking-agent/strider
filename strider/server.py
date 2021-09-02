@@ -134,6 +134,30 @@ EXAMPLE = {
     }
 }
 
+ASYNC_EXAMPLE = {
+    "callback": "",
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {
+                    "ids": ["MONDO:0005148"],
+                    "categories": ["biolink:Disease"]
+                },
+                "n1": {
+                    "categories": ["biolink:PhenotypicFeature"]
+                }
+            },
+            "edges": {
+                "e01": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicates": ["biolink:has_phenotype"]
+                }
+            }
+        }
+    }
+}
+
 
 def get_finished_query(
         qid: str,
@@ -309,10 +333,10 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
 @APP.post('/asyncquery', response_model=ReasonerResponse)
 async def async_query(
         background_tasks: BackgroundTasks,
-        query: AsyncQuery = Body(..., example=EXAMPLE),
+        query: AsyncQuery = Body(..., example=ASYNC_EXAMPLE),
         redis_client: Redis = Depends(get_redis_client),
 ):
-    """Handle asynchronous query."""
+    """Handle asynchronous query with a callback url."""
     # parse requested workflow
     query_dict = query.dict()
     workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
