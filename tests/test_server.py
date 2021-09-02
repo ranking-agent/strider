@@ -1,6 +1,8 @@
 """Test Strider."""
 import json
+from os import wait
 from pathlib import Path
+from time import sleep
 
 import fakeredis
 from fastapi.responses import Response
@@ -1814,7 +1816,7 @@ async def test_same_prefix_synonyms(client):
     }
 )
 @with_callback_overlay(
-    "http://test",
+    "http://test/",
 )
 async def test_async_query(client):
     """Test asyncquery endpoint using the ex1 query graph"""
@@ -1836,6 +1838,8 @@ async def test_async_query(client):
     response = await client.post("/asyncquery?callback=http://test/", json=q)
     assert response.status_code==200
     async with httpx.AsyncClient() as aclient:
+        #Wait to make sure query has processed
+        sleep(10)
         results = await aclient.get("http://test/")
         output = results.json()
         validate_message(
