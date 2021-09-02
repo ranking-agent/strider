@@ -1,6 +1,8 @@
 """Test utilities."""
+import asyncio
 from contextlib import asynccontextmanager, AsyncExitStack
 from functools import partial, wraps
+from typing import Optional
 from urllib.parse import urlparse
 
 import aiosqlite
@@ -148,8 +150,9 @@ async def translator_overlay(
 
         yield
 
+
 @asynccontextmanager
-async def callback_overlay(url,):
+async def callback_overlay(url: str, queue: Optional[asyncio.Queue] = None):
     """
     Create a router that is able to recieve a POST request,
     save the information, and then provide that response again
@@ -161,13 +164,8 @@ async def callback_overlay(url,):
         # pylint: disable=unused-variable disable=unused-argument
         @app.post('/{path:path}')
         async def save_response(results: dict):
-            global callback_results
-            callback_results = results
-
-        @app.get('/{path:path}')
-        async def get_response():
-            global callback_results
-            return callback_results
+            if queue is not None:
+                await queue.put(results)
 
         await stack.enter_async_context(
             ASGIAR(app, host=url_to_host(url))
@@ -181,4 +179,3 @@ with_registry_overlay = partial(with_context, registry_overlay)
 with_translator_overlay = partial(with_context, translator_overlay)
 with_norm_overlay = partial(with_context, norm_overlay)
 with_response_overlay = partial(with_context, response_overlay)
-with_callback_overlay = partial(with_context, callback_overlay)
