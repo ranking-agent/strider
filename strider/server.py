@@ -18,7 +18,7 @@ from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
 
-from reasoner_pydantic import Query, Message, Response as ReasonerResponse
+from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse
 
 from .fetcher import Binder
 from .query_planner import NoAnswersError, generate_plan
@@ -308,9 +308,8 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
 
 @APP.post('/asyncquery', response_model=ReasonerResponse)
 async def async_query(
-        callback: str,
         background_tasks: BackgroundTasks,
-        query: Query = Body(..., example=EXAMPLE),
+        query: AsyncQuery = Body(..., example=EXAMPLE),
         redis_client: Redis = Depends(get_redis_client),
 ):
     """Handle asynchronous query."""
@@ -331,6 +330,7 @@ async def async_query(
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
 
+    callback = query_dict["callback"]
     background_tasks.add_task(async_lookup, callback, query_dict, redis_client)
 
     return
