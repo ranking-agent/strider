@@ -2,7 +2,6 @@
 import asyncio
 import json
 from pathlib import Path
-from time import sleep
 
 import fakeredis
 from fastapi.responses import Response
