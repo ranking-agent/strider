@@ -13,6 +13,7 @@ from binder.testing import kp_overlay
 from .normalizer import norm_router
 from .utils import normalizer_data_from_string
 
+callback_results = {}
 
 def url_to_host(url):
     # TODO modify ASGIAR to accept a URL instead of a host
@@ -156,19 +157,20 @@ async def callback_overlay(url,):
     """
     async with AsyncExitStack() as stack:
         app = FastAPI()
-        callback_results = None
 
         # pylint: disable=unused-variable disable=unused-argument
-        @app.post('/{results}')
-        async def save_response(results):
+        @app.post('/{path:path}')
+        async def save_response(results: dict):
+            global callback_results
             callback_results = results
 
-        @app.get('/')
+        @app.get('/{path:path}')
         async def get_response():
+            global callback_results
             return callback_results
 
         await stack.enter_async_context(
-            ASGIAR(app, url=url)
+            ASGIAR(app, host=url_to_host(url))
         )
         yield
 
