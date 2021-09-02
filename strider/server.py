@@ -18,7 +18,7 @@ from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse
 
-from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse
+from reasoner_pydantic import Query, Message, Response as ReasonerResponse
 
 from .fetcher import Binder
 from .query_planner import NoAnswersError, generate_plan
@@ -112,30 +112,6 @@ async def print_config():
     LOGGER.info(f" App Configuration:\n {pretty_config}")
 
 EXAMPLE = {
-    "message": {
-        "query_graph": {
-            "nodes": {
-                "n0": {
-                    "ids": ["MONDO:0005148"],
-                    "categories": ["biolink:Disease"]
-                },
-                "n1": {
-                    "categories": ["biolink:PhenotypicFeature"]
-                }
-            },
-            "edges": {
-                "e01": {
-                    "subject": "n0",
-                    "object": "n1",
-                    "predicates": ["biolink:has_phenotype"]
-                }
-            }
-        }
-    }
-}
-
-AEXAMPLE = {
-    "callback": "",
     "message": {
         "query_graph": {
             "nodes": {
@@ -280,13 +256,11 @@ async def async_lookup(
     query_dict: dict,
     redis_client: Redis,
 ):
+    """Preform lookup and send results to callback url"""
     query_results = await lookup(query_dict, redis_client)
     async with httpx.AsyncClient() as client:
-        try:
-            await client.post(callback, data=query_results)
-        except Exception as e:
-            raise e
-
+        r = await client.post(callback, json=query_results)
+        print(r)
 
 @APP.post('/query', response_model=ReasonerResponse)
 async def sync_query(
@@ -335,14 +309,14 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
 
 @APP.post('/asyncquery', response_model=ReasonerResponse)
 async def async_query(
+        callback: str,
         background_tasks: BackgroundTasks,
-        query: AsyncQuery = Body(..., example=AEXAMPLE),
+        query: Query = Body(..., example=EXAMPLE),
         redis_client: Redis = Depends(get_redis_client),
 ):
     """Handle asynchronous query."""
     # parse requested workflow
     query_dict = query.dict()
-    callback = query_dict["callback"]
     workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
     if not isinstance(workflow, list):
         raise HTTPException(400, "workflow must be a list")
