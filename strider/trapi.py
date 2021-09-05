@@ -417,6 +417,9 @@ def build_unique_kg_edge_ids(message: Message):
     whether the edge can be merged with other edges
     """
 
+    # Mapping of old to new edge IDs
+    edge_id_mapping = {}
+
     # Make a copy of the edge keys because we're about to change them
     for edge_id in list(message["knowledge_graph"]["edges"].keys()):
         edge = message["knowledge_graph"]["edges"].pop(edge_id)
@@ -428,15 +431,16 @@ def build_unique_kg_edge_ids(message: Message):
             digest_size=6,
         ).hexdigest()
 
+        edge_id_mapping[edge_id] = new_edge_id
+
         # Update knowledge graph
         message["knowledge_graph"]["edges"][new_edge_id] = edge
 
-        # Update results
-        for result in message["results"]:
-            for edge_binding_list in result["edge_bindings"].values():
-                for eb in edge_binding_list:
-                    if eb["id"] == edge_id:
-                        eb["id"] = new_edge_id
+    # Update results
+    for result in message["results"]:
+        for edge_binding_list in result["edge_bindings"].values():
+            for eb in edge_binding_list:
+                eb["id"] = edge_id_mapping[eb["id"]]
 
 
 def is_valid_node_binding(message, nb, qgraph_node):
