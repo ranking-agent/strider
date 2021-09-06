@@ -79,8 +79,12 @@ APP.add_middleware(
     **CORS_OPTIONS,
 )
 
+if settings.profiler:
+    from .profiler import profiler_middleware
+
 # Custom exception handler is necessary to ensure that
 # we add CORS headers to errors and return a TRAPI response
+
 async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
