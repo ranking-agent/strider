@@ -285,7 +285,7 @@ async def sync_query(
     query_results = await lookup(query_dict, redis_client)
 
     # Return results
-    return Response(content=json.dumps(query_results).encode())
+    return JSONResponse(query_results)
 
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")
