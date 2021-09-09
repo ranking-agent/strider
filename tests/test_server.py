@@ -88,6 +88,7 @@ async def test_solve_ex1(client):
 
     # Run
     response = await client.post("/query", json=q)
+    assert response.headers.get("content-type") == "application/json"
     output = response.json()
 
     validate_message(
