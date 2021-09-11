@@ -84,3 +84,40 @@ async def test_solve_ex1(redis):
         },
         output["message"]
     )
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->CHEBI:6801
+        """
+    }
+)
+async def test_mixed_canonical(redis):
+    """Test qedge with mixed canonical and non-canonical predicates."""
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n0-- biolink:treats biolink:phenotype_of -->n1
+        """
+    )
+
+    # Create query
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level": "ERROR",
+    }
+
+    # Run
+    output = await lookup(q, redis)
+
+    assert len(output["message"]["results"]) == 2

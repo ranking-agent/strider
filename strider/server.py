@@ -41,7 +41,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="3.10.0",
+    version="3.11.2",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
@@ -285,7 +285,7 @@ async def sync_query(
     query_results = await lookup(query_dict, redis_client)
 
     # Return results
-    return Response(content=json.dumps(query_results).encode())
+    return JSONResponse(query_results)
 
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")

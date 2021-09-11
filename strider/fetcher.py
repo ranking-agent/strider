@@ -22,7 +22,8 @@ from typing import Any, Callable, Optional
 
 import aiostream
 import httpx
-from reasoner_pydantic import QueryGraph, Result, Response
+import pydantic
+from reasoner_pydantic import QueryGraph, Result, Response, MetaKnowledgeGraph
 from redis import Redis
 
 from .trapi_throttle.throttle import ThrottledServer
@@ -316,7 +317,6 @@ class Binder():
         await self.synonymizer.load_curies(*curies)
         curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
         self.qgraph = map_qgraph_curies(self.qgraph, curie_map, primary=True)
-        self.qgraph = canonicalize_qgraph(self.qgraph)
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
@@ -343,7 +343,9 @@ class Binder():
                         url,
                         timeout=10,
                     )
+                response.raise_for_status()
                 meta_kg = response.json()
+                MetaKnowledgeGraph.parse_obj(meta_kg)
                 self.kp_preferred_prefixes[kp_id] = {
                     category: data["id_prefixes"]
                     for category, data in meta_kg["nodes"].items()
@@ -356,6 +358,14 @@ class Binder():
                     ),
                 )
                 self.kp_preferred_prefixes[kp_id] = dict()
+            except httpx.HTTPStatusError as e:
+                self.logger.warning(
+                    "Received error response from /meta_knowledge_graph for KP {}: {}".format(
+                        kp_id,
+                        e.response.text,
+                    ),
+                )
+                self.kp_preferred_prefixes[kp_id] = dict()
             except JSONDecodeError as err:
                 self.logger.warning(
                     "Unable to parse meta knowledge graph from KP {}: {}".format(
@@ -364,6 +374,23 @@ class Binder():
                     ),
                 )
                 self.kp_preferred_prefixes[kp_id] = dict()
+            except pydantic.ValidationError as err:
+                self.logger.warning(
+                    "Meta knowledge graph from KP {} is non-compliant: {}".format(
+                        kp_id,
+                        str(err),
+                    ),
+                )
+                self.kp_preferred_prefixes[kp_id] = dict()
+            except Exception as err:
+                self.logger.warning(
+                    "Something went wrong while parsing meta knowledge graph from KP {}: {}".format(
+                        kp_id,
+                        str(err),
+                    ),
+                )
+                self.kp_preferred_prefixes[kp_id] = dict()
+
             self.portal.tservers[kp_id] = ThrottledServer(
                 kp_id,
                 url=kp["url"],

@@ -252,11 +252,11 @@ class Synonymizer():
             categories, identifiers = data[curie]
         except KeyError:
             return [curie]
-        prefixes = [
+        prefixes = {
             prefix
             for category in categories
             for prefix in prefixes.get(category, [])
-        ]
+        }
         if not prefixes:
             # no preferred prefixes for these categories
             logger.debug(
@@ -267,13 +267,14 @@ class Synonymizer():
             )
             return identifiers
 
-        # Iterate through prefixes until we find
-        # one with CURIEs
+        # Find CURIEs beginning with any of prefixes
         prefix_identifiers = [
             curie
-            for prefix in prefixes
             for curie in identifiers
-            if curie.startswith(prefix)
+            if any(
+                curie.startswith(prefix)
+                for prefix in prefixes
+            )
         ]
         if not prefix_identifiers:
             # no preferred curie with these prefixes

@@ -1,6 +1,7 @@
 """TRAPI utilities."""
 from collections import defaultdict
 import copy
+from itertools import product
 import json
 import logging
 import hashlib
@@ -236,38 +237,61 @@ def canonicalize_qgraph(
         qgraph: QueryGraph,
 ) -> QueryGraph:
     """Replace predicates with canonical directions."""
-    return {
-        'nodes': qgraph['nodes'],
-        "edges": {
-            qedge_id: canonicalize_qedge(qedge)
+    if qgraph is None:
+        return qgraph
+
+    qedge_sets = [
+        {
+            qedge_id: qedge
+            for qedge_id, qedge in qedges
+        }
+        for qedges in product(*[
+            [
+                (qedge_id, dir_qedge)
+                for dir_qedge in canonicalize_qedge(qedge)
+                if dir_qedge["predicates"]
+            ]
             for qedge_id, qedge in qgraph["edges"].items()
-        },
-    }
+        ])
+    ]
+    return [
+        {
+            'nodes': qgraph['nodes'],
+            "edges": qedges,
+        }
+        for qedges in qedge_sets
+    ]
 
 
 def canonicalize_qedge(
     qedge: dict,
 ):
     """Use canonical predicate direction."""
-    qedge = copy.deepcopy(qedge)
-    flipped = None
     predicates = []
+    flipped_predicates = []
     for predicate in qedge.get("predicates") or []:
         slot = WBMT.bmt.get_element(predicate)
         if slot is None:
-            flipped = False
+            predicates.append(predicate)
             continue
         is_canonical = slot.annotations.get("biolink:canonical_predicate", False)
-        if flipped is None:
-            flipped = not is_canonical
-        elif flipped == is_canonical:
-            raise NotImplementedError("There are multiple predicates, mixed canonical and not")
-        if flipped:
-            predicates.append(bmt.util.format(slot.inverse, case="snake"))
-    if flipped:
-        qedge["subject"], qedge["object"] = qedge["object"], qedge["subject"]
-        qedge["predicates"] = predicates
-    return qedge
+        if is_canonical:
+            predicates.append(predicate)
+        else:
+            flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
+    qedge = copy.deepcopy(qedge)
+    qedge["predicates"] = predicates
+    flipped_qedge = {
+        "subject": qedge["object"],
+        "object": qedge["subject"],
+        "predicates": flipped_predicates,
+        **{
+            key: value
+            for key, value in qedge.items()
+            if key not in ("subject", "object", "predicates")
+        },
+    }
+    return qedge, flipped_qedge
 
 
 def map_qnode_curies(
