@@ -1,7 +1,7 @@
 import pytest
 
 from strider.trapi import \
-    filter_by_qgraph, canonicalize_qgraph, merge_messages
+    build_attribute_unique_id, filter_by_qgraph, canonicalize_qgraph, merge_messages
 
 
 @pytest.mark.asyncio
@@ -74,6 +74,29 @@ ATTRIBUTE_B = {
     "attribute_type_id": "biolink:is_bad",
     "value": True,
 }
+
+def test_attribute_equality():
+    """ Test the build_attribute_unique_id function """
+
+    assert build_attribute_unique_id(ATTRIBUTE_A) != \
+           build_attribute_unique_id(ATTRIBUTE_B)
+
+    # Test with sub-attributes
+    ATTRIBUTE_WITH_SUBATTRIBUTES_A = {
+        "attribute_type_id": "biolink:i_am_out_of_attribute_type_ideas",
+        "value": 4,
+        "attributes" : [ATTRIBUTE_A]
+    }
+    ATTRIBUTE_WITH_SUBATTRIBUTES_B = {
+        "attribute_type_id": "biolink:i_am_out_of_attribute_type_ideas",
+        "value": 4,
+        "attributes" : [ATTRIBUTE_A, ATTRIBUTE_B]
+    }
+
+    assert build_attribute_unique_id(ATTRIBUTE_WITH_SUBATTRIBUTES_A) != \
+           build_attribute_unique_id(ATTRIBUTE_WITH_SUBATTRIBUTES_B)
+
+
 
 
 def test_merge_knowledge_graph_nodes():
