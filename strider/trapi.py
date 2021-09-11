@@ -2,7 +2,6 @@
 from collections import defaultdict
 import copy
 from itertools import product
-import json
 import logging
 import hashlib
 
@@ -32,6 +31,27 @@ def result_hash(result):
     )
     return (node_bindings_information, edge_bindings_information)
 
+def attribute_hash(attribute):
+    """
+    Given an attribute object, generate a hashable value
+    that can be used for comparison
+    """
+    uid = ""
+
+    # When we iterate over attribute properties use sorted
+    # to get a consistent ordering
+    for property_name in sorted(attribute.keys()):
+        property_value = attribute[property_name]
+        if property_name == "attributes" and property_value is not None:
+            # These are sub-attributes
+            # Add each to the string
+            for a in property_value:
+                uid += attribute_hash(a)
+        else:
+            uid += f"{property_name}={str(property_value)}&"
+
+    return uid
+
 
 def merge_nodes(knodes: list[Node]) -> Node:
     """ Smart merge function for KNodes """
@@ -50,31 +70,18 @@ def merge_nodes(knodes: list[Node]) -> Node:
 
     attributes_values = get_from_all(knodes, "attributes")
     if attributes_values:
-        output_knode["attributes"] = \
-            deduplicate_by(
-                filter_none(merge_listify(attributes_values)),
-                lambda d: json.dumps(d, sort_keys=True))
+        # Flatten list
+        attributes_values = merge_listify(attributes_values)
+        # Filter out empty values
+        attributes_values = filter_none(attributes_values)
+        # Deduplicate
+        attributes_values = deduplicate_by(
+            attributes_values, attribute_hash
+        )
+        # Write to output kedge
+        output_knode["attributes"] = attributes_values
 
     return output_knode
-
-
-def build_attribute_unique_id(attribute):
-    """ Build unique string from attribute for deduplication """
-    uid = ""
-
-    # When we iterate over attribute properties use sorted
-    # to get a consistent ordering
-    for property_name in sorted(attribute.keys()):
-        property_value = attribute[property_name]
-        if property_name == "attributes" and property_value is not None:
-            # These are sub-attributes
-            # Add each to the string
-            for a in property_value:
-                uid += build_attribute_unique_id(a)
-        else:
-            uid += f"{property_name}={str(property_value)}&"
-
-    return uid
 
 def merge_edges(kedges: list[Edge]) -> Edge:
     """ Smart merge function for KEdges """
@@ -87,10 +94,8 @@ def merge_edges(kedges: list[Edge]) -> Edge:
         # Filter out empty values
         attributes_values = filter_none(attributes_values)
         # Deduplicate
-        print([build_attribute_unique_id(a) for a in attributes_values])
         attributes_values = deduplicate_by(
-            attributes_values,
-            lambda d: json.dumps(d, sort_keys=True)
+            attributes_values, attribute_hash
         )
         # Write to output kedge
         output_kedge["attributes"] = attributes_values

@@ -1,7 +1,7 @@
 import pytest
 
 from strider.trapi import \
-    build_attribute_unique_id, filter_by_qgraph, canonicalize_qgraph, merge_messages
+    attribute_hash, filter_by_qgraph, canonicalize_qgraph, merge_messages
 
 
 @pytest.mark.asyncio
@@ -93,8 +93,8 @@ def test_attribute_equality():
         "attributes" : [ATTRIBUTE_A, ATTRIBUTE_B]
     }
 
-    assert build_attribute_unique_id(ATTRIBUTE_WITH_SUBATTRIBUTES_A) != \
-           build_attribute_unique_id(ATTRIBUTE_WITH_SUBATTRIBUTES_B)
+    assert attribute_hash(ATTRIBUTE_WITH_SUBATTRIBUTES_A) != \
+           attribute_hash(ATTRIBUTE_WITH_SUBATTRIBUTES_B)
 
 
 
