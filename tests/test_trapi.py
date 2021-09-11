@@ -76,10 +76,10 @@ ATTRIBUTE_B = {
 }
 
 def test_attribute_equality():
-    """ Test the build_attribute_unique_id function """
+    """ Test the attribute_hash function """
 
-    assert build_attribute_unique_id(ATTRIBUTE_A) != \
-           build_attribute_unique_id(ATTRIBUTE_B)
+    assert attribute_hash(ATTRIBUTE_A) != \
+           attribute_hash(ATTRIBUTE_B)
 
     # Test with sub-attributes
     ATTRIBUTE_WITH_SUBATTRIBUTES_A = {
