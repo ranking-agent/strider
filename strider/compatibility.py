@@ -209,11 +209,7 @@ class Synonymizer():
 
         entities = [
             Entity(
-                entity["type"] + (
-                    ["biolink:ChemicalSubstance"]
-                    if "biolink:SmallMolecule" in entity["type"] else
-                    []
-                ),
+                entity["type"],
                 [
                     synonym["identifier"]
                     for synonym in entity["equivalent_identifiers"]

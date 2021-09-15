@@ -437,8 +437,6 @@ async def fill_categories_predicates(
     for node in qg['nodes'].values():
         if ('categories' not in node) or (node['categories'] is None):
             node['categories'] = ['biolink:NamedThing']
-        elif "biolink:ChemicalSubstance" in node["categories"]:
-            node["categories"].append("biolink:SmallMolecule")
 
     logger.debug("Contacting node normalizer to get categorys for curies")
 
@@ -453,8 +451,6 @@ async def fill_categories_predicates(
 
         # Get full list of categorys
         categories = await normalizer.get_types(node_id)
-        if "biolink:SmallMolecule" in categories:
-            categories.append("biolink:ChemicalSubstance")
 
         # Remove duplicates
         categories = list(set(categories))
