@@ -69,8 +69,6 @@ class WrappedBMT():
     def get_descendants(self, concept):
         """ Wrapped BMT descendants function that does case conversions """
         descendants = self.bmt.get_descendants(concept, formatted=True)
-        if "biolink:SmallMolecule" in descendants:
-            descendants.append("biolink:ChemicalSubstance")
         if len(descendants) == 0:
             descendants.append(concept)
         return descendants
