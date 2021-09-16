@@ -1,9 +1,9 @@
 from pathlib import Path
+import tempfile
 import time
 import uuid
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
 import yappi
 
 from .server import APP
@@ -19,8 +19,7 @@ class DownloadStaticFiles(StaticFiles):
         return resp
 
 # Create directory to store request profile data
-PROFILE_DIRECTORY = "/profiles"
-Path(PROFILE_DIRECTORY).mkdir(exist_ok = True)
+PROFILE_DIRECTORY = tempfile.mkdtemp()
 
 captured_profiles = []
 
