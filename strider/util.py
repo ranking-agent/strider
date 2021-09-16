@@ -122,11 +122,18 @@ def elide_curies(payload):
 
 def log_request(r):
     """ Serialize a httpx.Request object into a dict for logging """
+    data = r.read().decode()
+    # the request body can be cleared out by httpx under some circumstances
+    # let's not crash if that happens
+    try:
+        data = elide_curies(json.loads(data))
+    except Exception:
+        pass
     return {
         "method" : r.method,
         "url" : str(r.url),
         "headers" : dict(r.headers),
-        "data" : elide_curies(json.loads(r.read().decode()))
+        "data" : data
     }
 
 def log_response(r):
