@@ -306,7 +306,7 @@ def canonicalize_qedge(
             predicates.append(predicate)
             continue
         is_canonical = slot.annotations.get("biolink:canonical_predicate", False)
-        if is_canonical:
+        if is_canonical or slot.symmetric:
             predicates.append(predicate)
         else:
             flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
