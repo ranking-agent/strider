@@ -1228,18 +1228,18 @@ async def test_solve_not_real_predicate(client):
         """
             MONDO:1(( category biolink:Disease ))
             MONDO:1-- predicate biolink:treated_by -->MESH:1
-            MESH:1(( category biolink:ChemicalSubstance ))
+            MESH:1(( category biolink:SmallMolecule ))
         """,
         "kp1":
         """
-            MONDO:1(( category biolink:ChemicalSubstance ))
+            MONDO:1(( category biolink:SmallMolecule ))
             MONDO:1-- predicate biolink:ameliorates -->HP:1
             HP:1(( category biolink:PhenotypicFeature ))
         """,
     },
     normalizer_data="""
         MONDO:1 categories biolink:NamedThing
-        MESH:1 categories biolink:ChemicalSubstance
+        MESH:1 categories biolink:SmallMolecule
         HP:1 categories biolink:PhenotypicFeature
         """
 )
@@ -1443,13 +1443,13 @@ async def test_exception_response(client):
     {
         "ctd":
         """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801(( category biolink:SmallMolecule ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
         "mychem":
         """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801(( category biolink:SmallMolecule ))
             MONDO:XXX(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:XXX
         """,
@@ -1718,18 +1718,18 @@ async def test_multiple_identifiers(client):
         """
             MONDO:0005148(( category biolink:Disease ))
             MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801(( category biolink:SmallMolecule ))
         """,
         "kp1":
         """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801(( category biolink:SmallMolecule ))
             CHEBI:6801<-- predicate biolink:has_biomarker --HP:0004324
             HP:0004324(( category biolink:PhenotypicFeature ))
         """
     },
     normalizer_data="""
         MONDO:0005148 categories biolink:Disease
-        CHEBI:6801 categories biolink:ChemicalSubstance
+        CHEBI:6801 categories biolink:SmallMolecule
         HP:0004324 categories biolink:PhenotypicFeature
         """
 )
@@ -1775,7 +1775,7 @@ async def test_provenance(client):
         """
             MONDO:0005148(( category biolink:NoPrefixes ))
             MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            CHEBI:6801(( category biolink:SmallMolecule ))
         """,
     },
     normalizer_data="""
