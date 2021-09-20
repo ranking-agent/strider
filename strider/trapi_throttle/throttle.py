@@ -383,7 +383,7 @@ class ThrottledServer():
             # Wait for response
             output: Union[dict, Exception] = await asyncio.wait_for(
                 response_queue.get(),
-                timeout=timeout,
+                timeout=None,
             )
 
             if isinstance(output, Exception):
