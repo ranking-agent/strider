@@ -13,7 +13,7 @@ uvicorn==0.13.4
 jsonpickle==1.4.2
 python-dotenv==0.17.0
 fastapi==0.65.2
-reasoner-pydantic==1.2.0.2
+reasoner-pydantic==1.2.0.4
 
 asgiar==0.2.0
 fakeredis==1.5.0
