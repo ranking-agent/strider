@@ -66,7 +66,7 @@ def result_contains_node_bindings(
     """ Check that the result object has all bindings provided (qg_id->kg_id) """
     for qg_id, kg_ids in bindings.items():
         if not any(
-            nb["id"] in kg_ids
+            nb["id"] in kg_ids or nb.get("qnode_id") in kg_ids
             for nb in result["node_bindings"][qg_id]
         ):
             return False
