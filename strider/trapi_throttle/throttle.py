@@ -233,20 +233,30 @@ class ThrottledServer():
                     )
                 )
 
-                # Split using the request_curie_mapping
-                for request_id, curie_mapping in request_curie_mapping.items():
-                    try:
-                        kgraph, results = filter_by_curie_mapping(message, curie_mapping, kp_id=self.id)
-                        response_values[request_id] = {
-                            "message": {
-                                "query_graph": request_value_mapping[request_id]["message"]["query_graph"],
-                                "knowledge_graph": kgraph,
-                                "results": results,
-                            }
+                if len(request_curie_mapping) == 1:
+                    request_id = next(iter(request_curie_mapping))
+                    response_values[request_id] = {
+                        "message": {
+                            "query_graph": request_value_mapping[request_id]["message"]["query_graph"],
+                            "knowledge_graph": message.get("knowledge_graph", {"nodes": {}, "edges": {}}),
+                            "results": message.get("results", []),
                         }
-                    except BatchingError as err:
-                        # the response is probably malformed
-                        response_values[request_id] = err
+                    }
+                else:
+                    # Split using the request_curie_mapping
+                    for request_id, curie_mapping in request_curie_mapping.items():
+                        try:
+                            kgraph, results = filter_by_curie_mapping(message, curie_mapping, kp_id=self.id)
+                            response_values[request_id] = {
+                                "message": {
+                                    "query_graph": request_value_mapping[request_id]["message"]["query_graph"],
+                                    "knowledge_graph": kgraph,
+                                    "results": results,
+                                }
+                            }
+                        except BatchingError as err:
+                            # the response is probably malformed
+                            response_values[request_id] = err
             except (
                 asyncio.exceptions.TimeoutError,
                 httpx.RequestError,
