@@ -63,7 +63,11 @@ def result_contains_node_bindings(
         result,
         bindings: dict[str, list[str]]
 ):
-    """ Check that the result object has all bindings provided (qg_id->kg_id) """
+    """Check that the result object has all bindings provided (qg_id->kg_id).
+
+    KPs that are returning a (proper) subclass of an entity allowed by the qnode
+    may use the optional `qnode_id` field to indicate the associated superclass.
+    """
     for qg_id, kg_ids in bindings.items():
         if not any(
             nb["id"] in kg_ids or nb.get("qnode_id") in kg_ids
