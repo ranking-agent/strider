@@ -110,8 +110,6 @@ class KnowledgePortal():
             self,
             kp_id: str,
             request: dict,
-            input_prefixes: dict = None,
-            output_prefixes: dict = None,
     ):
         """Wrap fetch with CURIE mapping(s)."""
         request = remove_null_values(request)
