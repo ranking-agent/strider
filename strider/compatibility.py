@@ -240,17 +240,17 @@ class Synonymizer():
         data: dict[str, Entity],
         prefixes: dict[str, list[str]],
         logger: logging.Logger = None,
-    ):
+    ) -> str:
         """Map single CURIE."""
         try:
             categories, identifiers = data[curie]
         except KeyError:
             return [curie]
-        prefixes = {
+        prefixes = list(dict.fromkeys(
             prefix
             for category in categories
             for prefix in prefixes.get(category, [])
-        }
+        ))
         if not prefixes:
             # no preferred prefixes for these categories
             logger.debug(
@@ -259,25 +259,24 @@ class Synonymizer():
                     categories,
                 )
             )
-            return identifiers
+            prefixes = identifiers[0].split(":")[0]
 
         # Find CURIEs beginning with any of prefixes
-        prefix_identifiers = [
-            curie
-            for curie in identifiers
-            if any(
-                curie.startswith(prefix)
-                for prefix in prefixes
-            )
-        ]
-        if not prefix_identifiers:
-            # no preferred curie with these prefixes
-            logger.debug(
-                "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
-                    getattr(logger, "context", ""),
-                    identifiers,
-                    prefixes,
-                ),
-            )
-            return [curie]
-        return prefix_identifiers
+        for prefix in prefixes:
+            curies = [
+                _curie
+                for _curie in identifiers
+                if _curie.startswith(prefix)
+            ]
+            if curies:
+                return curies
+
+        # no preferred curie with these prefixes
+        logger.debug(
+            "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
+                getattr(logger, "context", ""),
+                identifiers,
+                prefixes,
+            ),
+        )
+        return [curie]
