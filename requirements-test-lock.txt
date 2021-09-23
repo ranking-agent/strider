@@ -5,7 +5,7 @@ anyio==3.3.0
 asgiar==0.2.0
 attrs==21.2.0
 binder @ git+git://github.com/TranslatorSRI/binder@975fc6b651fc1058e905d4ed879c5af81c76c54c
-bmt-lite-2.1.0==2.1.1
+bmt-lite-2.2.5==2.2.0
 certifi==2021.5.30
 click==7.1.2
 coverage==5.5
