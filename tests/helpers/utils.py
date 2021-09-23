@@ -53,7 +53,7 @@ def generate_kps(qty):
         )
     )
 
-    return {str(i): kp for i, kp in enumerate(kp_generator) if i < qty}
+    return {str(i): kp for i, kp in zip(range(qty), kp_generator)}
 
 
 def query_graph_from_string(s):
