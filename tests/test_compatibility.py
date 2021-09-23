@@ -306,8 +306,6 @@ async def test_fetch():
         response = await portal.fetch(
             kp_id="ctd",
             request={"message": {"query_graph": query_graph}},
-            input_prefixes=CTD_PREFIXES,
-            output_prefixes=preferred_prefixes,
         )
 
     allowed_response_prefixes = [

@@ -405,8 +405,6 @@ class Binder():
                 details,
                 self.portal,
                 kp_id,
-                self.kp_preferred_prefixes[kp_id],
-                self.preferred_prefixes,
             )
             for kp_id, details in kps.items()
         }

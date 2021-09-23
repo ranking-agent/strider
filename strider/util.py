@@ -193,22 +193,18 @@ async def post_json(url, request, logger, log_name):
 
 class KnowledgeProvider():
     """Knowledge provider."""
-    def __init__(self, details, portal, id, in_prefixes, out_prefixes, *args, **kwargs):
+    def __init__(self, details, portal, id, *args, **kwargs):
         """Initialize."""
         self.details = details
         self.portal = portal
         # self.portal: KnowledgePortal = portal
         self.id = id
-        self.in_prefixes = in_prefixes
-        self.out_prefixes = out_prefixes
 
     async def solve_onehop(self, request):
         """Solve one-hop query."""
         return await self.portal.fetch(
             self.id,
             {"message": {"query_graph": request}},
-            self.in_prefixes,
-            self.out_prefixes,
         )
 
 
