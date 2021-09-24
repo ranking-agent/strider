@@ -443,10 +443,7 @@ def merge_listify(values):
     """
     output = []
     for value in values:
-        if isinstance(value, list):
-            output.extend(value)
-        else:
-            output.append(value)
+        output.extend(value)
     return output
 
 

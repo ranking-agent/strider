@@ -433,6 +433,40 @@ def plan_template_from_string(s):
     return dict(plan_template)
 
 
+def attribute_from_string(s):
+    """
+    Parse an attribute from a string representation.
+    Useful for writing examples in tests.
+
+    Example:
+
+    type biolink:knowledge_source value https://automat.renci.org/
+      type biolink:has_p-value_evidence value 0.04
+      type biolink:has_original_source value true
+    """
+
+    # This usually comes from triple quoted strings
+    # so we use inspect.cleandoc to remove leading indentation
+    s = inspect.cleandoc(s)
+
+    # First line should contain all the values for the outer attribute
+    s = s.splitlines()
+    tokens = s.pop(0).split(" ")
+    token_dict = {k:v for k, v in zip(*[iter(tokens)]*2)}
+    attribute = {
+        "attribute_type_id" : token_dict["type"],
+        "value" : token_dict["value"],
+    }
+
+    # Rest of the lines should have the subattributes
+    if s:
+        attribute["attributes"] = [
+            attribute_from_string(x) for x in s
+        ]
+
+    return attribute
+
+
 def validate_template(template, value):
     """
     Assert that value adheres to the provided template
