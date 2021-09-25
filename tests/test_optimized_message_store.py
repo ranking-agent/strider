@@ -1,3 +1,4 @@
+import copy
 import json
 import pytest
 
@@ -57,3 +58,24 @@ async def test_node_attribute_merging():
         cls = SetEncoder,
     ))
     assert output_attrs == expected_attrs
+
+@pytest.mark.asyncio
+async def test_result_merging():
+    """ Test that duplicate results are merged correctly """
+
+    message_a = get_base_message()
+    message_a["knowledge_graph"]["edges"]["ke0"] = \
+        {"subject" : "kn0", "object" : "kn1", "predicate" : "biolink:ameliorates"}
+    message_a["results"].append({
+        "node_bindings" : {"n0" : [{"id" : "kn0"}]},
+        "edge_bindings" : {"e0" : [{"id" : "ke0"}]},
+    })
+
+    message_b = copy.deepcopy(message_a)
+
+    store = OptimizedMessageStore()
+
+    store.add_message(message_a)
+    store.add_message(message_b)
+    output_message = store.get_message()
+    breakpoint()
