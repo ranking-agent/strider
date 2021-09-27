@@ -29,7 +29,7 @@ from redis import Redis
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
 from .compatibility import KnowledgePortal, Synonymizer
-from .trapi import canonicalize_qgraph, filter_by_qgraph, get_curies, map_qgraph_curies, merge_messages, merge_results, \
+from .trapi import canonicalize_qgraph, filter_by_qgraph, get_curies, map_qgraph_curies, \
     fill_categories_predicates
 from .caching import async_locking_cache
 from .query_planner import generate_plan, get_next_qedge

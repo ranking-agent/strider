@@ -28,7 +28,6 @@ from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually
-from .trapi import merge_kgraphs
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
