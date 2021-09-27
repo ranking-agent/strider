@@ -60,10 +60,23 @@ def freeze_result(r):
             for nb in r["node_bindings"][qg_id]
         )
     for qg_id in r["edge_bindings"].keys():
+        # Freeze attributes
+        for index in range(len(r["edge_bindings"][qg_id])):
+            remove_null_attributes(
+                r["edge_bindings"][qg_id][index]
+            )
+            if "attributes" in r["edge_bindings"][qg_id][index]:
+                r["edge_bindings"][qg_id][index]["attributes"] = \
+                    frozenset(
+                        freeze_attribute(a)
+                        for a in r["edge_bindings"][qg_id][index]["attributes"]
+                    )
+
         r["edge_bindings"][qg_id] = frozenset(
             frozendict(eb)
             for eb in r["edge_bindings"][qg_id]
         )
+
     return r
 
 
@@ -97,13 +110,14 @@ class OptimizedMessageStore():
             if node.get("name", None):
                 self.nodes[key]["name"] = node["name"]
 
+            # Merge categories with a set
             if node.get("categories", None):
                 self.nodes[key]["categories"].update(node["categories"])
 
             # Freeze attributes before adding so that
             # they can be deduplicated
             remove_null_attributes(node)
-            if node.get("attributes", None):
+            if "attributes" in node:
                 self.nodes[key]["attributes"].update(
                     freeze_attribute(a) for a in node["attributes"]
                 )
@@ -122,6 +136,7 @@ class OptimizedMessageStore():
             # Access key so it is added to the list of keys
             self.edges[key]
 
+            # Update mapping
             edge_id_mapping[frozendict({"id" : old_edge_id})] = key
 
             # Freeze attributes before adding so that
@@ -134,16 +149,6 @@ class OptimizedMessageStore():
 
 
         for result in message["results"]:
-            # Freeze attributes
-            for qg_id in result["edge_bindings"].keys():
-                for index in range(len(result["edge_bindings"][qg_id])):
-                    remove_null_attributes(
-                        result["edge_bindings"][qg_id][index]
-                    )
-                    if "attributes" in result["edge_bindings"][qg_id][index]:
-                        result["edge_bindings"][qg_id][index]["attributes"] = \
-                            frozenset(freeze_attribute(a) for a in result["edge_bindings"][qg_id][index]["attributes"])
-
             def update_edge_binding(eb):
                 """
                 Replace a TRAPI kg_edge_id of format {"id" : X}
@@ -157,9 +162,10 @@ class OptimizedMessageStore():
                     new_eb["attributes"] = eb["attributes"]
                 return new_eb
 
+            # Apply edge binding update function
             map_kg_edge_binding(result, update_edge_binding)
 
-            # kg_node_ids happen to be in the same format as our custom keys
+            # kg_node_ids happens to be in the same format as our custom keys
             # so we don't have to modify them
 
             # Freeze result
