@@ -12,7 +12,7 @@ from tests.helpers.utils import generate_kps, \
 from tests.helpers.logger import assert_no_level
 
 
-from strider.query_planner import generate_plan
+from strider.query_planner import generate_plan, get_next_qedge
 
 from strider.trapi import fill_categories_predicates
 
@@ -514,3 +514,26 @@ async def test_double_sided(caplog):
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
     assert plan == {"n0n1": ["kp0"]}
     assert "kp0" in kps
+
+
+def test_get_next_qedge():
+    """Test get_next_qedge()."""
+    qgraph = {
+        "nodes": {
+            "n0": {"ids": ["01", "02"]},
+            "n1": {},
+            "n2": {"ids": ["03"]},
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+            },
+            "e12": {
+                "subject": "n1",
+                "object": "n2",
+            },
+        },
+    }
+    qedge_id, _ = get_next_qedge(qgraph)
+    assert qedge_id == "e12"

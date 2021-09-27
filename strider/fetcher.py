@@ -32,7 +32,7 @@ from .compatibility import KnowledgePortal, Synonymizer
 from .trapi import canonicalize_qgraph, filter_by_qgraph, get_curies, map_qgraph_curies, merge_messages, merge_results, \
     fill_categories_predicates
 from .caching import async_locking_cache
-from .query_planner import generate_plan
+from .query_planner import generate_plan, get_next_qedge
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
@@ -119,17 +119,7 @@ class Binder():
         self.logger.debug(f"Lookup for qgraph: {qgraph}")
 
         try:
-            qedge_id, qedge = next(
-                (qedge_id, qedge)
-                for qedge_id, qedge in qgraph["edges"].items()
-                if any(
-                    qnode.get("ids", [])
-                    for qnode in (
-                        qgraph["nodes"][qedge["subject"]],
-                        qgraph["nodes"][qedge["object"]],
-                    )
-                )
-            )
+            qedge_id, qedge = get_next_qedge(qgraph)
         except StopIteration:
             raise RuntimeError("Cannot find qedge with pinned endpoint")
 

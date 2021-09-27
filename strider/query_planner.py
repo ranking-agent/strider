@@ -1,7 +1,8 @@
 """Query planner."""
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 import logging
 import copy
+import math
 from typing import Generator
 
 from reasoner_pydantic import QueryGraph
@@ -209,3 +210,78 @@ def get_query_graph_edge_kps(
                 "reverse": og_edge["edge_reverse"],
             })
     return kps
+
+
+def get_next_qedge(qgraph):
+    """Get next qedge to solve."""
+    qgraph = copy.deepcopy(qgraph)
+    for qnode in qgraph["nodes"].values():
+        if qnode.get("ids") is not None:
+            qnode["ids"] = len(qnode["ids"])
+        else:
+            qnode["ids"] = 1_000_000
+    pinnednesses = {
+        qnode_id: get_pinnedness(qgraph, qnode_id)
+        for qnode_id in qgraph["nodes"]
+    }
+    efforts = {
+        qedge_id: math.log(
+            qgraph["nodes"][qedge["subject"]]["ids"]
+        ) + math.log(
+            qgraph["nodes"][qedge["object"]]["ids"]
+        )
+        for qedge_id, qedge in qgraph["edges"].items()
+    }
+    edge_priorities = {
+        qedge_id: pinnednesses[qedge["subject"]] + pinnednesses[qedge["object"]] - efforts[qedge_id]
+        for qedge_id, qedge in qgraph["edges"].items()
+    }
+    qedge_id = max(edge_priorities, key=edge_priorities.get)
+    return qedge_id, qgraph["edges"][qedge_id]
+
+
+N = 1000000  # total number of nodes
+R = 25  # number of edges per node
+
+
+def get_pinnedness(qgraph, qnode_id):
+    """Get pinnedness of each node."""
+    adjacency_mat = get_adjacency_matrix(qgraph)
+    return -_get_pinnedness_recursively(
+        adjacency_mat,
+        qnode_id,
+    )
+
+
+def _get_pinnedness_recursively(adjacency_mat, qnode_id, last=None, level=0):
+    """Get pinnedness of each node, recursively."""
+    pinnedness = math.log(adjacency_mat[qnode_id][qnode_id])
+    if level < 10:
+        for neighbor in adjacency_mat[qnode_id]:
+            if neighbor in (qnode_id, last):
+                continue
+            pinnedness += min(max(_get_pinnedness_recursively(
+                adjacency_mat,
+                neighbor,
+                qnode_id,
+                level + 1,
+            ), 0) + math.log(R / N), 0)
+    return pinnedness
+
+
+def get_adjacency_matrix(qgraph):
+    """Get adjacency matrix."""
+    A = defaultdict(lambda: defaultdict(bool))
+    for qnode_id, qnode in qgraph["nodes"].items():
+        ids = qnode.get("ids")
+        if ids is None:
+            num_ids = N
+        elif isinstance(ids, list):
+            num_ids = len(ids)
+        else:
+            num_ids = ids
+        A[qnode_id][qnode_id] = num_ids
+    for qedge in qgraph["edges"].values():
+        A[qedge["subject"]][qedge["object"]] = True
+        A[qedge["object"]][qedge["subject"]] = True
+    return A
