@@ -1,5 +1,6 @@
 """Simple ReasonerStdAPI server."""
 import datetime
+from strider.optimized_message_store import OptimizedMessageStore
 import uuid
 import json
 import logging
@@ -220,39 +221,29 @@ async def lookup(
         name = "me",
         redis_client=redis_client,
     )
-    kgraph = {
-        "nodes": {},
-        "edges": {},
-    }
-    results = []
+
+    store = OptimizedMessageStore()
+    store.query_graph = query_dict["message"]["query_graph"]
+
     try:
         await binder.setup(qgraph)
     except NoAnswersError:
         return {
-            "message": {
-                "query_graph": qgraph,
-                "knowledge_graph": kgraph,
-                "results": results,
-            },
+            "message": store.get_message(),
             "logs": list(RedisList(f"{qid}:log", redis_client).get()),
         }
 
     async with binder:
         async for result_kgraph, result in binder.lookup(None, use_cache=False):
-            kgraph = merge_kgraphs([
-                result_kgraph,
-                kgraph,
-            ])
-            results.append(result)
-    message = {
-        "query_graph": qgraph,
-        "knowledge_graph": kgraph,
-        "results": results,
-    }
-    collapse_sets(message)
+            store.add_message(
+                {"results" : [result], "knowledge_graph" : result_kgraph}
+            )
+
     logs = list(RedisList(f"{qid}:log", redis_client).get())
+    message = store.get_message()
+    message = collapse_sets(message)
     return {
-        "message": message,
+        "message": store.get_message(),
         "logs": logs,
     }
 
@@ -263,6 +254,8 @@ async def async_lookup(
 ):
     """Preform lookup and send results to callback url"""
     query_results = await lookup(query_dict, redis_client)
+    # Parse using pydantic to validate output
+    query_results = ReasonerResponse(**query_results).dict()
     async with httpx.AsyncClient() as client:
         await client.post(callback, json=query_results)
 
@@ -292,7 +285,7 @@ async def sync_query(
     query_results = await lookup(query_dict, redis_client)
 
     # Return results
-    return JSONResponse(query_results)
+    return query_results
 
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")
