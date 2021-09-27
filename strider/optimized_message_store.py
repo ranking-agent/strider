@@ -1,6 +1,5 @@
 """ Message store optimized for fast insertion of new messages """
 import collections
-import copy
 import hashlib
 
 from reasoner_pydantic.message import Message
@@ -34,9 +33,15 @@ def map_kg_edge_binding(r, f):
             for eb in r["edge_bindings"][qg_edge_id]
         ]
 
+def remove_null_attributes(d):
+    """ Remove attributes property from dict if it is None """
+    if d.get("attributes", []) is None:
+        del d["attributes"]
+
 def freeze_attribute(a):
     """ Freeze an attribute so that it can be hashed """
     a = frozendict(a)
+    remove_null_attributes(a)
     if "attributes" in a:
         a["attributes"] = frozenset(
             freeze_attribute(sub_a) for sub_a in a["attributes"]
@@ -64,33 +69,41 @@ def freeze_result(r):
 
 class OptimizedMessageStore():
     """ Message store optimized for fast insertion of new messages """
-    qgraph:  dict = {}
-    nodes = collections.defaultdict(
-        lambda: {"categories" : set(), "attributes" : set()}
-    )
-    edges = collections.defaultdict(
-        lambda: {"attributes" : set()}
-    )
-    results = set()
+
+    def __init__(self):
+        self.qgraph = {
+            "nodes" : {},
+            "edges" : {},
+        }
+        self.nodes = collections.defaultdict(
+            lambda: {"categories" : set(), "attributes" : set()}
+        )
+        self.edges = collections.defaultdict(
+            lambda: {"attributes" : set()}
+        )
+        self.results = set()
 
     def add_message(self, message: Message):
-        message = copy.deepcopy(message)
         for curie, node in message["knowledge_graph"]["nodes"].items():
             key = frozendict({
                 "id" : curie
             })
 
+            # Access key so it is added to the list of keys
+            self.nodes[key]
+
             # We don't really know how to merge names
             # so we just pick the first we are given
-            if "name" in node:
+            if node.get("name", None):
                 self.nodes[key]["name"] = node["name"]
 
-            if "categories" in node:
+            if node.get("categories", None):
                 self.nodes[key]["categories"].update(node["categories"])
 
             # Freeze attributes before adding so that
             # they can be deduplicated
-            if "attributes" in node:
+            remove_null_attributes(node)
+            if node.get("attributes", None):
                 self.nodes[key]["attributes"].update(
                     freeze_attribute(a) for a in node["attributes"]
                 )
@@ -106,31 +119,60 @@ class OptimizedMessageStore():
                 "predicate" : edge["predicate"],
             })
 
+            # Access key so it is added to the list of keys
+            self.edges[key]
+
             edge_id_mapping[frozendict({"id" : old_edge_id})] = key
 
             # Freeze attributes before adding so that
             # they can be deduplicated
+            remove_null_attributes(edge)
             if "attributes" in edge:
                 self.edges[key]["attributes"].update(
                     freeze_attribute(a) for a in edge["attributes"]
                 )
 
 
-        # Replace kg_edge_id with our custom key format
         for result in message["results"]:
-            map_kg_edge_binding(result, lambda eb: edge_id_mapping[frozendict(eb)])
+            # Freeze attributes
+            for qg_id in result["edge_bindings"].keys():
+                for index in range(len(result["edge_bindings"][qg_id])):
+                    remove_null_attributes(
+                        result["edge_bindings"][qg_id][index]
+                    )
+                    if "attributes" in result["edge_bindings"][qg_id][index]:
+                        result["edge_bindings"][qg_id][index]["attributes"] = \
+                            frozenset(freeze_attribute(a) for a in result["edge_bindings"][qg_id][index]["attributes"])
 
-        # kg_node_ids happen to be in the same format as our custom keys
-        # so we don't have to modify them
+            def update_edge_binding(eb):
+                """
+                Replace a TRAPI kg_edge_id of format {"id" : X}
+                with our custom format {"subject" : X, ...}
+                """
+                key = frozendict({ "id" : eb["id"] })
+                # Lookup in dict
+                new_eb = edge_id_mapping[key]
+                # Copy over attributes
+                if "attributes" in eb:
+                    new_eb["attributes"] = eb["attributes"]
+                return new_eb
 
-        # Add to set of results
-        self.results.update(
-            freeze_result(r) for r in message["results"]
-        )
+            map_kg_edge_binding(result, update_edge_binding)
+
+            # kg_node_ids happen to be in the same format as our custom keys
+            # so we don't have to modify them
+
+            # Freeze result
+            result = freeze_result(result)
+
+            # Add to set
+            self.results.add(result)
+
 
     def get_message(self) -> Message:
         """ Convert message to output format"""
         output_message = {
+            "query_graph" : self.qgraph,
             "knowledge_graph": {
                 "nodes" : {},
                 "edges" : {},
@@ -149,8 +191,7 @@ class OptimizedMessageStore():
 
         # Replace edge key in results with its hash
         for result in self.results:
-            result = copy.deepcopy(result)
-            map_kg_edge_binding(result, get_hash_digest)
+            map_kg_edge_binding(result, lambda eb: {"id" : get_hash_digest(eb)})
             output_message["results"].append(result)
 
         return output_message
