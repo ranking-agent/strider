@@ -241,18 +241,23 @@ class Synonymizer():
         prefixes: dict[str, list[str]],
         logger: logging.Logger = None,
     ) -> str:
-        """Map single CURIE."""
+        """Map a single CURIE to the list of preferred equivalent CURIES.
+
+        1. Find the most-preferred prefix for which the provided CURIE has synonyms.
+        2. Return all synonymous CURIEs that have that prefix.
+        """
         try:
             categories, identifiers = data[curie]
         except KeyError:
             return [curie]
+        # Gather the preferred prefixes for each category, deduplicating while retaining order
         prefixes = list(dict.fromkeys(
             prefix
             for category in categories
             for prefix in prefixes.get(category, [])
         ))
         if not prefixes:
-            # no preferred prefixes for these categories
+            # There are no preferred prefixes for these categories - use the prefixes that Biolink prefers
             logger.debug(
                 "[{}] Cannot not find preferred prefixes for at least one of: {}".format(
                     getattr(logger, "context", ""),
@@ -261,7 +266,7 @@ class Synonymizer():
             )
             prefixes = identifiers[0].split(":")[0]
 
-        # Find CURIEs beginning with any of prefixes
+        # Find CURIEs beginning with the most-preferred prefix
         for prefix in prefixes:
             curies = [
                 _curie
@@ -271,7 +276,7 @@ class Synonymizer():
             if curies:
                 return curies
 
-        # no preferred curie with these prefixes
+        # There is no equivalent CURIE with any of the acceptable prefixes - return the original CURIE
         logger.debug(
             "[{}] Cannot find identifier in {} with a preferred prefix in {}".format(
                 getattr(logger, "context", ""),
