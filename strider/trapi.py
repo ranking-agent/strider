@@ -445,6 +445,10 @@ async def fill_categories_predicates(
     for node in qg['nodes'].values():
         node_id = node.get('ids', None)
         if not node_id:
+            if 'biolink:Gene' in node['categories'] and 'biolink:Protein' not in node['categories']:
+                node['categories'].append('biolink:Protein')
+            if 'biolink:Protein' in node['categories'] and 'biolink:Gene' not in node['categories']:
+                node['categories'].append('biolink:Gene')
             continue
         if not isinstance(node_id, list):
             node_id = [node_id]
