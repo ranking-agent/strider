@@ -377,3 +377,69 @@ async def test_trivial_unbatching(redis):
         },
         output["message"]
     )
+    
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "kp0":
+        """
+            MONDO:0008114(( category biolink:Disease ))
+            MONDO:0008114-- predicate biolink:related_to -->MESH:C035133
+            MESH:C035133(( category biolink:Gene ))
+        """,
+        "kp1":
+        """
+            MESH:C035133(( category biolink:Gene ))
+            MESH:C035133-- predicate biolink:related_to -->HP:0007430
+            HP:0007430(( category biolink:Protein ))
+            MESH:C035133-- predicate biolink:related_to -->HP:0007431
+            HP:0007431(( category biolink:Disease ))
+        """,
+    },
+    normalizer_data="""
+        MONDO:0008114 categories biolink:Disease
+        HP:0007430 categories biolink:Protein
+        MESH:C035133 categories biolink:Gene
+        """
+)
+async def test_gene_protein_conflation(redis):
+    """Test conflation of biolink:Gene and biolink:Protein categories"""
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:0008114 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:Protein ))
+        n2(( categories[] biolink:Gene ))
+        n0-- biolink:related_to -->n1
+        n1-- biolink:related_to -->n2
+        """
+    )
+
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level" : "ERROR"
+    }
+
+    output = await lookup(q, redis)
+
+    validate_message({
+        "knowledge_graph":
+            """
+            MONDO:0008114 biolink:related_to MESH:C035133
+            MESH:C035133 biolink:related_to HP:0007430
+            """,
+        "results": [
+            """
+            node_bindings:
+                n0 MONDO:0008114
+                n1 MESH:C035133
+                n2 HP:0007430
+            edge_bindings:
+                n0n1 MONDO:0008114-MESH:C035133
+                n1n2 MESH:C035133-HP:0007430
+            """
+        ],
+    },
+        output["message"])
