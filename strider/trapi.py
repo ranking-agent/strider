@@ -449,21 +449,21 @@ async def fill_categories_predicates(
                 node['categories'].append('biolink:Protein')
             if 'biolink:Protein' in node['categories'] and 'biolink:Gene' not in node['categories']:
                 node['categories'].append('biolink:Gene')
-            continue
-        if not isinstance(node_id, list):
-            node_id = [node_id]
+        else:
+            if not isinstance(node_id, list):
+                node_id = [node_id]
 
-        # Get full list of categorys
-        categories = await normalizer.get_types(node_id)
+            # Get full list of categorys
+            categories = await normalizer.get_types(node_id)
 
-        # Remove duplicates
-        categories = list(set(categories))
+            # Remove duplicates
+            categories = list(set(categories))
 
-        if categories:
-            # Filter categorys that are ancestors of other categorys we were given
-            node['categories'] = filter_ancestor_types(categories)
-        elif "categories" not in node:
-            node["categories"] = []
+            if categories:
+                # Filter categorys that are ancestors of other categorys we were given
+                node['categories'] = filter_ancestor_types(categories)
+            elif "categories" not in node:
+                node["categories"] = []
 
 
 def build_unique_kg_edge_ids(message: Message):
