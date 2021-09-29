@@ -14,7 +14,7 @@ RUN pip install -r requirements-lock.txt
 ADD . .
 
 # set up base for command
-ENTRYPOINT ["uvicorn", "strider.server:APP"]
+ENTRYPOINT ["gunicorn", "strider.server:APP"]
 
 # default variables that can be overriden
-CMD [ "--host", "0.0.0.0", "--port", "5781" ]
+CMD [ "--bind", "0.0.0.0:5781" , "-k", "uvicorn.workers.UvicornWorker", "--workers", "17", "--threads", "3", "--worker-connections", "1000"]
