@@ -38,6 +38,26 @@ def remove_null_attributes(d):
     if d.get("attributes", []) is None:
         del d["attributes"]
 
+
+def freeze_object(o):
+    """
+    Freeze an object recursively
+
+    Assumes that all lists are unordered (convert to sets)
+    """
+    if isinstance(o, collections.abc.Mapping):
+        new_object = frozendict()
+        for k, v in o.items():
+            new_object[k] = freeze_object(v)
+    elif isinstance(o, collections.abc.Sequence) and not isinstance(o, str):
+        new_object = frozenset(
+            freeze_object(v) for v in o
+        )
+    else:
+        new_object = o
+
+    return new_object
+
 def freeze_attribute(a):
     """ Freeze an attribute so that it can be hashed """
     a = frozendict(a)
@@ -46,6 +66,9 @@ def freeze_attribute(a):
         a["attributes"] = frozenset(
             freeze_attribute(sub_a) for sub_a in a["attributes"]
         )
+    # Value can be any type, so we need to ensure it is frozen correctly
+    if "value" in a:
+        a["value"] = freeze_object(a["value"])
     return a
 
 def freeze_result(r):
@@ -137,7 +160,7 @@ class OptimizedMessageStore():
             self.edges[key]
 
             # Update mapping
-            edge_id_mapping[frozendict({"id" : old_edge_id})] = key
+            edge_id_mapping[frozendict({"id" : old_edge_id})] = key.copy()
 
             # Freeze attributes before adding so that
             # they can be deduplicated
@@ -146,7 +169,6 @@ class OptimizedMessageStore():
                 self.edges[key]["attributes"].update(
                     freeze_attribute(a) for a in edge["attributes"]
                 )
-
 
         for result in message["results"]:
             def update_edge_binding(eb):
