@@ -212,6 +212,10 @@ def get_query_graph_edge_kps(
     return kps
 
 
+N = 1_000_000  # total number of nodes
+R = 25  # number of edges per node
+
+
 def get_next_qedge(qgraph):
     """Get next qedge to solve."""
     qgraph = copy.deepcopy(qgraph)
@@ -219,7 +223,7 @@ def get_next_qedge(qgraph):
         if qnode.get("ids") is not None:
             qnode["ids"] = len(qnode["ids"])
         else:
-            qnode["ids"] = 1_000_000
+            qnode["ids"] = N
     pinnednesses = {
         qnode_id: get_pinnedness(qgraph, qnode_id)
         for qnode_id in qgraph["nodes"]
@@ -238,10 +242,6 @@ def get_next_qedge(qgraph):
     }
     qedge_id = max(edge_priorities, key=edge_priorities.get)
     return qedge_id, qgraph["edges"][qedge_id]
-
-
-N = 1000000  # total number of nodes
-R = 25  # number of edges per node
 
 
 def get_pinnedness(qgraph, qnode_id):
