@@ -394,14 +394,22 @@ async def test_trivial_unbatching(redis):
             MESH:C035133(( category biolink:Gene ))
             MESH:C035133-- predicate biolink:related_to -->HP:0007430
             HP:0007430(( category biolink:Protein ))
-            MESH:C035133-- predicate biolink:related_to -->HP:0007431
-            HP:0007431(( category biolink:Disease ))
         """,
+        "kp2":
+        """
+            HP:0007430(( category biolink:Protein ))
+            HP:0007430-- predicate biolink:related_to -->CHEBI:6801
+            CHEBI:6801(( category biolink:Disease ))
+            HGNC:6284(( category biolink:Gene ))
+            HP:0007430-- predicate biolink:related_to -->HGNC:6284
+        """
     },
     normalizer_data="""
         MONDO:0008114 categories biolink:Disease
         HP:0007430 categories biolink:Protein
         MESH:C035133 categories biolink:Gene
+        HGNC:6284 categories biolink:Gene
+        CHEBI:6801 categories biolink:Disease
         """
 )
 async def test_gene_protein_conflation(redis):
@@ -412,8 +420,10 @@ async def test_gene_protein_conflation(redis):
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Protein ))
         n2(( categories[] biolink:Gene ))
+        n3(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
+        n2-- biolink:related_to -->n3
         """
     )
 
@@ -429,6 +439,7 @@ async def test_gene_protein_conflation(redis):
             """
             MONDO:0008114 biolink:related_to MESH:C035133
             MESH:C035133 biolink:related_to HP:0007430
+            HP:0007430 biolink:related_to CHEBI:6801
             """,
         "results": [
             """
@@ -436,9 +447,11 @@ async def test_gene_protein_conflation(redis):
                 n0 MONDO:0008114
                 n1 MESH:C035133
                 n2 HP:0007430
+                n3 CHEBI:6801
             edge_bindings:
                 n0n1 MONDO:0008114-MESH:C035133
                 n1n2 MESH:C035133-HP:0007430
+                n2n3 HP:0007430-CHEBI:6801
             """
         ],
     },
