@@ -405,15 +405,18 @@ async def test_trivial_unbatching(redis):
         """
     },
     normalizer_data="""
-        MONDO:0008114 categories biolink:Disease
-        HP:0007430 categories biolink:Protein
-        MESH:C035133 categories biolink:Gene
-        HGNC:6284 categories biolink:Gene
+        MONDO:0008114 categories biolink:Gene biolink:Disease
+        HP:0007430 categories biolink:Gene
+        MESH:C035133 categories biolink:Protein
+        HGNC:6284 categories biolink:Gene biolink:Protein
         CHEBI:6801 categories biolink:Disease
         """
 )
 async def test_gene_protein_conflation(redis):
-    """Test conflation of biolink:Gene and biolink:Protein categories"""
+    """Test conflation of biolink:Gene and biolink:Protein categories.
+    e0 checks to make sure that Protein is added to Gene nodes, and e1
+    checks that Gene is added to Protein nodes. Additionally, e2 checks
+    that non-Gene and non-Protein nodes do not have either added as a category."""
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:0008114 ))
@@ -427,13 +430,16 @@ async def test_gene_protein_conflation(redis):
         """
     )
 
+    #Create query
     q = {
         "message" : {"query_graph" : QGRAPH},
         "log_level" : "ERROR"
     }
 
+    #Run query
     output = await lookup(q, redis)
 
+    #Check to see that appropriate nodes are in results
     validate_message(
         {
             "knowledge_graph":
@@ -458,3 +464,12 @@ async def test_gene_protein_conflation(redis):
         },
         output["message"]
     )
+
+    #Retrieving knowledge graph
+    kg_nodes = output["message"]["knowledge_graph"]["nodes"]
+
+    print(kg_nodes)
+
+    #Check that node normalizer has added catergories to conflated nodes
+    assert "biolink:Protein" in kg_nodes["MESH:C035133"]["categories"]
+    assert "biolink:Gene" in kg_nodes["HP:0007430"]["categories"]
