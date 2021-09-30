@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     kpregistry_url: AnyUrl = "https://kp-registry.renci.org"
     omnicorp_url: AnyUrl = "http://robokop.renci.org:3210"
     biolink_url: AnyUrl = "https://bl-lookup-sri.renci.org"
-    normalizer_url: AnyUrl = "https://nodenormalization-sri-prod.renci.org/1.1"
+    normalizer_url: AnyUrl = "https://nodenormalization-sri.renci.org/docs"
 
     redis_url: RedisDsn = "redis://localhost"
     store_results_for: timedelta = timedelta(days=7)
