@@ -10,8 +10,14 @@ class frozendict(dict):
 
     This class provides NO enforcement for mutation
     """
+    def __init__(self, *args, **kwargs):
+        self._key = None
+        super().__init__(*args, **kwargs)
     def __key(self):
-        return tuple((k,self[k]) for k in sorted(self))
+        # Use cache for key
+        if not self._key:
+            self._key =  tuple((k,self[k]) for k in sorted(self))
+        return self._key
     def __hash__(self):
         return hash(self.__key())
     def __eq__(self, other):
