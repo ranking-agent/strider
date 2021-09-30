@@ -247,20 +247,20 @@ def get_next_qedge(qgraph):
 def get_pinnedness(qgraph, qnode_id):
     """Get pinnedness of each node."""
     adjacency_mat = get_adjacency_matrix(qgraph)
-    return -_get_pinnedness_recursively(
+    return -compute_expected_n(
         adjacency_mat,
         qnode_id,
     )
 
 
-def _get_pinnedness_recursively(adjacency_mat, qnode_id, last=None, level=0):
-    """Get pinnedness of each node, recursively."""
+def compute_expected_n(adjacency_mat, qnode_id, last=None, level=0):
+    """Compute the expected number of unique knodes bound to the specified qnode in the final results."""
     pinnedness = math.log(adjacency_mat[qnode_id][qnode_id])
     if level < 10:
         for neighbor in adjacency_mat[qnode_id]:
             if neighbor in (qnode_id, last):
                 continue
-            pinnedness += min(max(_get_pinnedness_recursively(
+            pinnedness += min(max(compute_expected_n(
                 adjacency_mat,
                 neighbor,
                 qnode_id,
