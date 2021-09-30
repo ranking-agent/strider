@@ -434,25 +434,27 @@ async def test_gene_protein_conflation(redis):
 
     output = await lookup(q, redis)
 
-    validate_message({
-        "knowledge_graph":
-            """
-            MONDO:0008114 biolink:related_to MESH:C035133
-            MESH:C035133 biolink:related_to HP:0007430
-            HP:0007430 biolink:related_to CHEBI:6801
-            """,
-        "results": [
-            """
-            node_bindings:
-                n0 MONDO:0008114
-                n1 MESH:C035133
-                n2 HP:0007430
-                n3 CHEBI:6801
-            edge_bindings:
-                n0n1 MONDO:0008114-MESH:C035133
-                n1n2 MESH:C035133-HP:0007430
-                n2n3 HP:0007430-CHEBI:6801
-            """
-        ],
-    },
-        output["message"])
+    validate_message(
+        {
+            "knowledge_graph":
+                """
+                MONDO:0008114 biolink:related_to MESH:C035133
+                MESH:C035133 biolink:related_to HP:0007430
+                HP:0007430 biolink:related_to CHEBI:6801
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:0008114
+                    n1 MESH:C035133
+                    n2 HP:0007430
+                    n3 CHEBI:6801
+                edge_bindings:
+                    n0n1 MONDO:0008114-MESH:C035133
+                    n1n2 MESH:C035133-HP:0007430
+                    n2n3 HP:0007430-CHEBI:6801
+                """
+            ],
+        },
+        output["message"]
+    )
