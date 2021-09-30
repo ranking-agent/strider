@@ -3,7 +3,7 @@ import json
 import pytest
 
 from tests.helpers.utils import attribute_from_string
-from strider.optimized_message_store import OptimizedMessageStore, freeze_attribute
+from strider.optimized_message_store import OptimizedMessageStore, freeze_object
 
 def get_base_message():
     return {
@@ -24,8 +24,8 @@ ATTRIBUTE_B = attribute_from_string("""
 """)
 
 # Freeze these attributes to make it easy to compare to output
-ATTRIBUTE_A = freeze_attribute(ATTRIBUTE_A)
-ATTRIBUTE_B = freeze_attribute(ATTRIBUTE_B)
+ATTRIBUTE_A = freeze_object(ATTRIBUTE_A)
+ATTRIBUTE_B = freeze_object(ATTRIBUTE_B)
 
 def test_result_merging():
     """ Test that duplicate results are merged correctly """

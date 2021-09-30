@@ -1,6 +1,7 @@
 """ Message store optimized for fast insertion of new messages """
 import collections
 import hashlib
+import json
 
 from reasoner_pydantic.message import Message
 
@@ -23,6 +24,19 @@ class frozendict(dict):
     def __eq__(self, other):
         return self.__key() == other.__key()
 
+class CustomizableJSONDecoder(json.JSONDecoder):
+    """ JSON Decoder that allows a custom list_type """
+    def __init__(self, list_type=list,  **kwargs):
+        json.JSONDecoder.__init__(self, **kwargs)
+        # Use the custom JSONArray
+        self.parse_array = self.JSONArray
+        # Use the python implemenation of the scanner
+        self.scan_once = json.scanner.py_make_scanner(self)
+        self.list_type=list_type
+
+    def JSONArray(self, s_and_end, scan_once, **kwargs):
+        values, end = json.decoder.JSONArray(s_and_end, scan_once, **kwargs)
+        return self.list_type(values), end
 
 def get_hash_digest(o):
     """ Get the hash of an object as a human readable hex digest"""
@@ -39,74 +53,30 @@ def map_kg_edge_binding(r, f):
             for eb in r["edge_bindings"][qg_edge_id]
         ]
 
-def remove_null_attributes(d):
-    """ Remove attributes property from dict if it is None """
-    if d.get("attributes", []) is None:
-        del d["attributes"]
-
-
 def freeze_object(o):
-    """
-    Freeze an object recursively
+    """ Freeze object using json dump and loads """
 
-    Assumes that all lists are unordered (convert to sets)
-    """
-    if isinstance(o, collections.abc.Mapping):
-        new_object = frozendict()
-        for k, v in o.items():
-            new_object[k] = freeze_object(v)
-    elif isinstance(o, collections.abc.Sequence) and not isinstance(o, str):
-        new_object = frozenset(
-            freeze_object(v) for v in o
-        )
-    else:
-        new_object = o
+    def set_default(obj):
+        """
+        Dump json with support for frozenset
+        This only happens during tests
+        """
+        if isinstance(obj, frozenset) or isinstance(obj, set):
+            return list(obj)
+        raise TypeError
+    o_json = json.dumps(o, default = set_default)
 
-    return new_object
+    def remove_null_frozendict(dct):
+        """ Remove None values and convert to frozendict"""
+        not_null_iterator = {k:v for k,v in dct.items() if v != None}
+        return frozendict(not_null_iterator)
 
-def freeze_attribute(a):
-    """ Freeze an attribute so that it can be hashed """
-    a = frozendict(a)
-    remove_null_attributes(a)
-    if "attributes" in a:
-        a["attributes"] = frozenset(
-            freeze_attribute(sub_a) for sub_a in a["attributes"]
-        )
-    # Value can be any type, so we need to ensure it is frozen correctly
-    if "value" in a:
-        a["value"] = freeze_object(a["value"])
-    return a
-
-def freeze_result(r):
-    """ Freeze a result so it can be hashed"""
-    r = frozendict(r)
-    r["node_bindings"] = frozendict(r["node_bindings"])
-    r["edge_bindings"] = frozendict(r["edge_bindings"])
-
-    for qg_id in r["node_bindings"].keys():
-        r["node_bindings"][qg_id] = frozenset(
-            frozendict(nb)
-            for nb in r["node_bindings"][qg_id]
-        )
-    for qg_id in r["edge_bindings"].keys():
-        # Freeze attributes
-        for index in range(len(r["edge_bindings"][qg_id])):
-            remove_null_attributes(
-                r["edge_bindings"][qg_id][index]
-            )
-            if "attributes" in r["edge_bindings"][qg_id][index]:
-                r["edge_bindings"][qg_id][index]["attributes"] = \
-                    frozenset(
-                        freeze_attribute(a)
-                        for a in r["edge_bindings"][qg_id][index]["attributes"]
-                    )
-
-        r["edge_bindings"][qg_id] = frozenset(
-            frozendict(eb)
-            for eb in r["edge_bindings"][qg_id]
-        )
-
-    return r
+    return json.loads(
+        o_json,
+        cls = CustomizableJSONDecoder,
+        list_type = frozenset,
+        object_hook = remove_null_frozendict,
+    )
 
 
 class OptimizedMessageStore():
@@ -126,10 +96,10 @@ class OptimizedMessageStore():
         self.results = set()
 
     def add_message(self, message: Message):
+        message = freeze_object(message)
+
         for curie, node in message["knowledge_graph"]["nodes"].items():
-            key = frozendict({
-                "id" : curie
-            })
+            key = frozendict(id = curie)
 
             # Access key so it is added to the list of keys
             self.nodes[key]
@@ -143,38 +113,29 @@ class OptimizedMessageStore():
             if node.get("categories", None):
                 self.nodes[key]["categories"].update(node["categories"])
 
-            # Freeze attributes before adding so that
-            # they can be deduplicated
-            remove_null_attributes(node)
-            if "attributes" in node:
-                self.nodes[key]["attributes"].update(
-                    freeze_attribute(a) for a in node["attributes"]
-                )
-
+            # Merge attributes with set
+            if node.get("attributes", None):
+                self.nodes[key]["attributes"].update(node["attributes"])
 
         # Mapping of old to new edge IDs
         edge_id_mapping = {}
 
         for old_edge_id, edge in message["knowledge_graph"]["edges"].items():
-            key = frozendict({
-                "subject" : edge["subject"],
-                "object"  : edge["object"],
-                "predicate" : edge["predicate"],
-            })
+            key = frozendict(
+                subject = edge["subject"],
+                object  = edge["object"],
+                predicate = edge["predicate"],
+            )
 
             # Access key so it is added to the list of keys
             self.edges[key]
 
             # Update mapping
-            edge_id_mapping[frozendict({"id" : old_edge_id})] = key.copy()
+            edge_id_mapping[frozendict({"id" : old_edge_id})] = frozendict(key.copy())
 
-            # Freeze attributes before adding so that
-            # they can be deduplicated
-            remove_null_attributes(edge)
-            if "attributes" in edge:
-                self.edges[key]["attributes"].update(
-                    freeze_attribute(a) for a in edge["attributes"]
-                )
+            # Merge attributes with set
+            if edge.get("attributes", None):
+                self.edges[key]["attributes"].update(edge["attributes"])
 
         for result in message["results"]:
             def update_edge_binding(eb):
@@ -182,7 +143,7 @@ class OptimizedMessageStore():
                 Replace a TRAPI kg_edge_id of format {"id" : X}
                 with our custom format {"subject" : X, ...}
                 """
-                key = frozendict({ "id" : eb["id"] })
+                key = frozendict(id = eb["id"])
                 # Lookup in dict
                 new_eb = edge_id_mapping[key]
                 # Copy over attributes
@@ -195,9 +156,6 @@ class OptimizedMessageStore():
 
             # kg_node_ids happens to be in the same format as our custom keys
             # so we don't have to modify them
-
-            # Freeze result
-            result = freeze_result(result)
 
             # Add to set
             self.results.add(result)
@@ -221,11 +179,19 @@ class OptimizedMessageStore():
             # Add key properties to object
             edge.update(edge_key)
             # Replace edge key with its hash
+            edge_key._key = None
             output_message["knowledge_graph"]["edges"][get_hash_digest(edge_key)] = edge
+
+        def convert_to_hash_digest(eb):
+            eb._key = None
+            return frozendict(id = get_hash_digest(eb))
 
         # Replace edge key in results with its hash
         for result in self.results:
-            map_kg_edge_binding(result, lambda eb: {"id" : get_hash_digest(eb)})
+            map_kg_edge_binding(
+                result,
+                convert_to_hash_digest,
+            )
             output_message["results"].append(result)
 
         return output_message
