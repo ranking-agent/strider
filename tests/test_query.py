@@ -464,12 +464,3 @@ async def test_gene_protein_conflation(redis):
         },
         output["message"]
     )
-
-    #Retrieving knowledge graph
-    kg_nodes = output["message"]["knowledge_graph"]["nodes"]
-
-    print(kg_nodes)
-
-    #Check that node normalizer has added catergories to conflated nodes
-    assert "biolink:Protein" in kg_nodes["MESH:C035133"]["categories"]
-    assert "biolink:Gene" in kg_nodes["HP:0007430"]["categories"]
