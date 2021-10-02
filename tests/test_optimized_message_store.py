@@ -2,8 +2,11 @@ import copy
 import json
 import pytest
 
+from reasoner_pydantic import Attribute
+
 from tests.helpers.utils import attribute_from_string
-from strider.optimized_message_store import OptimizedMessageStore, freeze_object
+from strider.optimized_message_store import OptimizedMessageStore
+
 
 def get_base_message():
     return {
@@ -24,8 +27,8 @@ ATTRIBUTE_B = attribute_from_string("""
 """)
 
 # Freeze these attributes to make it easy to compare to output
-ATTRIBUTE_A = freeze_object(ATTRIBUTE_A)
-ATTRIBUTE_B = freeze_object(ATTRIBUTE_B)
+ATTRIBUTE_A = Attribute.parse_obj(ATTRIBUTE_A).frozendict(setify=True)
+ATTRIBUTE_B = Attribute.parse_obj(ATTRIBUTE_B).frozendict(setify=True)
 
 def test_result_merging():
     """ Test that duplicate results are merged correctly """
@@ -270,7 +273,7 @@ def test_merge_identical_attributes():
             "nodes": {
                 "MONDO:1": {
                     "name": "Ebola",
-                    "category": "biolink:Disease",
+                    "categories": ["biolink:Disease"],
                     "attributes": [ATTRIBUTE_A]
                 }
             },
@@ -284,7 +287,7 @@ def test_merge_identical_attributes():
             "nodes": {
                 "MONDO:1": {
                     "name": "Ebola Hemorrhagic Fever",
-                    "category": "biolink:DiseaseOrPhenotypicFeature",
+                    "categories": ["biolink:DiseaseOrPhenotypicFeature"],
                     "attributes": [ATTRIBUTE_A]
                 }
             },

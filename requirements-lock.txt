@@ -1,13 +1,18 @@
 aiofiles==0.6.0
 aiosqlite==0.16.0
 aiostream==0.4.3
+<<<<<<< HEAD
 anyio==3.3.0
 bmt-lite-2.2.5==2.2.0
+=======
+anyio==3.3.2
+bmt-lite-2.1.0==2.1.1
+>>>>>>> c37e73c (Switched to using .frozendict method)
 certifi==2021.5.30
 click==7.1.2
 fastapi==0.65.2
 h11==0.12.0
-httpcore==0.13.6
+httpcore==0.13.7
 httpx==0.18.2
 idna==3.2
 jsonpickle==1.4.2
@@ -16,7 +21,7 @@ orjson==3.6.0
 pydantic==1.8.2
 python-dotenv==0.17.0
 PyYAML==5.4
-reasoner-pydantic==1.2.0.4
+reasoner-pydantic @ git+git://github.com/TranslatorSRI/reasoner-pydantic@b4013c2027956b7d0379c304fa112f8d2896783b
 redis==3.5.3
 rfc3986==1.5.0
 sniffio==1.2.0

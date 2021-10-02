@@ -4,39 +4,7 @@ import hashlib
 import json
 
 from reasoner_pydantic.message import Message
-
-class frozendict(dict):
-    """
-    Dict class that can be used as a key (hashable)
-
-    This class provides NO enforcement for mutation
-    """
-    def __init__(self, *args, **kwargs):
-        self._key = None
-        super().__init__(*args, **kwargs)
-    def __key(self):
-        # Use cache for key
-        if not self._key:
-            self._key =  tuple((k,self[k]) for k in sorted(self))
-        return self._key
-    def __hash__(self):
-        return hash(self.__key())
-    def __eq__(self, other):
-        return self.__key() == other.__key()
-
-class CustomizableJSONDecoder(json.JSONDecoder):
-    """ JSON Decoder that allows a custom list_type """
-    def __init__(self, list_type=list,  **kwargs):
-        json.JSONDecoder.__init__(self, **kwargs)
-        # Use the custom JSONArray
-        self.parse_array = self.JSONArray
-        # Use the python implemenation of the scanner
-        self.scan_once = json.scanner.py_make_scanner(self)
-        self.list_type=list_type
-
-    def JSONArray(self, s_and_end, scan_once, **kwargs):
-        values, end = json.decoder.JSONArray(s_and_end, scan_once, **kwargs)
-        return self.list_type(values), end
+from reasoner_pydantic.base_model import FrozenDict
 
 def get_hash_digest(o):
     """ Get the hash of an object as a human readable hex digest"""
@@ -52,32 +20,6 @@ def map_kg_edge_binding(r, f):
             f(eb)
             for eb in r["edge_bindings"][qg_edge_id]
         ]
-
-def freeze_object(o):
-    """ Freeze object using json dump and loads """
-
-    def set_default(obj):
-        """
-        Dump json with support for frozenset
-        This only happens during tests
-        """
-        if isinstance(obj, frozenset) or isinstance(obj, set):
-            return list(obj)
-        raise TypeError
-    o_json = json.dumps(o, default = set_default)
-
-    def remove_null_frozendict(dct):
-        """ Remove None values and convert to frozendict"""
-        not_null_iterator = {k:v for k,v in dct.items() if v != None}
-        return frozendict(not_null_iterator)
-
-    return json.loads(
-        o_json,
-        cls = CustomizableJSONDecoder,
-        list_type = frozenset,
-        object_hook = remove_null_frozendict,
-    )
-
 
 class OptimizedMessageStore():
     """ Message store optimized for fast insertion of new messages """
@@ -96,10 +38,11 @@ class OptimizedMessageStore():
         self.results = set()
 
     def add_message(self, message: Message):
-        message = freeze_object(message)
+        # Freeze message
+        message = Message.parse_obj(message).frozendict(setify = True)
 
         for curie, node in message["knowledge_graph"]["nodes"].items():
-            key = frozendict(id = curie)
+            key = FrozenDict(id = curie)
 
             # Access key so it is added to the list of keys
             self.nodes[key]
@@ -121,7 +64,7 @@ class OptimizedMessageStore():
         edge_id_mapping = {}
 
         for old_edge_id, edge in message["knowledge_graph"]["edges"].items():
-            key = frozendict(
+            key = FrozenDict(
                 subject = edge["subject"],
                 object  = edge["object"],
                 predicate = edge["predicate"],
@@ -131,7 +74,7 @@ class OptimizedMessageStore():
             self.edges[key]
 
             # Update mapping
-            edge_id_mapping[frozendict({"id" : old_edge_id})] = frozendict(key.copy())
+            edge_id_mapping[FrozenDict({"id" : old_edge_id})] = FrozenDict(key.copy())
 
             # Merge attributes with set
             if edge.get("attributes", None):
@@ -143,11 +86,11 @@ class OptimizedMessageStore():
                 Replace a TRAPI kg_edge_id of format {"id" : X}
                 with our custom format {"subject" : X, ...}
                 """
-                key = frozendict(id = eb["id"])
+                key = FrozenDict(id = eb["id"])
                 # Lookup in dict
                 new_eb = edge_id_mapping[key]
                 # Copy over attributes
-                if "attributes" in eb:
+                if eb.get("attributes", None):
                     new_eb["attributes"] = eb["attributes"]
                 return new_eb
 
@@ -184,7 +127,7 @@ class OptimizedMessageStore():
 
         def convert_to_hash_digest(eb):
             eb._key = None
-            return frozendict(id = get_hash_digest(eb))
+            return FrozenDict(id = get_hash_digest(eb))
 
         # Replace edge key in results with its hash
         for result in self.results:
