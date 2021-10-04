@@ -9,6 +9,8 @@ def collapse_sets(message: dict) -> None:
         for qnode_id, qnode in message["query_graph"]["nodes"].items()
         if not qnode.get("is_set", False)
     }
+    if len(unique_qnodes) == len(message["query_graph"]["nodes"]):
+        return
     unique_qedges = {
         qedge_id
         for qedge_id, qedge in message["query_graph"]["edges"].items()
