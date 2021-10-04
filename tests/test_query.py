@@ -377,7 +377,8 @@ async def test_trivial_unbatching(redis):
         },
         output["message"]
     )
-    
+
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -464,3 +465,57 @@ async def test_gene_protein_conflation(redis):
         },
         output["message"]
     )
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd":
+        """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0003757(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0003757
+        """,
+        "pharos":
+        """
+            MONDO:0003757(( category biolink:Disease ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:XXX(( category biolink:PhenotypicFeature ))
+            HP:YYY(( category biolink:PhenotypicFeature ))
+            MONDO:0003757-- predicate biolink:has_phenotype -->HP:XXX
+            MONDO:0003757-- predicate biolink:has_phenotype -->HP:YYY
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:YYY
+        """,
+    }
+)
+async def test_node_set(redis):
+    """Test that is_set is handled correctly."""
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
+    QGRAPH["nodes"]["n1"]["is_set"] = True
+
+    # Create query
+    q = {
+        "message" : {"query_graph" : QGRAPH},
+        "log_level" : "WARNING",
+    }
+
+    # Run
+    output = await lookup(q, redis)
+    assert len(output["message"]["results"]) == 2
+    assert {
+        len(result["node_bindings"]["n1"])
+        for result in output["message"]["results"]
+    } == {1, 2}
