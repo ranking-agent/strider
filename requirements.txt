@@ -13,6 +13,6 @@ uvicorn==0.13.4
 jsonpickle==1.4.2
 python-dotenv==0.17.0
 fastapi==0.65.2
-reasoner-pydantic@git+git://github.com/TranslatorSRI/reasoner-pydantic@b4013c2
+reasoner-pydantic@git+git://github.com/TranslatorSRI/reasoner-pydantic@616854f
 orjson==3.6.0
 yappi==1.3.2

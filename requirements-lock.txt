@@ -21,7 +21,7 @@ orjson==3.6.0
 pydantic==1.8.2
 python-dotenv==0.17.0
 PyYAML==5.4
-reasoner-pydantic @ git+git://github.com/TranslatorSRI/reasoner-pydantic@b4013c2027956b7d0379c304fa112f8d2896783b
+reasoner-pydantic @ git+git://github.com/TranslatorSRI/reasoner-pydantic@616854fca23223ce3e3f42d752b7dcbf58091042
 redis==3.5.3
 rfc3986==1.5.0
 sniffio==1.2.0
