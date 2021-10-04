@@ -21,6 +21,7 @@ from starlette.responses import HTMLResponse, Response
 from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse
 
 from .fetcher import Binder
+from .node_sets import collapse_sets
 from .query_planner import NoAnswersError, generate_plan
 from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
@@ -243,13 +244,15 @@ async def lookup(
                 kgraph,
             ])
             results.append(result)
+    message = {
+        "query_graph": qgraph,
+        "knowledge_graph": kgraph,
+        "results": results,
+    }
+    collapse_sets(message)
     logs = list(RedisList(f"{qid}:log", redis_client).get())
     return {
-        "message": {
-            "query_graph": qgraph,
-            "knowledge_graph": kgraph,
-            "results": results,
-        },
+        "message": message,
         "logs": logs,
     }
 
