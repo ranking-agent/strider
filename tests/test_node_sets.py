@@ -10,7 +10,10 @@ def test_node_sets():
             "n1": {"is_set": True}
         },
         "edges": {
-            "e01": {},
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+            },
         },
     }
     results = [

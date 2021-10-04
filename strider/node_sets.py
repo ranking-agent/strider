@@ -9,16 +9,28 @@ def collapse_sets(message: dict) -> None:
         for qnode_id, qnode in message["query_graph"]["nodes"].items()
         if not qnode.get("is_set", False)
     }
+    unique_qedges = {
+        qedge_id
+        for qedge_id, qedge in message["query_graph"]["edges"].items()
+        if (
+            qedge["subject"] in unique_qnodes
+            and qedge["object"] in unique_qnodes
+        )
+    }
     result_buckets = defaultdict(lambda: {
         "node_bindings": defaultdict(set),
         "edge_bindings": defaultdict(set),
     })
     for result in message["results"]:
-        bucket_key = tuple(
+        bucket_key = tuple([
             binding["id"]
             for qnode_id in unique_qnodes
             for binding in result["node_bindings"][qnode_id]
-        )
+        ] + [
+            binding["id"]
+            for qedge_id in unique_qedges
+            for binding in result["edge_bindings"][qedge_id]
+        ])
         for qnode_id in message["query_graph"]["nodes"]:
             result_buckets[bucket_key]["node_bindings"][qnode_id] |= {
                 binding["id"]
