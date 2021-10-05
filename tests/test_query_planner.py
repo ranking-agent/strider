@@ -537,3 +537,52 @@ def test_get_next_qedge():
     }
     qedge_id, _ = get_next_qedge(qgraph)
     assert qedge_id == "e12"
+
+
+def test_get_next_qedge_with_self_edge():
+    """Test get_next_qedge() with a self edge."""
+    qgraph = {
+        "nodes": {
+            "n0": {"ids": ["01", "02"]},
+            "n1": {},
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+            },
+            "e00": {
+                "subject": "n0",
+                "object": "n0",
+            },
+        },
+    }
+    qedge_id, _ = get_next_qedge(qgraph)
+    assert qedge_id == "e00"
+
+
+def test_get_next_qedge_multi_edges():
+    """Test get_next_qedge() with multiple edges between two nodes."""
+    qgraph = {
+        "nodes": {
+            "n0": {"ids": ["01", "02"]},
+            "n1": {},
+            "n2": {"ids": ["03"]},
+        },
+        "edges": {
+            "e01": {
+                "subject": "n0",
+                "object": "n1",
+            },
+            "e12": {
+                "subject": "n1",
+                "object": "n2",
+            },
+            "e012": {
+                "subject": "n0",
+                "object": "n1",
+            },
+        },
+    }
+    qedge_id, _ = get_next_qedge(qgraph)
+    assert qedge_id == "e01"
