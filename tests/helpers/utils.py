@@ -1,9 +1,17 @@
 from collections import defaultdict
+import inspect
 import itertools
 import time
 import json
+import random
 import re
-import inspect
+import string
+
+from reasoner_pydantic.message import Message
+from reasoner_pydantic.results import NodeBinding, EdgeBinding, Result
+from reasoner_pydantic.qgraph import QueryGraph
+from reasoner_pydantic.kgraph import Edge, KnowledgeGraph, Node
+
 from strider.util import WBMT
 
 
@@ -54,6 +62,114 @@ def generate_kps(qty):
     )
 
     return {str(i): kp for i, kp in zip(range(qty), kp_generator)}
+
+
+def generate_message(spec) -> Message:
+    """
+    Generate a message using a specification. Example for the specification format:
+
+    {
+        "knowledge_graph" : {
+            "nodes" : {
+                "count" : 100,
+                "attributes" : {
+                    "count" : 100,
+                    "value_type" : fn
+                },
+                "categories_count" : 1
+            },
+            "edges" : {
+                "count" : 100,
+                "attributes" : {
+                    "count" : 100,
+                    "generator" : fn
+                }
+            }
+        },
+        "results" : {
+            "count" : 100,
+            "node_bindings" : {
+                "count_per_node" : 1
+            },
+            "edge_bindings" : {
+                "count_per_edge" : 1,
+                "attributes" : {
+                    "count" : 100,
+                    "generator" : fn
+                }
+            }
+        }
+    }
+    """
+
+    get_random = lambda: "".join(random.choice(string.ascii_letters) for _ in range(10))
+
+    kg_node_ids = [
+       f"biolink:{get_random()}"
+       for _ in range(spec["knowledge_graph"]["nodes"]["count"])
+    ]
+    kg_edge_ids = [
+       get_random()
+       for _ in range(spec["knowledge_graph"]["nodes"]["count"])
+    ]
+
+    return Message(
+        query_graph = QueryGraph(nodes = {}, edges = {}),
+        knowledge_graph = KnowledgeGraph(
+            nodes = {
+                kgnid : Node(
+                    attributes = list(itertools.islice(
+                        spec["knowledge_graph"]["nodes"]["attributes"]["generator"],
+                        spec["knowledge_graph"]["nodes"]["attributes"]["count"],
+                    )),
+                    categories = [
+                        f"biolink:Category{get_random()}"
+                        for _ in range(spec["knowledge_graph"]["nodes"]["categories_count"])
+                    ],
+                )
+                for kgnid in kg_node_ids
+            },
+            edges = {
+                kgeid : Edge(
+                    attributes = list(itertools.islice(
+                        spec["knowledge_graph"]["edges"]["attributes"]["generator"],
+                        spec["knowledge_graph"]["edges"]["attributes"]["count"],
+                    )),
+                    subject = random.choice(kg_node_ids),
+                    predicate = f"biolink:{get_random().lower()}",
+                    object = random.choice(kg_node_ids),
+                )
+                for kgeid in kg_edge_ids
+            },
+        ),
+        results = [
+            Result(
+                node_bindings = {
+                    f"QGraphNode:{get_random()}" : [
+                        NodeBinding(
+                            id = kgnid
+                        )
+                        for _ in range(spec["results"]["node_bindings"]["count_per_node"])
+                    ]
+                    for kgnid in kg_node_ids
+                },
+                edge_bindings = {
+                    f"QGraphEdge:{get_random()}" : [
+                        EdgeBinding(
+                            id = kgeid,
+                            attributes = list(itertools.islice(
+                                spec["results"]["edge_bindings"]["attributes"]["generator"],
+                                spec["results"]["edge_bindings"]["attributes"]["count"],
+                            )),
+                        )
+                        for _ in range(spec["results"]["edge_bindings"]["count_per_edge"])
+                    ]
+                    for kgeid in kg_edge_ids
+                },
+            )
+            for _ in range(spec["results"]["count"])
+        ],
+    )
 
 
 def query_graph_from_string(s):

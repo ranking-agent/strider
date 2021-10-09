@@ -58,7 +58,7 @@ def benchmark_parameterized(
         for p in parameter_generator
     )
 
-    pool = multiprocessing.Pool(8)
+    pool = multiprocessing.Pool()
 
     # tqdm shows a progress bar
     return pool.starmap(
@@ -78,8 +78,8 @@ def find_polynomial_coefficients(results):
     so that we can determine the complexity class
     """
 
-    param_names = results[0].keys()
-    del param_names["time"]
+    param_names = set(results[0].keys())
+    param_names.remove("time")
 
     results_df = pandas.DataFrame(results)
 
@@ -98,7 +98,7 @@ def find_polynomial_coefficients(results):
     clf.fit(X_, Y)
 
     # Load coefficients so we can display them
-    coef_df = pandas.DataFrame(clf.coef_.reshape((len(poly_degrees), len(params))))
+    coef_df = pandas.DataFrame(clf.coef_.reshape((len(poly_degrees), len(param_names))))
 
     # Label axes
     coef_df = coef_df.set_axis(
