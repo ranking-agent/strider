@@ -8,6 +8,7 @@ import re
 import string
 
 from reasoner_pydantic.message import Message
+from reasoner_pydantic.shared import Attribute, SubAttribute
 from reasoner_pydantic.results import NodeBinding, EdgeBinding, Result
 from reasoner_pydantic.qgraph import QueryGraph
 from reasoner_pydantic.kgraph import Edge, KnowledgeGraph, Node
@@ -63,6 +64,43 @@ def generate_kps(qty):
 
     return {str(i): kp for i, kp in zip(range(qty), kp_generator)}
 
+def generate_attribute(spec, get_random):
+    """
+    Generate an attribute using a specification. Example for the specification format:
+    {
+       "subattribute_count" : 5,
+       "value_type" : "list",
+       "value_count" : 10,
+    }
+
+    Value types can be any of list, dict, string
+    """
+    if spec["value_type"] == "list":
+        value = [get_random() for _ in range(spec["value_count"])]
+    elif spec["value_type"] == "dict":
+        value = {
+            get_random():get_random() for _ in range(spec["value_count"])
+        }
+    elif spec["value_type"] == "string":
+        value = get_random()
+
+    subattribute_count = spec.pop("subattribute_count", None)
+
+    if subattribute_count != None:
+        return Attribute(
+            attribute_type_id = f"biolink:{get_random().lower()}",
+            value = value,
+            attributes = [
+                generate_attribute(spec, get_random)
+                for _ in range(subattribute_count)
+            ]
+        )
+    else:
+        return SubAttribute(
+            attribute_type_id = f"biolink:{get_random().lower()}",
+            value = value,
+        )
+
 
 def generate_message(spec) -> Message:
     """
@@ -74,7 +112,11 @@ def generate_message(spec) -> Message:
                 "count" : 100,
                 "attributes" : {
                     "count" : 100,
-                    "value_type" : fn
+                    "spec": {
+                        "subattribute_count": 5,
+                        "value_type": "list",
+                        "value_count": 10
+                    }
                 },
                 "categories_count" : 1
             },
@@ -82,7 +124,11 @@ def generate_message(spec) -> Message:
                 "count" : 100,
                 "attributes" : {
                     "count" : 100,
-                    "generator" : fn
+                    "spec": {
+                        "subattribute_count": 5,
+                        "value_type": "dict",
+                        "value_count": 10
+                    }
                 }
             }
         },
@@ -95,7 +141,10 @@ def generate_message(spec) -> Message:
                 "count_per_edge" : 1,
                 "attributes" : {
                     "count" : 100,
-                    "generator" : fn
+                    "spec": {
+                        "subattribute_count": 5,
+                        "value_type": "string"
+                    }
                 }
             }
         }
@@ -118,10 +167,14 @@ def generate_message(spec) -> Message:
         knowledge_graph = KnowledgeGraph(
             nodes = {
                 kgnid : Node(
-                    attributes = list(itertools.islice(
-                        spec["knowledge_graph"]["nodes"]["attributes"]["generator"],
-                        spec["knowledge_graph"]["nodes"]["attributes"]["count"],
-                    )),
+                    attributes = [
+                        generate_attribute(
+                            spec["knowledge_graph"]["nodes"]["attributes"]["spec"],
+                            get_random)
+                        for _ in range(
+                            spec["knowledge_graph"]["nodes"]["attributes"]["count"]
+                        )
+                    ],
                     categories = [
                         f"biolink:Category{get_random()}"
                         for _ in range(spec["knowledge_graph"]["nodes"]["categories_count"])
@@ -131,10 +184,14 @@ def generate_message(spec) -> Message:
             },
             edges = {
                 kgeid : Edge(
-                    attributes = list(itertools.islice(
-                        spec["knowledge_graph"]["edges"]["attributes"]["generator"],
-                        spec["knowledge_graph"]["edges"]["attributes"]["count"],
-                    )),
+                    attributes = [
+                        generate_attribute(
+                            spec["knowledge_graph"]["edges"]["attributes"]["spec"],
+                            get_random)
+                        for _ in range(
+                            spec["knowledge_graph"]["edges"]["attributes"]["count"]
+                        )
+                    ],
                     subject = random.choice(kg_node_ids),
                     predicate = f"biolink:{get_random().lower()}",
                     object = random.choice(kg_node_ids),
@@ -157,10 +214,14 @@ def generate_message(spec) -> Message:
                     f"QGraphEdge:{get_random()}" : [
                         EdgeBinding(
                             id = kgeid,
-                            attributes = list(itertools.islice(
-                                spec["results"]["edge_bindings"]["attributes"]["generator"],
-                                spec["results"]["edge_bindings"]["attributes"]["count"],
-                            )),
+                            attributes = [
+                                generate_attribute(
+                                    spec["results"]["edge_bindings"]["attributes"]["spec"],
+                                    get_random)
+                                for _ in range(
+                                    spec["results"]["edge_bindings"]["attributes"]["count"],
+                                )
+                            ],
                         )
                         for _ in range(spec["results"]["edge_bindings"]["count_per_edge"])
                     ]

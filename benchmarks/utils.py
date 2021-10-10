@@ -25,7 +25,7 @@ def benchmark_parameterized(
         fn,
         parameters,
         iterations = 100,
-        repitions = 1,
+        repititions = 1,
 ):
     """
     Run benchmark on a specified function with specified parameters.
@@ -54,7 +54,7 @@ def benchmark_parameterized(
 
     # Generator that includes parameters and function under test
     time_function_generator = (
-        (fn, p, repitions)
+        (fn, p, repititions)
         for p in parameter_generator
     )
 
