@@ -2,6 +2,7 @@ import itertools
 import random
 import time
 
+import matplotlib.pyplot as plt
 import seaborn
 from reasoner_pydantic.shared import Attribute
 
@@ -96,6 +97,7 @@ poly_coef = find_polynomial_coefficients(results)
 
 # Create heat map and output
 seaborn.set_theme()
-plot = seaborn.heatmap(poly_coef, annot=True)
-plot.figure.tight_layout()
-plot.figure.savefig('report.png')
+fig, ax = plt.subplots(figsize=(10,10)) # Figsize in inches
+plot = seaborn.heatmap(poly_coef, annot=True, ax=ax)
+fig.tight_layout()
+fig.savefig('report.png')
