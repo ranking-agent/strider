@@ -195,6 +195,7 @@ class ThrottledServer():
                 ))
                 self.logger.context = self.id
                 merged_request_value = await self.preproc(merged_request_value, self.logger)
+                merged_request_value["submitter"] = "infores:aragorn"
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         self.url,
