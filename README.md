@@ -7,7 +7,7 @@ This service accepts a biomedical question as a [Translator reasoner standard me
 
 ## Demonstration
 
-A live version of the API can be found [here](http://robokop.renci.org:5781/docs).
+A live version of the API can be found [here](https://strider.renci.org/1.2/docs).
 
 ## Local Development
 
