@@ -5,13 +5,13 @@ services:
   kp-registry:
     image: ghcr.io/ranking-agent/kp-registry:v2.2.0
     volumes:
-      - ./data:/home/murphy/data
+      - ./data:/app/data
     ports:
       - '4983:4983'
   # Set up reloading using volume mounts
   strider:
     volumes:
-      - ./:/home/murphy
+      - ./:/app
     command: --host 0.0.0.0 --port 5781 --reload
     environment:
       KPREGISTRY_URL: http://kp-registry:4983
