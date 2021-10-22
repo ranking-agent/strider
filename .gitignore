@@ -4,6 +4,7 @@ __pycache__/
 .vscode/
 .vim/
 venv/
+.venv/
 .DS_Store
 *.egg-info/
 *.db
@@ -13,3 +14,4 @@ logs/*
 .env
 *.log
 data/
+.dir-locals.el
