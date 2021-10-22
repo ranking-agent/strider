@@ -37,6 +37,20 @@ def test(extra_args):
     run_command(command + extra_args)
 
 
+def benchmark(extra_args):
+    """
+    This command runs benchmarks within docker
+    and displays them
+    """
+    command = """\
+    docker rm strider-testing || true
+    docker build -t strider-testing \
+                 -f Dockerfile.test .
+    docker run --name strider-testing strider-testing \
+            python -m benchmarks {extra_args}
+    """
+    run_command(command + extra_args)
+
 def coverage(extra_args):
     """
     Run tests in docker, copy out a coverage report,
