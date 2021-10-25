@@ -222,7 +222,7 @@ async def lookup(
     )
 
     store = OptimizedMessageStore()
-    store.query_graph = query_dict["message"]["query_graph"]
+    store.qgraph = query_dict["message"]["query_graph"]
 
     try:
         await binder.setup(qgraph)
@@ -240,9 +240,9 @@ async def lookup(
 
     logs = list(RedisList(f"{qid}:log", redis_client).get())
     message = store.get_message()
-    message = collapse_sets(message)
+    collapse_sets(message)
     return {
-        "message": store.get_message(),
+        "message": message,
         "logs": logs,
     }
 
