@@ -1,20 +1,21 @@
 aiofiles==0.6.0
 aiosqlite==0.16.0
 aiostream==0.4.3
-anyio==3.3.0
+anyio==3.3.4
 asgiar==0.2.0
 attrs==21.2.0
 binder @ git+git://github.com/TranslatorSRI/binder@975fc6b651fc1058e905d4ed879c5af81c76c54c
+bmt-lite-2.1.0==2.2.0
 bmt-lite-2.2.5==2.2.0
-certifi==2021.5.30
+certifi==2021.10.8
 click==7.1.2
-coverage==5.5
+coverage==6.0.2
 fakeredis==1.5.0
 fastapi==0.65.2
 h11==0.12.0
-httpcore==0.13.6
+httpcore==0.13.7
 httpx==0.18.2
-idna==3.2
+idna==3.3
 iniconfig==1.1.1
 jsonpickle==1.4.2
 kp-registry @ git+git://github.com/ranking-agent/kp_registry@f55bde83e3c3c0921d8c724a6c5dd55341a2bf4a
@@ -24,7 +25,7 @@ packaging==21.0
 pluggy==0.13.1
 py==1.10.0
 pydantic==1.8.2
-pyparsing==2.4.7
+pyparsing==3.0.2
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1
