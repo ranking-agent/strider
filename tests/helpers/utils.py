@@ -79,7 +79,7 @@ def generate_attribute(spec, get_random):
         value = [get_random() for _ in range(spec["value_count"])]
     elif spec["value_type"] == "dict":
         value = {
-            get_random():get_random() for _ in range(spec["value_count"])
+            get_random(): get_random() for _ in range(spec["value_count"])
         }
     elif spec["value_type"] == "string":
         value = get_random()
@@ -233,6 +233,7 @@ def generate_message(spec) -> Message:
             for _ in range(spec["results"]["count"])
         ],
     )
+
 
 def generate_message_parameterized(
         kg_node_count,
