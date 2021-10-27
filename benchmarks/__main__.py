@@ -3,9 +3,10 @@ import time
 
 from texttable import Texttable
 from tqdm import tqdm
+from reasoner_pydantic import Message
 
+from strider.optimized_message_store import OptimizedMessageStore
 from tests.helpers.utils import generate_message_parameterized
-from strider.trapi import merge_messages
 
 benchmarks = [
     {
@@ -63,21 +64,16 @@ for b in benchmarks:
 
     start = time.time()
 
-    combined_msg = {
-        "query_graph" : {"nodes" : {}, "edges" : {}},
-        "knowledge_graph" : {"nodes" : {}, "edges" : {}},
-        "results" : []
-    }
-
     print(f"Running benchmark {b['name']}")
+    store = OptimizedMessageStore()
     for m in tqdm(input_messages):
-        combined_msg = merge_messages([combined_msg, m])
+        store.add_message(m)
 
     end = time.time()
 
     # Compute file size
     print("Computing final message size, this may take a while...")
-    output_file_size = len(json.dumps(combined_msg).encode('utf-8'))
+    output_file_size = len(Message.parse_obj(store.get_message()).json().encode('utf-8'))
 
     table.add_row([b["name"], f"{output_file_size/1e6}", f"{end - start:.2f}"])
 
