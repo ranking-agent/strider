@@ -38,7 +38,6 @@ six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.4.0
 starlette==0.14.2
-texttable==1.6.4
 toml==0.10.2
 tqdm==4.62.3
 typing-extensions==3.10.0.2
