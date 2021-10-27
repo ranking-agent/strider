@@ -7,11 +7,14 @@ from tqdm import tqdm
 from tests.helpers.utils import generate_message_parameterized
 from strider.trapi import merge_messages
 
+RANDOM_SEED = 42
+
 benchmarks = [
     {
         "name": "1k Results - Small",
         "msg_count": 1000,
         "params" : {
+            "random_seed" : RANDOM_SEED,
             "kg_node_count": 5,
             "kg_node_categories_count": 5,
             "kg_edge_count": 5,
@@ -26,6 +29,7 @@ benchmarks = [
         "name": "100 Results - Large",
         "msg_count": 100,
         "params" : {
+            "random_seed" : RANDOM_SEED,
             "kg_node_count": 100,
             "kg_edge_count": 200,
             "kg_node_categories_count": 5,
@@ -40,6 +44,7 @@ benchmarks = [
         "name": "1k Results - Attribute Heavy",
         "msg_count": 1000,
         "params" : {
+            "random_seed" : RANDOM_SEED,
             "kg_node_count": 5,
             "kg_node_categories_count": 5,
             "kg_edge_count": 5,
@@ -74,6 +79,8 @@ for b in benchmarks:
         combined_msg = merge_messages([combined_msg, m])
 
     end = time.time()
+
+    print(list(combined_msg["knowledge_graph"]["nodes"].values())[0])
 
     # Compute file size
     print("Computing final message size, this may take a while...")

@@ -107,6 +107,7 @@ def generate_message(spec) -> Message:
     Generate a message using a specification. Example for the specification format:
 
     {
+        "random_seed" : 4,
         "knowledge_graph" : {
             "nodes" : {
                 "count" : 100,
@@ -151,7 +152,8 @@ def generate_message(spec) -> Message:
     }
     """
 
-    get_random = lambda: "".join(random.choice(string.ascii_letters) for _ in range(10))
+    randomInstance = random.Random(spec.get("random_seed", None))
+    get_random = lambda: "".join(randomInstance.choice(string.ascii_letters) for _ in range(10))
 
     kg_node_ids = [
        f"biolink:{get_random()}"
@@ -243,6 +245,8 @@ def generate_message_parameterized(
 
         attribute_value_size,
         attribute_subattribute_count,
+
+        random_seed = None,
 ) -> Message:
     """
     generate_message wrapper that creates
@@ -256,6 +260,7 @@ def generate_message_parameterized(
     }
 
     return generate_message({
+        "random_seed" : random_seed,
         "knowledge_graph" : {
             "nodes" : {
                 "count" : kg_node_count,
