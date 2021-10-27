@@ -1,7 +1,6 @@
 import json
 import time
 
-from texttable import Texttable
 from tqdm import tqdm
 
 from tests.helpers.utils import generate_message_parameterized
@@ -57,8 +56,10 @@ benchmarks = [
     },
 ]
 
-table = Texttable()
-table.add_row(["Benchmark Name", "Output Size (MB)", "Total Time (s)"])
+table = "\n\n"
+
+table += "          Benchmark Name            |  Output Size (MB)  |  Total Time (s)\n"
+table += "--------------------------------------------------------------------------\n"
 
 for b in benchmarks:
     input_messages = [
@@ -80,12 +81,10 @@ for b in benchmarks:
 
     end = time.time()
 
-    print(list(combined_msg["knowledge_graph"]["nodes"].values())[0])
-
     # Compute file size
     print("Computing final message size, this may take a while...")
     output_file_size = len(json.dumps(combined_msg).encode('utf-8'))
 
-    table.add_row([b["name"], f"{output_file_size/1e6}", f"{end - start:.2f}"])
+    table += f"  {b['name'].center(32)}  |  {output_file_size/1e6:16}  |  {end - start:14.2f}\n"
 
-print(table.draw())
+print(table)
