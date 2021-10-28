@@ -1,0 +1,100 @@
+# Strider Architecture
+
+## Entrypoints
+
+* `/query` (`server.py`) - synchronous TRAPI endpoint
+  Does a little [workflow]() stuff, but mostly calls `lookup()`
+* `/asyncquery` (`server.py`) - asynchronous TRAPI endpoint
+  1. Returns immediately
+  2. Calls `lookup()`
+  3. POSTs response to callback url
+
+## Modules
+
+* `fetcher.py` handles the coordination of one-hop subqueries to answer an arbitrary graph query.
+* `constraints.py` handles evaluating and enforcing qnode/qedge constraints.
+* `trapi_throttle` handles batching and throttling requests to KPs
+  * `trapi.py` contains utilities for exploring and manipulating TRAPI messages
+  * `throttle.py` handles batching and throttling request to KPs
+* `compatibility.py` handles CURIE mapping and the handoff between `fetcher` and `trapi_throttle`
+* `caching.py` contains some caching utilities - primarily decorators for applying a cache or a locking cache to an asynchronous function
+* `config.py` defines Strider settings using [Pydantic settings management](https://pydantic-docs.helpmanual.io/usage/settings/)
+* `graph.py` defines a dict extension with a couple of useful utilities for exploring TRAPI-style graphs
+* `kp_registry.py` defines a Python client for the KP registry service: https://github.com/ranking-agent/kp-registry, https://kp-registry.renci.org/docs
+* `normalizer.py` defines a Python client for the node normalizer service: https://github.com/TranslatorSRI/NodeNormalization, https://nodenormalization-sri.renci.org/docs
+* `profiler.py` handles request profiler
+* `query_planner.py` contains tools for planning query graph traversals
+* `results.py` **probably obsolete**
+* `scoring.py` **probably obsolete**
+* `server.py` builds the [FastAPI](https://fastapi.tiangolo.com/) server and endpoints
+* `storage.py` defines interfaces for accessing and manipulating Redis storage
+* `trapi_openapi.py` defines the TRAPI subclass of FastAPI to add the common TRAPI elements to the OpenAPI schema
+* `trapi.py` defines utilities for TRAPI messages, including normalizing and merging
+* `traversal.py` **probably obsolete**
+* `util.py` :\ a whole bunch of random stuff, some of it important
+
+## Important functions
+
+* `Binder.lookup(qgraph)` (`fetcher.py`) generates (subkgraph, subresult) pairs
+  1. Gets the next qedge to traverse and generates the correponding a one-hop query.
+  2. Passes it to each KP that can solve (`generate_from_kp()`).
+
+* `Binder.generate_from_kp(qgraph, onehop_qgraph, kp)` (`fetcher.py`) generates (subkgraph, subresult) pairs
+  1. Sends one-hop query to KP. Enforces any qnode/qedge constraints afterwards.
+  2. Constructs new qgraph from original by removing the traversed qedge.
+  3. Separates results into batches of size at most X (now 1 million).
+  4. Passes each batch to `generate_from_results()` along with a result map/function that points back to linked subresults.
+
+* `Binder.generate_from_results(qgraph, get_results)` (`fetcher.py`) generates (subkgraph, subresult) pairs
+  1. Calls `lookup(qgraph)` and stitches the results with back-linked subresults from `get_results()`.
+
+`lookup()`, `generate_from_kp()`, and `generate_from_results` form a recursion such that qgraphs can be solved by extracting one-hop sub-queries and joining the results with the solution to the remainder.
+To stitch the sub-results together, we have separated them out, even though every 3rd-party (KP) call works on batches of such one-hop bits.
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                                                                             │
+│                                                                                             │
+│    ┌──────────┐            ┌────────────────────┐            ┌────────────────────────┐     │
+│    │          │  fanout    │                    ├┐  fanout   │                        ├┐    │
+└───►│  lookup  ├───────────►│  generate_from_kp  │┼──────────►│  generate_from_result  │┼────┘
+     │          │            │                    ││           │                        ││
+     └──────────┘            └┬───────────────────┘│           └┬───────────────────────┘│
+                              └────────────────────┘            └────────────────────────┘
+
+                                      x KPs                              x results
+```
+* `ThrottledServer.process_batch()` (`trapi_throttle/throttle.py`) iteratively reads from an input request queue and writes to the appropriate request queues
+  1. Receives a number of requests
+  2. Identifies a subset of the available requests that are merge-able, re-queues the rest
+  3. Constructs batched request
+  4. Preprocesses request (mapping CURIES, mostly)
+  5. Sends request
+  6. Re-queues sub-requests if server rejects due to rate limiting (status 429)
+  7. Validates w.r.t. TRAPI and post-processes response (normalizing CURIEs, mostly)
+  8. Splits (un-batches) response into provided response queues
+
+* `ThrottledServer.query(qgraph)` (`trapi_throttle/throttle.py`) returns a TRAPI response
+  This provides a synchronous interface to throttling/batching (via `process_batch()`).
+
+A `ThrottledServer` is set up upon query initiation for each KP, and manages throttling and batching for that KP for the query lifetime.
+
+* `Synonymizer.map_curie(curie, prefixes)` returns a list of mapped CURIEs according to the preferred identifier sets
+  1. Gets the preferred prefixes for the node's categories
+  2. Gets all CURIEs starting with the most-preferred prefix available in the synset
+
+* `KnowledgePortal.map_prefixes(message, prefixes)` returns a TRAPI message with CURIEs mapped to the preferred identifier sets
+  1. Gets all CURIEs from the input message
+  2. Finds categories and synonyms for CURIEs
+  3. Gets CURIE map using `Synonymizer.map_curie()`
+  4. Applies CURIE map to message
+
+## Libraries
+
+* [bmt-lite](https://github.com/patrickkwang/bmt-lite) - for accessing the biolink model
+* [reasoner-pydantic](https://github.com/TranslatorSRI/reasoner-pydantic) - Pydantic models reflecting the TRAPI components
+
+for testing only:
+* [ASGIAR](https://github.com/patrickkwang/asgiar) - for mocking http calls
+* [kp-registry](https://github.com/ranking-agent/kp-registry) - for mocking the KP registry
+* [binder](https://github.com/TranslatorSRI/binder) - for mocking KPs
