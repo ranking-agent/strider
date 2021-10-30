@@ -3,7 +3,7 @@
 ## Entrypoints
 
 * `/query` (`server.py`) - synchronous TRAPI endpoint
-  Does a little [workflow]() stuff, but mostly calls `lookup()`
+  Does a little workflow stuff, but mostly calls `lookup()`
 * `/asyncquery` (`server.py`) - asynchronous TRAPI endpoint
   1. Returns immediately
   2. Calls `lookup()`
@@ -30,7 +30,7 @@
 * `storage.py` defines interfaces for accessing and manipulating Redis storage
 * `trapi_openapi.py` defines the TRAPI subclass of FastAPI to add the common TRAPI elements to the OpenAPI schema
 * `trapi.py` defines utilities for TRAPI messages, including normalizing and merging
-* `traversal.py` **probably obsolete**
+* `traversal.py` contains code for verifying that a query graph can be solved with the KPs available (traversable)
 * `util.py` :\ a whole bunch of random stuff, some of it important
 
 ## Important functions
