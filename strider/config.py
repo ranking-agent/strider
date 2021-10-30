@@ -7,6 +7,7 @@ from pydantic import \
 
 class Settings(BaseSettings):
     openapi_server_url: Optional[AnyUrl]
+    openapi_server_maturity: str = "development"
     kpregistry_url: AnyUrl = "https://kp-registry.renci.org"
     omnicorp_url: AnyUrl = "http://robokop.renci.org:3210"
     biolink_url: AnyUrl = "https://bl-lookup-sri.renci.org"

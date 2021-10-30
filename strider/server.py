@@ -64,7 +64,10 @@ openapi_args = dict(
 )
 if settings.openapi_server_url:
     openapi_args["servers"] = [
-        {"url": settings.openapi_server_url}
+        {
+            "url": settings.openapi_server_url,
+            "x-maturity": settings.openapi_server_maturity,
+        },
     ]
 APP = TRAPI(**openapi_args)
 
