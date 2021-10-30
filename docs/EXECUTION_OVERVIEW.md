@@ -15,7 +15,7 @@ Another standardization step is handling prefixes. Multiple identifiers (IDs) ca
 
 ## Execution
 
-After planning, query execution is handled by the StriderWorker (fetcher). The StriderWorker is a wrapper around a priority queue which holds results object. The motivation for this architecture is to be able to return results before the query has finished execution. In this case you can think of a completed result as a binding of all nodes to IDs:
+After planning, query execution is handled by Binder in [fetcher.py](strider/fetcher.py). Binder processes a query graph by recursively breakign it down into subgraphs. More information on this can be found in [docs/COMPONENTS](docs/components.md#important-functions). The motivation for this architecture is to be able to return results before the query has finished execution. In this case you can think of a completed result as a binding of all nodes to IDs:
 
 #### Example Query Graph:
 
@@ -50,7 +50,7 @@ style n2 stroke:#ff4733
 
 Notice that the result matches the query graph, but has all of the unbound nodes converted to bound nodes.
 
-When contacting KPs we combine the information in the plan with the current ID to create a new message that is sent to the KP. This is done in the `get_kp_request_body` function. Before sending to the KP we also go through the prefix conversion process. KPs include a set of preferred ID prefixes that may not be the same as Strider's. We use the preferred prefixes of the KP to convert IDs before sending the request.
+When contacting KPs we combine the information in the plan with the current ID to create a new message that is sent to the KP. Before sending to the KP we also go through the prefix conversion process. KPs include a set of preferred ID prefixes that may not be the same as Strider's. We use the preferred prefixes of the KP to convert IDs before sending the request.
 
 We also convert the results from the KP to Strider's preferred prefixes. This is not just for the query graph but for the knowledge graph and results list. The utilities that are used to do this can be found in the [trapi.py](strider/trapi.py) file.
 
