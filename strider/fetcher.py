@@ -140,7 +140,7 @@ class Binder:
         }
 
         generators = [
-            self.generate_from_kp(qgraph, onehop, self.kps[kp_id], use_cache=use_cache)
+            self.generate_from_kp(qgraph, onehop, self.kps[kp_id])
             for kp_id in self.plan[qedge_id]
         ]
         async with aiostream.stream.merge(*generators).stream() as streamer:
@@ -152,12 +152,10 @@ class Binder:
         qgraph,
         onehop_qgraph,
         kp: KnowledgeProvider,
-        **kwargs,
     ):
         """Generate one-hop results from KP."""
         onehop_response = await kp.solve_onehop(
             onehop_qgraph,
-            # **kwargs,
         )
         onehop_response = enforce_constraints(onehop_response)
         onehop_kgraph = onehop_response["knowledge_graph"]
@@ -225,7 +223,6 @@ class Binder:
         self,
         qgraph,
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
-        **kwargs,
     ):
         # LOGGER.debug(
         #     "Expanding from result %s...",
@@ -233,7 +230,6 @@ class Binder:
         # )
         async for subkgraph, subresult in self.lookup(
             qgraph,
-            **kwargs,
         ):
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
@@ -401,6 +397,7 @@ class Binder:
                 url=kp["url"],
                 request_qty=1,
                 request_duration=1,
+                use_cache=use_cache,
                 preproc=self.get_processor(self.kp_preferred_prefixes[kp_id]),
                 postproc=self.get_processor(self.preferred_prefixes),
                 logger=self.logger,

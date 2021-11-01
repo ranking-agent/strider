@@ -20,6 +20,7 @@ from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_map
 from .utils import get_keys_with_value, log_response
 from ..trapi import canonicalize_qgraph
 from ..util import elide_curies, log_request
+from ..caching import async_locking_query_cache
 
 
 class KPInformation(pydantic.main.BaseModel):
@@ -54,6 +55,7 @@ class ThrottledServer:
         url: str,
         request_qty: int,
         request_duration: float,
+        use_cache: bool = True,
         *args,
         max_batch_size: Optional[int] = None,
         timeout: float = 60.0,
@@ -70,6 +72,7 @@ class ThrottledServer:
         self.url = url
         self.request_qty = request_qty
         self.request_duration = datetime.timedelta(seconds=request_duration)
+        self.use_cache = use_cache
         self.timeout = timeout
         self.max_batch_size = max_batch_size
         self.preproc = preproc
@@ -77,6 +80,13 @@ class ThrottledServer:
         if logger is None:
             logger = logging.getLogger(__name__)
         self.logger = logger
+
+        # locking cache needs to be here so each KP instance has its own cache.
+        # https://stackoverflow.com/a/14946506
+        if use_cache:
+            self.query = async_locking_query_cache(self._query)
+        else:
+            self.query = self._query
 
     @log_errors
     async def process_batch(
@@ -407,11 +417,11 @@ class ThrottledServer:
         except asyncio.CancelledError:
             pass
 
-    async def query(
-        self,
-        query: dict,
-        priority: float = 0,  # lowest goes first
-        timeout: Optional[float] = 60.0,
+    async def _query(
+            self,
+            query: dict,
+            priority: float = 0,  # lowest goes first
+            timeout: Optional[float] = 60.0,
     ) -> dict:
         """Queue up a query for batching and return when completed"""
         if self.worker is None:
