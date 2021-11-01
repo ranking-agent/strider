@@ -247,39 +247,6 @@ class Binder:
                 subkgraph["edges"].update(kgraph["edges"])
                 yield subkgraph, subresult
 
-    async def get_results(
-        self,
-        qgraph: dict[str, Any],
-        use_cache=True,
-        max_results=None,
-    ):
-        """Get results and kgraph."""
-        qgraph = copy.deepcopy(qgraph)
-        qgraph = Graph(qgraph)
-        # normalize_qgraph(qgraph)
-
-        kgraph = {"nodes": dict(), "edges": dict()}
-        results = []
-        counter = 0
-        async for kgraph_, result_ in self.lookup(qgraph, use_cache=use_cache):
-            # aggregate results
-            kgraph["nodes"].update(kgraph_["nodes"])
-            kgraph["edges"].update(kgraph_["edges"])
-            results.append(result_)
-            counter += 1
-            if max_results is not None and counter >= max_results:
-                break
-
-        for kedge in kgraph["edges"].values():
-            kedge["attributes"] = [
-                {
-                    "attribute_type_id": "biolink:knowledge_source",
-                    "value": f"infores:{self.name}",
-                }
-            ]
-
-        return kgraph, results
-
     async def __aenter__(self):
         """Enter context."""
         for tserver in self.portal.tservers.values():
