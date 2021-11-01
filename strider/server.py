@@ -67,6 +67,7 @@ if settings.openapi_server_url:
         {
             "url": settings.openapi_server_url,
             "x-maturity": settings.openapi_server_maturity,
+            "x-location": settings.openapi_server_location,
         },
     ]
 APP = TRAPI(**openapi_args)
