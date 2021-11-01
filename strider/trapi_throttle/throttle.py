@@ -1,4 +1,4 @@
-"""Server routes"""
+"""Strider TRAPI Throttle."""
 import asyncio
 from asyncio.queues import QueueEmpty
 from asyncio.tasks import Task
@@ -92,7 +92,7 @@ class ThrottledServer:
     async def process_batch(
         self,
     ):
-        """Set up a subscriber to process batching"""
+        """Set up a subscriber to process batching."""
         # Initialize the TAT
         #
         # TAT = Theoretical Arrival Time
