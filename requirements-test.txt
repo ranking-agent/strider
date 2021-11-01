@@ -23,3 +23,4 @@ pytest-asyncio==0.15.1
 pytest-cov==2.12.1
 binder @ git+git://github.com/TranslatorSRI/binder@v4.3.0
 orjson==3.6.0
+tqdm==4.62.3

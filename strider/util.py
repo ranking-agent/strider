@@ -5,6 +5,7 @@ import json
 from json.decoder import JSONDecodeError
 import re
 from typing import Callable, Iterable, Union
+import statistics
 
 import httpx
 from starlette.middleware.cors import CORSMiddleware
@@ -469,3 +470,38 @@ def transform_keys(d, f):
         f(key) : val
         for key, val in d.items()
     }
+
+def get_message_stats(m):
+    """ Get statistics on message size """
+    stats = {}
+
+    stats["nodes"] = len(m["knowledge_graph"]["nodes"])
+    stats["edges"] = len(m["knowledge_graph"]["edges"])
+
+    stats["avg_node_categories"] = statistics.mean(
+        len(n["categories"])
+        for n in m["knowledge_graph"]["nodes"].values()
+    )
+
+    stats["avg_kg_attributes"] = statistics.mean(
+        len(n["attributes"]) if n["attributes"] else 0
+        for n in m["knowledge_graph"]["nodes"].values()
+    )
+    stats["avg_kg_attributes"] += statistics.mean(
+        len(e["attributes"]) if e["attributes"] else 0
+        for e in m["knowledge_graph"]["edges"].values()
+    )
+
+    stats["results"] = len(m["results"])
+    stats["avg_result_node_bindings"] = statistics.mean(
+        len(nb_list)
+        for r in m["results"]
+        for nb_list in r["node_bindings"].values()
+    )
+    stats["avg_result_edge_bindings"] = statistics.mean(
+        len(nb_list)
+        for r in m["results"]
+        for nb_list in r["node_bindings"].values()
+    )
+    return stats
+
