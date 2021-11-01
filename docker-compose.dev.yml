@@ -12,7 +12,7 @@ services:
   strider:
     volumes:
       - ./:/app
-    command: --host 0.0.0.0 --port 5781 --reload
+    command: --bind 0.0.0.0:5781 --reload
     environment:
       KPREGISTRY_URL: http://kp-registry:4983
   # Redis debugging UI 
