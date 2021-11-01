@@ -72,6 +72,7 @@ class TRAPI(FastAPI):
                 "description": "The values for component and team are restricted according to this external JSON schema. See schema and examples at url",
                 "url": "https://github.com/NCATSTranslator/translator_extensions/blob/production/x-translator/",
             },
+            "infores": "infores:strider",
         }
         openapi_schema["info"]["x-trapi"] = {
             "version": "1.2.0",
