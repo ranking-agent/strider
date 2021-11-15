@@ -15,7 +15,7 @@ ADD . .
 
 # Set up base for command and any variables
 # that shouldn't be modified
-ENTRYPOINT ["gunicorn", "strider.server:APP", "-k", "uvicorn.workers.UvicornWorker"]
+ENTRYPOINT ["gunicorn", "strider.server:APP", "-k", "uvicorn.workers.UvicornWorker", "--timeout", "0"]
 
 # Variables that can be overriden
 CMD [ "--bind", "0.0.0.0:5781", "--workers", "4", "--threads", "3"]
