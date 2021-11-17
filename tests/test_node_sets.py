@@ -5,10 +5,7 @@ from strider.node_sets import collapse_sets
 def test_node_sets():
     """Test collapsing one edge of a two-hop query."""
     qgraph = {
-        "nodes": {
-            "n0": {},
-            "n1": {"is_set": True}
-        },
+        "nodes": {"n0": {}, "n1": {"is_set": True}},
         "edges": {
             "e01": {
                 "subject": "n0",

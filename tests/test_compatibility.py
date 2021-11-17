@@ -2,8 +2,11 @@ import json
 import pytest
 from fastapi.responses import JSONResponse, Response
 
-from tests.helpers.context import \
-    with_norm_overlay, with_response_overlay, with_translator_overlay
+from tests.helpers.context import (
+    with_norm_overlay,
+    with_response_overlay,
+    with_translator_overlay,
+)
 
 from strider.trapi_throttle.throttle import ThrottledServer
 from strider.config import settings
@@ -12,15 +15,17 @@ from strider.config import settings
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 
-from strider.compatibility import \
-    KnowledgePortal
+from strider.compatibility import KnowledgePortal
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url, """
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
     MONDO:0005148 synonyms DOID:9352
-""")
+""",
+)
 async def test_map_prefixes_small_example():
     """
     Test that prefixes are mapped properly and that already
@@ -28,23 +33,14 @@ async def test_map_prefixes_small_example():
     """
     portal = KnowledgePortal()
 
-    preferred_prefixes = {
-        "biolink:Disease": [
-            "MONDO"
-        ]
-    }
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["DOID:9352"]
-            },
-            "n1": {
-                "ids": ["MONDO:0005148"]
-            },
+            "n0": {"ids": ["DOID:9352"]},
+            "n1": {"ids": ["MONDO:0005148"]},
         },
-        "edges": {
-        },
+        "edges": {},
     }
 
     fixed_msg = await portal.map_prefixes(
@@ -53,9 +49,9 @@ async def test_map_prefixes_small_example():
     )
 
     # n0 should be converted to the correct prefix
-    assert fixed_msg['query_graph']['nodes']['n0']['ids'] == ["MONDO:0005148"]
+    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["MONDO:0005148"]
     # There should be no change to n1
-    assert fixed_msg['query_graph']['nodes']['n1']['ids'] == ["MONDO:0005148"]
+    assert fixed_msg["query_graph"]["nodes"]["n1"]["ids"] == ["MONDO:0005148"]
 
 
 @pytest.mark.asyncio
@@ -67,20 +63,13 @@ async def test_unknown_prefix():
     """
     portal = KnowledgePortal()
 
-    preferred_prefixes = {
-        "biolink:Disease": [
-            "MONDO"
-        ]
-    }
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["UNKNOWN:000000"]
-            },
+            "n0": {"ids": ["UNKNOWN:000000"]},
         },
-        "edges": {
-        },
+        "edges": {},
     }
 
     fixed_msg = await portal.map_prefixes(
@@ -89,7 +78,7 @@ async def test_unknown_prefix():
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['ids'] == ["UNKNOWN:000000"]
+    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["UNKNOWN:000000"]
 
 
 @pytest.mark.asyncio
@@ -105,12 +94,9 @@ async def test_prefix_not_specified():
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["DOID:9352"]
-            },
+            "n0": {"ids": ["DOID:9352"]},
         },
-        "edges": {
-        },
+        "edges": {},
     }
 
     fixed_msg = await portal.map_prefixes(
@@ -119,7 +105,7 @@ async def test_prefix_not_specified():
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['ids'] == ["DOID:9352"]
+    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
 
 normalizer_error_no_matches = "No matches found for the specified curie(s)"
@@ -127,11 +113,8 @@ normalizer_error_no_matches = "No matches found for the specified curie(s)"
 
 @pytest.mark.asyncio
 @with_response_overlay(
-    settings.normalizer_url+"/get_normalized_nodes",
-    JSONResponse(
-        content={"detail": normalizer_error_no_matches},
-        status_code=404
-    )
+    settings.normalizer_url + "/get_normalized_nodes",
+    JSONResponse(content={"detail": normalizer_error_no_matches}, status_code=404),
 )
 async def test_normalizer_no_synonyms_available(caplog):
     """
@@ -141,20 +124,13 @@ async def test_normalizer_no_synonyms_available(caplog):
     """
     portal = KnowledgePortal()
 
-    preferred_prefixes = {
-        "biolink:Disease": [
-            "MONDO"
-        ]
-    }
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["DOID:9352"]
-            },
+            "n0": {"ids": ["DOID:9352"]},
         },
-        "edges": {
-        },
+        "edges": {},
     }
 
     fixed_msg = await portal.map_prefixes(
@@ -163,7 +139,7 @@ async def test_normalizer_no_synonyms_available(caplog):
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['ids'] == ["DOID:9352"]
+    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     # The error we recieved from the normalizer should be in the logs
     assert normalizer_error_no_matches in caplog.text
@@ -175,7 +151,7 @@ async def test_normalizer_no_synonyms_available(caplog):
     Response(
         status_code=500,
         content="Internal server error",
-    )
+    ),
 )
 async def test_normalizer_500(caplog):
     """
@@ -185,20 +161,13 @@ async def test_normalizer_500(caplog):
     """
     portal = KnowledgePortal()
 
-    preferred_prefixes = {
-        "biolink:Disease": [
-            "MONDO"
-        ]
-    }
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["DOID:9352"]
-            },
+            "n0": {"ids": ["DOID:9352"]},
         },
-        "edges": {
-        },
+        "edges": {},
     }
 
     fixed_msg = await portal.map_prefixes(
@@ -207,9 +176,10 @@ async def test_normalizer_500(caplog):
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['ids'] == ["DOID:9352"]
+    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     assert "Error contacting normalizer" in caplog.text
+
 
 @pytest.mark.asyncio
 async def test_normalizer_not_reachable(caplog):
@@ -220,20 +190,13 @@ async def test_normalizer_not_reachable(caplog):
     """
     portal = KnowledgePortal()
 
-    preferred_prefixes = {
-        "biolink:Disease": [
-            "MONDO"
-        ]
-    }
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["DOID:9352"]
-            },
+            "n0": {"ids": ["DOID:9352"]},
         },
-        "edges": {
-        },
+        "edges": {},
     }
 
     fixed_msg = await portal.map_prefixes(
@@ -242,7 +205,7 @@ async def test_normalizer_not_reachable(caplog):
     )
 
     # n0 should be unchanged
-    assert fixed_msg['query_graph']['nodes']['n0']['ids'] == ["DOID:9352"]
+    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     assert "RequestError contacting normalizer" in caplog.text
 
@@ -258,13 +221,12 @@ CTD_PREFIXES = {
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """
-    }
+    },
 )
 async def test_fetch():
     """
@@ -286,12 +248,8 @@ async def test_fetch():
 
     query_graph = {
         "nodes": {
-            "n0": {
-                "ids": ["MESH:D008687"]
-            },
-            "n1": {
-                "categories": ["biolink:Disease"]
-            },
+            "n0": {"ids": ["MESH:D008687"]},
+            "n1": {"categories": ["biolink:Disease"]},
         },
         "edges": {
             "e01": {
@@ -309,23 +267,21 @@ async def test_fetch():
         )
 
     allowed_response_prefixes = [
-        prefix for prefix_list in preferred_prefixes.values()
-        for prefix in prefix_list
+        prefix for prefix_list in preferred_prefixes.values() for prefix in prefix_list
     ]
 
     # Check query graph node prefixes
-    for node in response['query_graph']['nodes'].values():
-        if node.get('ids', None):
+    for node in response["query_graph"]["nodes"].values():
+        if node.get("ids", None):
             assert all(
-                any(
-                    curie.startswith(prefix)
-                    for prefix in allowed_response_prefixes
-                )
-                for curie in node['ids']
+                any(curie.startswith(prefix) for prefix in allowed_response_prefixes)
+                for curie in node["ids"]
             )
     # Check node binding prefixes
-    for result in response['results']:
-        for binding_list in result['node_bindings'].values():
+    for result in response["results"]:
+        for binding_list in result["node_bindings"].values():
             for binding in binding_list:
-                assert any(binding['id'].startswith(prefix)
-                           for prefix in allowed_response_prefixes)
+                assert any(
+                    binding["id"].startswith(prefix)
+                    for prefix in allowed_response_prefixes
+                )

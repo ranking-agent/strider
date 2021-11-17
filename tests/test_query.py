@@ -34,15 +34,14 @@ setup_logger()
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
-    }
+    },
 )
 async def test_solve_ex1(redis):
     """Test solving the ex1 query graph"""
@@ -59,7 +58,7 @@ async def test_solve_ex1(redis):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "ERROR",
     }
 
@@ -68,8 +67,7 @@ async def test_solve_ex1(redis):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 MONDO:0005148 biolink:has_phenotype HP:0004324
                 """,
@@ -85,7 +83,7 @@ async def test_solve_ex1(redis):
                 """
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -94,14 +92,13 @@ async def test_solve_ex1(redis):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->CHEBI:6801
         """
-    }
+    },
 )
 async def test_mixed_canonical(redis):
     """Test qedge with mixed canonical and non-canonical predicates."""
@@ -116,7 +113,7 @@ async def test_mixed_canonical(redis):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "ERROR",
     }
 
@@ -131,13 +128,12 @@ async def test_mixed_canonical(redis):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:genetically_interacts_with -->MONDO:0005148
         """
-    }
+    },
 )
 async def test_symmetric_noncanonical(redis):
     """Test qedge with the symmetric, non-canonical predicate genetically_interacts_with."""
@@ -152,7 +148,7 @@ async def test_symmetric_noncanonical(redis):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "ERROR",
     }
 
@@ -167,69 +163,74 @@ async def test_symmetric_noncanonical(redis):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:SmallMolecule ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-    }
+    },
 )
 # Add attributes to ctd response
 @with_response_overlay(
     "http://ctd/query",
     Response(
         status_code=200,
-        content=json.dumps({"message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {"ids": ["CHEBI:6801"]},
-                    "n1": {"categories": ["biolink:Disease"]},
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "predicate": "biolink:treats",
-                        "object": "n1",
-                    },
-                },
-            },
-            "knowledge_graph": {
-                "nodes": {
-                    "CHEBI:XXX": {},
-                    "MONDO:0005148": {
-                        "attributes": [
-                            {
-                                "attribute_type_id": "test_constraint",
-                                "value": "foo",
+        content=json.dumps(
+            {
+                "message": {
+                    "query_graph": {
+                        "nodes": {
+                            "n0": {"ids": ["CHEBI:6801"]},
+                            "n1": {"categories": ["biolink:Disease"]},
+                        },
+                        "edges": {
+                            "n0n1": {
+                                "subject": "n0",
+                                "predicate": "biolink:treats",
+                                "object": "n1",
                             },
-                        ],
+                        },
                     },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "CHEBI:XXX",
-                        "predicate": "biolink:treats",
-                        "object": "MONDO:0005148",
+                    "knowledge_graph": {
+                        "nodes": {
+                            "CHEBI:XXX": {},
+                            "MONDO:0005148": {
+                                "attributes": [
+                                    {
+                                        "attribute_type_id": "test_constraint",
+                                        "value": "foo",
+                                    },
+                                ],
+                            },
+                        },
+                        "edges": {
+                            "n0n1": {
+                                "subject": "CHEBI:XXX",
+                                "predicate": "biolink:treats",
+                                "object": "MONDO:0005148",
+                            },
+                        },
                     },
-                },
-            },
-            "results": [
-                {
-                    "node_bindings": {
-                        "n0": [{
-                            "id": "CHEBI:XXX",
-                            "qnode_id": "CHEBI:6801",
-                        }],
-                        "n1": [{"id": "MONDO:0005148"}],
-                    },
-                    "edge_bindings": {
-                        "n0n1": [{"id": "n0n1"}],
-                    },
-                },
-            ],
-        }}),
-    )
+                    "results": [
+                        {
+                            "node_bindings": {
+                                "n0": [
+                                    {
+                                        "id": "CHEBI:XXX",
+                                        "qnode_id": "CHEBI:6801",
+                                    }
+                                ],
+                                "n1": [{"id": "MONDO:0005148"}],
+                            },
+                            "edge_bindings": {
+                                "n0n1": [{"id": "n0n1"}],
+                            },
+                        },
+                    ],
+                }
+            }
+        ),
+    ),
 )
 async def test_disambiguation(redis):
     """
@@ -245,7 +246,7 @@ async def test_disambiguation(redis):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "ERROR",
     }
 
@@ -255,8 +256,7 @@ async def test_disambiguation(redis):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:XXX biolink:treats MONDO:0005148
                 """,
             "results": [
@@ -269,7 +269,7 @@ async def test_disambiguation(redis):
                 """,
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -278,66 +278,69 @@ async def test_disambiguation(redis):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:SmallMolecule ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-    }
+    },
 )
 # Add attributes to ctd response
 @with_response_overlay(
     "http://ctd/query",
     Response(
         status_code=200,
-        content=json.dumps({"message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {"ids": ["CHEBI:6801"]},
-                    "n1": {"categories": ["biolink:Disease"]},
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "predicate": "biolink:treats",
-                        "object": "n1",
-                    },
-                },
-            },
-            "knowledge_graph": {
-                "nodes": {
-                    "CHEBI:XXX": {},
-                    "MONDO:0005148": {
-                        "attributes": [
-                            {
-                                "attribute_type_id": "test_constraint",
-                                "value": "foo",
+        content=json.dumps(
+            {
+                "message": {
+                    "query_graph": {
+                        "nodes": {
+                            "n0": {"ids": ["CHEBI:6801"]},
+                            "n1": {"categories": ["biolink:Disease"]},
+                        },
+                        "edges": {
+                            "n0n1": {
+                                "subject": "n0",
+                                "predicate": "biolink:treats",
+                                "object": "n1",
                             },
-                        ],
+                        },
                     },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "CHEBI:XXX",
-                        "predicate": "biolink:treats",
-                        "object": "MONDO:0005148",
+                    "knowledge_graph": {
+                        "nodes": {
+                            "CHEBI:XXX": {},
+                            "MONDO:0005148": {
+                                "attributes": [
+                                    {
+                                        "attribute_type_id": "test_constraint",
+                                        "value": "foo",
+                                    },
+                                ],
+                            },
+                        },
+                        "edges": {
+                            "n0n1": {
+                                "subject": "CHEBI:XXX",
+                                "predicate": "biolink:treats",
+                                "object": "MONDO:0005148",
+                            },
+                        },
                     },
-                },
-            },
-            "results": [
-                {
-                    "node_bindings": {
-                        "n0": [{"id": "CHEBI:XXX"}],
-                        "n1": [{"id": "MONDO:0005148"}],
-                    },
-                    "edge_bindings": {
-                        "n0n1": [{"id": "n0n1"}],
-                    },
-                },
-            ],
-        }}),
-    )
+                    "results": [
+                        {
+                            "node_bindings": {
+                                "n0": [{"id": "CHEBI:XXX"}],
+                                "n1": [{"id": "MONDO:0005148"}],
+                            },
+                            "edge_bindings": {
+                                "n0n1": [{"id": "n0n1"}],
+                            },
+                        },
+                    ],
+                }
+            }
+        ),
+    ),
 )
 async def test_trivial_unbatching(redis):
     """Test trivial unbatching with batch size one."""
@@ -351,7 +354,7 @@ async def test_trivial_unbatching(redis):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "ERROR",
     }
 
@@ -361,8 +364,7 @@ async def test_trivial_unbatching(redis):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:XXX biolink:treats MONDO:0005148
                 """,
             "results": [
@@ -375,7 +377,7 @@ async def test_trivial_unbatching(redis):
                 """,
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -384,26 +386,23 @@ async def test_trivial_unbatching(redis):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:0008114(( category biolink:Disease ))
             MONDO:0008114-- predicate biolink:related_to -->MESH:C035133
             MESH:C035133(( category biolink:Gene ))
         """,
-        "kp1":
-        """
+        "kp1": """
             MESH:C035133(( category biolink:Gene ))
             MESH:C035133-- predicate biolink:related_to -->HP:0007430
             HP:0007430(( category biolink:Protein ))
         """,
-        "kp2":
-        """
+        "kp2": """
             HP:0007430(( category biolink:Protein ))
             HP:0007430-- predicate biolink:related_to -->CHEBI:6801
             CHEBI:6801(( category biolink:Disease ))
             HGNC:6284(( category biolink:Gene ))
             HP:0007430-- predicate biolink:related_to -->HGNC:6284
-        """
+        """,
     },
     normalizer_data="""
         MONDO:0008114 categories biolink:Gene biolink:Disease
@@ -411,7 +410,7 @@ async def test_trivial_unbatching(redis):
         MESH:C035133 categories biolink:Protein
         HGNC:6284 categories biolink:Gene biolink:Protein
         CHEBI:6801 categories biolink:Disease
-        """
+        """,
 )
 async def test_gene_protein_conflation(redis):
     """Test conflation of biolink:Gene and biolink:Protein categories.
@@ -431,20 +430,16 @@ async def test_gene_protein_conflation(redis):
         """
     )
 
-    #Create query
-    q = {
-        "message" : {"query_graph" : QGRAPH},
-        "log_level" : "ERROR"
-    }
+    # Create query
+    q = {"message": {"query_graph": QGRAPH}, "log_level": "ERROR"}
 
-    #Run query
+    # Run query
     output = await lookup(q, redis)
 
-    #Check to see that appropriate nodes are in results
+    # Check to see that appropriate nodes are in results
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 MONDO:0008114 biolink:related_to MESH:C035133
                 MESH:C035133 biolink:related_to HP:0007430
                 HP:0007430 biolink:related_to CHEBI:6801
@@ -463,7 +458,7 @@ async def test_gene_protein_conflation(redis):
                 """
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -472,16 +467,14 @@ async def test_gene_protein_conflation(redis):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0003757(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0003757
         """,
-        "pharos":
-        """
+        "pharos": """
             MONDO:0003757(( category biolink:Disease ))
             MONDO:0005148(( category biolink:Disease ))
             HP:XXX(( category biolink:PhenotypicFeature ))
@@ -490,7 +483,7 @@ async def test_gene_protein_conflation(redis):
             MONDO:0003757-- predicate biolink:has_phenotype -->HP:YYY
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:YYY
         """,
-    }
+    },
 )
 async def test_node_set(redis):
     """Test that is_set is handled correctly."""
@@ -508,14 +501,13 @@ async def test_node_set(redis):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
-        "log_level" : "WARNING",
+        "message": {"query_graph": QGRAPH},
+        "log_level": "WARNING",
     }
 
     # Run
     output = await lookup(q, redis)
     assert len(output["message"]["results"]) == 2
     assert {
-        len(result["node_bindings"]["n1"])
-        for result in output["message"]["results"]
+        len(result["node_bindings"]["n1"]) for result in output["message"]["results"]
     } == {1, 2}

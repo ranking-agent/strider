@@ -17,6 +17,7 @@ from .utils import normalizer_data_from_string
 
 callback_results = {}
 
+
 def url_to_host(url):
     # TODO modify ASGIAR to accept a URL instead of a host
     return urlparse(url).netloc
@@ -24,12 +25,15 @@ def url_to_host(url):
 
 def with_context(context, *args_, **kwargs_):
     """Turn context manager into decorator."""
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             async with context(*args_, **kwargs_):
                 await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -38,19 +42,12 @@ async def registry_overlay(url, kps):
     """Registry server context manager."""
     async with AsyncExitStack() as stack:
         app = FastAPI()
-        connection = await stack.enter_async_context(
-            aiosqlite.connect(":memory:")
-        )
+        connection = await stack.enter_async_context(aiosqlite.connect(":memory:"))
         app.include_router(registry_router(connection))
-        await stack.enter_async_context(
-            ASGIAR(app, host=url_to_host(url))
-        )
+        await stack.enter_async_context(ASGIAR(app, host=url_to_host(url)))
         # Register KPs passed to the function
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{url}/kps",
-                json=kps
-            )
+            response = await client.post(f"{url}/kps", json=kps)
             response.raise_for_status()
 
         yield
@@ -67,13 +64,13 @@ async def norm_overlay(
 
     async with AsyncExitStack() as stack:
         app = FastAPI()
-        app.include_router(norm_router(
-            synset_mappings=normalizer_data_dict['synset_mappings'],
-            category_mappings=normalizer_data_dict['category_mappings'],
-        ))
-        await stack.enter_async_context(
-            ASGIAR(app, host=url_to_host(url))
+        app.include_router(
+            norm_router(
+                synset_mappings=normalizer_data_dict["synset_mappings"],
+                category_mappings=normalizer_data_dict["category_mappings"],
+            )
         )
+        await stack.enter_async_context(ASGIAR(app, host=url_to_host(url)))
         yield
 
 
@@ -87,22 +84,20 @@ async def response_overlay(url, response: Response):
         app = FastAPI()
 
         # pylint: disable=unused-variable disable=unused-argument
-        @app.api_route('/{path:path}', methods=["GET", "POST", "PUT", "DELETE"])
+        @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE"])
         async def all_paths(path):
             return response
 
-        await stack.enter_async_context(
-            ASGIAR(app, url=url)
-        )
+        await stack.enter_async_context(ASGIAR(app, url=url))
         yield
 
 
 @asynccontextmanager
 async def translator_overlay(
-        registry_url: str,
-        normalizer_url: str,
-        kp_data: dict[str, str] = {},
-        normalizer_data: str = "",
+    registry_url: str,
+    normalizer_url: str,
+    kp_data: dict[str, str] = {},
+    normalizer_data: str = "",
 ):
     """Registry + KPs + Normalizer context manager."""
     async with AsyncExitStack() as stack:
@@ -140,13 +135,11 @@ async def translator_overlay(
                         category: value["id_prefixes"]
                         for category, value in metakg["nodes"].items()
                     }
-                }
+                },
             }
 
         # Start registry context using KPs constructed above
-        await stack.enter_async_context(
-            registry_overlay(registry_url, kps)
-        )
+        await stack.enter_async_context(registry_overlay(registry_url, kps))
 
         yield
 
@@ -162,16 +155,13 @@ async def callback_overlay(url: str, queue: Optional[asyncio.Queue] = None):
         app = FastAPI()
 
         # pylint: disable=unused-variable disable=unused-argument
-        @app.post('/{path:path}')
+        @app.post("/{path:path}")
         async def save_response(results: dict):
             if queue is not None:
                 await queue.put(results)
 
-        await stack.enter_async_context(
-            ASGIAR(app, host=url_to_host(url))
-        )
+        await stack.enter_async_context(ASGIAR(app, host=url_to_host(url)))
         yield
-
 
 
 with_kp_overlay = partial(with_context, kp_overlay)

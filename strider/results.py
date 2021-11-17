@@ -7,17 +7,19 @@ from fastapi import HTTPException
 
 def get_db(*args, **kwargs):
     """Get dependable."""
+
     async def db_dependable():
         """Get SQLite connection."""
         async with Database(*args, **kwargs) as database:
             yield database
+
     return db_dependable
 
 
-class Database():
+class Database:
     """Asynchronous sqlite database context manager."""
 
-    def __init__(self, database=':memory:'):
+    def __init__(self, database=":memory:"):
         """Initialize."""
         self.database = database
         self.connection = None
@@ -39,11 +41,13 @@ class Database():
     @staticmethod
     def _require_connection(method):
         """Wrap method."""
+
         async def wrapper(self, *args, **kwargs):
             """Check that a connection is available."""
             if not self.connection:
-                raise RuntimeError('No open SQLite connection.')
+                raise RuntimeError("No open SQLite connection.")
             return await method(self, *args, **kwargs)
+
         return wrapper
 
     require_connection = _require_connection.__func__
@@ -66,7 +70,7 @@ class Database():
             cursor = await self.connection.execute(statement)
             await self.connection.commit()
         except sqlite3.OperationalError as err:
-            if 'no such table' in str(err):
+            if "no such table" in str(err):
                 raise HTTPException(400, str(err))
             raise err
         return await cursor.fetchall()
@@ -81,7 +85,7 @@ class Database():
             cursor = await self.connection.executemany(statement, data)
             await self.connection.commit()
         except sqlite3.OperationalError as err:
-            if 'no such table' in str(err):
+            if "no such table" in str(err):
                 raise HTTPException(400, str(err))
             raise err
         return await cursor.fetchall()

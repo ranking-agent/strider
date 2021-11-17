@@ -4,8 +4,8 @@ import os
 
 
 def print_green(s):
-    GREEN = '\033[92m'
-    ENDC = '\033[0m'
+    GREEN = "\033[92m"
+    ENDC = "\033[0m"
     print(f"{GREEN}{s}{ENDC}")
 
 
@@ -17,7 +17,7 @@ def run_command(cmd):
 def dev(extra_args):
     """
     This command starts up a development environment.
-    The development environment is started through docker-compose 
+    The development environment is started through docker-compose
     and is visible at http://localhost
     """
     command = f"docker-compose -f docker-compose.yml -f docker-compose.dev.yml \
@@ -50,6 +50,7 @@ def benchmark(extra_args):
             python -m benchmarks {extra_args}
     """
     run_command(command + extra_args)
+
 
 def coverage(extra_args):
     """
@@ -109,5 +110,5 @@ def main():
     command_func(extra_args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
