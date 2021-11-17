@@ -20,6 +20,7 @@ from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_map
 from .utils import get_keys_with_value, log_response
 from ..trapi import canonicalize_qgraph
 from ..util import elide_curies, log_request
+from ..caching import async_locking_cache
 from ..config import settings
 
 
@@ -83,6 +84,7 @@ class ThrottledServer:
         # locking cache needs to be here so each KP instance has its own cache.
         # https://stackoverflow.com/a/14946506
         if self.use_cache:
+            self.query = async_locking_cache(self._query)
         else:
             self.query = self._query
 

@@ -38,7 +38,6 @@ from .trapi import (
     merge_results,
     fill_categories_predicates,
 )
-from .caching import async_locking_cache
 from .query_planner import generate_plan, get_next_qedge
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
@@ -110,7 +109,6 @@ class Binder:
     async def lookup(
         self,
         qgraph: Graph = None,
-        use_cache: bool = True,
     ):
         """Expand from query graph node."""
         # if this is a leaf node, we're done
@@ -364,7 +362,6 @@ class Binder:
                 url=kp["url"],
                 request_qty=1,
                 request_duration=1,
-                use_cache=use_cache,
                 preproc=self.get_processor(self.kp_preferred_prefixes[kp_id]),
                 postproc=self.get_processor(self.preferred_prefixes),
                 logger=self.logger,

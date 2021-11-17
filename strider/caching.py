@@ -36,7 +36,7 @@ def async_cache(fcn):
     return cache_wrapper
 
 
-def async_locking_query_cache(fcn, maxsize=32):
+def async_locking_cache(fcn, maxsize=32):
     """Cache decorator.
 
     Taken in part from:
