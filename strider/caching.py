@@ -70,12 +70,7 @@ def async_locking_cache(fcn, maxsize=32):
     _Cache_Info = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
 
     def cache_info():
-        return _Cache_Info(
-            wrapper.hits,
-            wrapper.misses,
-            maxsize,
-            len(wrapper.cache)
-        )
+        return _Cache_Info(wrapper.hits, wrapper.misses, maxsize, len(wrapper.cache))
 
     def _cache_touch(key):
         try:

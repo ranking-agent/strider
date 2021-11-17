@@ -418,10 +418,10 @@ class ThrottledServer:
             pass
 
     async def _query(
-            self,
-            query: dict,
-            priority: float = 0,  # lowest goes first
-            timeout: Optional[float] = 60.0,
+        self,
+        query: dict,
+        priority: float = 0,  # lowest goes first
+        timeout: Optional[float] = 60.0,
     ) -> dict:
         """Queue up a query for batching and return when completed"""
         if self.worker is None:

@@ -8,9 +8,11 @@ from strider.caching import async_locking_cache
 @pytest.mark.asyncio
 async def test_async_query_caching():
     """Test simple query caching."""
+
     @async_locking_cache
     async def test_query(query):
         return "Test"
+
     await test_query({"query": "test"})
     assert test_query.cache_info().hits == 0
     await test_query({"query": "test2"})
@@ -23,6 +25,7 @@ async def test_async_query_caching():
 async def test_cache_function_error():
     """Test cache needs async function."""
     with pytest.raises(ValueError):
+
         @async_locking_cache
         def test_query(query):
             return "Test"
@@ -31,8 +34,10 @@ async def test_cache_function_error():
 @pytest.mark.asyncio
 async def test_caching_maxsize():
     """Test caching maxsize parameter."""
+
     async def test_query(query):
         return "Test"
+
     test_query = async_locking_cache(test_query, maxsize=1)
     await test_query({"query": "test"})
     assert test_query.cache_info().hits == 0
@@ -47,9 +52,11 @@ async def test_caching_maxsize():
 @pytest.mark.asyncio
 async def test_cache_locking():
     """Test identical queries use the same asyncio task."""
+
     @async_locking_cache
     async def test_query(query):
         return "Test"
+
     # queries 1 and 2 should use same task
     query1 = {"query": "test"}
     task1_coro = test_query(query1)
