@@ -13,6 +13,9 @@ def run_command(cmd):
     print_green(cmd)
     os.system(cmd)
 
+def get_command_output(cmd):
+    return os.popen(cmd).read()
+
 
 def dev(extra_args):
     """
@@ -109,6 +112,32 @@ def lock(extra_args):
             "
         """
         run_command(command)
+
+def verify_locked(extra_args):
+    """
+    Verify that the lockfile is up-to-date
+    """
+
+    for src, locked in REQUIREMENTS_FILES.items():
+        dependencies = get_command_output(f"""\
+        docker run -v $(pwd):/app python:3.9 \
+            /bin/bash -c "
+                pip install -qqq -r /app/{locked} &&
+                pip install -qqq -r /app/{src}    &&
+                pip freeze
+            "
+        """)
+        lock_dependencies = get_command_output(f"""\
+        docker run -v $(pwd):/app python:3.9 \
+            /bin/bash -c "
+                pip install -qqq -r /app/{locked} &&
+                pip freeze
+            "
+        """)
+
+        if dependencies != lock_dependencies:
+            sys.exit(
+                f"Lock file {locked} not up-to-date, please run ./manage.py lock")
 
 def upgrade(extra_args):
     """
