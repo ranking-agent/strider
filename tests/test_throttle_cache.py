@@ -1,7 +1,8 @@
 """Test Strider TRAPI Throttle LRU Caching."""
+import json
 import pytest
 
-from strider.caching import async_locking_query_cache, hash_query
+from strider.caching import async_locking_query_cache
 
 
 @pytest.mark.asyncio
@@ -59,9 +60,9 @@ async def test_cache_locking():
     # cache isn't updated until the function is awaited.
     await task1_coro
     await test_query(query3)
-    task1 = test_query.cache.get(hash_query(query1))
-    task2 = test_query.cache.get(hash_query(query2))
-    task3 = test_query.cache.get(hash_query(query3))
+    task1 = test_query.cache.get(json.dumps(((query1,), {})))
+    task2 = test_query.cache.get(json.dumps(((query2,), {})))
+    task3 = test_query.cache.get(json.dumps(((query3,), {})))
     assert task1.get_name() == task2.get_name()
     assert task1.get_name() != task3.get_name()
     await task2_coro

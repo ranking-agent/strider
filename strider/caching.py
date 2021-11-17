@@ -48,7 +48,7 @@ def async_locking_query_cache(fcn, maxsize=32):
     @wraps(fcn)
     async def wrapper(*args, **kwargs):
         """Wrap function."""
-        key = hash_query(args[0])
+        key = json.dumps((args, kwargs))
         # check cache
         task = wrapper.cache.get(key)
         if task is None:
@@ -96,9 +96,3 @@ def async_locking_query_cache(fcn, maxsize=32):
     wrapper.cache_info = cache_info
 
     return wrapper
-
-
-def hash_query(query):
-    """Hash decorator."""
-    key = json.dumps(query)
-    return key
