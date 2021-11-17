@@ -1,5 +1,6 @@
 """Simple ReasonerStdAPI server."""
 import datetime
+import os
 import uuid
 import json
 import logging
@@ -42,7 +43,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="3.15.1",
+    version="3.16.0",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
@@ -61,6 +62,7 @@ openapi_args = dict(
         "lookup",
         "filter_results_top_n",
     ],
+    root_path=os.environ.get('ROOT_PATH', '/')
 )
 if settings.openapi_server_url:
     openapi_args["servers"] = [

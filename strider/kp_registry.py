@@ -7,6 +7,7 @@ from typing import Union
 import httpx
 
 from strider.util import WBMT
+from strider.config import settings
 
 
 class Registry():
@@ -96,6 +97,10 @@ class Registry():
             for desc in WBMT.get_descendants(inverse)
         ]
         object_categories = [desc for cat in object_categories for desc in WBMT.get_descendants(cat)]
+        if settings.openapi_server_maturity == "development":
+            maturity = ["development", "production"]
+        else:
+            maturity = ["production", "development"]
 
         try:
             response = await post_json(
@@ -104,6 +109,7 @@ class Registry():
                     'subject_category': subject_categories,
                     'object_category': object_categories,
                     'predicate': predicates,
+                    'maturity': maturity,
                 },
                 self.logger, "KP Registry"
             )
@@ -117,6 +123,7 @@ class Registry():
                         'subject_category': object_categories,
                         'object_category': subject_categories,
                         'predicate': inverse_predicates,
+                        'maturity': maturity,
                     },
                     self.logger, "KP Registry"
                 )
