@@ -202,7 +202,6 @@ async def get_results(
 async def lookup(
     query_dict: dict,
     redis_client: Redis,
-    use_cache: bool = True,
 ) -> dict:
     """Perform lookup operation."""
     # Generate Query ID
@@ -226,7 +225,7 @@ async def lookup(
     }
     results = []
     try:
-        await binder.setup(qgraph, use_cache=use_cache)
+        await binder.setup(qgraph)
     except NoAnswersError:
         return {
             "message": {
