@@ -86,19 +86,43 @@ def profile(extra_args):
     run_command(command)
 
 
+REQUIREMENTS_FILES = {
+    "requirements.txt": "requirements-lock.txt",
+    "requirements-test.txt": "requirements-test-lock.txt",
+}
+
+
 def lock(extra_args):
     """
-    Write requirements-lock.txt and requirements-test-lock.txt
+    Write lockfiles without upgrading dependencies
     """
-    requirements_files = {
-        "requirements.txt": "requirements-lock.txt",
-        "requirements-test.txt": "requirements-test-lock.txt",
-    }
-
-    for src, locked in requirements_files.items():
+    for src, locked in REQUIREMENTS_FILES.items():
         command = f"""\
         docker run -v $(pwd):/app python:3.9 \
-            /bin/bash -c "pip install -qqq -r /app/{src} && pip freeze" > {locked}
+            /bin/bash -c "
+                # Install lockfile first so that we get the
+                # currently installed versions of dependencies
+                pip install -r /app/{locked} &&
+                pip install -r /app/{src}    &&
+                # Write lockfile
+                pip freeze > /app/{locked}
+            "
+        """
+        run_command(command)
+
+def upgrade(extra_args):
+    """
+    Upgrade all dependencies
+    """
+    for src, locked in REQUIREMENTS_FILES.items():
+        command = f"""\
+        docker run -v $(pwd):/app python:3.9 \
+            /bin/bash -c "
+                # Install dependencies, getting latest version
+                pip install -r /app/{src} &&
+                # Write lockfile
+                pip freeze > /app/{locked}
+            "
         """
         run_command(command)
 
