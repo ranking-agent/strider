@@ -8,7 +8,7 @@ class BatchingError(Exception):
 
 
 class UnableToMerge(BaseException):
-    """ Unable to merge given query graphs """
+    """Unable to merge given query graphs"""
 
 
 def get_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
@@ -50,19 +50,18 @@ def remove_unbound_from_kg(message):
                 bound_kedges.add(nb["id"])
 
     message["knowledge_graph"]["nodes"] = {
-        nid: node for nid, node in message["knowledge_graph"]["nodes"].items()
+        nid: node
+        for nid, node in message["knowledge_graph"]["nodes"].items()
         if nid in bound_knodes
     }
     message["knowledge_graph"]["edges"] = {
-        eid: edge for eid, edge in message["knowledge_graph"]["edges"].items()
+        eid: edge
+        for eid, edge in message["knowledge_graph"]["edges"].items()
         if eid in bound_kedges
     }
 
 
-def result_contains_node_bindings(
-        result,
-        bindings: dict[str, list[str]]
-):
+def result_contains_node_bindings(result, bindings: dict[str, list[str]]):
     """Check that the result object has all bindings provided (qg_id->kg_id).
 
     KPs that are returning a (proper) subclass of an entity allowed by the qnode
@@ -78,9 +77,9 @@ def result_contains_node_bindings(
 
 
 def filter_by_curie_mapping(
-        message: Message,
-        curie_mapping: dict[str, list[str]],
-        kp_id: str = "KP",
+    message: Message,
+    curie_mapping: dict[str, list[str]],
+    kp_id: str = "KP",
 ) -> Message:
     """
     Filter a message to ensure that all results
@@ -89,7 +88,8 @@ def filter_by_curie_mapping(
     # Only keep results where there is a node binding
     # that connects to our given kgraph_node_id
     results = [
-        result for result in (message.get("results") or [])
+        result
+        for result in (message.get("results") or [])
         if result_contains_node_bindings(result, curie_mapping)
     ]
 

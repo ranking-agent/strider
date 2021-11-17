@@ -9,9 +9,19 @@ import bmt
 from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
 
-from strider.util import deduplicate_by, WBMT, ensure_list, filter_none, get_from_all, \
-    build_predicate_direction, extract_predicate_direction, \
-    deduplicate, listify_value, merge_listify, all_equal
+from strider.util import (
+    deduplicate_by,
+    WBMT,
+    ensure_list,
+    filter_none,
+    get_from_all,
+    build_predicate_direction,
+    extract_predicate_direction,
+    deduplicate,
+    listify_value,
+    merge_listify,
+    all_equal,
+)
 from strider.normalizer import Normalizer
 from strider.config import settings
 
@@ -30,6 +40,7 @@ def result_hash(result):
         for key, value in result["edge_bindings"].items()
     )
     return (node_bindings_information, edge_bindings_information)
+
 
 def attribute_hash(attribute):
     """
@@ -54,7 +65,7 @@ def attribute_hash(attribute):
 
 
 def merge_nodes(knodes: list[Node]) -> Node:
-    """ Smart merge function for KNodes """
+    """Smart merge function for KNodes"""
     output_knode = {}
 
     # We don't really know how to merge names
@@ -65,8 +76,7 @@ def merge_nodes(knodes: list[Node]) -> Node:
 
     category_values = get_from_all(knodes, "categories")
     if category_values:
-        output_knode["categories"] = \
-            deduplicate(merge_listify(category_values))
+        output_knode["categories"] = deduplicate(merge_listify(category_values))
 
     attributes_values = get_from_all(knodes, "attributes")
     if attributes_values:
@@ -75,16 +85,15 @@ def merge_nodes(knodes: list[Node]) -> Node:
         # Filter out empty values
         attributes_values = filter_none(attributes_values)
         # Deduplicate
-        attributes_values = deduplicate_by(
-            attributes_values, attribute_hash
-        )
+        attributes_values = deduplicate_by(attributes_values, attribute_hash)
         # Write to output kedge
         output_knode["attributes"] = attributes_values
 
     return output_knode
 
+
 def merge_edges(kedges: list[Edge]) -> Edge:
-    """ Smart merge function for KEdges """
+    """Smart merge function for KEdges"""
     output_kedge = {}
 
     attributes_values = get_from_all(kedges, "attributes")
@@ -94,9 +103,7 @@ def merge_edges(kedges: list[Edge]) -> Edge:
         # Filter out empty values
         attributes_values = filter_none(attributes_values)
         # Deduplicate
-        attributes_values = deduplicate_by(
-            attributes_values, attribute_hash
-        )
+        attributes_values = deduplicate_by(attributes_values, attribute_hash)
         # Write to output kedge
         output_kedge["attributes"] = attributes_values
 
@@ -119,7 +126,7 @@ def merge_edges(kedges: list[Edge]) -> Edge:
 
 
 def merge_kgraphs(kgraphs: list[KnowledgeGraph]) -> KnowledgeGraph:
-    """ Merge knowledge graphs. """
+    """Merge knowledge graphs."""
 
     if len(kgraphs) == 1:
         return kgraphs[0]
@@ -178,7 +185,7 @@ def merge_messages(messages: list[Message]) -> Message:
     return {
         "query_graph": messages[0]["query_graph"],
         "knowledge_graph": merge_kgraphs(kgraphs),
-        "results": results_deduplicated
+        "results": results_deduplicated,
     }
 
 
@@ -214,11 +221,11 @@ def get_curies(message: Message) -> list[str]:
     """
     curies = set()
     if message.get("query_graph") is not None:
-        for qnode in message['query_graph']['nodes'].values():
+        for qnode in message["query_graph"]["nodes"].values():
             if qnode_id := qnode.get("ids", False):
                 curies |= set(qnode_id)
     if message.get("knowledge_graph") is not None:
-        curies |= set(message['knowledge_graph']['nodes'])
+        curies |= set(message["knowledge_graph"]["nodes"])
     return list(curies)
 
 
@@ -228,66 +235,62 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
     new_message["query_graph"] = map_qgraph_curies(message["query_graph"], curie_map)
     if message.get("knowledge_graph") is not None:
         kgraph = message["knowledge_graph"]
-        new_message['knowledge_graph'] = {
-            'nodes': {
+        new_message["knowledge_graph"] = {
+            "nodes": {
                 curie_map.get(knode_id, [knode_id])[0]: knode
-                for knode_id, knode in kgraph['nodes'].items()
+                for knode_id, knode in kgraph["nodes"].items()
             },
-            'edges': {
+            "edges": {
                 kedge_id: fix_kedge(kedge, curie_map)
-                for kedge_id, kedge in kgraph['edges'].items()
+                for kedge_id, kedge in kgraph["edges"].items()
             },
         }
     if message.get("results") is not None:
         results = message["results"]
-        new_message['results'] = [
-            fix_result(result, curie_map)
-            for result in results
-        ]
+        new_message["results"] = [fix_result(result, curie_map) for result in results]
     return new_message
 
 
 def map_qgraph_curies(
-        qgraph: QueryGraph,
-        curie_map: dict[str, str],
-        primary: bool = False,
+    qgraph: QueryGraph,
+    curie_map: dict[str, str],
+    primary: bool = False,
 ) -> QueryGraph:
     """Replace curies with preferred, if possible."""
     if qgraph is None:
         return None
     return {
-        'nodes': {
+        "nodes": {
             qnode_id: map_qnode_curies(qnode, curie_map, primary)
-            for qnode_id, qnode in qgraph['nodes'].items()
+            for qnode_id, qnode in qgraph["nodes"].items()
         },
         "edges": qgraph["edges"],
     }
 
 
 def canonicalize_qgraph(
-        qgraph: QueryGraph,
+    qgraph: QueryGraph,
 ) -> QueryGraph:
     """Replace predicates with canonical directions."""
     if qgraph is None:
         return qgraph
 
     qedge_sets = [
-        {
-            qedge_id: qedge
-            for qedge_id, qedge in qedges
-        }
-        for qedges in product(*[
-            [
-                (qedge_id, dir_qedge)
-                for dir_qedge in canonicalize_qedge(qedge)
-                if dir_qedge["predicates"]
+        {qedge_id: qedge for qedge_id, qedge in qedges}
+        for qedges in product(
+            *[
+                [
+                    (qedge_id, dir_qedge)
+                    for dir_qedge in canonicalize_qedge(qedge)
+                    if dir_qedge["predicates"]
+                ]
+                for qedge_id, qedge in qgraph["edges"].items()
             ]
-            for qedge_id, qedge in qgraph["edges"].items()
-        ])
+        )
     ]
     return [
         {
-            'nodes': qgraph['nodes'],
+            "nodes": qgraph["nodes"],
             "edges": qedges,
         }
         for qedges in qedge_sets
@@ -326,9 +329,9 @@ def canonicalize_qedge(
 
 
 def map_qnode_curies(
-        qnode: QNode,
-        curie_map: dict[str, str],
-        primary: bool = False,
+    qnode: QNode,
+    curie_map: dict[str, str],
+    primary: bool = False,
 ) -> QNode:
     """Replace curie with preferred, if possible."""
     qnode = copy.deepcopy(qnode)
@@ -340,13 +343,9 @@ def map_qnode_curies(
     output_curies = []
     for existing_curie in qnode["ids"]:
         if primary:
-            output_curies.append(
-                curie_map.get(existing_curie, [existing_curie])[0]
-            )
+            output_curies.append(curie_map.get(existing_curie, [existing_curie])[0])
         else:
-            output_curies.extend(
-                curie_map.get(existing_curie, [])
-            )
+            output_curies.extend(curie_map.get(existing_curie, []))
     if len(output_curies) == 0:
         output_curies = qnode["ids"]
 
@@ -359,10 +358,7 @@ def map_qnode_curies(
 
 def fix_knode(knode: Node, curie_map: dict[str, str]) -> Node:
     """Replace curie with preferred, if possible."""
-    knode = {
-        **knode,
-        "id": curie_map.get(knode["id"], [knode["id"]])[0]
-    }
+    knode = {**knode, "id": curie_map.get(knode["id"], [knode["id"]])[0]}
     return knode
 
 
@@ -375,27 +371,24 @@ def fix_kedge(kedge: Edge, curie_map: dict[str, str]) -> Edge:
 
 def fix_result(result: Result, curie_map: dict[str, str]) -> Result:
     """Replace curie with preferred, if possible."""
-    result['node_bindings'] = {
+    result["node_bindings"] = {
         qnode_id: [
             {
                 **node_binding,
-                "id": curie_map.get(
-                    node_binding["id"],
-                    [node_binding["id"]]
-                )[0],
+                "id": curie_map.get(node_binding["id"], [node_binding["id"]])[0],
             }
             for node_binding in node_bindings
         ]
-        for qnode_id, node_bindings in result['node_bindings'].items()
+        for qnode_id, node_bindings in result["node_bindings"].items()
     }
     return result
 
 
 def filter_ancestor_types(categories):
-    """ Filter out types that are ancestors of other types in the list """
+    """Filter out types that are ancestors of other types in the list"""
 
     def is_ancestor(a, b):
-        """ Check if one biolink type is an ancestor of the other """
+        """Check if one biolink type is an ancestor of the other"""
         ancestors = WBMT.get_ancestors(b, reflexive=False)
         if a in ancestors:
             return True
@@ -404,21 +397,17 @@ def filter_ancestor_types(categories):
     has_descendant = [
         any(
             is_ancestor(categories[idx], a)
-            for a in categories[:idx] + categories[idx + 1:]
+            for a in categories[:idx] + categories[idx + 1 :]
         )
         for idx in range(len(categories))
     ]
-    return [
-        category
-        for category, drop in zip(categories, has_descendant)
-        if not drop
-    ]
+    return [category for category, drop in zip(categories, has_descendant) if not drop]
 
 
 async def fill_categories_predicates(
-        qg: QueryGraph,
-        logger: logging.Logger = logging.getLogger(),
-        normalizer: Normalizer = None,
+    qg: QueryGraph,
+    logger: logging.Logger = logging.getLogger(),
+    normalizer: Normalizer = None,
 ):
     """
     Given a query graph, fill in missing categories and predicates
@@ -429,26 +418,32 @@ async def fill_categories_predicates(
         normalizer = Normalizer(settings.normalizer_url, logger)
 
     # Fill in missing predicates with most general term
-    for edge in qg['edges'].values():
-        if ('predicates' not in edge) or (edge['predicates'] is None):
-            edge['predicates'] = ['biolink:related_to']
+    for edge in qg["edges"].values():
+        if ("predicates" not in edge) or (edge["predicates"] is None):
+            edge["predicates"] = ["biolink:related_to"]
 
     # Fill in missing categories with most general term
-    for node in qg['nodes'].values():
-        if ('categories' not in node) or (node['categories'] is None):
-            node['categories'] = ['biolink:NamedThing']
+    for node in qg["nodes"].values():
+        if ("categories" not in node) or (node["categories"] is None):
+            node["categories"] = ["biolink:NamedThing"]
 
     logger.debug("Contacting node normalizer to get categorys for curies")
 
     # Use node normalizer to add
     # a category to nodes with a curie
-    for node in qg['nodes'].values():
-        node_id = node.get('ids', None)
+    for node in qg["nodes"].values():
+        node_id = node.get("ids", None)
         if not node_id:
-            if 'biolink:Gene' in node['categories'] and 'biolink:Protein' not in node['categories']:
-                node['categories'].append('biolink:Protein')
-            if 'biolink:Protein' in node['categories'] and 'biolink:Gene' not in node['categories']:
-                node['categories'].append('biolink:Gene')
+            if (
+                "biolink:Gene" in node["categories"]
+                and "biolink:Protein" not in node["categories"]
+            ):
+                node["categories"].append("biolink:Protein")
+            if (
+                "biolink:Protein" in node["categories"]
+                and "biolink:Gene" not in node["categories"]
+            ):
+                node["categories"].append("biolink:Gene")
         else:
             if not isinstance(node_id, list):
                 node_id = [node_id]
@@ -461,7 +456,7 @@ async def fill_categories_predicates(
 
             if categories:
                 # Filter categorys that are ancestors of other categorys we were given
-                node['categories'] = filter_ancestor_types(categories)
+                node["categories"] = filter_ancestor_types(categories)
             elif "categories" not in node:
                 node["categories"] = []
 
@@ -512,18 +507,14 @@ def is_valid_node_binding(message, nb, qgraph_node):
         # Build list of allowable categories for kgraph nodes
         qgraph_allowable_categories = []
         for c in ensure_list(qgraph_node["categories"]):
-            qgraph_allowable_categories.extend(
-                WBMT.get_descendants(c)
-            )
+            qgraph_allowable_categories.extend(WBMT.get_descendants(c))
 
         # Check that at least one of the categories
         # on this kgraph node is allowed
-        if not any(
-            c in qgraph_allowable_categories
-            for c in kgraph_node["categories"]
-        ):
+        if not any(c in qgraph_allowable_categories for c in kgraph_node["categories"]):
             return False
     return True
+
 
 def is_valid_edge_binding(message, eb, qgraph_edge):
     """
@@ -535,15 +526,10 @@ def is_valid_edge_binding(message, eb, qgraph_edge):
         # Build list of allowable predicates for kgraph edges
         allowable_predicates = []
         for p in ensure_list(qgraph_edge["predicates"]):
-            allowable_predicates.extend(
-                WBMT.get_descendants(p)
-            )
+            allowable_predicates.extend(WBMT.get_descendants(p))
             p_inverse = WBMT.predicate_inverse(p)
             if p_inverse:
-                allowable_predicates.extend(
-                    WBMT.get_descendants(p_inverse)
-                )
-
+                allowable_predicates.extend(WBMT.get_descendants(p_inverse))
 
         # Check that all predicates on this
         # kgraph edge are allowed
@@ -562,12 +548,14 @@ def filter_by_qgraph(message, qgraph):
     # Only keep results where all edge
     # and node bindings are valid
     message["results"] = [
-        result for result in message["results"]
+        result
+        for result in message["results"]
         if all(
             is_valid_node_binding(message, nb, qgraph["nodes"][qg_id])
             for qg_id, nb_list in result["node_bindings"].items()
             for nb in nb_list
-        ) and all(
+        )
+        and all(
             is_valid_edge_binding(message, eb, qgraph["edges"][qg_id])
             for qg_id, eb_list in result["edge_bindings"].items()
             for eb in eb_list
@@ -594,10 +582,12 @@ def remove_unbound_from_kg(message):
                 bound_kedges.add(nb["id"])
 
     message["knowledge_graph"]["nodes"] = {
-        nid:node for nid,node in message["knowledge_graph"]["nodes"].items()
+        nid: node
+        for nid, node in message["knowledge_graph"]["nodes"].items()
         if nid in bound_knodes
     }
     message["knowledge_graph"]["edges"] = {
-        eid:edge for eid,edge in message["knowledge_graph"]["edges"].items()
+        eid: edge
+        for eid, edge in message["knowledge_graph"]["edges"].items()
         if eid in bound_kedges
     }

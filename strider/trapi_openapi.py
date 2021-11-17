@@ -9,6 +9,7 @@ from starlette.responses import JSONResponse
 
 class ORJSONResponse(JSONResponse):
     """JSON response using orjson."""
+
     media_type = "application/json"
 
     def render(self, content: Any) -> bytes:

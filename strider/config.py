@@ -1,8 +1,7 @@
 from datetime import timedelta
 from typing import Optional
 
-from pydantic import \
-    BaseSettings, FilePath, RedisDsn, AnyUrl
+from pydantic import BaseSettings, FilePath, RedisDsn, AnyUrl
 
 
 class Settings(BaseSettings):

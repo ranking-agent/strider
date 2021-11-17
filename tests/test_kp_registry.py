@@ -8,11 +8,14 @@ from .helpers.utils import kps_from_string
 
 
 @pytest.mark.asyncio
-@with_registry_overlay("http://test", kps_from_string(
-    """
+@with_registry_overlay(
+    "http://test",
+    kps_from_string(
+        """
     kp0 biolink:Drug biolink:treats biolink:Disease
     """
-))
+    ),
+)
 async def test_search_no_inverse():
     """Test search with no predicate inverses."""
     registry = Registry("http://test")
