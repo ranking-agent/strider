@@ -80,13 +80,6 @@ jobs:
       - name: Exit if there are any test failures
         run: '[[ $TEST_OUTPUT != *FAILED* ]]'
 
-  check-format:
-    name: Check that code matches Black formatter
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: psf/black@stable
-
   verify-lock:
     name: Verify lockfiles are up to date
     runs-on: ubuntu-latest
@@ -96,3 +89,10 @@ jobs:
 
       - name: Verify lockfiles
         run: python manage.py verify_locked
+
+  check-format:
+    name: Check that code matches Black formatter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: psf/black@stable
