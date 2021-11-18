@@ -17,7 +17,7 @@ from strider.util import WBMT
 
 
 def load_kps(fpath):
-    """ Load KPs from a file for use in a test """
+    """Load KPs from a file for use in a test"""
     with open(fpath, "r") as f:
         kps = json.load(f)
     DEFAULT_PREFIXES = {
@@ -27,7 +27,7 @@ def load_kps(fpath):
     }
     # Add prefixes
     for kp in kps.values():
-        kp['details'] = {'preferred_prefixes': DEFAULT_PREFIXES}
+        kp["details"] = {"preferred_prefixes": DEFAULT_PREFIXES}
     return kps
 
 
@@ -38,11 +38,13 @@ def create_kp(args):
     source, edge, target = args
     return {
         "url": "http://mykp",
-        "operations": [{
-            "subject_category": source,
-            "predicate": f"-{edge}->",
-            "object_category": target,
-        }]
+        "operations": [
+            {
+                "subject_category": source,
+                "predicate": f"-{edge}->",
+                "object_category": target,
+            }
+        ],
     }
 
 
@@ -51,18 +53,19 @@ def generate_kps(qty):
     Generate a given number of KPs using permutations
     of the biolink model
     """
-    node_categories = WBMT.get_descendants('biolink:NamedThing')
-    edge_predicates = WBMT.get_descendants('biolink:related_to')
+    node_categories = WBMT.get_descendants("biolink:NamedThing")
+    edge_predicates = WBMT.get_descendants("biolink:related_to")
     kp_generator = map(
         create_kp,
         itertools.product(
             node_categories,
             edge_predicates,
             node_categories,
-        )
+        ),
     )
 
     return {str(i): kp for i, kp in zip(range(qty), kp_generator)}
+
 
 def generate_attribute(spec, get_random):
     """
@@ -78,9 +81,7 @@ def generate_attribute(spec, get_random):
     if spec["value_type"] == "list":
         value = [get_random() for _ in range(spec["value_count"])]
     elif spec["value_type"] == "dict":
-        value = {
-            get_random(): get_random() for _ in range(spec["value_count"])
-        }
+        value = {get_random(): get_random() for _ in range(spec["value_count"])}
     elif spec["value_type"] == "string":
         value = get_random()
 
@@ -88,17 +89,16 @@ def generate_attribute(spec, get_random):
 
     if subattribute_count != None:
         return Attribute(
-            attribute_type_id = f"biolink:{get_random().lower()}",
-            value = value,
-            attributes = [
-                generate_attribute(spec, get_random)
-                for _ in range(subattribute_count)
-            ]
+            attribute_type_id=f"biolink:{get_random().lower()}",
+            value=value,
+            attributes=[
+                generate_attribute(spec, get_random) for _ in range(subattribute_count)
+            ],
         )
     else:
         return SubAttribute(
-            attribute_type_id = f"biolink:{get_random().lower()}",
-            value = value,
+            attribute_type_id=f"biolink:{get_random().lower()}",
+            value=value,
         )
 
 
@@ -153,79 +153,91 @@ def generate_message(spec) -> Message:
     """
 
     randomInstance = random.Random(spec.get("random_seed", None))
-    get_random = lambda: "".join(randomInstance.choice(string.ascii_letters) for _ in range(10))
+    get_random = lambda: "".join(
+        randomInstance.choice(string.ascii_letters) for _ in range(10)
+    )
 
     kg_node_ids = [
-       f"biolink:{get_random()}"
-       for _ in range(spec["knowledge_graph"]["nodes"]["count"])
+        f"biolink:{get_random()}"
+        for _ in range(spec["knowledge_graph"]["nodes"]["count"])
     ]
     kg_edge_ids = [
-       get_random()
-       for _ in range(spec["knowledge_graph"]["nodes"]["count"])
+        get_random() for _ in range(spec["knowledge_graph"]["nodes"]["count"])
     ]
 
     return Message(
-        query_graph = QueryGraph(nodes = {}, edges = {}),
-        knowledge_graph = KnowledgeGraph(
-            nodes = {
-                kgnid : Node(
-                    attributes = [
+        query_graph=QueryGraph(nodes={}, edges={}),
+        knowledge_graph=KnowledgeGraph(
+            nodes={
+                kgnid: Node(
+                    attributes=[
                         generate_attribute(
                             spec["knowledge_graph"]["nodes"]["attributes"]["spec"],
-                            get_random)
+                            get_random,
+                        )
                         for _ in range(
                             spec["knowledge_graph"]["nodes"]["attributes"]["count"]
                         )
                     ],
-                    categories = [
+                    categories=[
                         f"biolink:Category{get_random()}"
-                        for _ in range(spec["knowledge_graph"]["nodes"]["categories_count"])
+                        for _ in range(
+                            spec["knowledge_graph"]["nodes"]["categories_count"]
+                        )
                     ],
                 )
                 for kgnid in kg_node_ids
             },
-            edges = {
-                kgeid : Edge(
-                    attributes = [
+            edges={
+                kgeid: Edge(
+                    attributes=[
                         generate_attribute(
                             spec["knowledge_graph"]["edges"]["attributes"]["spec"],
-                            get_random)
+                            get_random,
+                        )
                         for _ in range(
                             spec["knowledge_graph"]["edges"]["attributes"]["count"]
                         )
                     ],
-                    subject = random.choice(kg_node_ids),
-                    predicate = f"biolink:{get_random().lower()}",
-                    object = random.choice(kg_node_ids),
+                    subject=random.choice(kg_node_ids),
+                    predicate=f"biolink:{get_random().lower()}",
+                    object=random.choice(kg_node_ids),
                 )
                 for kgeid in kg_edge_ids
             },
         ),
-        results = [
+        results=[
             Result(
-                node_bindings = {
-                    f"QGraphNode:{get_random()}" : [
-                        NodeBinding(
-                            id = kgnid
+                node_bindings={
+                    f"QGraphNode:{get_random()}": [
+                        NodeBinding(id=kgnid)
+                        for _ in range(
+                            spec["results"]["node_bindings"]["count_per_node"]
                         )
-                        for _ in range(spec["results"]["node_bindings"]["count_per_node"])
                     ]
                     for kgnid in kg_node_ids
                 },
-                edge_bindings = {
-                    f"QGraphEdge:{get_random()}" : [
+                edge_bindings={
+                    f"QGraphEdge:{get_random()}": [
                         EdgeBinding(
-                            id = kgeid,
-                            attributes = [
+                            id=kgeid,
+                            attributes=[
                                 generate_attribute(
-                                    spec["results"]["edge_bindings"]["attributes"]["spec"],
-                                    get_random)
+                                    spec["results"]["edge_bindings"]["attributes"][
+                                        "spec"
+                                    ],
+                                    get_random,
+                                )
                                 for _ in range(
-                                    spec["results"]["edge_bindings"]["attributes"]["count"],
+                                    spec["results"]["edge_bindings"]["attributes"][
+                                        "count"
+                                    ],
                                 )
                             ],
                         )
-                        for _ in range(spec["results"]["edge_bindings"]["count_per_edge"])
+                        for _ in range(
+                            spec["results"]["edge_bindings"]["count_per_edge"]
+                        )
                     ]
                     for kgeid in kg_edge_ids
                 },
@@ -236,18 +248,15 @@ def generate_message(spec) -> Message:
 
 
 def generate_message_parameterized(
-        kg_node_count,
-        kg_node_categories_count,
-        kg_edge_count,
-        kg_attribute_count,
-
-        result_count,
-        result_attribute_count,
-
-        attribute_value_size,
-        attribute_subattribute_count,
-
-        random_seed = None,
+    kg_node_count,
+    kg_node_categories_count,
+    kg_edge_count,
+    kg_attribute_count,
+    result_count,
+    result_attribute_count,
+    attribute_value_size,
+    attribute_subattribute_count,
+    random_seed=None,
 ) -> Message:
     """
     generate_message wrapper that creates
@@ -255,44 +264,39 @@ def generate_message_parameterized(
     """
 
     attribute_spec = {
-        "subattribute_count" : attribute_subattribute_count,
-        "value_type" : "list",
-        "value_count" : attribute_value_size,
+        "subattribute_count": attribute_subattribute_count,
+        "value_type": "list",
+        "value_count": attribute_value_size,
     }
 
-    return generate_message({
-        "random_seed" : random_seed,
-        "knowledge_graph" : {
-            "nodes" : {
-                "count" : kg_node_count,
-                "attributes" : {
-                    "count" : kg_attribute_count,
-                    "spec" : attribute_spec
+    return generate_message(
+        {
+            "random_seed": random_seed,
+            "knowledge_graph": {
+                "nodes": {
+                    "count": kg_node_count,
+                    "attributes": {"count": kg_attribute_count, "spec": attribute_spec},
+                    "categories_count": kg_node_categories_count,
                 },
-                "categories_count" : kg_node_categories_count
+                "edges": {
+                    "count": kg_edge_count,
+                    "attributes": {"count": kg_attribute_count, "spec": attribute_spec},
+                },
             },
-            "edges" : {
-                "count" : kg_edge_count,
-                "attributes" : {
-                    "count" : kg_attribute_count,
-                    "spec" : attribute_spec
-                }
-            }
-        },
-        "results" : {
-            "count" : result_count,
-            "node_bindings" : {
-                "count_per_node" : 1
+            "results": {
+                "count": result_count,
+                "node_bindings": {"count_per_node": 1},
+                "edge_bindings": {
+                    "count_per_edge": 1,
+                    "attributes": {
+                        "count": result_attribute_count,
+                        "spec": attribute_spec,
+                    },
+                },
             },
-            "edge_bindings" : {
-                "count_per_edge" : 1,
-                "attributes" : {
-                    "count" : result_attribute_count,
-                    "spec" : attribute_spec
-                }
-            }
         }
-    })
+    )
+
 
 def query_graph_from_string(s):
     """
@@ -317,23 +321,21 @@ def query_graph_from_string(s):
         match_node = re.search(node_re, line)
         match_edge = re.search(edge_re, line)
         if match_node:
-            node_id = match_node.group('id')
+            node_id = match_node.group("id")
             node = qg["nodes"].get(node_id, dict())
-            if node_id not in qg['nodes']:
-                qg['nodes'][node_id] = node
-            key = match_node.group('key')
+            if node_id not in qg["nodes"]:
+                qg["nodes"][node_id] = node
+            key = match_node.group("key")
             if key.endswith("[]"):
-                node[key[:-2]] = \
-                    node.get(key[:-2], []) + [match_node.group('val')]
+                node[key[:-2]] = node.get(key[:-2], []) + [match_node.group("val")]
             else:
-                node[key] = \
-                    match_node.group('val')
+                node[key] = match_node.group("val")
         elif match_edge:
-            edge_id = match_edge.group('src') + match_edge.group('target')
-            qg['edges'][edge_id] = {
-                "subject": match_edge.group('src'),
-                "object": match_edge.group('target'),
-                "predicates": match_edge.group('predicates').split(" "),
+            edge_id = match_edge.group("src") + match_edge.group("target")
+            qg["edges"][edge_id] = {
+                "subject": match_edge.group("src"),
+                "object": match_edge.group("target"),
+                "predicates": match_edge.group("predicates").split(" "),
             }
         else:
             raise ValueError(f"Invalid line: {line}")
@@ -355,17 +357,19 @@ def kps_from_string(s):
         match_kp = re.search(kp_re, line)
         if not match_kp:
             raise ValueError(f"Invalid line: {line}")
-        name = match_kp.group('name')
+        name = match_kp.group("name")
         if name not in kps:
             kps[name] = {
                 "url": f"http://{name}",
                 "operations": [],
             }
-        kps[name]['operations'].append({
-            "subject_category": match_kp.group('subject'),
-            "predicate": match_kp.group('predicate'),
-            "object_category": match_kp.group('object'),
-        })
+        kps[name]["operations"].append(
+            {
+                "subject_category": match_kp.group("subject"),
+                "predicate": match_kp.group("predicate"),
+                "object_category": match_kp.group("object"),
+            }
+        )
     return kps
 
 
@@ -396,9 +400,9 @@ def normalizer_data_from_string(s):
         action = tokens[1]
         line_data = tokens[2:]
 
-        if action == 'categories':
+        if action == "categories":
             category_mappings[curie].extend(line_data)
-        elif action == 'synonyms':
+        elif action == "synonyms":
             # Add to start of list so that we can override
             # the primary CURIE
             synset_mappings[curie] = sorted(line_data + synset_mappings[curie])
@@ -429,12 +433,14 @@ def plan_template_from_string(s):
         tokens = line.split(" ")
         step = tuple(tokens[0].split("-"))
 
-        plan_template[step].append({
-            "url": tokens[1],
-            "source_category": tokens[2],
-            "edge_predicate": tokens[3],
-            "target_category": tokens[4],
-        })
+        plan_template[step].append(
+            {
+                "url": tokens[1],
+                "source_category": tokens[2],
+                "edge_predicate": tokens[3],
+                "target_category": tokens[4],
+            }
+        )
 
     return dict(plan_template)
 
@@ -464,8 +470,7 @@ def validate_template(template, value):
             validate_template(template[key], value[key])
     else:
         if template != value:
-            raise ValueError(
-                f"Template value {template} does not equal {value}")
+            raise ValueError(f"Template value {template} does not equal {value}")
 
 
 def validate_message(template, value):
@@ -489,30 +494,25 @@ def validate_message(template, value):
         nodes.add(obj)
         # Check that this edge exists
         if not any(
-                edge["subject"] == sub and
-                edge["object"] == obj and
-                predicate in edge["predicate"]
+            edge["subject"] == sub
+            and edge["object"] == obj
+            and predicate in edge["predicate"]
             for edge in value["knowledge_graph"]["edges"].values()
         ):
-            raise ValueError(
-                f"Knowledge graph edge {edge_string} not found in message")
+            raise ValueError(f"Knowledge graph edge {edge_string} not found in message")
 
     # Validate nodes
     for node in nodes:
         if node not in value["knowledge_graph"]["nodes"].keys():
-            raise ValueError(
-                f"Knowledge graph node {node} not found in message")
+            raise ValueError(f"Knowledge graph node {node} not found in message")
 
     # Check for extra nodes or edges
     if len(nodes) != len(value["knowledge_graph"]["nodes"]):
-        raise ValueError(
-            "Extra nodes found in message knowledge_graph")
-    if (
-        len(template["knowledge_graph"].splitlines()) !=
-        len(value["knowledge_graph"]["edges"])
+        raise ValueError("Extra nodes found in message knowledge_graph")
+    if len(template["knowledge_graph"].splitlines()) != len(
+        value["knowledge_graph"]["edges"]
     ):
-        raise ValueError(
-            "Extra edges found in message knowledge_graph")
+        raise ValueError("Extra edges found in message knowledge_graph")
 
     # Validate results
     for index, template_result_string in enumerate(template["results"]):
@@ -537,7 +537,8 @@ def validate_message(template, value):
                     qg_node_id, *kg_node_ids = node_binding_string.split(" ")
                     if qg_node_id not in value_result["node_bindings"]:
                         raise ValueError(
-                            f"Could not find binding for node {qg_node_id}")
+                            f"Could not find binding for node {qg_node_id}"
+                        )
 
                     for kg_node_id in kg_node_ids:
                         if not any(
@@ -545,8 +546,11 @@ def validate_message(template, value):
                             for nb in value_result["node_bindings"][qg_node_id]
                         ):
                             raise ValueError(
-                                f"Expected node binding {qg_node_id} to {kg_node_id}")
-                    if len(value_result["node_bindings"][qg_node_id]) != len(kg_node_ids):
+                                f"Expected node binding {qg_node_id} to {kg_node_id}"
+                            )
+                    if len(value_result["node_bindings"][qg_node_id]) != len(
+                        kg_node_ids
+                    ):
                         raise ValueError(f"Extra node bindings found for {qg_node_id}")
 
                 # Validate edge bindings
@@ -559,14 +563,17 @@ def validate_message(template, value):
                         sub, obj = kg_edge_string.split("-")
                         kg_edge_id = next(
                             kg_edge_id
-                            for kg_edge_id, kg_edge in value["knowledge_graph"]["edges"].items()
+                            for kg_edge_id, kg_edge in value["knowledge_graph"][
+                                "edges"
+                            ].items()
                             if kg_edge["subject"] == sub and kg_edge["object"] == obj
                         )
                         kg_edge_ids.append(kg_edge_id)
 
                     if qg_edge_id not in value_result["edge_bindings"]:
                         raise ValueError(
-                            f"Could not find binding for edge {qg_edge_id}")
+                            f"Could not find binding for edge {qg_edge_id}"
+                        )
 
                     for kg_edge_id in kg_edge_ids:
                         if not any(
@@ -574,8 +581,11 @@ def validate_message(template, value):
                             for nb in value_result["edge_bindings"][qg_edge_id]
                         ):
                             raise ValueError(
-                                f"Expected edge binding {qg_edge_id} to {kg_edge_id}")
-                    if len(value_result["edge_bindings"][qg_edge_id]) != len(kg_edge_ids):
+                                f"Expected edge binding {qg_edge_id} to {kg_edge_id}"
+                            )
+                    if len(value_result["edge_bindings"][qg_edge_id]) != len(
+                        kg_edge_ids
+                    ):
                         raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
             except ValueError as err:
                 continue
@@ -589,7 +599,7 @@ def validate_message(template, value):
 
 
 async def time_and_display(f, msg):
-    """ Time a function and print the time """
+    """Time a function and print the time"""
     start_time = time.time()
     await f()
     total = time.time() - start_time

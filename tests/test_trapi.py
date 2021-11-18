@@ -1,7 +1,11 @@
 import pytest
 
-from strider.trapi import \
-    attribute_hash, filter_by_qgraph, canonicalize_qgraph, merge_messages
+from strider.trapi import (
+    attribute_hash,
+    filter_by_qgraph,
+    canonicalize_qgraph,
+    merge_messages,
+)
 
 
 @pytest.mark.asyncio
@@ -26,8 +30,8 @@ async def test_deduplicate_results_out_of_order():
                     "a": [{"id": "MONDO:0011122"}, {"id": "CHEBI:88916"}],
                 },
                 "edge_bindings": {},
-            }
-        ]
+            },
+        ],
     }
 
     output = merge_messages([message])
@@ -57,8 +61,8 @@ async def test_deduplicate_results_different():
                     "a": [{"id": "MONDO:0011122"}, {"id": "CHEBI:88916"}],
                 },
                 "edge_bindings": {},
-            }
-        ]
+            },
+        ],
     }
 
     output = merge_messages([message])
@@ -75,28 +79,27 @@ ATTRIBUTE_B = {
     "value": True,
 }
 
-def test_attribute_equality():
-    """ Test the attribute_hash function """
 
-    assert attribute_hash(ATTRIBUTE_A) != \
-           attribute_hash(ATTRIBUTE_B)
+def test_attribute_equality():
+    """Test the attribute_hash function"""
+
+    assert attribute_hash(ATTRIBUTE_A) != attribute_hash(ATTRIBUTE_B)
 
     # Test with sub-attributes
     ATTRIBUTE_WITH_SUBATTRIBUTES_A = {
         "attribute_type_id": "biolink:i_am_out_of_attribute_type_ideas",
         "value": 4,
-        "attributes" : [ATTRIBUTE_A]
+        "attributes": [ATTRIBUTE_A],
     }
     ATTRIBUTE_WITH_SUBATTRIBUTES_B = {
         "attribute_type_id": "biolink:i_am_out_of_attribute_type_ideas",
         "value": 4,
-        "attributes" : [ATTRIBUTE_A, ATTRIBUTE_B]
+        "attributes": [ATTRIBUTE_A, ATTRIBUTE_B],
     }
 
-    assert attribute_hash(ATTRIBUTE_WITH_SUBATTRIBUTES_A) != \
-           attribute_hash(ATTRIBUTE_WITH_SUBATTRIBUTES_B)
-
-
+    assert attribute_hash(ATTRIBUTE_WITH_SUBATTRIBUTES_A) != attribute_hash(
+        ATTRIBUTE_WITH_SUBATTRIBUTES_B
+    )
 
 
 def test_merge_knowledge_graph_nodes():
@@ -112,11 +115,12 @@ def test_merge_knowledge_graph_nodes():
                 "MONDO:1": {
                     "name": "Ebola",
                     "categories": ["biolink:Disease"],
-                    "attributes": [ATTRIBUTE_A]
+                    "attributes": [ATTRIBUTE_A],
                 }
             },
-            "edges": {}},
-        "results": []
+            "edges": {},
+        },
+        "results": [],
     }
 
     message_b = {
@@ -126,11 +130,12 @@ def test_merge_knowledge_graph_nodes():
                 "MONDO:1": {
                     "name": "Ebola Hemorrhagic Fever",
                     "categories": ["biolink:DiseaseOrPhenotypicFeature"],
-                    "attributes": [ATTRIBUTE_B]
+                    "attributes": [ATTRIBUTE_B],
                 }
             },
-            "edges": {}},
-        "results": []
+            "edges": {},
+        },
+        "results": [],
     }
 
     output = merge_messages([message_a, message_b])
@@ -153,10 +158,7 @@ def test_merge_knowledge_graph_edges():
     message_a = {
         "query_graph": {"nodes": {}, "edges": {}},
         "knowledge_graph": {
-            "nodes": {
-                "MONDO:1": {},
-                "CHEBI:1": {}
-            },
+            "nodes": {"MONDO:1": {}, "CHEBI:1": {}},
             "edges": {
                 "n0n1": {
                     "subject": "MONDO:1",
@@ -164,17 +166,15 @@ def test_merge_knowledge_graph_edges():
                     "predicate": "biolink:treated_by",
                     "attributes": [ATTRIBUTE_A],
                 }
-            }},
-        "results": []
+            },
+        },
+        "results": [],
     }
 
     message_b = {
         "query_graph": {"nodes": {}, "edges": {}},
         "knowledge_graph": {
-            "nodes": {
-                "MONDO:1": {},
-                "CHEBI:1": {}
-            },
+            "nodes": {"MONDO:1": {}, "CHEBI:1": {}},
             "edges": {
                 "n0n1": {
                     "subject": "MONDO:1",
@@ -182,8 +182,9 @@ def test_merge_knowledge_graph_edges():
                     "predicate": "biolink:treated_by",
                     "attributes": [ATTRIBUTE_B],
                 }
-            }},
-        "results": []
+            },
+        },
+        "results": [],
     }
 
     output = merge_messages([message_a, message_b])
@@ -208,11 +209,12 @@ def test_merge_identical_attributes():
                 "MONDO:1": {
                     "name": "Ebola",
                     "category": "biolink:Disease",
-                    "attributes": [ATTRIBUTE_A]
+                    "attributes": [ATTRIBUTE_A],
                 }
             },
-            "edges": {}},
-        "results": []
+            "edges": {},
+        },
+        "results": [],
     }
 
     message_b = {
@@ -222,11 +224,12 @@ def test_merge_identical_attributes():
                 "MONDO:1": {
                     "name": "Ebola Hemorrhagic Fever",
                     "category": "biolink:DiseaseOrPhenotypicFeature",
-                    "attributes": [ATTRIBUTE_A]
+                    "attributes": [ATTRIBUTE_A],
                 }
             },
-            "edges": {}},
-        "results": []
+            "edges": {},
+        },
+        "results": [],
     }
 
     output = merge_messages([message_a, message_b])
@@ -237,6 +240,7 @@ def test_merge_identical_attributes():
     node = next(iter(nodes.values()))
     assert node["attributes"] == [ATTRIBUTE_A]
 
+
 def test_filter_by_qgraph_id():
     """
     Test that the filter_by_qgraph method
@@ -244,28 +248,22 @@ def test_filter_by_qgraph_id():
     """
 
     message = {
-        "knowledge_graph" : {
-            "nodes" : {
-                "MONDO:1" : {},
-                "MONDO:2" : {}
-            },
-            "edges" : {}
-        },
-        "results" : [
+        "knowledge_graph": {"nodes": {"MONDO:1": {}, "MONDO:2": {}}, "edges": {}},
+        "results": [
             {
-                "node_bindings" : {"n0" : [{"id" : "MONDO:1"}]},
-                "edge_bindings" : {},
+                "node_bindings": {"n0": [{"id": "MONDO:1"}]},
+                "edge_bindings": {},
             },
             {
-                "node_bindings" : {"n0" : [{"id" : "MONDO:2"}]},
-                "edge_bindings" : {},
+                "node_bindings": {"n0": [{"id": "MONDO:2"}]},
+                "edge_bindings": {},
             },
-        ]
+        ],
     }
 
     qgraph = {
-        "nodes" : {
-            "n0" : {"ids" : ["MONDO:1"]},
+        "nodes": {
+            "n0": {"ids": ["MONDO:1"]},
         }
     }
 
@@ -323,32 +321,28 @@ def test_filter_by_qgraph_category():
     """
 
     message = {
-        "knowledge_graph" : {
-            "nodes" : {
-                "MONDO:1" : {
-                    "categories" : ["biolink:Disease"]
-                },
-                "MONDO:2" : {
-                    "categories" : ["biolink:ChemicalSubstance"]
-                }
+        "knowledge_graph": {
+            "nodes": {
+                "MONDO:1": {"categories": ["biolink:Disease"]},
+                "MONDO:2": {"categories": ["biolink:ChemicalSubstance"]},
             },
-            "edges" : {}
+            "edges": {},
         },
-        "results" : [
+        "results": [
             {
-                "node_bindings" : {"n0" : [{"id" : "MONDO:1"}]},
-                "edge_bindings" : {},
+                "node_bindings": {"n0": [{"id": "MONDO:1"}]},
+                "edge_bindings": {},
             },
             {
-                "node_bindings" : {"n0" : [{"id" : "MONDO:2"}]},
-                "edge_bindings" : {},
+                "node_bindings": {"n0": [{"id": "MONDO:2"}]},
+                "edge_bindings": {},
             },
-        ]
+        ],
     }
 
     qgraph = {
-        "nodes" : {
-            "n0" : {"categories" : ["biolink:DiseaseOrPhenotypicFeature"]},
+        "nodes": {
+            "n0": {"categories": ["biolink:DiseaseOrPhenotypicFeature"]},
         }
     }
 
@@ -368,42 +362,38 @@ def test_filter_by_qgraph_predicate():
     """
 
     message = {
-        "knowledge_graph" : {
-            "nodes" : {"n0" : {}},
-            "edges" : {
-                "ke1" : {
-                    "subject" : "n0",
-                    "object" : "n0",
-                    "predicate" : "biolink:ameliorates",
+        "knowledge_graph": {
+            "nodes": {"n0": {}},
+            "edges": {
+                "ke1": {
+                    "subject": "n0",
+                    "object": "n0",
+                    "predicate": "biolink:ameliorates",
                 },
-                "ke2" : {
-                    "subject" : "n0",
-                    "object" : "n0",
-                    "predicate" : "biolink:treats",
-                }
+                "ke2": {
+                    "subject": "n0",
+                    "object": "n0",
+                    "predicate": "biolink:treats",
+                },
             },
         },
-        "results" : [
+        "results": [
             {
-                "node_bindings" : {},
-                "edge_bindings" : {"e1" : [{"id" : "ke1"}]},
+                "node_bindings": {},
+                "edge_bindings": {"e1": [{"id": "ke1"}]},
             },
             {
-                "node_bindings" : {},
-                "edge_bindings" : {"e1" : [{"id" : "ke2"}]},
+                "node_bindings": {},
+                "edge_bindings": {"e1": [{"id": "ke2"}]},
             },
-        ]
+        ],
     }
 
     qgraph = {
-        "nodes" : {
-            "n0" : {},
+        "nodes": {
+            "n0": {},
         },
-        "edges" : {
-            "e1" : {
-                "predicates" : ["biolink:treats"]
-            }
-        },
+        "edges": {"e1": {"predicates": ["biolink:treats"]}},
     }
 
     filter_by_qgraph(message, qgraph)

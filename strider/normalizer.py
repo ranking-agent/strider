@@ -3,11 +3,11 @@ from strider.util import StriderRequestError, post_json
 import httpx
 
 
-class Normalizer():
+class Normalizer:
     def __init__(
-            self,
-            url,
-            logger: logging.Logger = None,
+        self,
+        url,
+        logger: logging.Logger = None,
     ):
         self.url = url
         if not logger:
@@ -20,8 +20,9 @@ class Normalizer():
         try:
             results = await post_json(
                 f"{self.url}/get_normalized_nodes",
-                {"curies" : curies},
-                self.logger, "Node Normalizer"
+                {"curies": curies},
+                self.logger,
+                "Node Normalizer",
             )
         except StriderRequestError:
             return []
@@ -31,5 +32,5 @@ class Normalizer():
             if results[c] is None:
                 self.logger.warning(f"Normalizer knows nothing about {c}")
                 continue
-            types.extend(results[c]['type'])
+            types.extend(results[c]["type"])
         return types

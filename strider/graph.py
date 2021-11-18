@@ -8,7 +8,7 @@ class Graph(dict):
     def __init__(self, *args, **kwargs):
         """Initialize."""
         super().__init__(*args, **kwargs)
-    
+
     def __hash__(self):
         """Compute hash."""
         return hash(json.dumps(self, sort_keys=True))

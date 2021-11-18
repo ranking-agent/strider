@@ -20,7 +20,7 @@ def get_client() -> redis.Redis:
 
 
 def mapd(f, d):
-    """ Map function over dictionary values """
+    """Map function over dictionary values"""
     return {k: f(v) for k, v in d.items()}
 
 
@@ -46,10 +46,7 @@ class RedisHash(RedisValue):
         self.client.delete(self.key)
         if not len(v):
             return
-        self.client.hset(
-            self.key,
-            mapping=mapd(json.dumps, v)
-        )
+        self.client.hset(self.key, mapping=mapd(json.dumps, v))
 
     def get_val(self):
         v = self.client.hget(self.key)
@@ -58,10 +55,7 @@ class RedisHash(RedisValue):
     def merge(self, v: dict):
         if not len(v):
             return
-        self.client.hset(
-            self.key,
-            mapping=mapd(json.dumps, v)
-        )
+        self.client.hset(self.key, mapping=mapd(json.dumps, v))
 
 
 class RedisList(RedisValue):
@@ -80,26 +74,23 @@ class RedisList(RedisValue):
         self.client.lpush(self.key, json.dumps(v))
 
 
-class RedisGraph():
+class RedisGraph:
     """Redis graph."""
 
     def __init__(self, key: str, client: Optional[redis.Redis] = None):
-        self.nodes = RedisHash(key + ':nodes', client)
-        self.edges = RedisHash(key + ':edges', client)
+        self.nodes = RedisHash(key + ":nodes", client)
+        self.edges = RedisHash(key + ":edges", client)
 
     def expire(self, when: int):
         self.nodes.expire(when)
         self.edges.expire(when)
 
     def get(self):
-        return dict(
-            nodes=self.nodes.get(),
-            edges=self.edges.get()
-        )
+        return dict(nodes=self.nodes.get(), edges=self.edges.get())
 
     def set(self, v):
-        self.nodes.set(v['nodes'])
-        self.edges.set(v['edges'])
+        self.nodes.set(v["nodes"])
+        self.edges.set(v["edges"])
 
 
 class RedisLogHandler(logging.Handler):

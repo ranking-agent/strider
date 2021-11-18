@@ -1,6 +1,8 @@
 """Caching/locking."""
 import asyncio
+from collections import OrderedDict, namedtuple
 from functools import wraps
+import json
 
 
 def make_key(args, kwargs):
@@ -34,18 +36,58 @@ def async_cache(fcn):
     return cache_wrapper
 
 
-def async_locking_cache(fcn):
-    """Cache decorator."""
+def async_locking_cache(fcn, maxsize=32):
+    """Cache decorator.
+
+    Taken in part from:
+    https://github.com/aio-libs/async-lru/blob/master/async_lru.py
+    """
     if not asyncio.iscoroutinefunction(fcn):
         raise ValueError("Function is not asynchronous")
-    cache = {}
 
     @wraps(fcn)
-    async def cache_wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         """Wrap function."""
-        key = make_key(args, kwargs)
-        if key not in cache:
-            cache[key] = asyncio.create_task(fcn(*args, **kwargs))
-        return await cache[key]
+        key = json.dumps((args, kwargs))
+        # check cache
+        task = wrapper.cache.get(key)
+        if task is None:
+            # put lock on query into cache
+            _cache_miss(key)
+            wrapper.cache[key] = asyncio.create_task(fcn(*args, **kwargs))
+        else:
+            # query already in cache, wait for result
+            _cache_hit(key)
+        if maxsize is not None and len(wrapper.cache) > maxsize:
+            # remove least recently used (lru) query
+            wrapper.cache.popitem(last=False)
+        return await wrapper.cache[key]
 
-    return cache_wrapper
+    def cache_clear():
+        wrapper.hits = wrapper.misses = 0
+        wrapper.cache = OrderedDict()
+
+    _Cache_Info = namedtuple("CacheInfo", ["hits", "misses", "maxsize", "currsize"])
+
+    def cache_info():
+        return _Cache_Info(wrapper.hits, wrapper.misses, maxsize, len(wrapper.cache))
+
+    def _cache_touch(key):
+        try:
+            wrapper.cache.move_to_end(key)
+        except KeyError:
+            pass
+
+    def _cache_hit(key):
+        wrapper.hits += 1
+        _cache_touch(key)
+
+    def _cache_miss(key):
+        wrapper.misses += 1
+        _cache_touch(key)
+
+    cache_clear()
+    wrapper.cache_clear = cache_clear
+    wrapper.cache_info = cache_info
+
+    return wrapper
