@@ -265,7 +265,7 @@ async def async_lookup(
 ):
     """Preform lookup and send results to callback url"""
     query_results = await lookup(query_dict, redis_client)
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
         await client.post(callback, json=query_results)
 
 
