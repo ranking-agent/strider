@@ -1,8 +1,7 @@
 from datetime import timedelta
 from typing import Optional
 
-from pydantic import \
-    BaseSettings, FilePath, RedisDsn, AnyUrl
+from pydantic import BaseSettings, FilePath, RedisDsn, AnyUrl
 
 
 class Settings(BaseSettings):
@@ -17,6 +16,7 @@ class Settings(BaseSettings):
     redis_url: RedisDsn = "redis://localhost"
     store_results_for: timedelta = timedelta(days=7)
     profiler: bool = False
+    use_cache: bool = True
 
     class Config:
         env_file = ".env"

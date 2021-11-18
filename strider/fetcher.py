@@ -29,9 +29,15 @@ from redis import Redis
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
 from .compatibility import KnowledgePortal, Synonymizer
-from .trapi import canonicalize_qgraph, filter_by_qgraph, get_curies, map_qgraph_curies, merge_messages, merge_results, \
-    fill_categories_predicates
-from .caching import async_locking_cache
+from .trapi import (
+    canonicalize_qgraph,
+    filter_by_qgraph,
+    get_curies,
+    map_qgraph_curies,
+    merge_messages,
+    merge_results,
+    fill_categories_predicates,
+)
 from .query_planner import generate_plan, get_next_qedge
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
@@ -40,7 +46,7 @@ from .util import KnowledgeProvider, WBMT, batch
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
-    """ Format to match Reasoner API LogEntry """
+    """Format to match Reasoner API LogEntry"""
 
     def format(self, record):
         log_entry = {}
@@ -55,9 +61,7 @@ class ReasonerLogEntryFormatter(logging.Formatter):
             log_entry |= record.msg
 
         # Add timestamp
-        iso_timestamp = datetime.utcfromtimestamp(
-            record.created
-        ).isoformat()
+        iso_timestamp = datetime.utcfromtimestamp(record.created).isoformat()
         log_entry["timestamp"] = iso_timestamp
 
         # Add level
@@ -73,24 +77,22 @@ sh.setFormatter(formatter)
 _logger.addHandler(sh)
 
 
-class Binder():
+class Binder:
     """Binder."""
 
     def __init__(
-            self,
-            qid: str,
-            log_level: int = logging.DEBUG,
-            name: Optional[str] = None,
-            redis_client: Optional[Redis] = None,
+        self,
+        qid: str,
+        log_level: int = logging.DEBUG,
+        name: Optional[str] = None,
+        redis_client: Optional[Redis] = None,
     ):
         """Initialize."""
         self.name = name
 
         # Set up logger
         handler = RedisLogHandler(f"{qid}:log", redis_client)
-        handler.setFormatter(
-            ReasonerLogEntryFormatter()
-        )
+        handler.setFormatter(ReasonerLogEntryFormatter())
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
         self.logger.addHandler(handler)
@@ -105,16 +107,18 @@ class Binder():
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
     async def lookup(
-            self,
-            qgraph: Graph = None,
-            use_cache: bool = True,
+        self,
+        qgraph: Graph = None,
     ):
         """Expand from query graph node."""
         # if this is a leaf node, we're done
         if qgraph is None:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
-            yield {"nodes": dict(), "edges": dict()}, {"node_bindings": dict(), "edge_bindings": dict()}
+            yield {"nodes": dict(), "edges": dict()}, {
+                "node_bindings": dict(),
+                "edge_bindings": dict(),
+            }
             return
         self.logger.debug(f"Lookup for qgraph: {qgraph}")
 
@@ -130,13 +134,11 @@ class Binder():
                 for key, value in qgraph["nodes"].items()
                 if key in (qedge["subject"], qedge["object"])
             },
-            "edges": {
-                qedge_id: qedge
-            }
+            "edges": {qedge_id: qedge},
         }
 
         generators = [
-            self.generate_from_kp(qgraph, onehop, self.kps[kp_id], use_cache=use_cache)
+            self.generate_from_kp(qgraph, onehop, self.kps[kp_id])
             for kp_id in self.plan[qedge_id]
         ]
         async with aiostream.stream.merge(*generators).stream() as streamer:
@@ -148,12 +150,10 @@ class Binder():
         qgraph,
         onehop_qgraph,
         kp: KnowledgeProvider,
-        **kwargs,
     ):
         """Generate one-hop results from KP."""
         onehop_response = await kp.solve_onehop(
             onehop_qgraph,
-            # **kwargs,
         )
         onehop_response = enforce_constraints(onehop_response)
         onehop_kgraph = onehop_response["knowledge_graph"]
@@ -188,25 +188,30 @@ class Binder():
                 for qnode_id, bindings in result["node_bindings"].items():
                     if qnode_id not in subqgraph["nodes"]:
                         continue
-                    subqgraph["nodes"][qnode_id]["ids"] = (subqgraph["nodes"][qnode_id].get("ids") or []) + [
-                        binding["id"]
-                        for binding in bindings
-                    ]
-                qnode_ids = set(subqgraph["nodes"].keys()) & set(result["node_bindings"].keys())
+                    subqgraph["nodes"][qnode_id]["ids"] = (
+                        subqgraph["nodes"][qnode_id].get("ids") or []
+                    ) + [binding["id"] for binding in bindings]
+                qnode_ids = set(subqgraph["nodes"].keys()) & set(
+                    result["node_bindings"].keys()
+                )
                 key_fcn = lambda res: tuple(
-                    (qnode_id, tuple(
-                        binding["id"]
-                        for binding in bindings  # probably only one
-                    ))
+                    (
+                        qnode_id,
+                        tuple(
+                            binding["id"] for binding in bindings  # probably only one
+                        ),
+                    )
                     for qnode_id, bindings in res["node_bindings"].items()
                     if qnode_id in qnode_ids
                 )
                 result_map[key_fcn(result)].append((result, result_kgraph))
 
-            generators.append(self.generate_from_result(
-                copy.deepcopy(subqgraph),
-                lambda result: result_map[key_fcn(result)],
-            ))
+            generators.append(
+                self.generate_from_result(
+                    copy.deepcopy(subqgraph),
+                    lambda result: result_map[key_fcn(result)],
+                )
+            )
 
         async with aiostream.stream.merge(*generators).stream() as streamer:
             async for result in streamer:
@@ -216,7 +221,6 @@ class Binder():
         self,
         qgraph,
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
-        **kwargs,
     ):
         # LOGGER.debug(
         #     "Expanding from result %s...",
@@ -224,7 +228,6 @@ class Binder():
         # )
         async for subkgraph, subresult in self.lookup(
             qgraph,
-            **kwargs,
         ):
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
@@ -242,37 +245,6 @@ class Binder():
                 subkgraph["edges"].update(kgraph["edges"])
                 yield subkgraph, subresult
 
-    async def get_results(
-        self,
-        qgraph: dict[str, Any],
-        use_cache=True,
-        max_results=None,
-    ):
-        """Get results and kgraph."""
-        qgraph = copy.deepcopy(qgraph)
-        qgraph = Graph(qgraph)
-        # normalize_qgraph(qgraph)
-
-        kgraph = {"nodes": dict(), "edges": dict()}
-        results = []
-        counter = 0
-        async for kgraph_, result_ in self.lookup(qgraph, use_cache=use_cache):
-            # aggregate results
-            kgraph["nodes"].update(kgraph_["nodes"])
-            kgraph["edges"].update(kgraph_["edges"])
-            results.append(result_)
-            counter += 1
-            if max_results is not None and counter >= max_results:
-                break
-
-        for kedge in kgraph["edges"].values():
-            kedge["attributes"] = [{
-                "attribute_type_id": "biolink:knowledge_source",
-                "value": f"infores:{self.name}",
-            }]
-
-        return kgraph, results
-
     async def __aenter__(self):
         """Enter context."""
         for tserver in self.portal.tservers.values():
@@ -286,18 +258,22 @@ class Binder():
 
     def get_processor(self, preferred_prefixes):
         """Get processor."""
+
         async def processor(request, logger: logging.Logger = None):
             """Map message CURIE prefixes."""
             if logger is None:
                 logger = self.logger
-            request["message"] = await self.portal.map_prefixes(request["message"], preferred_prefixes)
+            request["message"] = await self.portal.map_prefixes(
+                request["message"], preferred_prefixes
+            )
             return request
+
         return processor
 
     # pylint: disable=arguments-differ
     async def setup(
-            self,
-            qgraph: dict,
+        self,
+        qgraph: dict,
     ):
         """Set up."""
         # Update qgraph identifiers

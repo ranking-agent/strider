@@ -4,11 +4,13 @@ from strider.traversal import NoAnswersError
 
 import pytest
 
-from tests.helpers.context import \
-    with_registry_overlay, with_norm_overlay
-from tests.helpers.utils import generate_kps, \
-    time_and_display, query_graph_from_string, \
-    kps_from_string
+from tests.helpers.context import with_registry_overlay, with_norm_overlay
+from tests.helpers.utils import (
+    generate_kps,
+    time_and_display,
+    query_graph_from_string,
+    kps_from_string,
+)
 from tests.helpers.logger import assert_no_level
 
 
@@ -26,16 +28,19 @@ LOGGER = logging.getLogger()
 
 
 async def prepare_query_graph(query_graph):
-    """ Prepare a query graph for the generate_plans method """
+    """Prepare a query graph for the generate_plans method"""
     await fill_categories_predicates(query_graph, logging.getLogger())
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Drug -biolink:treats-> biolink:Disease
     """
-))
+    ),
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_not_enough_kps(caplog):
     """
@@ -54,21 +59,24 @@ async def test_not_enough_kps(caplog):
     await prepare_query_graph(qg)
 
     with pytest.raises(NoAnswersError, match=r"cannot reach"):
-        plan, kps = await generate_plan(
-            qg,
-            logger=logging.getLogger()
-        )
+        plan, kps = await generate_plan(qg, logger=logging.getLogger())
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Drug biolink:treats biolink:Disease
     """
-))
-@with_norm_overlay(settings.normalizer_url, """
+    ),
+)
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
-""")
+""",
+)
 async def test_plan_reverse_edge(caplog):
     """
     Test that we can plan a simple query graph
@@ -92,13 +100,16 @@ async def test_plan_reverse_edge(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp1 biolink:ChemicalSubstance biolink:treats biolink:Disease
     kp2 biolink:ChemicalSubstance biolink:treats biolink:PhenotypicFeature
     kp3 biolink:Disease biolink:has_phenotype biolink:PhenotypicFeature
     """
-))
+    ),
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_plan_loop():
     """
@@ -124,11 +135,14 @@ async def test_plan_loop():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:related_to biolink:Disease
     """
-))
+    ),
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_plan_reuse_pinned():
     """
@@ -154,14 +168,20 @@ async def test_plan_reuse_pinned():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:related_to biolink:Disease
     """
-))
-@with_norm_overlay(settings.normalizer_url, """
+    ),
+)
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
-""")
+""",
+)
 async def test_plan_double_loop(caplog):
     """
     Test valid plan for a more complex query with two loops
@@ -198,13 +218,16 @@ async def test_plan_double_loop(caplog):
         kp2 biolink:MolecularEntity biolink:decreases_abundance_of biolink:GeneOrGeneProduct
         kp3 biolink:Disease biolink:treated_by biolink:MolecularEntity
         """
-    )
+    ),
 )
-@with_norm_overlay(settings.normalizer_url, """
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
-""")
+""",
+)
 async def test_plan_ex1(caplog):
-    """ Test that we get a good plan for our first example """
+    """Test that we get a good plan for our first example"""
     qg = query_graph_from_string(
         """
         n0(( categories[] biolink:MolecularEntity ))
@@ -218,19 +241,25 @@ async def test_plan_ex1(caplog):
 
     plan, kps = await generate_plan(qg)
     # One step per edge
-    assert len(plan) == len(qg['edges'])
+    assert len(plan) == len(qg["edges"])
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
-))
-@with_norm_overlay(settings.normalizer_url, """
+    ),
+)
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
     MONDO:0011122 categories biolink:Disease
-""")
+""",
+)
 async def test_valid_two_pinned_nodes(caplog):
     """
     Test Pinned -> Unbound + Pinned
@@ -252,15 +281,21 @@ async def test_valid_two_pinned_nodes(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:treated_by biolink:Drug
     kp1 biolink:Disease biolink:has_phenotype biolink:PhenotypicFeature
     """
-))
-@with_norm_overlay(settings.normalizer_url, """
+    ),
+)
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
-""")
+""",
+)
 async def test_fork(caplog):
     """
     Test Unbound <- Pinned -> Unbound
@@ -284,14 +319,20 @@ async def test_fork(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
-))
-@with_norm_overlay(settings.normalizer_url, """
+    ),
+)
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
-""")
+""",
+)
 async def test_unbound_unconnected_node(caplog):
     """
     Test Pinned -> Unbound + Unbound
@@ -314,15 +355,21 @@ async def test_unbound_unconnected_node(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
-))
-@with_norm_overlay(settings.normalizer_url, """
+    ),
+)
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
     MONDO:0005148 categories biolink:Disease
     MONDO:0011122 categories biolink:Disease
-""")
+""",
+)
 async def test_valid_two_disconnected_components(caplog):
     """
     Test Pinned -> Unbound + Pinned -> Unbound
@@ -345,11 +392,14 @@ async def test_valid_two_disconnected_components(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
-))
+    ),
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_bad_norm(caplog):
     """
@@ -365,7 +415,7 @@ async def test_bad_norm(caplog):
             },
             "n1": {
                 "categories": ["biolink:Drug"],
-            }
+            },
         },
         "edges": {
             "e01": {
@@ -373,7 +423,7 @@ async def test_bad_norm(caplog):
                 "object": "n1",
                 "predicates": ["biolink:treated_by"],
             }
-        }
+        },
     }
     await prepare_query_graph(qg)
 
@@ -388,11 +438,14 @@ async def test_bad_norm(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:ChemicalSubstance biolink:treats biolink:Disease
     """
-))
+    ),
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_descendant_reverse_category(caplog):
     """
@@ -491,11 +544,14 @@ async def test_planning_performance_typical_example():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(settings.kpregistry_url, kps_from_string(
-    """
+@with_registry_overlay(
+    settings.kpregistry_url,
+    kps_from_string(
+        """
     kp0 biolink:Disease biolink:treated_by biolink:Drug
     """
-))
+    ),
+)
 @with_norm_overlay(settings.normalizer_url)
 async def test_double_sided(caplog):
     """

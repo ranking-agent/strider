@@ -1,5 +1,6 @@
 """Query-graph traversal planning."""
 
+
 class NoAnswersError(Exception):
     """No answers can be found."""
 
@@ -22,7 +23,7 @@ def traverse_edge(qgraph: dict, qedge_id):
             _qedge_id: qedge
             for _qedge_id, qedge in qgraph["edges"].items()
             if _qedge_id != qedge_id
-        }
+        },
     }
 
 
@@ -33,9 +34,7 @@ def get_traversals(qgraph: dict):
     The direction that each edge is traversed is irrelevant.
     """
     pinned_nodes = [
-        qnode_id
-        for qnode_id, qnode in qgraph["nodes"].items()
-        if qnode.get("ids")
+        qnode_id for qnode_id, qnode in qgraph["nodes"].items() if qnode.get("ids")
     ]
     if len(pinned_nodes) == len(qgraph["nodes"]) and not qgraph["edges"]:
         return [[]]
@@ -47,14 +46,18 @@ def get_traversals(qgraph: dict):
     if not traversable_edges:
         unreachable_nodes = [qid for qid in qgraph["nodes"] if qid not in pinned_nodes]
         unreachable_edges = list(qgraph["edges"])
-        raise NoAnswersError("Query planning cannot reach nodes {} and edges {}".format(
-            unreachable_nodes,
-            unreachable_edges,
-        ))
+        raise NoAnswersError(
+            "Query planning cannot reach nodes {} and edges {}".format(
+                unreachable_nodes,
+                unreachable_edges,
+            )
+        )
     traversals = []
     for attached_edge in traversable_edges:
-        traversals.extend([
-            [attached_edge] + traversal
-            for traversal in get_traversals(traverse_edge(qgraph, attached_edge))
-        ])
+        traversals.extend(
+            [
+                [attached_edge] + traversal
+                for traversal in get_traversals(traverse_edge(qgraph, attached_edge))
+            ]
+        )
     return traversals

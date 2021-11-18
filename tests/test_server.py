@@ -9,9 +9,14 @@ import httpx
 import pytest
 from reasoner_pydantic import Query, Message, QueryGraph
 
-from tests.helpers.context import \
-    response_overlay, with_translator_overlay, with_registry_overlay, \
-    with_norm_overlay, with_response_overlay, callback_overlay
+from tests.helpers.context import (
+    response_overlay,
+    with_translator_overlay,
+    with_registry_overlay,
+    with_norm_overlay,
+    with_response_overlay,
+    callback_overlay,
+)
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 
@@ -60,15 +65,14 @@ CTD_PREFIXES = {
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
-    }
+    },
 )
 async def test_solve_ex1(client):
     """Test solving the ex1 query graph"""
@@ -84,7 +88,7 @@ async def test_solve_ex1(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -93,8 +97,7 @@ async def test_solve_ex1(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 MONDO:0005148 biolink:has_phenotype HP:0004324
                 """,
@@ -110,7 +113,7 @@ async def test_solve_ex1(client):
                 """
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -119,14 +122,13 @@ async def test_solve_ex1(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148(( category biolink:DiseaseOrPhenotypicFeature ))
             MONDO:0005148(( category biolink:Disease ))
         """
-    }
+    },
 )
 async def test_duplicate_results(client):
     """
@@ -145,13 +147,13 @@ async def test_duplicate_results(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
-    assert len(output['message']['results']) == 1
+    assert len(output["message"]["results"]) == 1
 
 
 @pytest.mark.asyncio
@@ -159,18 +161,17 @@ async def test_duplicate_results(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
-    }
+    },
 )
 async def test_solve_missing_predicate(client):
-    """Test solving a query graph, in which one of the predicates is missing. """
+    """Test solving a query graph, in which one of the predicates is missing."""
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -182,10 +183,10 @@ async def test_solve_missing_predicate(client):
         """
     )
 
-    del QGRAPH['edges']['n0n1']['predicates']
+    del QGRAPH["edges"]["n0n1"]["predicates"]
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -199,18 +200,17 @@ async def test_solve_missing_predicate(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
-    }
+    },
 )
 async def test_solve_missing_category(client):
-    """Test solving the ex1 query graph, in which one of the categories is missing. """
+    """Test solving the ex1 query graph, in which one of the categories is missing."""
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -222,10 +222,10 @@ async def test_solve_missing_category(client):
         """
     )
 
-    del QGRAPH['nodes']['n0']['categories']
+    del QGRAPH["nodes"]["n0"]["categories"]
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -237,8 +237,7 @@ async def test_solve_missing_category(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:Vitamin ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
@@ -246,7 +245,7 @@ async def test_solve_missing_category(client):
     },
     normalizer_data="""
         CHEBI:6801 categories biolink:Vitamin
-        """
+        """,
 )
 async def test_normalizer_different_category(client):
     """
@@ -264,7 +263,7 @@ async def test_normalizer_different_category(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -278,20 +277,17 @@ async def test_normalizer_different_category(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:0008114(( category biolink:Disease ))
             MONDO:0008114-- predicate biolink:treated_by -->MESH:C035133
             MESH:C035133(( category biolink:ChemicalSubstance ))
         """,
-        "kp1":
-        """
+        "kp1": """
             MESH:C035133(( category biolink:ChemicalSubstance ))
             MESH:C035133-- predicate biolink:ameliorates -->HP:0007430
             HP:0007430(( category biolink:PhenotypicFeature ))
         """,
-        "kp2":
-        """
+        "kp2": """
             HP:0007430(( category biolink:PhenotypicFeature ))
             HP:0007430-- predicate biolink:has_phenotype -->MONDO:0008114
             MONDO:0008114(( category biolink:Disease ))
@@ -301,7 +297,7 @@ async def test_normalizer_different_category(client):
         MONDO:0008114 categories biolink:Disease
         HP:0007430 categories biolink:PhenotypicFeature
         MESH:C035133 categories biolink:ChemicalSubstance
-        """
+        """,
 )
 async def test_solve_loop(client, caplog):
     """
@@ -323,21 +319,21 @@ async def test_solve_loop(client, caplog):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
-    validate_message({
-        "knowledge_graph":
-            """
+    validate_message(
+        {
+            "knowledge_graph": """
             MONDO:0008114 biolink:treated_by MESH:C035133
             MESH:C035133 biolink:ameliorates HP:0007430
             HP:0007430 biolink:has_phenotype MONDO:0008114
             """,
-        "results": [
-            """
+            "results": [
+                """
             node_bindings:
                 n0 MONDO:0008114
                 n1 MESH:C035133
@@ -347,9 +343,10 @@ async def test_solve_loop(client, caplog):
                 n1n2 MESH:C035133-HP:0007430
                 n2n0 HP:0007430-MONDO:0008114
             """
-        ],
-    },
-        output["message"])
+            ],
+        },
+        output["message"],
+    )
 
 
 @pytest.mark.asyncio
@@ -357,18 +354,17 @@ async def test_solve_loop(client, caplog):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
-    }
+    },
 )
 async def test_log_level_param(client):
-    """Test that changing the log level changes the output """
+    """Test that changing the log level changes the output"""
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -381,19 +377,19 @@ async def test_log_level_param(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Check there are no debug logs
     response = await client.post("/query", json=q)
     output = response.json()
-    assert not any(l['level'] == 'DEBUG' for l in output['logs'])
+    assert not any(l["level"] == "DEBUG" for l in output["logs"])
 
     q["log_level"] = "DEBUG"
 
     # Check there are now debug logs
     response = await client.post("/query", json=q)
     output = response.json()
-    assert any(l['level'] == 'DEBUG' for l in output['logs'])
+    assert any(l["level"] == "DEBUG" for l in output["logs"])
 
 
 @pytest.mark.asyncio
@@ -401,25 +397,22 @@ async def test_log_level_param(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "hetio":
-        """
+        "hetio": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "mychem":
-        """
+        "mychem": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
-        """
-    }
+        """,
+    },
 )
 async def test_plan_endpoint(client):
     """Test /plan endpoint"""
@@ -435,7 +428,7 @@ async def test_plan_endpoint(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/plan", json=q)
@@ -449,25 +442,22 @@ async def test_plan_endpoint(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "mychem":
-        """
+        "mychem": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """,
-        "hetio":
-        """
+        "hetio": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """,
-    }
+    },
 )
 # Override one KP with an invalid response
 @with_response_overlay(
@@ -475,7 +465,7 @@ async def test_plan_endpoint(client):
     Response(
         status_code=500,
         content="Internal server error",
-    )
+    ),
 )
 async def test_kp_500(client):
     """
@@ -495,8 +485,8 @@ async def test_kp_500(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
-        "log_level" : "WARNING",
+        "message": {"query_graph": QGRAPH},
+        "log_level": "WARNING",
     }
 
     # Run
@@ -507,27 +497,29 @@ async def test_kp_500(client):
     assert "Error contacting mychem" in output["logs"][0]["message"]
     assert "Internal server error" in output["logs"][0]["response"]["data"]
     # Ensure we have results from the other KPs
-    assert len(output['message']['knowledge_graph']['nodes']) > 0
-    assert len(output['message']['knowledge_graph']['edges']) > 0
-    assert len(output['message']['results']) > 0
+    assert len(output["message"]["knowledge_graph"]["nodes"]) > 0
+    assert len(output["message"]["knowledge_graph"]["edges"]) > 0
+    assert len(output["message"]["results"]) > 0
 
 
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
 @with_registry_overlay(
-    settings.kpregistry_url, {
-        'ctd': {
-            'url': 'http://ctd/query',
-            'operations': [{
-                'subject_category': 'biolink:ChemicalSubstance',
-                'predicate': 'biolink:treats',
-                'object_category': 'biolink:Disease'
-            }],
-            'details': {
-                'preferred_prefixes': {}
-            }
+    settings.kpregistry_url,
+    {
+        "ctd": {
+            "url": "http://ctd/query",
+            "operations": [
+                {
+                    "subject_category": "biolink:ChemicalSubstance",
+                    "predicate": "biolink:treats",
+                    "object_category": "biolink:Disease",
+                }
+            ],
+            "details": {"preferred_prefixes": {}},
         }
-    })
+    },
+)
 async def test_kp_unavailable(client):
     """
     Test that when a KP is unavailable we add a message to
@@ -544,7 +536,7 @@ async def test_kp_unavailable(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "WARNING",
     }
 
@@ -553,30 +545,33 @@ async def test_kp_unavailable(client):
     output = response.json()
 
     # Check that we stored the error
-    assert 'Request Error contacting ctd' in output['logs'][0]['message']
+    assert "Request Error contacting ctd" in output["logs"][0]["message"]
+
 
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
 @with_registry_overlay(
-    settings.kpregistry_url, {
-        'ctd': {
-            'url': 'http://ctd/query',
-            'operations': [{
-                'subject_category': 'biolink:ChemicalSubstance',
-                'predicate': 'biolink:treats',
-                'object_category': 'biolink:Disease'
-            }],
-            'details': {
-                'preferred_prefixes': {}
-            }
+    settings.kpregistry_url,
+    {
+        "ctd": {
+            "url": "http://ctd/query",
+            "operations": [
+                {
+                    "subject_category": "biolink:ChemicalSubstance",
+                    "predicate": "biolink:treats",
+                    "object_category": "biolink:Disease",
+                }
+            ],
+            "details": {"preferred_prefixes": {}},
         }
-    })
+    },
+)
 @with_response_overlay(
     "http://ctd/query",
     Response(
         status_code=200,
         content=json.dumps({"message": None}),
-    )
+    ),
 )
 async def test_kp_not_trapi(client):
     """
@@ -594,8 +589,8 @@ async def test_kp_not_trapi(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
-        "log_level" : "WARNING",
+        "message": {"query_graph": QGRAPH},
+        "log_level": "WARNING",
     }
 
     # Run
@@ -603,7 +598,9 @@ async def test_kp_not_trapi(client):
     output = response.json()
 
     # Check that we stored the error
-    assert 'Received non-TRAPI compliant response from ctd' in output['logs'][0]['message']
+    assert (
+        "Received non-TRAPI compliant response from ctd" in output["logs"][0]["message"]
+    )
 
 
 @pytest.mark.asyncio
@@ -611,26 +608,24 @@ async def test_kp_not_trapi(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "mychem":
-        """
+        "mychem": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-    }
+    },
 )
 @with_response_overlay(
     "http://ctd/query",
     Response(
         status_code=200,
         content=json.dumps({"message": {"query_graph": {"nodes": {}, "edges": {}}}}),
-    )
+    ),
 )
 async def test_kp_no_kg(client):
     """
@@ -646,7 +641,7 @@ async def test_kp_no_kg(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -658,31 +653,35 @@ async def test_kp_no_kg(client):
 @pytest.mark.asyncio
 @with_norm_overlay(settings.normalizer_url)
 @with_registry_overlay(
-    settings.kpregistry_url, {
-        'ctd': {
-            'url': 'http://ctd/query',
-            'operations': [{
-                'subject_category': 'biolink:ChemicalSubstance',
-                'predicate': 'biolink:treats',
-                'object_category': 'biolink:Disease'
-            }],
-            'details': {
-                'preferred_prefixes': {}
-            }
+    settings.kpregistry_url,
+    {
+        "ctd": {
+            "url": "http://ctd/query",
+            "operations": [
+                {
+                    "subject_category": "biolink:ChemicalSubstance",
+                    "predicate": "biolink:treats",
+                    "object_category": "biolink:Disease",
+                }
+            ],
+            "details": {"preferred_prefixes": {}},
         }
-    })
+    },
+)
 @with_response_overlay(
     "http://ctd/query",
     Response(
         status_code=200,
-        content=json.dumps({
-            "message": {
-                "query_graph": None,
-                "knowledge_graph": None,
-                "results": None,
+        content=json.dumps(
+            {
+                "message": {
+                    "query_graph": None,
+                    "knowledge_graph": None,
+                    "results": None,
+                }
             }
-        }),
-    )
+        ),
+    ),
 )
 async def test_kp_response_no_qg(client):
     """
@@ -698,11 +697,7 @@ async def test_kp_response_no_qg(client):
     )
 
     # Create query
-    q = {
-        "message" : {
-            "query_graph" : QGRAPH
-        }
-    }
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -727,25 +722,20 @@ async def test_predicate_fanout(client):
     """Test that all predicate descendants are explored."""
     QGRAPH = {
         "nodes": {
-            "a": {
-                "categories": ["biolink:ChemicalSubstance"],
-                "ids": ["CHEBI:34253"]
-            },
-            "b": {
-                "categories": ["biolink:Gene"]
-            }
+            "a": {"categories": ["biolink:ChemicalSubstance"], "ids": ["CHEBI:34253"]},
+            "b": {"categories": ["biolink:Gene"]},
         },
         "edges": {
             "ab": {
                 "subject": "a",
                 "object": "b",
-                "predicates": ["biolink:interacts_with"]
+                "predicates": ["biolink:interacts_with"],
             }
-        }
+        },
     }
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -769,25 +759,20 @@ async def test_subpredicate(client):
     """Test that KPs are sent the correct predicate subclasses."""
     QGRAPH = {
         "nodes": {
-            "a": {
-                "categories": ["biolink:ChemicalSubstance"],
-                "ids": ["CHEBI:34253"]
-            },
-            "b": {
-                "categories": ["biolink:Gene"]
-            }
+            "a": {"categories": ["biolink:ChemicalSubstance"], "ids": ["CHEBI:34253"]},
+            "b": {"categories": ["biolink:Gene"]},
         },
         "edges": {
             "ab": {
                 "subject": "a",
                 "object": "b",
-                "predicates": ["biolink:interacts_with"]
+                "predicates": ["biolink:interacts_with"],
             }
-        }
+        },
     }
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -800,45 +785,43 @@ async def test_subpredicate(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "mychem":
-        """
+        "mychem": """
             MONDO:0005148(( category biolink:Disease ))
             HP:xxx(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:related_to -->HP:xxx
         """,
-        "hetio":
-        """
+        "hetio": """
             MONDO:0005148(( category biolink:Disease ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:yyy
             HP:yyy(( category biolink:PhenotypicFeature ))
         """,
-    }
+    },
 )
 async def test_mutability_bug(client):
     """
     Test that qgraph is not mutated between KP calls.
     """
     QGRAPH = {
-        'nodes': {
-            'n0': {
-                'ids': ['MONDO:0005148'],
-                'categories': ["biolink:Disease"],
+        "nodes": {
+            "n0": {
+                "ids": ["MONDO:0005148"],
+                "categories": ["biolink:Disease"],
             },
-            'n1': {
-                'categories': ['biolink:PhenotypicFeature'],
+            "n1": {
+                "categories": ["biolink:PhenotypicFeature"],
             },
         },
-        'edges': {
-            'n0n1': {
-                'subject': 'n0',
-                'object': 'n1',
-                'predicates': ['biolink:related_to'],
+        "edges": {
+            "n0n1": {
+                "subject": "n0",
+                "object": "n1",
+                "predicates": ["biolink:related_to"],
             },
-        }
+        },
     }
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -851,8 +834,7 @@ async def test_mutability_bug(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:Drug ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
@@ -861,7 +843,7 @@ async def test_mutability_bug(client):
     normalizer_data="""
         CHEBI:6801 categories biolink:Drug
         MONDO:0005148 categories biolink:Disease
-        """
+        """,
 )
 async def test_inverse_predicate(client):
     """
@@ -879,7 +861,7 @@ async def test_inverse_predicate(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
     }
 
     # Run
@@ -888,8 +870,7 @@ async def test_inverse_predicate(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 """,
             "results": [
@@ -900,7 +881,7 @@ async def test_inverse_predicate(client):
                 edge_bindings:
                     n0n1 CHEBI:6801-MONDO:0005148
                 """
-            ]
+            ],
         },
         output["message"],
     )
@@ -911,8 +892,7 @@ async def test_inverse_predicate(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:Drug ))
             MONDO:0005148(( category biolink:Disease ))
             MONDO:0005148-- predicate biolink:correlated_with -->CHEBI:6801
@@ -921,7 +901,7 @@ async def test_inverse_predicate(client):
     normalizer_data="""
         CHEBI:6801 categories biolink:Drug
         MONDO:0005148 categories biolink:Disease
-        """
+        """,
 )
 async def test_symmetric_predicate(client):
     """
@@ -940,27 +920,29 @@ async def test_symmetric_predicate(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
     }
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
-    validate_message({
-        "knowledge_graph":
-            """
+    validate_message(
+        {
+            "knowledge_graph": """
             MONDO:0005148 biolink:correlated_with CHEBI:6801
             """,
-        "results": [
-            """
+            "results": [
+                """
             node_bindings:
                 n0 MONDO:0005148
                 n1 CHEBI:6801
             edge_bindings:
                 n1n0 MONDO:0005148-CHEBI:6801
             """
-        ]}, output["message"]
+            ],
+        },
+        output["message"],
     )
 
 
@@ -969,8 +951,7 @@ async def test_symmetric_predicate(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "automat_kegg":
-        """
+        "automat_kegg": """
             NCBIGene:2710(( category biolink:Gene ))
             CHEBI:15422(( category biolink:ChemicalSubstance ))
             CHEBI:17754(( category biolink:ChemicalSubstance ))
@@ -983,7 +964,7 @@ async def test_symmetric_predicate(client):
         UniProtKB:P32189 synonyms NCBIGene:2710
         NCBIGene:2710 categories biolink:Gene
         NCBIGene:2710 synonyms UniProtKB:P32189
-        """
+        """,
 )
 async def test_issue_102(client):
     """
@@ -999,36 +980,36 @@ async def test_issue_102(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
 
-    validate_message({
-        "knowledge_graph":
-            """
+    validate_message(
+        {
+            "knowledge_graph": """
             NCBIGene:2710 biolink:increases_degradation_of CHEBI:17754
             NCBIGene:2710 biolink:increases_degradation_of CHEBI:15422
             """,
-        "results": [
-            """
+            "results": [
+                """
             node_bindings:
                 a CHEBI:17754
                 b NCBIGene:2710
             edge_bindings:
                 ab NCBIGene:2710-CHEBI:17754
             """,
-            """
+                """
             node_bindings:
                 a CHEBI:15422
                 b NCBIGene:2710
             edge_bindings:
                 ab NCBIGene:2710-CHEBI:15422
-            """
-        ]
-    },
-        output["message"]
+            """,
+            ],
+        },
+        output["message"],
     )
 
 
@@ -1037,8 +1018,7 @@ async def test_issue_102(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
@@ -1047,7 +1027,7 @@ async def test_issue_102(client):
     normalizer_data="""
         MONDO:0005148 categories biolink:Disease
         CHEBI:6801 categories biolink:ChemicalSubstance
-        """
+        """,
 )
 async def test_solve_reverse_edge(client):
     """
@@ -1065,7 +1045,7 @@ async def test_solve_reverse_edge(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1073,8 +1053,7 @@ async def test_solve_reverse_edge(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 """,
             "results": [
@@ -1085,7 +1064,7 @@ async def test_solve_reverse_edge(client):
                 edge_bindings:
                     n1n0 CHEBI:6801-MONDO:0005148
                 """
-            ]
+            ],
         },
         output["message"],
     )
@@ -1096,24 +1075,22 @@ async def test_solve_reverse_edge(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:0005148(( category biolink:Disease ))
             MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
             CHEBI:6801(( category biolink:ChemicalSubstance ))
         """,
-        "kp1":
-        """
+        "kp1": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             CHEBI:6801-- predicate biolink:biomarker_for -->HP:0004324
             HP:0004324(( category biolink:PhenotypicFeature ))
-        """
+        """,
     },
     normalizer_data="""
         MONDO:0005148 categories biolink:Disease
         CHEBI:6801 categories biolink:ChemicalSubstance
         HP:0004324 categories biolink:PhenotypicFeature
-        """
+        """,
 )
 async def test_solve_multiple_reverse_edges(client):
     """
@@ -1132,7 +1109,7 @@ async def test_solve_multiple_reverse_edges(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1140,8 +1117,7 @@ async def test_solve_multiple_reverse_edges(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 CHEBI:6801 biolink:biomarker_for HP:0004324
                 """,
@@ -1155,7 +1131,7 @@ async def test_solve_multiple_reverse_edges(client):
                     n1n0 CHEBI:6801-MONDO:0005148
                     n2n1 CHEBI:6801-HP:0004324
                 """
-            ]
+            ],
         },
         output["message"],
     )
@@ -1166,8 +1142,7 @@ async def test_solve_multiple_reverse_edges(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:not_a_real_predicate -->MONDO:0005148
@@ -1176,7 +1151,7 @@ async def test_solve_multiple_reverse_edges(client):
     normalizer_data="""
         CHEBI:6801 categories biolink:ChemicalSubstance
         MONDO:0005148 categories biolink:Disease
-        """
+        """,
 )
 async def test_solve_not_real_predicate(client):
     """
@@ -1193,7 +1168,7 @@ async def test_solve_not_real_predicate(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1201,8 +1176,7 @@ async def test_solve_not_real_predicate(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:not_a_real_predicate MONDO:0005148
                 """,
             "results": [
@@ -1213,7 +1187,7 @@ async def test_solve_not_real_predicate(client):
                 edge_bindings:
                     n0n1 CHEBI:6801-MONDO:0005148
                 """
-            ]
+            ],
         },
         output["message"],
     )
@@ -1224,14 +1198,12 @@ async def test_solve_not_real_predicate(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:1(( category biolink:Disease ))
             MONDO:1-- predicate biolink:treated_by -->MESH:1
             MESH:1(( category biolink:SmallMolecule ))
         """,
-        "kp1":
-        """
+        "kp1": """
             MONDO:1(( category biolink:SmallMolecule ))
             MONDO:1-- predicate biolink:ameliorates -->HP:1
             HP:1(( category biolink:PhenotypicFeature ))
@@ -1241,7 +1213,7 @@ async def test_solve_not_real_predicate(client):
         MONDO:1 categories biolink:NamedThing
         MESH:1 categories biolink:SmallMolecule
         HP:1 categories biolink:PhenotypicFeature
-        """
+        """,
 )
 async def test_solve_double_subclass(client):
     """
@@ -1258,7 +1230,7 @@ async def test_solve_double_subclass(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1266,8 +1238,7 @@ async def test_solve_double_subclass(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 MONDO:1 biolink:treated_by MESH:1
                 MONDO:1 biolink:ameliorates HP:1
                 """,
@@ -1286,7 +1257,7 @@ async def test_solve_double_subclass(client):
                 edge_bindings:
                     n0n1 MONDO:1-MESH:1
                 """,
-            ]
+            ],
         },
         output["message"],
     )
@@ -1297,8 +1268,7 @@ async def test_solve_double_subclass(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:1(( category biolink:Disease ))
             MONDO:1-- predicate biolink:treated_by -->CHEBI:1
             MONDO:1-- predicate biolink:treated_by -->CHEBI:2
@@ -1310,7 +1280,7 @@ async def test_solve_double_subclass(client):
         MONDO:1 categories biolink:Disease
         CHEBI:1 categories biolink:ChemicalSubstance
         CHEBI:2 categories biolink:ChemicalSubstance
-        """
+        """,
 )
 async def test_pinned_to_pinned(client):
     """
@@ -1327,7 +1297,7 @@ async def test_pinned_to_pinned(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1335,8 +1305,7 @@ async def test_pinned_to_pinned(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 MONDO:1 biolink:treated_by CHEBI:1
                 """,
             "results": [
@@ -1347,7 +1316,7 @@ async def test_pinned_to_pinned(client):
                 edge_bindings:
                     n0n1 MONDO:1-CHEBI:1
                 """,
-            ]
+            ],
         },
         output["message"],
     )
@@ -1358,15 +1327,14 @@ async def test_pinned_to_pinned(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             CHEBI:1(( category biolink:ChemicalSubstance ))
             CHEBI:1-- predicate biolink:increases_uptake_of -->CHEBI:1
         """
     },
     normalizer_data="""
         CHEBI:1 categories biolink:ChemicalSubstance
-        """
+        """,
 )
 async def test_self_edge(client):
     """
@@ -1381,7 +1349,7 @@ async def test_self_edge(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1389,8 +1357,7 @@ async def test_self_edge(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:1 biolink:increases_uptake_of CHEBI:1
                 """,
             "results": [
@@ -1400,7 +1367,7 @@ async def test_self_edge(client):
                 edge_bindings:
                     n0n0 CHEBI:1-CHEBI:1
                 """,
-            ]
+            ],
         },
         output["message"],
     )
@@ -1425,7 +1392,7 @@ async def test_exception_response(client):
             "message": {"query_graph": qgraph},
             "log_level": "DEBUG",
         },
-        headers={"origin": "http://localhost:80"}
+        headers={"origin": "http://localhost:80"},
     )
 
     # Put fetcher back together
@@ -1441,72 +1408,74 @@ async def test_exception_response(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:SmallMolecule ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "mychem":
-        """
+        "mychem": """
             CHEBI:6801(( category biolink:SmallMolecule ))
             MONDO:XXX(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:XXX
         """,
-    }
+    },
 )
 # Add attributes to ctd response
 @with_response_overlay(
     "http://ctd/query",
     Response(
         status_code=200,
-        content=json.dumps({"message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {"ids": ["CHEBI:6801"]},
-                    "n1": {"categories": ["biolink:Disease"]},
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "predicate": "biolink:treats",
-                        "object": "n1",
-                    },
-                },
-            },
-            "knowledge_graph": {
-                "nodes": {
-                    "CHEBI:6801": {},
-                    "MONDO:0005148": {
-                        "attributes": [
-                            {
-                                "attribute_type_id": "test_constraint",
-                                "value": "foo",
+        content=json.dumps(
+            {
+                "message": {
+                    "query_graph": {
+                        "nodes": {
+                            "n0": {"ids": ["CHEBI:6801"]},
+                            "n1": {"categories": ["biolink:Disease"]},
+                        },
+                        "edges": {
+                            "n0n1": {
+                                "subject": "n0",
+                                "predicate": "biolink:treats",
+                                "object": "n1",
                             },
-                        ],
+                        },
                     },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "CHEBI:6801",
-                        "predicate": "biolink:treats",
-                        "object": "MONDO:0005148",
+                    "knowledge_graph": {
+                        "nodes": {
+                            "CHEBI:6801": {},
+                            "MONDO:0005148": {
+                                "attributes": [
+                                    {
+                                        "attribute_type_id": "test_constraint",
+                                        "value": "foo",
+                                    },
+                                ],
+                            },
+                        },
+                        "edges": {
+                            "n0n1": {
+                                "subject": "CHEBI:6801",
+                                "predicate": "biolink:treats",
+                                "object": "MONDO:0005148",
+                            },
+                        },
                     },
-                },
-            },
-            "results": [
-                {
-                    "node_bindings": {
-                        "n0": [{"id": "CHEBI:6801"}],
-                        "n1": [{"id": "MONDO:0005148"}],
-                    },
-                    "edge_bindings": {
-                        "n0n1": [{"id": "n0n1"}],
-                    },
-                },
-            ],
-        }}),
-    )
+                    "results": [
+                        {
+                            "node_bindings": {
+                                "n0": [{"id": "CHEBI:6801"}],
+                                "n1": [{"id": "MONDO:0005148"}],
+                            },
+                            "edge_bindings": {
+                                "n0n1": [{"id": "n0n1"}],
+                            },
+                        },
+                    ],
+                }
+            }
+        ),
+    ),
 )
 async def test_constraint_error(client):
     """
@@ -1523,16 +1492,16 @@ async def test_constraint_error(client):
 
     QGRAPH["nodes"]["n1"]["constraints"] = [
         {
-            "name" : "test_constraint",
-            "id" : "test_constraint",
+            "name": "test_constraint",
+            "id": "test_constraint",
             "not": True,
-            "operator" : "==",
-            "value" : "bar",
+            "operator": "==",
+            "value": "bar",
         }
     ]
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1540,8 +1509,7 @@ async def test_constraint_error(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 """,
             "results": [
@@ -1554,7 +1522,7 @@ async def test_constraint_error(client):
                 """,
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -1574,7 +1542,7 @@ async def test_registry_normalizer_unavailable(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
+        "message": {"query_graph": QGRAPH},
         "log_level": "WARNING",
     }
 
@@ -1582,9 +1550,7 @@ async def test_registry_normalizer_unavailable(client):
     response = await client.post("/query", json=q)
     output = response.json()
 
-    output_log_messages = [
-        log_entry["message"] for log_entry in output["logs"]
-    ]
+    output_log_messages = [log_entry["message"] for log_entry in output["logs"]]
 
     # Check that the correct error messages are in the log
     assert "Request Error contacting KP Registry" in output_log_messages
@@ -1596,13 +1562,12 @@ async def test_registry_normalizer_unavailable(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-    }
+    },
 )
 async def test_workflow(client):
     """
@@ -1638,8 +1603,7 @@ async def test_workflow(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp1":
-        """
+        "kp1": """
             CHEBI:2904(( category biolink:ChemicalSubstance ))
             CHEBI:30146(( category biolink:ChemicalSubstance ))
             NCIT:C25742(( category biolink:PhenotypicFeature ))
@@ -1657,7 +1621,7 @@ async def test_workflow(client):
         NCIT:C92933 synonyms NCIT:C25742 NCIT:C92933
         CHEBI:2904 categories biolink:ChemicalSubstance
         CHEBI:30146 categories biolink:ChemicalSubstance
-        """
+        """,
 )
 async def test_multiple_identifiers(client):
     """
@@ -1675,7 +1639,7 @@ async def test_multiple_identifiers(client):
     )
 
     # Create query
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1683,8 +1647,7 @@ async def test_multiple_identifiers(client):
 
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:2904 biolink:contraindicated_for NCIT:C25742
                 CHEBI:30146 biolink:contraindicated_for NCIT:C25742
                 """,
@@ -1705,7 +1668,7 @@ async def test_multiple_identifiers(client):
                 """,
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -1714,24 +1677,22 @@ async def test_multiple_identifiers(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:0005148(( category biolink:Disease ))
             MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
             CHEBI:6801(( category biolink:SmallMolecule ))
         """,
-        "kp1":
-        """
+        "kp1": """
             CHEBI:6801(( category biolink:SmallMolecule ))
             CHEBI:6801<-- predicate biolink:has_biomarker --HP:0004324
             HP:0004324(( category biolink:PhenotypicFeature ))
-        """
+        """,
     },
     normalizer_data="""
         MONDO:0005148 categories biolink:Disease
         CHEBI:6801 categories biolink:SmallMolecule
         HP:0004324 categories biolink:PhenotypicFeature
-        """
+        """,
 )
 async def test_provenance(client):
     """
@@ -1744,26 +1705,26 @@ async def test_provenance(client):
         n0-- biolink:related_to -->n1
         """
     )
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
     edge = list(output["message"]["knowledge_graph"]["edges"].values())[0]
     attributes = edge["attributes"]
-    values = [
-        i["value"] for i in attributes
-    ]
-    attribute_type_ids = [
-        i["attribute_type_id"] for i in attributes
-    ]
+    values = [i["value"] for i in attributes]
+    attribute_type_ids = [i["attribute_type_id"] for i in attributes]
     assert "infores:aragorn" in values
     assert "infores:kp0" in values
     assert "infores:kp1" not in values
     assert "biolink:aggregator_knowledge_source" in attribute_type_ids
     assert "biolink:knowledge_source" in attribute_type_ids
-    assert values.index("infores:aragorn") == attribute_type_ids.index("biolink:aggregator_knowledge_source")
-    assert values.index("infores:kp0") == attribute_type_ids.index("biolink:knowledge_source")
+    assert values.index("infores:aragorn") == attribute_type_ids.index(
+        "biolink:aggregator_knowledge_source"
+    )
+    assert values.index("infores:kp0") == attribute_type_ids.index(
+        "biolink:knowledge_source"
+    )
 
 
 @pytest.mark.asyncio
@@ -1771,8 +1732,7 @@ async def test_provenance(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "kp0":
-        """
+        "kp0": """
             MONDO:0005148(( category biolink:NoPrefixes ))
             MONDO:0005148<-- predicate biolink:treats --CHEBI:6801
             CHEBI:6801(( category biolink:SmallMolecule ))
@@ -1781,7 +1741,7 @@ async def test_provenance(client):
     normalizer_data="""
         MONDO:0006X categories biolink:NoPrefixes
         MONDO:0006X synonyms MONDO:0005148
-        """
+        """,
 )
 async def test_same_prefix_synonyms(client):
     """
@@ -1795,7 +1755,7 @@ async def test_same_prefix_synonyms(client):
         n0-- biolink:related_to -->n1
         """
     )
-    q = {"message" : {"query_graph" : QGRAPH}}
+    q = {"message": {"query_graph": QGRAPH}}
 
     # Run
     response = await client.post("/query", json=q)
@@ -1808,15 +1768,14 @@ async def test_same_prefix_synonyms(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     kp_data={
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """
-    }
+    },
 )
 async def test_async_query(client):
     """Test asyncquery endpoint using the ex1 query graph"""
@@ -1832,20 +1791,19 @@ async def test_async_query(client):
     )
 
     # Create query
-    q = {"callback" : "http://test/", "message" : {"query_graph" : QGRAPH}}
+    q = {"callback": "http://test/", "message": {"query_graph": QGRAPH}}
 
     # Run
     queue = asyncio.Queue()
     async with callback_overlay("http://test/", queue):
         response = await client.post("/asyncquery", json=q)
         output = response.json()
-        assert response.status_code==200
+        assert response.status_code == 200
         assert not output
         output = await queue.get()
     validate_message(
         {
-            "knowledge_graph":
-                """
+            "knowledge_graph": """
                 CHEBI:6801 biolink:treats MONDO:0005148
                 MONDO:0005148 biolink:has_phenotype HP:0004324
                 """,
@@ -1861,7 +1819,7 @@ async def test_async_query(client):
                 """
             ],
         },
-        output["message"]
+        output["message"],
     )
 
 
@@ -1870,25 +1828,22 @@ async def test_async_query(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "mychem":
-        """
+        "mychem": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """,
-        "hetio":
-        """
+        "hetio": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """,
-    }
+    },
 )
 # Override one KP with an invalid response
 @with_response_overlay(
@@ -1896,7 +1851,7 @@ async def test_async_query(client):
     Response(
         status_code=500,
         content="Internal server error",
-    )
+    ),
 )
 async def test_metakg_500(client):
     """Test that when a KP gives a bad response to /meta_knowledge_graph,
@@ -1915,8 +1870,8 @@ async def test_metakg_500(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
-        "log_level" : "WARNING",
+        "message": {"query_graph": QGRAPH},
+        "log_level": "WARNING",
     }
 
     # Run
@@ -1932,25 +1887,22 @@ async def test_metakg_500(client):
     settings.kpregistry_url,
     settings.normalizer_url,
     {
-        "ctd":
-        """
+        "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
             MONDO:0005148(( category biolink:Disease ))
             CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
         """,
-        "mychem":
-        """
+        "mychem": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """,
-        "hetio":
-        """
+        "hetio": """
             MONDO:0005148(( category biolink:Disease ))
             HP:0004324(( category biolink:PhenotypicFeature ))
             MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
         """,
-    }
+    },
 )
 # Override one KP with an invalid response
 @with_response_overlay(
@@ -1958,7 +1910,7 @@ async def test_metakg_500(client):
     Response(
         status_code=200,
         content=json.dumps({"nodes": {}}),
-    )
+    ),
 )
 async def test_metakg_noncompliant(client):
     """Test that when a KP gives a non-TRAPI-compliant meta_knowledge_graph,
@@ -1977,8 +1929,8 @@ async def test_metakg_noncompliant(client):
 
     # Create query
     q = {
-        "message" : {"query_graph" : QGRAPH},
-        "log_level" : "WARNING",
+        "message": {"query_graph": QGRAPH},
+        "log_level": "WARNING",
     }
 
     # Run

@@ -6,10 +6,7 @@ from fastapi import APIRouter, FastAPI, Query
 from pydantic.main import BaseModel
 
 
-def norm_router(
-        synset_mappings: dict[str, list],
-        category_mappings: dict[str, list]
-):
+def norm_router(synset_mappings: dict[str, list], category_mappings: dict[str, list]):
     """Generate node-normalization router."""
     router = APIRouter()
 
@@ -19,40 +16,31 @@ def norm_router(
             return None
         return {
             "equivalent_identifiers": [
-                {
-                    "identifier": synonym
-                }
-                for synonym in synset_mappings.get(curie, [])
+                {"identifier": synonym} for synonym in synset_mappings.get(curie, [])
             ],
             "type": category_mappings.get(curie, []),
         }
 
     @router.get("/get_normalized_nodes")
     async def normalize_get(
-            curies: List[str] = Query(
-                ...,
-                alias="curie",
-                example=["MONDO:0005737"],
-            ),
+        curies: List[str] = Query(
+            ...,
+            alias="curie",
+            example=["MONDO:0005737"],
+        ),
     ):
         """Return synset for each curie."""
-        return {
-            curie: normalize_one(curie)
-            for curie in curies
-        }
+        return {curie: normalize_one(curie) for curie in curies}
 
     class CurieList(BaseModel):
         curies: list[str]
 
     @router.post("/get_normalized_nodes")
     async def normalize_post(
-            curie_list: CurieList,
+        curie_list: CurieList,
     ):
         """Return synset for each curie."""
-        return {
-            curie: normalize_one(curie)
-            for curie in curie_list.curies
-        }
+        return {curie: normalize_one(curie) for curie in curie_list.curies}
 
     return router
 

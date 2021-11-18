@@ -16,25 +16,21 @@ NUM_PUBS = 27840000
 async def get_support(node1, node2, synonyms):
     """Get number of publications shared by nodes."""
     # prefer HGNC
-    if node1.startswith('NCBIGene'):
+    if node1.startswith("NCBIGene"):
         node1 = next(
-            (curie for curie in synonyms[node1] if curie.startswith('HGNC')),
-            node1
+            (curie for curie in synonyms[node1] if curie.startswith("HGNC")), node1
         )
-    elif node1.startswith('MESH'):
+    elif node1.startswith("MESH"):
         node1 = next(
-            (curie for curie in synonyms[node1] if curie.startswith('CHEBI')),
-            node1
+            (curie for curie in synonyms[node1] if curie.startswith("CHEBI")), node1
         )
-    if node2.startswith('NCBIGene'):
+    if node2.startswith("NCBIGene"):
         node2 = next(
-            (curie for curie in synonyms[node2] if curie.startswith('HGNC')),
-            node2
+            (curie for curie in synonyms[node2] if curie.startswith("HGNC")), node2
         )
-    elif node2.startswith('MESH'):
+    elif node2.startswith("MESH"):
         node2 = next(
-            (curie for curie in synonyms[node2] if curie.startswith('CHEBI')),
-            node2
+            (curie for curie in synonyms[node2] if curie.startswith("CHEBI")), node2
         )
 
     edge_pubs, source_pubs, target_pubs = await asyncio.gather(
@@ -42,8 +38,7 @@ async def get_support(node1, node2, synonyms):
         count_pubs(node1),
         count_pubs(node2),
     )
-    cov = (edge_pubs / NUM_PUBS) \
-        - (source_pubs / NUM_PUBS) * (target_pubs / NUM_PUBS)
+    cov = (edge_pubs / NUM_PUBS) - (source_pubs / NUM_PUBS) * (target_pubs / NUM_PUBS)
     cov = max((cov, 0.0))
     effective_pubs = cov * NUM_PUBS
 
@@ -52,8 +47,8 @@ async def get_support(node1, node2, synonyms):
 
 async def count_pubs(*curies):
     """Count pubs shared by curies."""
-    url = f'{settings.omnicorp_url}/shared?'
-    params = {'curie': curies}
+    url = f"{settings.omnicorp_url}/shared?"
+    params = {"curie": curies}
     async with httpx.AsyncClient() as client:
         for _ in range(OMNICORP_RETRIES):
             try:
@@ -64,18 +59,16 @@ async def count_pubs(*curies):
                 break
             except httpx.NetworkError as err:
                 LOGGER.warning(
-                    'Omnicorp network error: curies: %s, %s. Trying again...',
+                    "Omnicorp network error: curies: %s, %s. Trying again...",
                     json.dumps(curies),
-                    str(err)
+                    str(err),
                 )
         else:
-            raise RuntimeError(
-                'Failed to connect to Omnicorp.'
-            )
+            raise RuntimeError("Failed to connect to Omnicorp.")
     if response.status_code >= 300:
         raise RuntimeError(
-            'The following OmniCorp query returned a bad response:\n'
-            f'{url}\n{params}\n{response.text}'
+            "The following OmniCorp query returned a bad response:\n"
+            f"{url}\n{params}\n{response.text}"
         )
     return response.json()
 
@@ -96,40 +89,36 @@ async def score_graph(graph, qgraph, support=True):
 
     https://en.wikipedia.org/wiki/Resistance_distance#General_sum_rule
     """
-    if not graph['edges']:
+    if not graph["edges"]:
         return 0
 
     node_synonyms = {
-        node['kid']: node.get('equivalent_identifiers', [])
-        for node in graph['nodes'].values()
+        node["kid"]: node.get("equivalent_identifiers", [])
+        for node in graph["nodes"].values()
     }
-    node_ids = sorted([node['kid'] for node in graph['nodes'].values()])
+    node_ids = sorted([node["kid"] for node in graph["nodes"].values()])
     num_nodes = len(node_ids)
     laplacian = np.zeros((num_nodes, num_nodes))
     index = {node_id: node_ids.index(node_id) for node_id in node_ids}
     awaitables = []
     if support:
         for curie1, curie2 in combinations(node_ids, 2):
-            awaitables.append(add_edge(
-                (curie1, curie2),
-                index,
-                node_synonyms,
-                laplacian
-            ))
+            awaitables.append(
+                add_edge((curie1, curie2), index, node_synonyms, laplacian)
+            )
     else:
-        for qedge in qgraph['edges'].values():
+        for qedge in qgraph["edges"].values():
             try:
-                source = graph['nodes'][qedge['source_id']]
-                target = graph['nodes'][qedge['target_id']]
+                source = graph["nodes"][qedge["source_id"]]
+                target = graph["nodes"][qedge["target_id"]]
             except KeyError:
                 # this is a partial answer and does not include this edge
                 continue
-            awaitables.append(add_edge(
-                (source['kid'], target['kid']),
-                index,
-                node_synonyms,
-                laplacian
-            ))
+            awaitables.append(
+                add_edge(
+                    (source["kid"], target["kid"]), index, node_synonyms, laplacian
+                )
+            )
     await asyncio.gather(*awaitables)
     # get array of eigenvalues, except for lowest
     eigvals = np.sort(np.linalg.eigvals(laplacian))[1:]

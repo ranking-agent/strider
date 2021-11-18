@@ -14,15 +14,15 @@ import bmt
 from bmt import Toolkit as BMToolkit
 
 
-def camel_to_snake(s, sep=' '):
-    return re.sub(r'(?<!^)(?=[A-Z])', sep, s).lower()
+def camel_to_snake(s, sep=" "):
+    return re.sub(r"(?<!^)(?=[A-Z])", sep, s).lower()
 
 
 def snake_to_camel(s):
-    return ''.join(word.title() for word in s.split(' '))
+    return "".join(word.title() for word in s.split(" "))
 
 
-class WrappedBMT():
+class WrappedBMT:
     """
     Wrapping around some of the BMT Toolkit functions
     to provide case conversions to the new format
@@ -31,9 +31,10 @@ class WrappedBMT():
     def __init__(self):
         self.bmt = BMToolkit()
         self.all_slots = self.bmt.get_all_slots()
-        self.all_slots_formatted = ['biolink:' + s.replace(' ', '_')
-                                    for s in self.all_slots]
-        self.prefix = 'biolink:'
+        self.all_slots_formatted = [
+            "biolink:" + s.replace(" ", "_") for s in self.all_slots
+        ]
+        self.prefix = "biolink:"
 
         self.entity_prefix_mapping = {
             bmt.util.format(el_name, case="pascal"): id_prefixes
@@ -49,9 +50,9 @@ class WrappedBMT():
 
         Also works with slots (biolink:related_to -> related to)
         """
-        s = s.replace(self.prefix, '')
+        s = s.replace(self.prefix, "")
         if s in self.all_slots_formatted:
-            return s.replace('_', ' ')
+            return s.replace("_", " ")
         else:
             return camel_to_snake(s)
 
@@ -63,27 +64,28 @@ class WrappedBMT():
         Also works with slots (related to -> biolink:related_to)
         """
         if s in self.all_slots:
-            return self.prefix + s.replace(' ', '_')
+            return self.prefix + s.replace(" ", "_")
         else:
             return self.prefix + snake_to_camel(s)
 
     def get_descendants(self, concept):
-        """ Wrapped BMT descendants function that does case conversions """
+        """Wrapped BMT descendants function that does case conversions"""
         descendants = self.bmt.get_descendants(concept, formatted=True)
         if len(descendants) == 0:
             descendants.append(concept)
         return descendants
 
     def get_ancestors(self, concept, reflexive=True):
-        """ Wrapped BMT ancestors function that does case conversions """
+        """Wrapped BMT ancestors function that does case conversions"""
         concept_old_format = self.new_case_to_old_case(concept)
-        ancestors_old_format = self.bmt.get_ancestors(concept_old_format, reflexive=reflexive)
-        ancestors = [self.old_case_to_new_case(a)
-                     for a in ancestors_old_format]
+        ancestors_old_format = self.bmt.get_ancestors(
+            concept_old_format, reflexive=reflexive
+        )
+        ancestors = [self.old_case_to_new_case(a) for a in ancestors_old_format]
         return ancestors
 
     def predicate_is_symmetric(self, predicate):
-        """ Get whether a given predicate is symmetric """
+        """Get whether a given predicate is symmetric"""
         predicate_old_format = self.new_case_to_old_case(predicate)
         predicate_element = self.bmt.get_element(predicate_old_format)
         if not predicate_element:
@@ -92,7 +94,7 @@ class WrappedBMT():
         return predicate_element.symmetric
 
     def predicate_inverse(self, predicate):
-        """ Get the inverse of a predicate if it has one """
+        """Get the inverse of a predicate if it has one"""
         predicate_old_format = self.new_case_to_old_case(predicate)
         predicate_element = self.bmt.get_element(predicate_old_format)
         if not predicate_element:
@@ -122,7 +124,7 @@ def elide_curies(payload):
 
 
 def log_request(r):
-    """ Serialize a httpx.Request object into a dict for logging """
+    """Serialize a httpx.Request object into a dict for logging"""
     data = r.read().decode()
     # the request body can be cleared out by httpx under some circumstances
     # let's not crash if that happens
@@ -131,22 +133,25 @@ def log_request(r):
     except Exception:
         pass
     return {
-        "method" : r.method,
-        "url" : str(r.url),
-        "headers" : dict(r.headers),
-        "data" : data
+        "method": r.method,
+        "url": str(r.url),
+        "headers": dict(r.headers),
+        "data": data,
     }
+
 
 def log_response(r):
-    """ Serialize a httpx.Response object into a dict for logging """
+    """Serialize a httpx.Response object into a dict for logging"""
     return {
-        "status_code" : r.status_code,
-        "headers" : dict(r.headers),
-        "data" : r.text,
+        "status_code": r.status_code,
+        "headers": dict(r.headers),
+        "data": r.text,
     }
 
+
 class StriderRequestError(BaseException):
-    """ Custom error indicating an issue with an HTTP request """
+    """Custom error indicating an issue with an HTTP request"""
+
 
 async def post_json(url, request, logger, log_name):
     """
@@ -161,39 +166,48 @@ async def post_json(url, request, logger, log_name):
             response.raise_for_status()
             return response.json()
     except httpx.ReadTimeout as e:
-        logger.warning({
-            "message": f"{log_name} took >60 seconds to respond",
-            "error": str(e),
-            "request": log_request(e.request),
-        })
+        logger.warning(
+            {
+                "message": f"{log_name} took >60 seconds to respond",
+                "error": str(e),
+                "request": log_request(e.request),
+            }
+        )
     except httpx.RequestError as e:
         # Log error
-        logger.warning({
-            "message": f"Request Error contacting {log_name}",
-            "error": str(e),
-            "request": log_request(e.request),
-        })
+        logger.warning(
+            {
+                "message": f"Request Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+            }
+        )
     except httpx.HTTPStatusError as e:
         # Log error with response
-        logger.warning({
-            "message": f"Response Error contacting {log_name}",
-            "error": str(e),
-            "request": log_request(e.request),
-            "response": log_response(e.response),
-        })
+        logger.warning(
+            {
+                "message": f"Response Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+                "response": log_response(e.response),
+            }
+        )
     except JSONDecodeError as e:
         # Log error with response
-        logger.warning({
-            "message": f"Received bad JSON data from {log_name}",
-            "request": e.request,
-            "response": e.response.text,
-            "error": str(e),
-        })
+        logger.warning(
+            {
+                "message": f"Received bad JSON data from {log_name}",
+                "request": e.request,
+                "response": e.response.text,
+                "error": str(e),
+            }
+        )
     raise StriderRequestError
 
 
-class KnowledgeProvider():
+class KnowledgeProvider:
     """Knowledge provider."""
+
     def __init__(self, details, portal, id, *args, **kwargs):
         """Initialize."""
         self.details = details
@@ -215,7 +229,7 @@ class KPError(Exception):
 
 def setup_logging():
     """Set up logging."""
-    with open('logging_setup.yml', 'r') as stream:
+    with open("logging_setup.yml", "r") as stream:
         config = yaml.load(stream.read(), Loader=yaml.SafeLoader)
     logging.config.dictConfig(config)
 
@@ -231,11 +245,11 @@ def batch(iterable: Iterable, n: int = 1):
     """Batch things into batches of size n."""
     N = len(iterable)
     for ndx in range(0, N, n):
-        yield iterable[ndx:min(ndx + n, N)]
+        yield iterable[ndx : min(ndx + n, N)]
 
 
 def listify_value(input_dictionary: dict[str, any], key: str):
-    """ If the provided key is not a list, wrap it in a list """
+    """If the provided key is not a list, wrap it in a list"""
     if key not in input_dictionary:
         return
     if isinstance(input_dictionary[key], str):
@@ -243,7 +257,7 @@ def listify_value(input_dictionary: dict[str, any], key: str):
 
 
 def extract_predicate_direction(predicate: str) -> tuple[str, bool]:
-    """ Extract predicate direction from string with enclosing arrows """
+    """Extract predicate direction from string with enclosing arrows"""
     if "<-" in predicate:
         return predicate[2:-1], True
     else:
@@ -251,7 +265,7 @@ def extract_predicate_direction(predicate: str) -> tuple[str, bool]:
 
 
 def build_predicate_direction(predicate: str, reverse: bool) -> str:
-    """ Given a tuple of predicate string and direction, build a string with arrows """
+    """Given a tuple of predicate string and direction, build a string with arrows"""
     if reverse:
         return f"<-{predicate}-"
     else:
@@ -260,85 +274,85 @@ def build_predicate_direction(predicate: str, reverse: bool) -> str:
 
 def message_to_list_form(message):
     """Convert *graph nodes/edges and node/edge bindings to list forms."""
-    if message['results']:
-        message['results'] = [
+    if message["results"]:
+        message["results"] = [
             {
-                'node_bindings': [
+                "node_bindings": [
                     {
-                        'qg_id': qg_id,
+                        "qg_id": qg_id,
                         **binding,
                     }
-                    for qg_id, binding in result['node_bindings'].items()
+                    for qg_id, binding in result["node_bindings"].items()
                 ],
-                'edge_bindings': [
+                "edge_bindings": [
                     {
-                        'qg_id': qg_id,
+                        "qg_id": qg_id,
                         **binding,
                     }
-                    for qg_id, binding in result['edge_bindings'].items()
+                    for qg_id, binding in result["edge_bindings"].items()
                 ],
-            } for result in message.get('results', [])
+            }
+            for result in message.get("results", [])
         ]
-    if message['knowledge_graph']['nodes']:
-        message['knowledge_graph']['nodes'] = [
+    if message["knowledge_graph"]["nodes"]:
+        message["knowledge_graph"]["nodes"] = [
             {
-                'id': node['id'],
+                "id": node["id"],
                 **node,
             }
-            for node in message['knowledge_graph']['nodes']
+            for node in message["knowledge_graph"]["nodes"]
         ]
-    if message['knowledge_graph']['edges']:
-        message['knowledge_graph']['edges'] = [
+    if message["knowledge_graph"]["edges"]:
+        message["knowledge_graph"]["edges"] = [
             {
-                'id': edge['id'],
+                "id": edge["id"],
                 **edge,
             }
-            for edge in message['knowledge_graph']['edges']
+            for edge in message["knowledge_graph"]["edges"]
         ]
     return message
 
 
 def message_to_dict_form(message):
     """Convert *graph nodes/edges and node/edge bindings to dict forms."""
-    if message['results']:
-        if isinstance(message['results'][0]['node_bindings'], list):
-            message['results'] = [
+    if message["results"]:
+        if isinstance(message["results"][0]["node_bindings"], list):
+            message["results"] = [
                 {
-                    'node_bindings': {
-                        binding['qg_id']: [binding]
-                        for binding in result['node_bindings']
+                    "node_bindings": {
+                        binding["qg_id"]: [binding]
+                        for binding in result["node_bindings"]
                     },
-                    'edge_bindings': {
-                        binding['qg_id']: [binding]
-                        for binding in result['edge_bindings']
+                    "edge_bindings": {
+                        binding["qg_id"]: [binding]
+                        for binding in result["edge_bindings"]
                     },
-                } for result in message.get('results', [])
+                }
+                for result in message.get("results", [])
             ]
         elif not isinstance(
-                list(message['results'][0]['node_bindings'].values())[0],
-                dict
+            list(message["results"][0]["node_bindings"].values())[0], dict
         ):
-            message['results'] = [
+            message["results"] = [
                 {
-                    'node_bindings': {
-                        key: [{'kg_id': el} for el in ensure_list(bindings)]
-                        for key, bindings in result['node_bindings'].items()
+                    "node_bindings": {
+                        key: [{"kg_id": el} for el in ensure_list(bindings)]
+                        for key, bindings in result["node_bindings"].items()
                     },
-                    'edge_bindings': {
-                        key: [{'kg_id': el} for el in ensure_list(bindings)]
-                        for key, bindings in result['edge_bindings'].items()
+                    "edge_bindings": {
+                        key: [{"kg_id": el} for el in ensure_list(bindings)]
+                        for key, bindings in result["edge_bindings"].items()
                     },
-                } for result in message.get('results', [])
+                }
+                for result in message.get("results", [])
             ]
-    if message['knowledge_graph']['nodes']:
-        message['knowledge_graph']['nodes'] = {
-            node['id']: node
-            for node in message['knowledge_graph']['nodes']
+    if message["knowledge_graph"]["nodes"]:
+        message["knowledge_graph"]["nodes"] = {
+            node["id"]: node for node in message["knowledge_graph"]["nodes"]
         }
-    if message['knowledge_graph']['edges']:
-        message['knowledge_graph']['edges'] = {
-            edge['id']: edge
-            for edge in message['knowledge_graph']['edges']
+    if message["knowledge_graph"]["edges"]:
+        message["knowledge_graph"]["edges"] = {
+            edge["id"]: edge for edge in message["knowledge_graph"]["edges"]
         }
     return message
 
@@ -346,14 +360,8 @@ def message_to_dict_form(message):
 def graph_to_dict_form(graph):
     """Convert query_graph or knowledge_graph to dict form."""
     return {
-        'nodes': {
-            node['id']: node
-            for node in graph['nodes']
-        },
-        'edges': {
-            edge['id']: edge
-            for edge in graph['edges']
-        }
+        "nodes": {node["id"]: node for node in graph["nodes"]},
+        "edges": {edge["id"]: edge for edge in graph["edges"]},
     }
 
 
@@ -371,10 +379,7 @@ def remove_null_values(obj):
             if value is not None
         }
     elif isinstance(obj, list):
-        return [
-            remove_null_values(el)
-            for el in obj
-        ]
+        return [remove_null_values(el) for el in obj]
     else:
         return obj
 
@@ -393,7 +398,7 @@ def add_cors_manually(APP, request, response, cors_options):
     # See dotnet core for a recent discussion, where ultimately it was
     # decided to return CORS headers on server failures:
     # https://github.com/dotnet/aspnetcore/issues/2378
-    origin = request.headers.get('origin')
+    origin = request.headers.get("origin")
 
     if origin:
         # Have the middleware do the heavy lifting for us to parse
@@ -420,11 +425,7 @@ def add_cors_manually(APP, request, response, cors_options):
     return response
 
 
-def get_from_all(
-    dictionaries: list[dict],
-    key,
-    default=None
-):
+def get_from_all(dictionaries: list[dict], key, default=None):
     """
     Get list of values from dictionaries.
     If it is not present in any dictionary, return the default value.
@@ -451,36 +452,34 @@ def merge_listify(values):
 
 
 def filter_none(values):
-    """ Filter out None values from list """
+    """Filter out None values from list"""
     return [v for v in values if v is not None]
 
 
 def all_equal(values: list):
-    """ Check that all values in given list are equal """
+    """Check that all values in given list are equal"""
     return all(values[0] == v for v in values)
 
 
 def deduplicate(values: list):
-    """ Simple deduplicate that uses python sets """
+    """Simple deduplicate that uses python sets"""
     return list(set(values))
 
+
 def transform_keys(d, f):
-    """ Transform keys using a function """
-    return {
-        f(key) : val
-        for key, val in d.items()
-    }
+    """Transform keys using a function"""
+    return {f(key): val for key, val in d.items()}
+
 
 def get_message_stats(m):
-    """ Get statistics on message size """
+    """Get statistics on message size"""
     stats = {}
 
     stats["nodes"] = len(m["knowledge_graph"]["nodes"])
     stats["edges"] = len(m["knowledge_graph"]["edges"])
 
     stats["avg_node_categories"] = statistics.mean(
-        len(n["categories"])
-        for n in m["knowledge_graph"]["nodes"].values()
+        len(n["categories"]) for n in m["knowledge_graph"]["nodes"].values()
     )
 
     stats["avg_kg_attributes"] = statistics.mean(
@@ -494,14 +493,9 @@ def get_message_stats(m):
 
     stats["results"] = len(m["results"])
     stats["avg_result_node_bindings"] = statistics.mean(
-        len(nb_list)
-        for r in m["results"]
-        for nb_list in r["node_bindings"].values()
+        len(nb_list) for r in m["results"] for nb_list in r["node_bindings"].values()
     )
     stats["avg_result_edge_bindings"] = statistics.mean(
-        len(nb_list)
-        for r in m["results"]
-        for nb_list in r["node_bindings"].values()
+        len(nb_list) for r in m["results"] for nb_list in r["node_bindings"].values()
     )
     return stats
-

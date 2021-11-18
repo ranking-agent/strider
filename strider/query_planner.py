@@ -16,15 +16,16 @@ LOGGER = logging.getLogger(__name__)
 
 Step = namedtuple("Step", ["source", "edge", "target"])
 Operation = namedtuple(
-    "Operation", ["source_category", "edge_predicate", "target_category"])
+    "Operation", ["source_category", "edge_predicate", "target_category"]
+)
 
-REVERSE_EDGE_SUFFIX = '.reverse'
-SYMMETRIC_EDGE_SUFFIX = '.symmetric'
-INVERSE_EDGE_SUFFIX = '.inverse'
+REVERSE_EDGE_SUFFIX = ".reverse"
+SYMMETRIC_EDGE_SUFFIX = ".symmetric"
+INVERSE_EDGE_SUFFIX = ".inverse"
 
 
 def find_next_list_property(search_dict, fields_to_check):
-    """ Find first object in a dictionary where object[field] is a list """
+    """Find first object in a dictionary where object[field] is a list"""
     for key, val in search_dict.items():
         for field in fields_to_check:
             if field in val and isinstance(val[field], list):
@@ -46,7 +47,7 @@ def fix_categories_predicates(query_graph):
     for edge in query_graph["edges"].values():
         edge.pop("predicate", None)
 
-    for edge in query_graph['edges'].values():
+    for edge in query_graph["edges"].values():
         kp = edge["kp"]
         reverse = kp["reverse"]
 
@@ -57,25 +58,28 @@ def fix_categories_predicates(query_graph):
             source_node = query_graph["nodes"][edge["subject"]]
             target_node = query_graph["nodes"][edge["object"]]
 
-        if "category" in source_node \
-                and source_node["category"] != kp["source_category"]:
+        if (
+            "category" in source_node
+            and source_node["category"] != kp["source_category"]
+        ):
             raise ValueError()
         source_node["category"] = kp["source_category"]
 
-        if "category" in target_node \
-                and target_node["category"] != kp["target_category"]:
+        if (
+            "category" in target_node
+            and target_node["category"] != kp["target_category"]
+        ):
             raise ValueError()
         target_node["category"] = kp["target_category"]
 
-        if "predicate" in edge \
-                and edge["predicate"] != kp["edge_predicate"]:
+        if "predicate" in edge and edge["predicate"] != kp["edge_predicate"]:
             raise ValueError()
         edge["predicate"] = kp["edge_predicate"]
 
 
 def get_next_nodes(
-        graph: dict[str, list[str]],
-        path: list[str],
+    graph: dict[str, list[str]],
+    path: list[str],
 ):
     """
     Find next nodes to traverse
@@ -85,10 +89,7 @@ def get_next_nodes(
     """
     for node in reversed(path):
         adjacent_nodes = graph[node]
-        valid_adjacent_nodes = [
-            node for node in adjacent_nodes
-            if node not in path
-        ]
+        valid_adjacent_nodes = [node for node in adjacent_nodes if node not in path]
         if len(valid_adjacent_nodes) > 0:
             return valid_adjacent_nodes
     return []
@@ -129,9 +130,10 @@ def ensure_traversal_connected(graph, path):
     components in the query graph.
     """
 
-    graph_nodes = set(graph['nodes'].keys())
+    graph_nodes = set(graph["nodes"].keys())
     pinned_nodes = {
-        key for key, value in graph["nodes"].items()
+        key
+        for key, value in graph["nodes"].items()
         if value.get("id", None) is not None
     }
     path_nodes = {n for n in path if n in graph["nodes"].keys()}
@@ -157,11 +159,13 @@ async def generate_plan(
     plan = dict()
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
-        provided_by = {"allowlist": None, "denylist": None} | qedge.pop("provided_by", {})
+        provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
+            "provided_by", {}
+        )
         kp_results = await kp_registry.search(
-            qgraph["nodes"][qedge["subject"]]['categories'],
-            qedge['predicates'],
-            qgraph["nodes"][qedge["object"]]['categories'],
+            qgraph["nodes"][qedge["subject"]]["categories"],
+            qedge["predicates"],
+            qgraph["nodes"][qedge["object"]]["categories"],
             allowlist=provided_by["allowlist"],
             denylist=provided_by["denylist"],
         )
@@ -187,8 +191,7 @@ def annotate_query_graph(
     a query graphs with KPs.
     """
     for edge_id, edge in query_graph["edges"].items():
-        edge["kps"] = get_query_graph_edge_kps(
-            operation_graph, edge_id)
+        edge["kps"] = get_query_graph_edge_kps(operation_graph, edge_id)
 
 
 def get_query_graph_edge_kps(
@@ -205,10 +208,12 @@ def get_query_graph_edge_kps(
         if og_edge["qg_edge_id"] != qg_edge_id:
             continue
         for kp in og_edge["kps"]:
-            kps.append({
-                **kp,
-                "reverse": og_edge["edge_reverse"],
-            })
+            kps.append(
+                {
+                    **kp,
+                    "reverse": og_edge["edge_reverse"],
+                }
+            )
     return kps
 
 
@@ -225,19 +230,17 @@ def get_next_qedge(qgraph):
         else:
             qnode["ids"] = N
     pinnednesses = {
-        qnode_id: get_pinnedness(qgraph, qnode_id)
-        for qnode_id in qgraph["nodes"]
+        qnode_id: get_pinnedness(qgraph, qnode_id) for qnode_id in qgraph["nodes"]
     }
     efforts = {
-        qedge_id: math.log(
-            qgraph["nodes"][qedge["subject"]]["ids"]
-        ) + math.log(
-            qgraph["nodes"][qedge["object"]]["ids"]
-        )
+        qedge_id: math.log(qgraph["nodes"][qedge["subject"]]["ids"])
+        + math.log(qgraph["nodes"][qedge["object"]]["ids"])
         for qedge_id, qedge in qgraph["edges"].items()
     }
     edge_priorities = {
-        qedge_id: pinnednesses[qedge["subject"]] + pinnednesses[qedge["object"]] - efforts[qedge_id]
+        qedge_id: pinnednesses[qedge["subject"]]
+        + pinnednesses[qedge["object"]]
+        - efforts[qedge_id]
         for qedge_id, qedge in qgraph["edges"].items()
     }
     qedge_id = max(edge_priorities, key=edge_priorities.get)
@@ -263,13 +266,20 @@ def compute_log_expected_n(adjacency_mat, num_ids, qnode_id, last=None, level=0)
             if neighbor == last:
                 continue
             # ignore contributions >0 - edges should only _further_ constrain n
-            log_expected_n += num_edges * min(max(compute_log_expected_n(
-                adjacency_mat,
-                num_ids,
-                neighbor,
-                qnode_id,
-                level + 1,
-            ), 0) + math.log(R / N), 0)
+            log_expected_n += num_edges * min(
+                max(
+                    compute_log_expected_n(
+                        adjacency_mat,
+                        num_ids,
+                        neighbor,
+                        qnode_id,
+                        level + 1,
+                    ),
+                    0,
+                )
+                + math.log(R / N),
+                0,
+            )
     return log_expected_n
 
 
@@ -284,7 +294,4 @@ def get_adjacency_matrix(qgraph):
 
 def get_num_ids(qgraph):
     """Get the number of ids for each node."""
-    return {
-        qnode_id: qnode["ids"]
-        for qnode_id, qnode in qgraph["nodes"].items()
-    }
+    return {qnode_id: qnode["ids"] for qnode_id, qnode in qgraph["nodes"].items()}

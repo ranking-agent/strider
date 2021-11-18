@@ -62,7 +62,7 @@ openapi_args = dict(
         "lookup",
         "filter_results_top_n",
     ],
-    root_path=os.environ.get('ROOT_PATH', '/')
+    root_path=os.environ.get("ROOT_PATH", "/"),
 )
 if settings.openapi_server_url:
     openapi_args["servers"] = [
@@ -75,7 +75,7 @@ if settings.openapi_server_url:
 APP = TRAPI(**openapi_args)
 
 CORS_OPTIONS = dict(
-    allow_origins=['*'],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -92,55 +92,52 @@ if settings.profiler:
 # Custom exception handler is necessary to ensure that
 # we add CORS headers to errors and return a TRAPI response
 
+
 async def catch_exceptions_middleware(request: Request, call_next):
     try:
         return await call_next(request)
     except Exception as e:
         response = JSONResponse(
             {
-                "message" : {},
+                "message": {},
                 "logs": [
                     {
-                        "message" : f"Exception in Strider: {repr(e)}",
-                        "level" : "ERROR",
-                        "timestamp" : datetime.datetime.now().isoformat(),
-                        "stack" : traceback.format_exc(),
+                        "message": f"Exception in Strider: {repr(e)}",
+                        "level": "ERROR",
+                        "timestamp": datetime.datetime.now().isoformat(),
+                        "stack": traceback.format_exc(),
                     }
-                ]
+                ],
             },
-            status_code=500)
+            status_code=500,
+        )
         add_cors_manually(APP, request, response, CORS_OPTIONS)
         return response
 
-APP.middleware('http')(catch_exceptions_middleware)
+
+APP.middleware("http")(catch_exceptions_middleware)
 
 
 @APP.on_event("startup")
 async def print_config():
-    pretty_config = pprint.pformat(
-        settings.dict()
-    )
+    pretty_config = pprint.pformat(settings.dict())
     LOGGER.info(f" App Configuration:\n {pretty_config}")
+
 
 EXAMPLE = {
     "message": {
         "query_graph": {
             "nodes": {
-                "n0": {
-                    "ids": ["MONDO:0005148"],
-                    "categories": ["biolink:Disease"]
-                },
-                "n1": {
-                    "categories": ["biolink:PhenotypicFeature"]
-                }
+                "n0": {"ids": ["MONDO:0005148"], "categories": ["biolink:Disease"]},
+                "n1": {"categories": ["biolink:PhenotypicFeature"]},
             },
             "edges": {
                 "e01": {
                     "subject": "n0",
                     "object": "n1",
-                    "predicates": ["biolink:has_phenotype"]
+                    "predicates": ["biolink:has_phenotype"],
                 }
-            }
+            },
         }
     }
 }
@@ -150,29 +147,24 @@ AEXAMPLE = {
     "message": {
         "query_graph": {
             "nodes": {
-                "n0": {
-                    "ids": ["MONDO:0005148"],
-                    "categories": ["biolink:Disease"]
-                },
-                "n1": {
-                    "categories": ["biolink:PhenotypicFeature"]
-                }
+                "n0": {"ids": ["MONDO:0005148"], "categories": ["biolink:Disease"]},
+                "n1": {"categories": ["biolink:PhenotypicFeature"]},
             },
             "edges": {
                 "e01": {
                     "subject": "n0",
                     "object": "n1",
-                    "predicates": ["biolink:has_phenotype"]
+                    "predicates": ["biolink:has_phenotype"],
                 }
-            }
+            },
         }
-    }
+    },
 }
 
 
 def get_finished_query(
-        qid: str,
-        redis_client: Redis,
+    qid: str,
+    redis_client: Redis,
 ) -> dict:
     qgraph = RedisGraph(f"{qid}:qgraph", redis_client)
     kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
@@ -197,12 +189,13 @@ def get_finished_query(
         logs=list(logs.get()),
     )
 
-@APP.post('/query_result', response_model=ReasonerResponse)
+
+@APP.post("/query_result", response_model=ReasonerResponse)
 async def get_results(
-        qid: str,
-        redis_client: Redis = Depends(get_redis_client),
+    qid: str,
+    redis_client: Redis = Depends(get_redis_client),
 ) -> dict:
-    """ Get results for a running or finished query """
+    """Get results for a running or finished query"""
     return get_finished_query(qid, redis_client)
 
 
@@ -214,7 +207,7 @@ async def lookup(
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
 
-    qgraph = query_dict['message']['query_graph']
+    qgraph = query_dict["message"]["query_graph"]
 
     log_level = query_dict["log_level"] or "ERROR"
 
@@ -223,7 +216,7 @@ async def lookup(
     binder = Binder(
         qid,
         level_number,
-        name = "me",
+        name="me",
         redis_client=redis_client,
     )
     kgraph = {
@@ -244,11 +237,13 @@ async def lookup(
         }
 
     async with binder:
-        async for result_kgraph, result in binder.lookup(None, use_cache=False):
-            kgraph = merge_kgraphs([
-                result_kgraph,
-                kgraph,
-            ])
+        async for result_kgraph, result in binder.lookup(None):
+            kgraph = merge_kgraphs(
+                [
+                    result_kgraph,
+                    kgraph,
+                ]
+            )
             results.append(result)
     message = {
         "query_graph": qgraph,
@@ -262,6 +257,7 @@ async def lookup(
         "logs": logs,
     }
 
+
 async def async_lookup(
     callback,
     query_dict: dict,
@@ -272,10 +268,11 @@ async def async_lookup(
     async with httpx.AsyncClient() as client:
         await client.post(callback, json=query_results)
 
-@APP.post('/query', response_model=ReasonerResponse)
+
+@APP.post("/query", response_model=ReasonerResponse)
 async def sync_query(
-        query: Query = Body(..., example=EXAMPLE),
-        redis_client: Redis = Depends(get_redis_client),
+    query: Query = Body(..., example=EXAMPLE),
+    redis_client: Redis = Depends(get_redis_client),
 ) -> dict:
     """Handle synchronous query."""
     # parse requested workflow
@@ -290,7 +287,9 @@ async def sync_query(
     if workflow[0]["id"] == "filter_results_top_n":
         max_results = workflow[0]["parameters"]["max_results"]
         if max_results < len(query_dict["message"]["results"]):
-            query_dict["message"]["results"] = query_dict["message"]["results"][:max_results]
+            query_dict["message"]["results"] = query_dict["message"]["results"][
+                :max_results
+            ]
         return query_dict
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
@@ -317,11 +316,12 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
         swagger_favicon_url=swagger_favicon_url,
     )
 
-@APP.post('/asyncquery', response_model=ReasonerResponse)
+
+@APP.post("/asyncquery", response_model=ReasonerResponse)
 async def async_query(
-        background_tasks: BackgroundTasks,
-        query: AsyncQuery = Body(..., example=AEXAMPLE),
-        redis_client: Redis = Depends(get_redis_client),
+    background_tasks: BackgroundTasks,
+    query: AsyncQuery = Body(..., example=AEXAMPLE),
+    redis_client: Redis = Depends(get_redis_client),
 ):
     """Handle asynchronous query."""
     # parse requested workflow
@@ -337,7 +337,9 @@ async def async_query(
     if workflow[0]["id"] == "filter_results_top_n":
         max_results = workflow[0]["parameters"]["max_results"]
         if max_results < len(query_dict["message"]["results"]):
-            query_dict["message"]["results"] = query_dict["message"]["results"][:max_results]
+            query_dict["message"]["results"] = query_dict["message"]["results"][
+                :max_results
+            ]
         return query_dict
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
@@ -346,39 +348,44 @@ async def async_query(
 
     return
 
+
 def parse_bindings(bindings):
     """Parse bindings into message format."""
     kgraph = {
-        'nodes': dict(),
-        'edges': dict(),
+        "nodes": dict(),
+        "edges": dict(),
     }
     result = {
-        'node_bindings': [],
-        'edge_bindings': [],
+        "node_bindings": [],
+        "edge_bindings": [],
     }
     for key, element in bindings.items():
-        if key.startswith('_'):
+        if key.startswith("_"):
             result[key[1:]] = element
             continue
-        kid = element.pop('kid')
-        qid = element.pop('qid')
-        element.pop('kid_qid', None)
-        if key.startswith('e_'):
-            result['edge_bindings'].append({
-                'qg_id': qid,
-                'kg_id': kid,
-            })
-            kgraph['edges'][kid] = {
-                'id': kid,
+        kid = element.pop("kid")
+        qid = element.pop("qid")
+        element.pop("kid_qid", None)
+        if key.startswith("e_"):
+            result["edge_bindings"].append(
+                {
+                    "qg_id": qid,
+                    "kg_id": kid,
+                }
+            )
+            kgraph["edges"][kid] = {
+                "id": kid,
                 **element,
             }
         else:
-            result['node_bindings'].append({
-                'qg_id': qid,
-                'kg_id': kid,
-            })
-            kgraph['nodes'][kid] = {
-                'id': kid,
+            result["node_bindings"].append(
+                {
+                    "qg_id": qid,
+                    "kg_id": kid,
+                }
+            )
+            kgraph["nodes"][kid] = {
+                "id": kid,
                 **element,
             }
     return result, kgraph
@@ -388,25 +395,22 @@ async def extract_results(query_id, since, limit, offset, database):
     """Extract results from database."""
     statement = f'SELECT * FROM "{query_id}"'
     if since is not None:
-        statement += f' WHERE _timestamp >= {since}'
-    statement += ' ORDER BY _timestamp ASC'
+        statement += f" WHERE _timestamp >= {since}"
+    statement += " ORDER BY _timestamp ASC"
     if limit is not None:
-        statement += f' LIMIT {limit}'
+        statement += f" LIMIT {limit}"
     if offset:
-        statement += f' OFFSET {offset}'
+        statement += f" OFFSET {offset}"
     rows = await database.execute(statement)
     return [
-        tuple(
-            json.loads(value) if isinstance(value, str) else value
-            for value in row
-        )
+        tuple(json.loads(value) if isinstance(value, str) else value for value in row)
         for row in rows
     ]
 
 
-@APP.post('/plan', response_model=dict[str, list[str]])
+@APP.post("/plan", response_model=dict[str, list[str]])
 async def generate_traversal_plan(
-        query: Query,
+    query: Query,
 ) -> list[list[str]]:
     """Generate plans for traversing knowledge providers."""
     query_graph = query.message.query_graph.dict()
@@ -416,36 +420,36 @@ async def generate_traversal_plan(
     return plan
 
 
-@APP.post('/score', response_model=Message)
+@APP.post("/score", response_model=Message)
 async def score_results(
-        query: Query,
+    query: Query,
 ) -> Message:
     """Score results."""
     message = query.message.dict()
     identifiers = {
-        knode['id']: knode.get('equivalent_identifiers', [])
-        for knode in message['knowledge_graph']['nodes']
+        knode["id"]: knode.get("equivalent_identifiers", [])
+        for knode in message["knowledge_graph"]["nodes"]
     }
-    for result in message['results']:
+    for result in message["results"]:
         graph = {
-            'nodes': {
-                nb['qg_id']: {
-                    'qid': nb['qg_id'],
-                    'kid': nb['kg_id'],
-                    'equivalent_identifiers': identifiers[nb['kg_id']]
+            "nodes": {
+                nb["qg_id"]: {
+                    "qid": nb["qg_id"],
+                    "kid": nb["kg_id"],
+                    "equivalent_identifiers": identifiers[nb["kg_id"]],
                 }
-                for nb in result['node_bindings']
+                for nb in result["node_bindings"]
             },
-            'edges': {
-                eb['qg_id']: {
-                    'qid': eb['qg_id'],
-                    'kid': eb['kg_id'],
+            "edges": {
+                eb["qg_id"]: {
+                    "qid": eb["qg_id"],
+                    "kid": eb["kg_id"],
                 }
-                for eb in result['edge_bindings']
-            }
+                for eb in result["edge_bindings"]
+            },
         }
-        result['score'] = await score_graph(
+        result["score"] = await score_graph(
             graph,
-            message['query_graph'],
+            message["query_graph"],
         )
     return message
