@@ -38,7 +38,6 @@ from .trapi import (
     merge_results,
     fill_categories_predicates,
 )
-from .caching import async_locking_cache
 from .query_planner import generate_plan, get_next_qedge
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
@@ -110,7 +109,6 @@ class Binder:
     async def lookup(
         self,
         qgraph: Graph = None,
-        use_cache: bool = True,
     ):
         """Expand from query graph node."""
         # if this is a leaf node, we're done
@@ -140,7 +138,7 @@ class Binder:
         }
 
         generators = [
-            self.generate_from_kp(qgraph, onehop, self.kps[kp_id], use_cache=use_cache)
+            self.generate_from_kp(qgraph, onehop, self.kps[kp_id])
             for kp_id in self.plan[qedge_id]
         ]
         async with aiostream.stream.merge(*generators).stream() as streamer:
@@ -152,12 +150,10 @@ class Binder:
         qgraph,
         onehop_qgraph,
         kp: KnowledgeProvider,
-        **kwargs,
     ):
         """Generate one-hop results from KP."""
         onehop_response = await kp.solve_onehop(
             onehop_qgraph,
-            # **kwargs,
         )
         onehop_response = enforce_constraints(onehop_response)
         onehop_kgraph = onehop_response["knowledge_graph"]
@@ -225,7 +221,6 @@ class Binder:
         self,
         qgraph,
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
-        **kwargs,
     ):
         # LOGGER.debug(
         #     "Expanding from result %s...",
@@ -233,7 +228,6 @@ class Binder:
         # )
         async for subkgraph, subresult in self.lookup(
             qgraph,
-            **kwargs,
         ):
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
@@ -250,39 +244,6 @@ class Binder:
                 subkgraph["nodes"].update(kgraph["nodes"])
                 subkgraph["edges"].update(kgraph["edges"])
                 yield subkgraph, subresult
-
-    async def get_results(
-        self,
-        qgraph: dict[str, Any],
-        use_cache=True,
-        max_results=None,
-    ):
-        """Get results and kgraph."""
-        qgraph = copy.deepcopy(qgraph)
-        qgraph = Graph(qgraph)
-        # normalize_qgraph(qgraph)
-
-        kgraph = {"nodes": dict(), "edges": dict()}
-        results = []
-        counter = 0
-        async for kgraph_, result_ in self.lookup(qgraph, use_cache=use_cache):
-            # aggregate results
-            kgraph["nodes"].update(kgraph_["nodes"])
-            kgraph["edges"].update(kgraph_["edges"])
-            results.append(result_)
-            counter += 1
-            if max_results is not None and counter >= max_results:
-                break
-
-        for kedge in kgraph["edges"].values():
-            kedge["attributes"] = [
-                {
-                    "attribute_type_id": "biolink:knowledge_source",
-                    "value": f"infores:{self.name}",
-                }
-            ]
-
-        return kgraph, results
 
     async def __aenter__(self):
         """Enter context."""

@@ -237,7 +237,7 @@ async def lookup(
         }
 
     async with binder:
-        async for result_kgraph, result in binder.lookup(None, use_cache=False):
+        async for result_kgraph, result in binder.lookup(None):
             kgraph = merge_kgraphs(
                 [
                     result_kgraph,

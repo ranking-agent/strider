@@ -1,4 +1,4 @@
-"""Server routes"""
+"""Strider TRAPI Throttle."""
 import asyncio
 from asyncio.queues import QueueEmpty
 from asyncio.tasks import Task
@@ -20,6 +20,8 @@ from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_map
 from .utils import get_keys_with_value, log_response
 from ..trapi import canonicalize_qgraph
 from ..util import elide_curies, log_request
+from ..caching import async_locking_cache
+from ..config import settings
 
 
 class KPInformation(pydantic.main.BaseModel):
@@ -74,15 +76,23 @@ class ThrottledServer:
         self.max_batch_size = max_batch_size
         self.preproc = preproc
         self.postproc = postproc
+        self.use_cache = settings.use_cache
         if logger is None:
             logger = logging.getLogger(__name__)
         self.logger = logger
+
+        # locking cache needs to be here so each KP instance has its own cache.
+        # https://stackoverflow.com/a/14946506
+        if self.use_cache:
+            self.query = async_locking_cache(self._query)
+        else:
+            self.query = self._query
 
     @log_errors
     async def process_batch(
         self,
     ):
-        """Set up a subscriber to process batching"""
+        """Set up a subscriber to process batching."""
         # Initialize the TAT
         #
         # TAT = Theoretical Arrival Time
@@ -407,7 +417,7 @@ class ThrottledServer:
         except asyncio.CancelledError:
             pass
 
-    async def query(
+    async def _query(
         self,
         query: dict,
         priority: float = 0,  # lowest goes first
