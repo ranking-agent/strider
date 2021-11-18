@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     redis_url: RedisDsn = "redis://localhost"
     store_results_for: timedelta = timedelta(days=7)
     profiler: bool = False
+    use_cache: bool = True
 
     class Config:
         env_file = ".env"
