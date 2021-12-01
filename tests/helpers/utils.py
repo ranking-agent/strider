@@ -166,7 +166,6 @@ def generate_message(spec) -> Message:
     ]
 
     return Message(
-        query_graph=QueryGraph(nodes={}, edges={}),
         knowledge_graph=KnowledgeGraph(
             nodes={
                 kgnid: Node(
