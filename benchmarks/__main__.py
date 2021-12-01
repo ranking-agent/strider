@@ -3,8 +3,8 @@ import time
 
 from tqdm import tqdm
 
+from reasoner_pydantic import Message
 from tests.helpers.utils import generate_message_parameterized
-from strider.trapi import merge_messages
 
 RANDOM_SEED = 42
 
@@ -63,27 +63,23 @@ table += "----------------------------------------------------------------------
 
 for b in benchmarks:
     input_messages = [
-        generate_message_parameterized(**b["params"]).dict()
-        for _ in range(b["msg_count"])
+        generate_message_parameterized(**b["params"]) for _ in range(b["msg_count"])
     ]
 
     start = time.time()
 
-    combined_msg = {
-        "query_graph": {"nodes": {}, "edges": {}},
-        "knowledge_graph": {"nodes": {}, "edges": {}},
-        "results": [],
-    }
+    combined_msg = Message(results=[])
 
     print(f"Running benchmark {b['name']}")
     for m in tqdm(input_messages):
-        combined_msg = merge_messages([combined_msg, m])
+        combined_msg.update(m)
 
     end = time.time()
 
     # Compute file size
     print("Computing final message size, this may take a while...")
-    output_file_size = len(json.dumps(combined_msg).encode("utf-8"))
+    # output_file_size = len(json.dumps(combined_msg).encode("utf-8"))
+    output_file_size = 0
 
     table += f"  {b['name'].center(32)}  |  {output_file_size/1e6:16}  |  {end - start:14.2f}\n"
 
