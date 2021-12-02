@@ -1,4 +1,5 @@
 """Simple ReasonerStdAPI server."""
+import copy
 import datetime
 import os
 import uuid
@@ -28,7 +29,7 @@ from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually
-from .trapi import merge_kgraphs
+from .trapi import build_unique_kg_edge_ids, merge_kgraphs
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
@@ -244,11 +245,15 @@ async def lookup(
 
     async with binder:
         async for result_kgraph, result in binder.lookup(None):
-            output_query.message.update(
-                Message.parse_obj(
-                    {"knowledge_graph": result_kgraph, "results": [result]}
-                )
-            )
+            message_dict = {"knowledge_graph": result_kgraph, "results": [result]}
+            # TODO figure out why this is required
+            message_dict = copy.deepcopy(message_dict)
+
+            # Update knowledge graph edge IDs so that we can merge
+            build_unique_kg_edge_ids(message_dict)
+
+            # Merge
+            output_query.message.update(Message.parse_obj(message_dict))
 
     # Collapse sets
     message_dict = output_query.message.dict()
