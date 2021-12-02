@@ -34,8 +34,6 @@ from .trapi import (
     filter_by_qgraph,
     get_curies,
     map_qgraph_curies,
-    merge_messages,
-    merge_results,
     fill_categories_predicates,
 )
 from .query_planner import generate_plan, get_next_qedge
