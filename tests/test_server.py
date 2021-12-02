@@ -1940,4 +1940,4 @@ async def test_metakg_noncompliant(client):
 
     # Check that we stored the error
     assert "field required" in output["logs"][0]["message"]
-    assert len(output["message"]["results"]) == 2
+    assert len(output["message"]["results"]) == 1
