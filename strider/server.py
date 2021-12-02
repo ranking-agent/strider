@@ -219,43 +219,44 @@ async def lookup(
         name="me",
         redis_client=redis_client,
     )
-    kgraph = {
-        "nodes": {},
-        "edges": {},
-    }
-    results = []
+
+    output_query = Query.parse_obj(
+        {
+            "message": {
+                "query_graph": qgraph,
+                "knowledge_graph": {"nodes": {}, "edges": {}},
+                "results": [],
+            }
+        }
+    )
+
     try:
         await binder.setup(qgraph)
     except NoAnswersError:
         return {
             "message": {
                 "query_graph": qgraph,
-                "knowledge_graph": kgraph,
-                "results": results,
+                "knowledge_graph": {"nodes": {}, "edges": {}},
+                "results": [],
             },
             "logs": list(RedisList(f"{qid}:log", redis_client).get()),
         }
 
     async with binder:
         async for result_kgraph, result in binder.lookup(None):
-            kgraph = merge_kgraphs(
-                [
-                    result_kgraph,
-                    kgraph,
-                ]
+            output_query.message.update(
+                Message.parse_obj(
+                    {"knowledge_graph": result_kgraph, "results": [result]}
+                )
             )
-            results.append(result)
-    message = {
-        "query_graph": qgraph,
-        "knowledge_graph": kgraph,
-        "results": results,
-    }
-    collapse_sets(message)
-    logs = list(RedisList(f"{qid}:log", redis_client).get())
-    return {
-        "message": message,
-        "logs": logs,
-    }
+
+    # Collapse sets
+    message_dict = output_query.message.dict()
+    collapse_sets(message_dict)
+    output_query.message = Message.parse_obj(message_dict)
+
+    output_query.logs = list(RedisList(f"{qid}:log", redis_client).get())
+    return output_query.dict()
 
 
 async def async_lookup(
