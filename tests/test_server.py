@@ -1941,3 +1941,64 @@ async def test_metakg_noncompliant(client):
     # Check that we stored the error
     assert "field required" in output["logs"][0]["message"]
     assert len(output["message"]["results"]) == 1
+
+
+NUM_KPS = 10
+
+
+@pytest.mark.longrun
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        f"kp{i}": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """
+        for i in range(NUM_KPS)
+    },
+    normalizer_data="""
+        CHEBI:6801 categories biolink:ChemicalSubstance
+        """,
+)
+async def test_large_merging_performance(client):
+    """
+    Test that when we need to merge a lot of things together
+    we have reasonable performance
+    """
+
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( ids[] CHEBI:6801 ))
+        n1(( categories[] biolink:Disease ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = {"message": {"query_graph": QGRAPH}}
+
+    import yappi
+
+    with yappi.run():
+        response = await client.post("/query", json=q)
+
+    yappi.get_func_stats(
+        filter_callback=lambda x: "reaonser_pydantic" in x.module
+        or ("strider" in x.module and "venv" not in x.module)
+    ).print_all()
+
+    # Validate output
+    output = response.json()
+
+    # Check that we have sources for each KP in the knowledge graph
+    assert (
+        len(output["message"]["knowledge_graph"]["edges"]["5d41d549ef66"]["attributes"])
+        == NUM_KPS + 1
+    )
+
+    # Check that we only have one result
+    assert len(output["message"]["results"]) == 1
