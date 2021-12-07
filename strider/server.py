@@ -16,6 +16,7 @@ from fastapi.openapi.docs import (
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
+from reasoner_pydantic.qgraph import QueryGraph
 from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
@@ -224,7 +225,6 @@ async def lookup(
     output_query = Query.parse_obj(
         {
             "message": {
-                "query_graph": qgraph,
                 "knowledge_graph": {"nodes": {}, "edges": {}},
                 "results": [],
             }
@@ -245,15 +245,17 @@ async def lookup(
 
     async with binder:
         async for result_kgraph, result in binder.lookup(None):
-            message_dict = {"knowledge_graph": result_kgraph, "results": [result]}
-            # TODO figure out why this is required
-            message_dict = copy.deepcopy(message_dict)
+            result_message = Message.parse_obj(
+                {"knowledge_graph": result_kgraph, "results": [result]}
+            )
 
             # Update knowledge graph edge IDs so that we can merge
-            build_unique_kg_edge_ids(message_dict)
+            build_unique_kg_edge_ids(result_message)
 
             # Merge
-            output_query.message.update(Message.parse_obj(message_dict))
+            output_query.message.update(result_message)
+
+    output_query.message.query_graph = qgraph
 
     # Collapse sets
     message_dict = output_query.message.dict()
