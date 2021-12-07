@@ -77,8 +77,8 @@ for b in benchmarks:
     end = time.time()
 
     # Compute file size
-    print("Computing final message size, this may take a while...")
-    # output_file_size = len(json.dumps(combined_msg).encode("utf-8"))
+    print("\nComputing final message size, this may take a while...")
+    output_file_size = len(combined_msg.json())
     output_file_size = 0
 
     table += f"  {b['name'].center(32)}  |  {output_file_size/1e6:16}  |  {end - start:14.2f}\n"

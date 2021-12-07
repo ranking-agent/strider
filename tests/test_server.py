@@ -1943,7 +1943,7 @@ async def test_metakg_noncompliant(client):
     assert len(output["message"]["results"]) == 1
 
 
-NUM_KPS = 10
+NUM_KPS = 100
 
 
 @pytest.mark.longrun
@@ -1987,7 +1987,7 @@ async def test_large_merging_performance(client):
         response = await client.post("/query", json=q)
 
     yappi.get_func_stats(
-        filter_callback=lambda x: "reaonser_pydantic" in x.module
+        filter_callback=lambda x: "reasoner_pydantic" in x.module
         or ("strider" in x.module and "venv" not in x.module)
     ).print_all()
 
