@@ -399,9 +399,9 @@ def build_unique_kg_edge_ids(message: Message):
     edge_id_mapping = {}
 
     # Make a copy of the edge keys because we're about to change them
-    for edge_id in list(message["knowledge_graph"]["edges"].keys()):
-        edge = message["knowledge_graph"]["edges"].pop(edge_id)
-        new_edge_id_string = f"{edge['subject']}-{edge['predicate']}-{edge['object']}"
+    for edge_id in list(message.knowledge_graph.edges.keys()):
+        edge = message.knowledge_graph.edges.pop(edge_id)
+        new_edge_id_string = f"{edge.subject}-{edge.predicate}-{edge.object}"
 
         # Build hash from ID string
         new_edge_id = hashlib.blake2b(
@@ -412,13 +412,13 @@ def build_unique_kg_edge_ids(message: Message):
         edge_id_mapping[edge_id] = new_edge_id
 
         # Update knowledge graph
-        message["knowledge_graph"]["edges"][new_edge_id] = edge
+        message.knowledge_graph.edges[new_edge_id] = edge
 
     # Update results
-    for result in message["results"]:
-        for edge_binding_list in result["edge_bindings"].values():
+    for result in message.results:
+        for edge_binding_list in result.edge_bindings.values():
             for eb in edge_binding_list:
-                eb["id"] = edge_id_mapping[eb["id"]]
+                eb.id = edge_id_mapping[eb.id]
 
 
 def is_valid_node_binding(message, nb, qgraph_node):
