@@ -305,14 +305,28 @@ def canonicalize_qedge(
     flipped_predicates = []
     for predicate in qedge.get("predicates") or []:
         slot = WBMT.bmt.get_element(predicate)
+        # if predicate not in bmt
         if slot is None:
             predicates.append(predicate)
             continue
         is_canonical = slot.annotations.get("biolink:canonical_predicate", False)
         if is_canonical or slot.symmetric or slot.inverse is None:
+            # predicate is canonical, use it
             predicates.append(predicate)
         else:
-            flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
+            # get inverse predicate
+            inverse_slot = WBMT.bmt.get_element(slot.inverse)
+            if inverse_slot is None:
+                predicates.append(predicate)
+                continue
+            is_canonical = inverse_slot.annotations.get("biolink:canonical_predicate", False)
+            # if inverse is marked canonical, use it
+            if is_canonical:
+                flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
+            else:
+                # if neither predicate is canonical, use what was given
+                predicates.append(predicate)
+
     qedge = copy.deepcopy(qedge)
     qedge["predicates"] = predicates
     flipped_qedge = {
