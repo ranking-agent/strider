@@ -1,6 +1,7 @@
 import json
 import pytest
 from fastapi.responses import JSONResponse, Response
+from reasoner_pydantic.message import Message
 
 from tests.helpers.context import (
     with_norm_overlay,
@@ -43,15 +44,18 @@ async def test_map_prefixes_small_example():
         "edges": {},
     }
 
-    fixed_msg = await portal.map_prefixes(
-        {"query_graph": query_graph},
+    msg = Message.parse_obj({"query_graph": query_graph})
+
+    await portal.map_prefixes(
+        msg,
         preferred_prefixes,
     )
+    msg = msg.dict()
 
     # n0 should be converted to the correct prefix
-    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["MONDO:0005148"]
+    assert msg["query_graph"]["nodes"]["n0"]["ids"] == ["MONDO:0005148"]
     # There should be no change to n1
-    assert fixed_msg["query_graph"]["nodes"]["n1"]["ids"] == ["MONDO:0005148"]
+    assert msg["query_graph"]["nodes"]["n1"]["ids"] == ["MONDO:0005148"]
 
 
 @pytest.mark.asyncio

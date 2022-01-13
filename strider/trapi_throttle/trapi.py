@@ -1,6 +1,7 @@
 import copy
 
 from reasoner_pydantic import Message, QueryGraph
+from reasoner_pydantic.kgraph import KnowledgeGraph
 
 
 class BatchingError(Exception):
@@ -18,8 +19,8 @@ def get_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
     """
     return {
         node_id: curies
-        for node_id, node in qgraph["nodes"].items()
-        if (curies := node.get("ids", None)) is not None
+        for node_id, node in qgraph.nodes.items()
+        if (curies := node.ids or None) is not None
     }
 
 
@@ -27,9 +28,9 @@ def remove_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
     """
     Remove curies from query graph.
     """
-    qgraph = copy.deepcopy(qgraph)
-    for node in qgraph["nodes"].values():
-        node.pop("ids", None)
+    qgraph = qgraph.copy()
+    for node in qgraph.nodes.values():
+        node.ids = None
     return qgraph
 
 
@@ -68,10 +69,7 @@ def result_contains_node_bindings(result, bindings: dict[str, list[str]]):
     may use the optional `qnode_id` field to indicate the associated superclass.
     """
     for qg_id, kg_ids in bindings.items():
-        if not any(
-            nb["id"] in kg_ids or nb.get("qnode_id") in kg_ids
-            for nb in result["node_bindings"][qg_id]
-        ):
+        if not any(nb.id in kg_ids for nb in result.node_bindings[qg_id]):
             return False
     return True
 
@@ -80,33 +78,36 @@ def filter_by_curie_mapping(
     message: Message,
     curie_mapping: dict[str, list[str]],
     kp_id: str = "KP",
-) -> Message:
+):
     """
     Filter a message to ensure that all results
     contain the bindings specified in the curie_mapping
     """
+
+    filtered_msg = Message()
+
     # Only keep results where there is a node binding
     # that connects to our given kgraph_node_id
-    results = [
-        result
-        for result in (message.get("results") or [])
+    filtered_msg.results = {
+        result.copy()
+        for result in message.results
         if result_contains_node_bindings(result, curie_mapping)
-    ]
-
-    # Construct result-specific knowledge graph
-    kgraph = {
-        "nodes": {
-            binding["id"]: message["knowledge_graph"]["nodes"][binding["id"]]
-            for result in results
-            for _, bindings in result["node_bindings"].items()
-            for binding in bindings
-        },
-        "edges": {
-            binding["id"]: message["knowledge_graph"]["edges"][binding["id"]]
-            for result in results
-            for _, bindings in result["edge_bindings"].items()
-            for binding in bindings
-        },
     }
 
-    return kgraph, results
+    # Construct result-specific knowledge graph
+    filtered_msg.kgraph = KnowledgeGraph(
+        nodes={
+            binding["id"]: message.knowledge_graph.nodes[binding["id"]]
+            for result in filtered_msg.results
+            for _, bindings in result.node_bindings.items()
+            for binding in bindings
+        },
+        edges={
+            binding["id"]: message.knowledge_graph.edges[binding["id"]]
+            for result in filtered_msg.results
+            for _, bindings in result.edge_bindings.items()
+            for binding in bindings
+        },
+    )
+
+    return filtered_msg

@@ -13,13 +13,13 @@ from typing import Callable, Optional, Union
 
 import httpx
 import pydantic
-from reasoner_pydantic import Response as ReasonerResponse
+from reasoner_pydantic import Response as ReasonerResponse, Query, QueryGraph, Message
 import uuid
 
 from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_mapping
 from .utils import get_keys_with_value, log_response
-from ..trapi import canonicalize_qgraph
-from ..util import elide_curies, log_request
+from ..trapi import get_canonical_qgraphs
+from ..util import elide_curies, log_request, remove_null_values
 from ..caching import async_locking_cache
 from ..config import settings
 
@@ -136,7 +136,7 @@ class ThrottledServer:
 
             # Extract a curie mapping from each request
             request_curie_mapping = {
-                request_id: get_curies(request_value["message"]["query_graph"])
+                request_id: get_curies(request_value.message.query_graph)
                 for request_id, request_value in request_value_mapping.items()
             }
 
@@ -144,7 +144,7 @@ class ThrottledServer:
             # This disregards non-matching IDs because the IDs have been
             # removed with the extract_curie method
             stripped_qgraphs = {
-                request_id: remove_curies(request["message"]["query_graph"])
+                request_id: remove_curies(request.message.query_graph)
                 for request_id, request in request_value_mapping.items()
             }
             first_value = next(iter(stripped_qgraphs.values()))
@@ -184,25 +184,21 @@ class ThrottledServer:
             )
 
             # Remove qnode ids
-            for qnode in merged_request_value["message"]["query_graph"][
-                "nodes"
-            ].values():
-                qnode.pop("ids", None)
+            for qnode in merged_request_value.message.query_graph.nodes.values():
+                qnode.ids = None
 
             # Update merged request using curie mapping
             for curie_mapping in request_curie_mapping.values():
                 for node_id, node_curies in curie_mapping.items():
-                    node = merged_request_value["message"]["query_graph"]["nodes"][
-                        node_id
-                    ]
-                    if "ids" not in node:
-                        node["ids"] = []
-                    node["ids"].extend(node_curies)
-            for qnode in merged_request_value["message"]["query_graph"][
-                "nodes"
-            ].values():
-                if qnode.get("ids"):
-                    qnode["ids"] = list(set(qnode["ids"]))
+                    node = merged_request_value.message.query_graph.nodes[node_id]
+                    if node.ids is None:
+                        node.ids = node_curies.copy()
+                    else:
+                        node.ids.extend(node_curies)
+            # TODO replace qnode.ids with a HashableSet so that this can be safely removed
+            for qnode in merged_request_value.message.query_graph.nodes.values():
+                if qnode.ids:
+                    qnode.ids = list(set(qnode.ids))
 
             response_values = dict()
             try:
@@ -212,18 +208,17 @@ class ThrottledServer:
                         id=self.id,
                         subrequests=len(request_curie_mapping),
                         curies=" x ".join(
-                            str(len(qnode.get("ids", []) or []))
-                            for qnode in merged_request_value["message"]["query_graph"][
-                                "nodes"
-                            ].values()
+                            str(len(qnode.ids or []))
+                            for qnode in merged_request_value.message.query_graph.nodes.values()
                         ),
                     )
                 )
                 self.logger.context = self.id
-                merged_request_value = await self.preproc(
-                    merged_request_value, self.logger
-                )
+                await self.preproc(merged_request_value, self.logger)
+                # TODO rewrite this whole function to use pydantic model
+                merged_request_value = merged_request_value.dict()
                 merged_request_value["submitter"] = "infores:aragorn"
+                merged_request_value = remove_null_values(merged_request_value)
                 async with httpx.AsyncClient() as client:
                     response = await client.post(
                         self.url,
@@ -252,10 +247,10 @@ class ThrottledServer:
                 response.raise_for_status()
 
                 # Parse with reasoner_pydantic to validate
-                response_body = ReasonerResponse.parse_obj(response.json()).dict()
-                response_body = await self.postproc(response_body)
-                message = response_body["message"]
-                results = message.get("results") or []
+                response_body = ReasonerResponse.parse_obj(response.json())
+                await self.postproc(response_body, self.logger)
+                message = response_body.message
+                results = message.results or []
                 self.logger.info(
                     "[{}] Received response with {} results in {} seconds".format(
                         self.id,
@@ -266,33 +261,24 @@ class ThrottledServer:
 
                 if len(request_curie_mapping) == 1:
                     request_id = next(iter(request_curie_mapping))
-                    response_values[request_id] = {
-                        "message": {
-                            "query_graph": request_value_mapping[request_id]["message"][
-                                "query_graph"
-                            ],
-                            "knowledge_graph": message.get(
-                                "knowledge_graph", {"nodes": {}, "edges": {}}
-                            ),
-                            "results": message.get("results", []),
-                        }
-                    }
+                    # Make a copy
+                    response_values[request_id] = ReasonerResponse(message=Message())
+                    response_values[request_id].message.query_graph = request_value_mapping[request_id].message.query_graph.copy()
+                    response_values[request_id].message.knowledge_graph = message.knowledge_graph.copy()
+                    response_values[request_id].message.results = message.results.copy()
                 else:
                     # Split using the request_curie_mapping
                     for request_id, curie_mapping in request_curie_mapping.items():
                         try:
-                            kgraph, results = filter_by_curie_mapping(
+                            filtered_msg = filter_by_curie_mapping(
                                 message, curie_mapping, kp_id=self.id
                             )
-                            response_values[request_id] = {
-                                "message": {
-                                    "query_graph": request_value_mapping[request_id][
-                                        "message"
-                                    ]["query_graph"],
-                                    "knowledge_graph": kgraph,
-                                    "results": results,
-                                }
-                            }
+                            filtered_msg.query_graph = QueryGraph.parse_obj(
+                                request_value_mapping[request_id]
+                            )
+                            response_values[request_id] = ReasonerResponse(
+                                message=filtered_msg
+                            )
                         except BatchingError as err:
                             # the response is probably malformed
                             response_values[request_id] = err
@@ -304,18 +290,9 @@ class ThrottledServer:
                 pydantic.ValidationError,
             ) as e:
                 for request_id, curie_mapping in request_curie_mapping.items():
-                    response_values[request_id] = {
-                        "message": {
-                            "query_graph": request_value_mapping[request_id]["message"][
-                                "query_graph"
-                            ],
-                            "knowledge_graph": {
-                                "nodes": {},
-                                "edges": {},
-                            },
-                            "results": [],
-                        },
-                    }
+                    response_values[request_id] = ReasonerResponse(
+                        message=request_value_mapping[request_id].copy()
+                    )
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning(
                         {
@@ -419,26 +396,25 @@ class ThrottledServer:
 
     async def _query(
         self,
-        query: dict,
+        query: Query,
         priority: float = 0,  # lowest goes first
         timeout: Optional[float] = 60.0,
-    ) -> dict:
+    ) -> ReasonerResponse:
         """Queue up a query for batching and return when completed"""
         if self.worker is None:
             raise RuntimeError(
                 "Cannot send a request until a worker is running - enter the context"
             )
 
+        # TODO figure out a way to remove this conversion
+        query = Query.parse_obj(query)
+
         response_queue = asyncio.Queue()
 
-        qgraphs = canonicalize_qgraph(query["message"]["query_graph"])
+        qgraphs = get_canonical_qgraphs(query.message.query_graph)
 
         for qgraph in qgraphs:
-            subquery = {
-                "message": {
-                    "query_graph": qgraph,
-                },
-            }
+            subquery = Query(message=Message(query_graph=qgraph))
 
             # Queue query for processing
             request_id = str(uuid.uuid1())
@@ -449,10 +425,18 @@ class ThrottledServer:
                 )
             )
 
-        outputs = []
+        combined_output = ReasonerResponse.parse_obj(
+            {
+                "message": {
+                    "knowledge_graph": {"nodes": {}, "edges": {}},
+                    "results": [],
+                }
+            }
+        )
+
         for _ in qgraphs:
             # Wait for response
-            output: Union[dict, Exception] = await asyncio.wait_for(
+            output: Union[ReasonerResponse, Exception] = await asyncio.wait_for(
                 response_queue.get(),
                 timeout=None,
             )
@@ -460,35 +444,12 @@ class ThrottledServer:
             if isinstance(output, Exception):
                 raise output
 
-            outputs.append(output)
-        output = {
-            "message": {
-                "query_graph": query["message"]["query_graph"],
-                "knowledge_graph": {
-                    "nodes": {
-                        key: value
-                        for output in outputs
-                        for key, value in output["message"]["knowledge_graph"][
-                            "nodes"
-                        ].items()
-                    },
-                    "edges": {
-                        key: value
-                        for output in outputs
-                        for key, value in output["message"]["knowledge_graph"][
-                            "edges"
-                        ].items()
-                    },
-                },
-                "results": [
-                    result
-                    for output in outputs
-                    for result in output["message"]["results"]
-                ],
-            }
-        }
+            output.message.query_graph = None
+            combined_output.message.update(output.message)
 
-        return output
+        combined_output.message.query_graph = query.message.query_graph
+
+        return combined_output.dict()
 
 
 class DuplicateError(Exception):
