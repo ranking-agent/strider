@@ -17,20 +17,21 @@ from itertools import chain
 from json.decoder import JSONDecodeError
 import logging
 from datetime import datetime
+
 from strider.constraints import enforce_constraints
 from typing import Any, Callable, Optional
 
 import aiostream
 import httpx
 import pydantic
-from reasoner_pydantic import QueryGraph, Result, Response, MetaKnowledgeGraph
+from reasoner_pydantic import QueryGraph, Result, Response, MetaKnowledgeGraph, Message
 from redis import Redis
 
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
 from .compatibility import KnowledgePortal, Synonymizer
 from .trapi import (
-    canonicalize_qgraph,
+    get_canonical_qgraphs,
     filter_by_qgraph,
     get_curies,
     map_qgraph_curies,
@@ -261,10 +262,7 @@ class Binder:
             """Map message CURIE prefixes."""
             if logger is None:
                 logger = self.logger
-            request["message"] = await self.portal.map_prefixes(
-                request["message"], preferred_prefixes
-            )
-            return request
+            await self.portal.map_prefixes(request.message, preferred_prefixes)
 
         return processor
 
@@ -274,13 +272,15 @@ class Binder:
         qgraph: dict,
     ):
         """Set up."""
+
         # Update qgraph identifiers
-        self.qgraph = qgraph
-        message = {"query_graph": self.qgraph}
+        message = Message.parse_obj({"query_graph": qgraph})
         curies = get_curies(message)
         await self.synonymizer.load_curies(*curies)
         curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
-        self.qgraph = map_qgraph_curies(self.qgraph, curie_map, primary=True)
+        map_qgraph_curies(message.query_graph, curie_map, primary=True)
+
+        self.qgraph = message.query_graph.dict()
 
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)

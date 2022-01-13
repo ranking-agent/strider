@@ -4,10 +4,13 @@ import copy
 from itertools import product
 import logging
 import hashlib
+import typing
 
 import bmt
-from reasoner_pydantic import Message, Result, QNode, Node, Edge, KnowledgeGraph
-from reasoner_pydantic.qgraph import QueryGraph
+from reasoner_pydantic import Message, Result, QNode, Node, Edge
+from reasoner_pydantic.qgraph import QEdge, QueryGraph
+from reasoner_pydantic.shared import BiolinkPredicate
+from reasoner_pydantic.utils import HashableSequence
 
 from strider.util import (
     deduplicate_by,
@@ -132,35 +135,36 @@ def get_curies(message: Message) -> list[str]:
     knodes.
     """
     curies = set()
-    if message.get("query_graph") is not None:
-        for qnode in message["query_graph"]["nodes"].values():
-            if qnode_id := qnode.get("ids", False):
-                curies |= set(qnode_id)
-    if message.get("knowledge_graph") is not None:
-        curies |= set(message["knowledge_graph"]["nodes"])
+    if message.query_graph is not None:
+        for qnode in message.query_graph.nodes.values():
+            if qnode.ids:
+                curies |= set(qnode.ids)
+    if message.knowledge_graph is not None:
+        curies |= set(message.knowledge_graph.nodes.keys())
     return list(curies)
 
 
-def apply_curie_map(message: Message, curie_map: dict[str, str]) -> Message:
+def apply_curie_map(message: Message, curie_map: dict[str, str]):
     """Translate all pinned qnodes to preferred prefix."""
-    new_message = dict()
-    new_message["query_graph"] = map_qgraph_curies(message["query_graph"], curie_map)
-    if message.get("knowledge_graph") is not None:
-        kgraph = message["knowledge_graph"]
-        new_message["knowledge_graph"] = {
-            "nodes": {
-                curie_map.get(knode_id, [knode_id])[0]: knode
-                for knode_id, knode in kgraph["nodes"].items()
-            },
-            "edges": {
-                kedge_id: fix_kedge(kedge, curie_map)
-                for kedge_id, kedge in kgraph["edges"].items()
-            },
+    map_qgraph_curies(message.query_graph, curie_map)
+    if message.knowledge_graph is not None:
+        kgraph = message.knowledge_graph
+
+        # Update knode IDs
+        knode_mapping = {
+            knode_id: curie_map.get(knode_id, [knode_id])[0]
+            for knode_id in kgraph.nodes.keys()
         }
-    if message.get("results") is not None:
-        results = message["results"]
-        new_message["results"] = [fix_result(result, curie_map) for result in results]
-    return new_message
+        for old, new in knode_mapping.items():
+            kgraph.nodes[new] = kgraph.nodes.pop(old)
+
+        # Update kedge subject and object
+        for kedge in kgraph.edges.values():
+            fix_kedge(kedge, curie_map)
+
+    if message.results is not None:
+        for r in message.results:
+            fix_result(r, curie_map)
 
 
 def map_qgraph_curies(
@@ -171,21 +175,16 @@ def map_qgraph_curies(
     """Replace curies with preferred, if possible."""
     if qgraph is None:
         return None
-    return {
-        "nodes": {
-            qnode_id: map_qnode_curies(qnode, curie_map, primary)
-            for qnode_id, qnode in qgraph["nodes"].items()
-        },
-        "edges": qgraph["edges"],
-    }
+    for qnode in qgraph.nodes.values():
+        map_qnode_curies(qnode, curie_map, primary)
 
 
-def canonicalize_qgraph(
+def get_canonical_qgraphs(
     qgraph: QueryGraph,
-) -> QueryGraph:
+) -> typing.List[QueryGraph]:
     """Replace predicates with canonical directions."""
     if qgraph is None:
-        return qgraph
+        return []
 
     qedge_sets = [
         {qedge_id: qedge for qedge_id, qedge in qedges}
@@ -193,29 +192,26 @@ def canonicalize_qgraph(
             *[
                 [
                     (qedge_id, dir_qedge)
-                    for dir_qedge in canonicalize_qedge(qedge)
-                    if dir_qedge["predicates"]
+                    for dir_qedge in get_canonical_qedge(qedge)
+                    if dir_qedge.predicates
                 ]
-                for qedge_id, qedge in qgraph["edges"].items()
+                for qedge_id, qedge in qgraph.edges.items()
             ]
         )
     ]
     return [
-        {
-            "nodes": qgraph["nodes"],
-            "edges": qedges,
-        }
-        for qedges in qedge_sets
+        QueryGraph(nodes=qgraph.nodes.copy(), edges=qedges) for qedges in qedge_sets
     ]
 
 
-def canonicalize_qedge(
-    qedge: dict,
-):
+def get_canonical_qedge(
+    input_qedge: QEdge,
+) -> typing.Tuple[QEdge, QEdge]:
     """Use canonical predicate direction."""
-    predicates = []
-    flipped_predicates = []
-    for predicate in qedge.get("predicates") or []:
+
+    predicates = HashableSequence[BiolinkPredicate]()
+    flipped_predicates = HashableSequence[BiolinkPredicate]()
+    for predicate in input_qedge.predicates or []:
         slot = WBMT.bmt.get_element(predicate)
         # if predicate not in bmt
         if slot is None:
@@ -226,33 +222,21 @@ def canonicalize_qedge(
             # predicate is canonical, use it
             predicates.append(predicate)
         else:
-            # get inverse predicate
-            inverse_slot = WBMT.bmt.get_element(slot.inverse)
-            if inverse_slot is None:
-                predicates.append(predicate)
-                continue
-            is_canonical = inverse_slot.annotations.get(
-                "biolink:canonical_predicate", False
-            )
-            # if inverse is marked canonical, use it
-            if is_canonical:
-                flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
-            else:
-                # if neither predicate is canonical, use what was given
-                predicates.append(predicate)
+            flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
 
-    qedge = copy.deepcopy(qedge)
-    qedge["predicates"] = predicates
-    flipped_qedge = {
-        "subject": qedge["object"],
-        "object": qedge["subject"],
-        "predicates": flipped_predicates,
-        **{
-            key: value
-            for key, value in qedge.items()
-            if key not in ("subject", "object", "predicates")
-        },
-    }
+    qedge = input_qedge.copy()
+    flipped_qedge = input_qedge.copy()
+    flipped_qedge.predicates = None
+
+    qedge.predicates = predicates
+    flipped_qedge.subject, flipped_qedge.object = (
+        flipped_qedge.object,
+        flipped_qedge.subject,
+    )
+
+    if len(flipped_predicates) > 0:
+        flipped_qedge.predicates = flipped_predicates
+
     return qedge, flipped_qedge
 
 
@@ -262,54 +246,33 @@ def map_qnode_curies(
     primary: bool = False,
 ) -> QNode:
     """Replace curie with preferred, if possible."""
-    qnode = copy.deepcopy(qnode)
-    if not qnode.get("ids", None):
-        return qnode
 
-    listify_value(qnode, "ids")
+    if not qnode.ids:
+        return
 
     output_curies = []
-    for existing_curie in qnode["ids"]:
+    for existing_curie in qnode.ids:
         if primary:
             output_curies.append(curie_map.get(existing_curie, [existing_curie])[0])
         else:
             output_curies.extend(curie_map.get(existing_curie, []))
     if len(output_curies) == 0:
-        output_curies = qnode["ids"]
+        output_curies = qnode.ids
 
-    qnode = {
-        **qnode,
-        "ids": output_curies,
-    }
-    return qnode
+    qnode.ids = output_curies
 
 
-def fix_knode(knode: Node, curie_map: dict[str, str]) -> Node:
+def fix_kedge(kedge: Edge, curie_map: dict[str, str]):
     """Replace curie with preferred, if possible."""
-    knode = {**knode, "id": curie_map.get(knode["id"], [knode["id"]])[0]}
-    return knode
+    kedge.subject = curie_map.get(kedge.subject, [kedge.subject])[0]
+    kedge.object = curie_map.get(kedge.object, [kedge.object])[0]
 
 
-def fix_kedge(kedge: Edge, curie_map: dict[str, str]) -> Edge:
+def fix_result(result: Result, curie_map: dict[str, str]):
     """Replace curie with preferred, if possible."""
-    kedge["subject"] = curie_map.get(kedge["subject"], [kedge["subject"]])[0]
-    kedge["object"] = curie_map.get(kedge["object"], [kedge["object"]])[0]
-    return kedge
-
-
-def fix_result(result: Result, curie_map: dict[str, str]) -> Result:
-    """Replace curie with preferred, if possible."""
-    result["node_bindings"] = {
-        qnode_id: [
-            {
-                **node_binding,
-                "id": curie_map.get(node_binding["id"], [node_binding["id"]])[0],
-            }
-            for node_binding in node_bindings
-        ]
-        for qnode_id, node_bindings in result["node_bindings"].items()
-    }
-    return result
+    for nb_set in result.node_bindings.values():
+        for nb in nb_set:
+            nb.id = curie_map.get(nb.id, [nb.id])[0]
 
 
 def filter_ancestor_types(categories):
