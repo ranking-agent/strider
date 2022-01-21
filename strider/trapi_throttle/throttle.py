@@ -13,7 +13,14 @@ from typing import Callable, Optional, Union
 
 import httpx
 import pydantic
-from reasoner_pydantic import Response as ReasonerResponse, Query, QueryGraph, Message
+from reasoner_pydantic import (
+    Response as ReasonerResponse,
+    Query,
+    QueryGraph,
+    Message,
+    KnowledgeGraph,
+)
+from reasoner_pydantic.utils import HashableSet
 import uuid
 
 from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_mapping
@@ -263,9 +270,17 @@ class ThrottledServer:
                     request_id = next(iter(request_curie_mapping))
                     # Make a copy
                     response_values[request_id] = ReasonerResponse(message=Message())
-                    response_values[request_id].message.query_graph = request_value_mapping[request_id].message.query_graph.copy()
-                    response_values[request_id].message.knowledge_graph = message.knowledge_graph.copy()
-                    response_values[request_id].message.results = message.results.copy()
+                    response_values[
+                        request_id
+                    ].message.query_graph = request_value_mapping[
+                        request_id
+                    ].message.query_graph.copy()
+                    response_values[request_id].message.knowledge_graph = (
+                        message.knowledge_graph or KnowledgeGraph(nodes={}, edges={})
+                    ).copy()
+                    response_values[request_id].message.results = (
+                        message.results or HashableSet(__root__=[])
+                    ).copy()
                 else:
                     # Split using the request_curie_mapping
                     for request_id, curie_mapping in request_curie_mapping.items():
@@ -291,7 +306,7 @@ class ThrottledServer:
             ) as e:
                 for request_id, curie_mapping in request_curie_mapping.items():
                     response_values[request_id] = ReasonerResponse(
-                        message=request_value_mapping[request_id].copy()
+                        message=request_value_mapping[request_id].message.copy()
                     )
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning(
@@ -414,6 +429,7 @@ class ThrottledServer:
         qgraphs = get_canonical_qgraphs(query.message.query_graph)
 
         for qgraph in qgraphs:
+
             subquery = Query(message=Message(query_graph=qgraph))
 
             # Queue query for processing
