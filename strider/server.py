@@ -17,7 +17,10 @@ from fastapi.openapi.docs import (
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
+from reasoner_pydantic.kgraph import KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
+from reasoner_pydantic.utils import HashableMapping, HashableSet
+from reasoner_pydantic.message import Result
 from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
@@ -223,15 +226,6 @@ async def lookup(
         redis_client=redis_client,
     )
 
-    output_query = Query.parse_obj(
-        {
-            "message": {
-                "knowledge_graph": {"nodes": {}, "edges": {}},
-                "results": [],
-            }
-        }
-    )
-
     try:
         await binder.setup(qgraph)
     except NoAnswersError:
@@ -244,10 +238,22 @@ async def lookup(
             "logs": list(RedisList(f"{qid}:log", redis_client).get()),
         }
 
+
+    # Result container to map our "custom" results to "real" results
+    output_results = HashableMapping[Result, Result]()
+
+    output_kgraph = KnowledgeGraph.parse_obj({"nodes" : {}, "edges" : {}})
+
     async with binder:
-        async for result_kgraph, result in binder.lookup(None):
-            result_message = Message.parse_obj(
-                {"knowledge_graph": result_kgraph, "results": [result]}
+        async for result_kgraph_dict, result_dict in binder.lookup(None):
+            # TODO figure out how to remove this conversion
+            result_kgraph = KnowledgeGraph.parse_obj(result_kgraph_dict)
+            result = Result.parse_obj(result_dict)
+
+
+            result_message = Message(
+                knowledge_graph = result_kgraph,
+                results = HashableSet[Result](__root__=set([result]))
             )
 
             # We don't want to merge KEdges on accident, so we replace the IDs
@@ -259,10 +265,43 @@ async def lookup(
                 ).hexdigest(),
             )
 
-            # Merge
-            output_query.message.update(result_message)
+            # Update the kgraph
+            output_kgraph.update(result_message.knowledge_graph)
 
-    output_query.message.query_graph = qgraph
+            # Rewrite result so that mergeable results end up with the same hash
+            # Mergeable results must:
+            ## Have identical node bindings
+            ## Have the same subject-predicate-object in edge bindings
+            result_custom = result.copy(deep = True)
+            for eb_set in result_custom.edge_bindings.values():
+                for eb in eb_set:
+                    eb.subject   = result_kgraph.edges[eb.id].subject
+                    eb.predicate = result_kgraph.edges[eb.id].predicate
+                    eb.object    = result_kgraph.edges[eb.id].object
+                    eb.id = None
+
+            # Make a result with no edge bindings
+            unbound_result = result.copy(deep = True)
+            [eb_set.clear() for eb_set in unbound_result.edge_bindings.values()]
+    
+            # Get existing result to merge, or a blank one
+            existing_result = output_results.get(
+                result_custom,
+                default = unbound_result
+            )
+    
+            # Update result with new data
+            for qg_node, eb_set in existing_result.edge_bindings.items():
+                eb_set.update(result.edge_bindings[qg_node])
+
+            output_results[result_custom] = existing_result
+
+
+    output_query = Query(message=Message(
+        query_graph = QueryGraph.parse_obj(qgraph),
+        knowledge_graph = output_kgraph,
+        results = HashableSet[Result](__root__ = set(output_results.values())),
+    ))
 
     # Collapse sets
     message_dict = output_query.message.dict()
