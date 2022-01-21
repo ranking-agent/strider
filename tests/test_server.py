@@ -160,6 +160,102 @@ async def test_duplicate_results(client):
 @with_translator_overlay(
     settings.kpregistry_url,
     settings.normalizer_url,
+    {
+        "kp0": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "kp1": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+    },
+)
+async def test_bind_to_multiple_kedges(client):
+    """
+    Test that if we get the same result from multiple KPs we have one result
+    with multiple QEdge -> Kedge bindings
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n0-- biolink:treats -->n1
+        """
+    )
+
+    # Create query
+    q = {"message": {"query_graph": QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    assert response.headers.get("content-type") == "application/json"
+    output = response.json()
+
+    # Check message structure
+    assert len(output["message"]["knowledge_graph"]["edges"]) == 2
+    assert len(output["message"]["results"]) == 1
+    result = output["message"]["results"][0]
+    assert len(result["edge_bindings"]) == 1
+    eb_list = next(iter(result.values()))
+    assert len(eb_list) == 2
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "kp0": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+        """,
+        "kp1": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            CHEBI:6801-- predicate biolink:affects -->MONDO:0005148
+        """,
+    },
+)
+async def test_dont_merge_results_different_predicates(client):
+    """
+    Test that if we get results from KPs with different predicates
+    then the results are not merged together
+    """
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    # Create query
+    q = {"message": {"query_graph": QGRAPH}}
+
+    # Run
+    response = await client.post("/query", json=q)
+    assert response.headers.get("content-type") == "application/json"
+    output = response.json()
+
+    # Check message structure
+    assert len(output["message"]["knowledge_graph"]["edges"]) == 2
+    assert len(output["message"]["results"]) == 2
+    result = output["message"]["results"][0]
+    assert len(result["edge_bindings"]) == 1
+    eb_list = next(iter(result.values()))
+    assert len(eb_list) == 2
+
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
     kp_data={
         "ctd": """
             CHEBI:6801(( category biolink:ChemicalSubstance ))
