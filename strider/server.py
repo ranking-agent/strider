@@ -1,6 +1,7 @@
 """Simple ReasonerStdAPI server."""
 import copy
 import datetime
+import hashlib
 import os
 import uuid
 import json
@@ -30,7 +31,7 @@ from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually
-from .trapi import build_unique_kg_edge_ids
+from .trapi import update_kg_edge_ids, update_kg_edge_ids
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
@@ -249,8 +250,14 @@ async def lookup(
                 {"knowledge_graph": result_kgraph, "results": [result]}
             )
 
-            # Update knowledge graph edge IDs so that we can merge
-            build_unique_kg_edge_ids(result_message)
+            # We don't want to merge KEdges on accident, so we replace the IDs
+            # with the hash of the edge object
+            update_kg_edge_ids(
+                result_message,
+                lambda edge: hashlib.blake2b(
+                    hash(edge).to_bytes(16, byteorder="big", signed=True), digest_size=6
+                ).hexdigest(),
+            )
 
             # Merge
             output_query.message.update(result_message)

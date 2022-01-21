@@ -352,10 +352,9 @@ async def fill_categories_predicates(
                 node["categories"] = []
 
 
-def build_unique_kg_edge_ids(message: Message):
+def update_kg_edge_ids(message: Message, update_func: typing.Callable):
     """
-    Replace KG edge IDs with a string that represents
-    whether the edge can be merged with other edges
+    Replace KG edge IDs using the specified function
     """
 
     # Mapping of old to new edge IDs
@@ -364,13 +363,7 @@ def build_unique_kg_edge_ids(message: Message):
     # Make a copy of the edge keys because we're about to change them
     for edge_id in list(message.knowledge_graph.edges.keys()):
         edge = message.knowledge_graph.edges.pop(edge_id)
-        new_edge_id_string = f"{edge.subject}-{edge.predicate}-{edge.object}"
-
-        # Build hash from ID string
-        new_edge_id = hashlib.blake2b(
-            new_edge_id_string.encode(),
-            digest_size=6,
-        ).hexdigest()
+        new_edge_id = update_func(edge)
 
         edge_id_mapping[edge_id] = new_edge_id
 
