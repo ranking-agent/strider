@@ -28,7 +28,7 @@ def remove_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
     """
     Remove curies from query graph.
     """
-    qgraph = qgraph.copy()
+    qgraph = qgraph.copy(deep=True)
     for node in qgraph.nodes.values():
         node.ids = None
     return qgraph
