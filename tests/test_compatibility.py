@@ -76,13 +76,15 @@ async def test_unknown_prefix():
         "edges": {},
     }
 
-    fixed_msg = await portal.map_prefixes(
-        {"query_graph": query_graph},
+    msg = Message.parse_obj({"query_graph": query_graph})
+
+    await portal.map_prefixes(
+        msg,
         preferred_prefixes,
     )
 
     # n0 should be unchanged
-    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["UNKNOWN:000000"]
+    assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["UNKNOWN:000000"]
 
 
 @pytest.mark.asyncio
@@ -103,13 +105,15 @@ async def test_prefix_not_specified():
         "edges": {},
     }
 
-    fixed_msg = await portal.map_prefixes(
-        {"query_graph": query_graph},
+    msg = Message.parse_obj({"query_graph": query_graph})
+
+    await portal.map_prefixes(
+        msg,
         preferred_prefixes,
     )
 
     # n0 should be unchanged
-    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
+    assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
 
 normalizer_error_no_matches = "No matches found for the specified curie(s)"
@@ -137,13 +141,15 @@ async def test_normalizer_no_synonyms_available(caplog):
         "edges": {},
     }
 
-    fixed_msg = await portal.map_prefixes(
-        {"query_graph": query_graph},
+    msg = Message.parse_obj({"query_graph": query_graph})
+
+    await portal.map_prefixes(
+        msg,
         preferred_prefixes,
     )
 
     # n0 should be unchanged
-    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
+    assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     # The error we recieved from the normalizer should be in the logs
     assert normalizer_error_no_matches in caplog.text
@@ -174,13 +180,15 @@ async def test_normalizer_500(caplog):
         "edges": {},
     }
 
-    fixed_msg = await portal.map_prefixes(
-        {"query_graph": query_graph},
+    msg = Message.parse_obj({"query_graph": query_graph})
+
+    await portal.map_prefixes(
+        msg,
         preferred_prefixes,
     )
 
     # n0 should be unchanged
-    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
+    assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     assert "Error contacting normalizer" in caplog.text
 
@@ -203,13 +211,15 @@ async def test_normalizer_not_reachable(caplog):
         "edges": {},
     }
 
-    fixed_msg = await portal.map_prefixes(
-        {"query_graph": query_graph},
+    msg = Message.parse_obj({"query_graph": query_graph})
+
+    await portal.map_prefixes(
+        msg,
         preferred_prefixes,
     )
 
     # n0 should be unchanged
-    assert fixed_msg["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
+    assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     assert "RequestError contacting normalizer" in caplog.text
 
