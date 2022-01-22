@@ -238,11 +238,10 @@ async def lookup(
             "logs": list(RedisList(f"{qid}:log", redis_client).get()),
         }
 
-
     # Result container to map our "custom" results to "real" results
     output_results = HashableMapping[Result, Result]()
 
-    output_kgraph = KnowledgeGraph.parse_obj({"nodes" : {}, "edges" : {}})
+    output_kgraph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
 
     async with binder:
         async for result_kgraph_dict, result_dict in binder.lookup(None):
@@ -250,10 +249,9 @@ async def lookup(
             result_kgraph = KnowledgeGraph.parse_obj(result_kgraph_dict)
             result = Result.parse_obj(result_dict)
 
-
             result_message = Message(
-                knowledge_graph = result_kgraph,
-                results = HashableSet[Result](__root__=set([result]))
+                knowledge_graph=result_kgraph,
+                results=HashableSet[Result](__root__=set([result])),
             )
 
             # We don't want to merge KEdges on accident, so we replace the IDs
@@ -272,36 +270,34 @@ async def lookup(
             # Mergeable results must:
             ## Have identical node bindings
             ## Have the same subject-predicate-object in edge bindings
-            result_custom = result.copy(deep = True)
+            result_custom = result.copy(deep=True)
             for eb_set in result_custom.edge_bindings.values():
                 for eb in eb_set:
-                    eb.subject   = result_kgraph.edges[eb.id].subject
+                    eb.subject = result_kgraph.edges[eb.id].subject
                     eb.predicate = result_kgraph.edges[eb.id].predicate
-                    eb.object    = result_kgraph.edges[eb.id].object
+                    eb.object = result_kgraph.edges[eb.id].object
                     eb.id = None
 
             # Make a result with no edge bindings
-            unbound_result = result.copy(deep = True)
+            unbound_result = result.copy(deep=True)
             [eb_set.clear() for eb_set in unbound_result.edge_bindings.values()]
-    
+
             # Get existing result to merge, or a blank one
-            existing_result = output_results.get(
-                result_custom,
-                default = unbound_result
-            )
-    
+            existing_result = output_results.get(result_custom, default=unbound_result)
+
             # Update result with new data
             for qg_node, eb_set in existing_result.edge_bindings.items():
                 eb_set.update(result.edge_bindings[qg_node])
 
             output_results[result_custom] = existing_result
 
-
-    output_query = Query(message=Message(
-        query_graph = QueryGraph.parse_obj(qgraph),
-        knowledge_graph = output_kgraph,
-        results = HashableSet[Result](__root__ = set(output_results.values())),
-    ))
+    output_query = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(qgraph),
+            knowledge_graph=output_kgraph,
+            results=HashableSet[Result](__root__=set(output_results.values())),
+        )
+    )
 
     # Collapse sets
     message_dict = output_query.message.dict()

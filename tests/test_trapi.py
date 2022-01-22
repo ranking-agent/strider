@@ -74,16 +74,18 @@ def test_filter_by_qgraph_id():
 
 def test_canonicalize_qgraph():
     """Test canonicalize_qgraph()."""
-    qgraph = QueryGraph.parse_obj({
-        "nodes": {},
-        "edges": {
-            "e01": {
-                "subject": "n0",
-                "predicates": ["biolink:treated_by"],
-                "object": "n1",
+    qgraph = QueryGraph.parse_obj(
+        {
+            "nodes": {},
+            "edges": {
+                "e01": {
+                    "subject": "n0",
+                    "predicates": ["biolink:treated_by"],
+                    "object": "n1",
+                },
             },
-        },
-    })
+        }
+    )
 
     fixed_qgraph_model = get_canonical_qgraphs(qgraph)[0]
     fixed_qgraph = fixed_qgraph_model.dict()
@@ -96,19 +98,21 @@ def test_canonicalize_qgraph():
 
 def test_uncanonicalizable_qgraph():
     """Test qgraph with mixed canonical and non-canonical predicates."""
-    qgraph = QueryGraph.parse_obj({
-        "nodes": {},
-        "edges": {
-            "e01": {
-                "subject": "n0",
-                "object": "n1",
-                "predicates": [
-                    "biolink:treats",
-                    "biolink:caused_by",
-                ],
+    qgraph = QueryGraph.parse_obj(
+        {
+            "nodes": {},
+            "edges": {
+                "e01": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicates": [
+                        "biolink:treats",
+                        "biolink:caused_by",
+                    ],
+                },
             },
-        },
-    })
+        }
+    )
     assert len(get_canonical_qgraphs(qgraph)) == 2
 
 
