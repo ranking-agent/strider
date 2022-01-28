@@ -4,6 +4,6 @@ kp-registry @ git+https://github.com/ranking-agent/kp_registry@v2.2.0
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1
-binder @ git+https://github.com/TranslatorSRI/binder@v4.3.1
+binder @ git+https://github.com/TranslatorSRI/binder@v4.3.2
 orjson==3.6.0
 tqdm==4.62.3

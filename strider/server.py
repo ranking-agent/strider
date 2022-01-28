@@ -34,7 +34,6 @@ from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually
-from .trapi import update_kg_edge_ids, update_kg_edge_ids
 from .trapi_openapi import TRAPI
 
 LOGGER = logging.getLogger(__name__)
@@ -246,22 +245,16 @@ async def lookup(
     async with binder:
         async for result_kgraph_dict, result_dict in binder.lookup(None):
             # TODO figure out how to remove this conversion
-            result_kgraph = KnowledgeGraph.parse_obj(result_kgraph_dict)
-            result = Result.parse_obj(result_dict)
-
-            result_message = Message(
-                knowledge_graph=result_kgraph,
-                results=HashableSet[Result](__root__=set([result])),
+            result_message = Message.parse_obj(
+                {
+                    "knowledge_graph": result_kgraph_dict,
+                    "results": [result_dict],
+                }
             )
+            result_message._normalize_kg_edge_ids()
 
-            # We don't want to merge KEdges on accident, so we replace the IDs
-            # with the hash of the edge object
-            update_kg_edge_ids(
-                result_message,
-                lambda edge: hashlib.blake2b(
-                    hash(edge).to_bytes(16, byteorder="big", signed=True), digest_size=6
-                ).hexdigest(),
-            )
+            result = next(iter(result_message.results))
+            result_kgraph = result_message.knowledge_graph
 
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
