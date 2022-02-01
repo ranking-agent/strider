@@ -7,7 +7,7 @@ redis==3.5.3
 bmt-lite-2.2.5==2.2.0
 
 httpx==0.18.2
-numpy==1.20.3
+numpy==1.21.0
 pyyaml==5.4
 uvicorn[standard]==0.14.0
 jsonpickle==1.4.2
