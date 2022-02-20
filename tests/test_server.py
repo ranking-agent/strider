@@ -24,6 +24,7 @@ import strider
 from strider.config import settings
 from strider.server import APP
 from strider.storage import get_client
+from strider.fetcher import Binder
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
@@ -2098,3 +2099,52 @@ async def test_large_merging_performance(client):
 
     # Check that we only have one result
     assert len(output["message"]["results"]) == 1
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    {
+        "ctd": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            MONDO:0005149(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            HP:0004325(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005149
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+            MONDO:0005149-- predicate biolink:has_phenotype -->HP:0004325
+        """
+    },
+)
+async def test_yield_indepedent_results(client):
+    """Test that when we ask for a solution, it's provided as independent results that are merged together"""
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n2(( categories[] biolink:PhenotypicFeature ))
+        n0-- biolink:treats -->n1
+        n1-- biolink:has_phenotype -->n2
+        """
+    )
+
+    binder = Binder("test-qid", 10, redis_client=fakeredis.FakeRedis(
+        encoding="utf-8",
+        decode_responses=True)
+    )
+    await binder.setup(QGRAPH)
+
+    async with binder:
+        output = [(kgraph, result) async for kgraph, result in binder.lookup(None)]
+
+    # 2 results
+    assert len(output) == 2
+
+    breakpoint()
+
+    # 3 knodes each (n0, n1, n2)
+    assert len(output[0][0]["nodes"]) == 3
+    assert len(output[1][0]["nodes"]) == 3
