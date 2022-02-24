@@ -230,7 +230,7 @@ class Binder:
         ):
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
-                subresult = {
+                new_subresult = {
                     "node_bindings": {
                         **subresult["node_bindings"],
                         **result["node_bindings"],
@@ -240,9 +240,10 @@ class Binder:
                         **result["edge_bindings"],
                     },
                 }
-                subkgraph["nodes"].update(kgraph["nodes"])
-                subkgraph["edges"].update(kgraph["edges"])
-                yield subkgraph, subresult
+                new_subkgraph = copy.deepcopy(subkgraph)
+                new_subkgraph["nodes"].update(kgraph["nodes"])
+                new_subkgraph["edges"].update(kgraph["edges"])
+                yield new_subkgraph, new_subresult
 
     async def __aenter__(self):
         """Enter context."""
