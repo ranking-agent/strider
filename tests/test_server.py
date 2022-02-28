@@ -2100,6 +2100,7 @@ async def test_large_merging_performance(client):
     # Check that we only have one result
     assert len(output["message"]["results"]) == 1
 
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -2118,7 +2119,7 @@ async def test_large_merging_performance(client):
         """
     },
 )
-async def test_yield_indepedent_results(client):
+async def test_yield_independent_results(client):
     """Test that when we ask for a solution, it's provided as independent results that are merged together"""
     QGRAPH = query_graph_from_string(
         """
@@ -2131,9 +2132,10 @@ async def test_yield_indepedent_results(client):
         """
     )
 
-    binder = Binder("test-qid", 10, redis_client=fakeredis.FakeRedis(
-        encoding="utf-8",
-        decode_responses=True)
+    binder = Binder(
+        "test-qid",
+        10,
+        redis_client=fakeredis.FakeRedis(encoding="utf-8", decode_responses=True),
     )
     await binder.setup(QGRAPH)
 
@@ -2142,8 +2144,6 @@ async def test_yield_indepedent_results(client):
 
     # 2 results
     assert len(output) == 2
-
-    breakpoint()
 
     # 3 knodes each (n0, n1, n2)
     assert len(output[0][0]["nodes"]) == 3
