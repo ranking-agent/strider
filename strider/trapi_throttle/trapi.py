@@ -95,15 +95,15 @@ def filter_by_curie_mapping(
     }
 
     # Construct result-specific knowledge graph
-    filtered_msg.kgraph = KnowledgeGraph(
+    filtered_msg.knowledge_graph = KnowledgeGraph(
         nodes={
-            binding["id"]: message.knowledge_graph.nodes[binding["id"]]
+            binding.id: message.knowledge_graph.nodes[binding.id]
             for result in filtered_msg.results
             for _, bindings in result.node_bindings.items()
             for binding in bindings
         },
         edges={
-            binding["id"]: message.knowledge_graph.edges[binding["id"]]
+            binding.id: message.knowledge_graph.edges[binding.id]
             for result in filtered_msg.results
             for _, bindings in result.edge_bindings.items()
             for binding in bindings
