@@ -176,7 +176,7 @@ def add_source(message: Message):
                 attribute_type_id="biolink:aggregator_knowledge_source",
                 value="infores:aragorn",
                 value_type_id="biolink:InformationResource",
-                attribute_source="infores:aragorn"  
+                attribute_source="infores:aragorn",
             )
         ]
 
