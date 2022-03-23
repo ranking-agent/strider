@@ -29,7 +29,7 @@ class Normalizer:
 
         types = []
         for c in curies:
-            if results[c] is None:
+            if results.get(c) is None:
                 self.logger.warning(f"Normalizer knows nothing about {c}")
                 continue
             types.extend(results[c]["type"])
