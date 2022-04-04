@@ -330,7 +330,7 @@ async def multi_lookup(
         multiquery_results[result[0]] = result[1]
 
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
-        await client.post(callback, json=query_results)
+        await client.post(callback, json=multiquery_results)
 
 @APP.post("/query", response_model=ReasonerResponse)
 async def sync_query(
