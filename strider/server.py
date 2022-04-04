@@ -312,12 +312,8 @@ async def async_lookup(
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
         await client.post(callback, json=query_results)
 
-async def multi_lookup(
-    callback,
-    queries: dict,
-    query_keys: list,
-    redis_client: Redis
-):
+
+async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: Redis):
     "Performs lookup for multiple queries and sends all results to callback url"
 
     async def single_lookup(query_key):
@@ -326,6 +322,7 @@ async def multi_lookup(
             await client.post(callback, json=query_result)
 
     await asyncio.gather(*map(single_lookup, query_keys))
+
 
 @APP.post("/query", response_model=ReasonerResponse)
 async def sync_query(
@@ -512,6 +509,7 @@ async def score_results(
         )
     return message
 
+
 @APP.post("/multiquery", response_model=dict[str, ReasonerResponse])
 async def multi_query(
     background_tasks: BackgroundTasks,
@@ -539,7 +537,7 @@ async def multi_query(
         if query_callback != callback:
             raise HTTPException(400, "callback url for all queries must be the same")
         queries[query] = query_dict
-    
+
     background_tasks.add_task(multi_lookup, callback, queries, query_keys, redis_client)
 
     return
