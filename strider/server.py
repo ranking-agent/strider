@@ -319,18 +319,13 @@ async def multi_lookup(
     redis_client: Redis
 ):
     "Performs lookup for multiple queries and sends all results to callback url"
-    multiquery_results = {}
 
     async def single_lookup(query_key):
-        return query_key, await lookup(queries[query_key], redis_client)
+        query_result = {query_key: await lookup(queries[query_key], redis_client)}
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
+            await client.post(callback, json=query_result)
 
-    query_results = await asyncio.gather(*map(single_lookup, query_keys))
-
-    for result in query_results:
-        multiquery_results[result[0]] = result[1]
-
-    async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
-        await client.post(callback, json=multiquery_results)
+    await asyncio.gather(*map(single_lookup, query_keys))
 
 @APP.post("/query", response_model=ReasonerResponse)
 async def sync_query(
