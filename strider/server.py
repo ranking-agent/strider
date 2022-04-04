@@ -9,6 +9,7 @@ import logging
 import traceback
 import pprint
 from typing import Optional
+import asyncio
 
 from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request
 from fastapi.openapi.docs import (
@@ -306,11 +307,30 @@ async def async_lookup(
     query_dict: dict,
     redis_client: Redis,
 ):
-    """Preform lookup and send results to callback url"""
+    """Perform lookup and send results to callback url"""
     query_results = await lookup(query_dict, redis_client)
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
         await client.post(callback, json=query_results)
 
+async def multi_lookup(
+    callback,
+    queries: dict,
+    query_keys: list,
+    redis_client: Redis
+):
+    "Performs lookup for multiple queries and sends all results to callback url"
+    multiquery_results = {}
+
+    async def single_lookup(query_key):
+        return query_key, await lookup(queries[query_key], redis_client)
+
+    query_results = await asyncio.gather(*map(single_lookup, query_keys))
+
+    for result in query_results:
+        multiquery_results[result[0]] = result[1]
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
+        await client.post(callback, json=query_results)
 
 @APP.post("/query", response_model=ReasonerResponse)
 async def sync_query(
@@ -496,3 +516,35 @@ async def score_results(
             message["query_graph"],
         )
     return message
+
+@APP.post("/multiquery", response_model=dict[str, ReasonerResponse])
+async def multi_query(
+    background_tasks: BackgroundTasks,
+    multiquery: dict[str, AsyncQuery] = Body(..., example=AEXAMPLE),
+    redis_client: Redis = Depends(get_redis_client),
+):
+    """Handles multiple queries. Queries are sent back to a callback url as a dict with keys corresponding to keys of original query."""
+    query_keys = list(multiquery.keys())
+    callback = multiquery[query_keys[0]].dict().get("callback")
+    if not callback:
+        raise HTTPException(400, "callback url must be specified")
+    queries = {}
+    for query in query_keys:
+        query_dict = multiquery[query].dict()
+        query_callback = query_dict["callback"]
+        workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
+        if not isinstance(workflow, list):
+            raise HTTPException(400, "workflow must be a list")
+        if not len(workflow) == 1:
+            raise HTTPException(400, "workflow must contain exactly 1 operation")
+        if "id" not in workflow[0]:
+            raise HTTPException(400, "workflow must have property 'id'")
+        if not workflow[0]["id"] == "lookup":
+            raise HTTPException(400, "operations must have id 'lookup'")
+        if query_callback != callback:
+            raise HTTPException(400, "callback url for all queries must be the same")
+        queries[query] = query_dict
+    
+    background_tasks.add_task(multi_lookup, callback, queries, query_keys, redis_client)
+
+    return
