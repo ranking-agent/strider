@@ -2215,8 +2215,16 @@ async def test_multiquery(client):
         output = response.json()
         assert response.status_code == 200
         assert not output
-        output1 = await queue.get()
-        output2 = await queue.get()
+        outputs = []
+        outputs.append(await queue.get())
+        outputs.append(await queue.get())
+    output1 = {}
+    output2 = {}
+    for output in outputs:
+        if output["message"]["query_graph"]["nodes"]["n1"]["categories"] == q["query1"]["message"]["query_graph"]["nodes"]["n1"]["categories"]:
+            output1 = output["message"]
+        elif output["message"]["query_graph"]["nodes"]["n1"]["categories"] == q["query2"]["message"]["query_graph"]["nodes"]["n1"]["categories"]:
+            output2 = output["message"]
     validate_message(
         {
             "knowledge_graph": """
@@ -2232,7 +2240,7 @@ async def test_multiquery(client):
                 """
             ],
         },
-        output1["message"],
+        output1,
     )
     validate_message(
         {
@@ -2249,5 +2257,5 @@ async def test_multiquery(client):
                 """
             ],
         },
-        output2["message"],
+        output2,
     )
