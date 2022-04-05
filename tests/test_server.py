@@ -2154,3 +2154,100 @@ async def test_yield_independent_results(client):
     # 3 knodes each (n0, n1, n2)
     assert len(output[0][0]["nodes"]) == 3
     assert len(output[1][0]["nodes"]) == 3
+
+@pytest.mark.asyncio
+@with_translator_overlay(
+    settings.kpregistry_url,
+    settings.normalizer_url,
+    kp_data={
+        "ctd": """
+            CHEBI:6801(( category biolink:ChemicalSubstance ))
+            MONDO:0005148(( category biolink:Disease ))
+            HP:0004324(( category biolink:PhenotypicFeature ))
+            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
+            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
+        """
+    },
+)
+async def test_multiquery(client):
+    QGRAPH1 = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:0005148 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:ChemicalSubstance ))
+        n1-- biolink:treats -->n0
+        """
+    )
+    QGRAPH2 = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:0005148 ))
+        n0(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:PhenotypicFeature ))
+        n0-- biolink:has_phenotype -->n1
+        """
+    )
+
+    q_error = {
+        "query1": {
+            "callback": "http://test1/", 
+            "message": {"query_graph": QGRAPH1}
+        }, 
+        "query2": {
+            "callback": "http://test2/", 
+            "message": {"query_graph": QGRAPH2}
+        }
+    }
+    response = await client.post("/multiquery", json=q_error)
+    assert response.status_code == 400
+    q = {
+        "query1": {
+            "callback": "http://test/", 
+            "message": {"query_graph": QGRAPH1}
+        }, 
+        "query2": {
+            "callback": "http://test/", 
+            "message": {"query_graph": QGRAPH2}
+        }
+    }
+    queue = asyncio.Queue()
+    async with callback_overlay("http://test/", queue):
+        response = await client.post("/multiquery", json=q)
+        output = response.json()
+        assert response.status_code == 200
+        assert not output
+        output1 = await queue.get()
+        output2 = await queue.get()
+    validate_message(
+        {
+            "knowledge_graph": """
+                CHEBI:6801 biolink:treats MONDO:0005148
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:0005148
+                    n1 CHEBI:6801
+                edge_bindings:
+                    n1n0 CHEBI:6801-MONDO:0005148
+                """
+            ],
+        },
+        output1["message"],
+    )
+    validate_message(
+        {
+            "knowledge_graph": """
+                MONDO:0005148 biolink:has_phenotype HP:0004324
+                """,
+            "results": [
+                """
+                node_bindings:
+                    n0 MONDO:0005148
+                    n1 HP:0004324
+                edge_bindings:
+                    n0n1 MONDO:0005148-HP:0004324
+                """
+            ],
+        },
+        output2["message"],
+    )
