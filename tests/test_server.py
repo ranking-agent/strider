@@ -2149,6 +2149,7 @@ async def test_yield_independent_results(client):
     assert len(output[0][0]["nodes"]) == 3
     assert len(output[1][0]["nodes"]) == 3
 
+
 @pytest.mark.asyncio
 @with_translator_overlay(
     settings.kpregistry_url,
@@ -2182,26 +2183,14 @@ async def test_multiquery(client):
     )
 
     q_error = {
-        "query1": {
-            "callback": "http://test1/", 
-            "message": {"query_graph": QGRAPH1}
-        }, 
-        "query2": {
-            "callback": "http://test2/", 
-            "message": {"query_graph": QGRAPH2}
-        }
+        "query1": {"callback": "http://test1/", "message": {"query_graph": QGRAPH1}},
+        "query2": {"callback": "http://test2/", "message": {"query_graph": QGRAPH2}},
     }
     response = await client.post("/multiquery", json=q_error)
     assert response.status_code == 400
     q = {
-        "query1": {
-            "callback": "http://test/", 
-            "message": {"query_graph": QGRAPH1}
-        }, 
-        "query2": {
-            "callback": "http://test/", 
-            "message": {"query_graph": QGRAPH2}
-        }
+        "query1": {"callback": "http://test/", "message": {"query_graph": QGRAPH1}},
+        "query2": {"callback": "http://test/", "message": {"query_graph": QGRAPH2}},
     }
     queue = asyncio.Queue()
     async with callback_overlay("http://test/", queue):
@@ -2215,9 +2204,15 @@ async def test_multiquery(client):
     output1 = {}
     output2 = {}
     for output in outputs:
-        if output["message"]["query_graph"]["nodes"]["n1"]["categories"] == q["query1"]["message"]["query_graph"]["nodes"]["n1"]["categories"]:
+        if (
+            output["message"]["query_graph"]["nodes"]["n1"]["categories"]
+            == q["query1"]["message"]["query_graph"]["nodes"]["n1"]["categories"]
+        ):
             output1 = output["message"]
-        elif output["message"]["query_graph"]["nodes"]["n1"]["categories"] == q["query2"]["message"]["query_graph"]["nodes"]["n1"]["categories"]:
+        elif (
+            output["message"]["query_graph"]["nodes"]["n1"]["categories"]
+            == q["query2"]["message"]["query_graph"]["nodes"]["n1"]["categories"]
+        ):
             output2 = output["message"]
     validate_message(
         {
