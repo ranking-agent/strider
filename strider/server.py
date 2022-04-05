@@ -167,6 +167,45 @@ AEXAMPLE = {
     },
 }
 
+MEXAMPLE = {
+    "query1": {
+        "callback": "",
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {"ids": ["MONDO:0005148"], "categories": ["biolink:Disease"]},
+                    "n1": {"categories": ["biolink:PhenotypicFeature"]},
+                },
+                "edges": {
+                    "e01": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:has_phenotype"],
+                    }
+                },
+            }
+        },
+    },
+    "query2": {
+        "callback": "",
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {"ids": ["MONDO:0005148"], "categories": ["biolink:Disease"]},
+                    "n1": {"categories": ["biolink:SmallMolecule"]},
+                },
+                "edges": {
+                    "e01": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:treats"],
+                    }
+                },
+            }
+        },
+    }
+}
+
 
 def get_finished_query(
     qid: str,
@@ -513,7 +552,7 @@ async def score_results(
 @APP.post("/multiquery", response_model=dict[str, ReasonerResponse])
 async def multi_query(
     background_tasks: BackgroundTasks,
-    multiquery: dict[str, AsyncQuery] = Body(..., example=AEXAMPLE),
+    multiquery: dict[str, AsyncQuery] = Body(..., example=MEXAMPLE),
     redis_client: Redis = Depends(get_redis_client),
 ):
     """Handles multiple queries. Queries are sent back to a callback url as a dict with keys corresponding to keys of original query."""
