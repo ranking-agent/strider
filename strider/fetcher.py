@@ -41,7 +41,7 @@ from .query_planner import generate_plan, get_next_qedge
 from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
-from .util import KnowledgeProvider, WBMT, batch
+from .util import KnowledgeProvider, WBMT, batch, setup_logging
 
 
 class ReasonerLogEntryFormatter(logging.Formatter):
@@ -68,7 +68,7 @@ class ReasonerLogEntryFormatter(logging.Formatter):
 
         return log_entry
 
-
+setup_logging()
 _logger = logging.getLogger(__name__)
 sh = logging.StreamHandler()
 formatter = logging.Formatter("[%(asctime)s: %(levelname)s/%(name)s]: %(message)s")
@@ -118,6 +118,7 @@ class Binder:
                 "node_bindings": dict(),
                 "edge_bindings": dict(),
             }
+            self.logger.debug("Finishing lookup")
             return
         self.logger.debug(f"Lookup for qgraph: {qgraph}")
 
@@ -136,13 +137,46 @@ class Binder:
             "edges": {qedge_id: qedge},
         }
 
+        self.logger.debug(
+            {
+                "state": "intializing generate_from_kp"
+            }
+        )
+
         generators = [
             self.generate_from_kp(qgraph, onehop, self.kps[kp_id])
             for kp_id in self.plan[qedge_id]
         ]
+
+        self.logger.debug(
+            {
+                "state": "before calling generators"
+            }
+        )
+
         async with aiostream.stream.merge(*generators).stream() as streamer:
+            self.logger.debug(
+                {
+                    "state": "merging streamer from lookup"
+                }
+            )
             async for output in streamer:
+                self.logger.debug(
+                    {
+                        "state": "yielding lookup",
+                    }
+                )
                 yield output
+            self.logger.debug(
+                {
+                    "state": "finishing streamer from lookup"
+                }
+            )
+        self.logger.debug(
+            {
+                "state": "finishing lookup"
+            }
+        )
 
     async def generate_from_kp(
         self,
@@ -150,9 +184,19 @@ class Binder:
         onehop_qgraph,
         kp: KnowledgeProvider,
     ):
+        self.logger.debug(
+            {
+                "state": "Starting generate_from_kp"
+            }
+        )
         """Generate one-hop results from KP."""
         onehop_response = await kp.solve_onehop(
             onehop_qgraph,
+        )
+        self.logger.debug(
+            {
+                "state": "Generated one hop response",
+            }
         )
         onehop_response = enforce_constraints(onehop_response)
         onehop_kgraph = onehop_response["knowledge_graph"]
@@ -160,15 +204,42 @@ class Binder:
         qedge_id = next(iter(onehop_qgraph["edges"].keys()))
         generators = []
 
+        self.logger.debug(
+            {
+                "state": "Get next edge"
+            }
+        )
+
         if onehop_results:
+            self.logger.debug(
+                {
+                    "state": "entered if"
+                }
+            )
             subqgraph = copy.deepcopy(qgraph)
             # remove edge
             subqgraph["edges"].pop(qedge_id)
             # remove orphaned nodes
             subqgraph.remove_orphaned()
+        else:
+            self.logger.debug(
+                {
+                    "state": "did not enter"
+                }
+            )
         for batch_results in batch(onehop_results, 1_000_000):
+            self.logger.debug(
+                {
+                    "state": "Batched results"
+                }
+            )
             result_map = defaultdict(list)
             for result in batch_results:
+                self.logger.debug(
+                    {
+                        "state": "single result in batch"
+                    }
+                )
                 # add edge to results and kgraph
                 result_kgraph = {
                     "nodes": {
@@ -205,16 +276,50 @@ class Binder:
                 )
                 result_map[key_fcn(result)].append((result, result_kgraph))
 
+            self.logger.debug(
+                {
+                    "state": "Initiating generators"
+                }
+            )
+
             generators.append(
                 self.generate_from_result(
                     copy.deepcopy(subqgraph),
                     lambda result: result_map[key_fcn(result)],
                 )
             )
+        
+        self.logger.debug(
+            {
+                "state": "calling generators from generate_from_kp"
+            }
+        )
 
         async with aiostream.stream.merge(*generators).stream() as streamer:
+            self.logger.debug(
+                {
+                    "state": "merging streamer from generate_from_kp"
+                }
+            )
             async for result in streamer:
+                self.logger.debug(
+                    {
+                        "state": "Yielding from generate_from_kp",
+                    }
+                )
                 yield result
+            self.logger.debug(
+                {
+                    "state": "finishing streamer generate_from_kp"
+                }
+            )
+        
+        self.logger.debug(
+            {
+                "state": "finishing generate_from_kp"
+            }
+        )
+        return
 
     async def generate_from_result(
         self,
@@ -225,11 +330,26 @@ class Binder:
         #     "Expanding from result %s...",
         #     result,
         # )
+        self.logger.debug(
+            {
+                "state": "Starting generate_from_result",
+            }
+        )
         async for subkgraph, subresult in self.lookup(
             qgraph,
         ):
+            self.logger.debug(
+                {
+                    "state": "Generating with subk",
+                }
+            )
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
+                self.logger.debug(
+                    {
+                        "state": "generating with subresult"
+                    }
+                )
                 new_subresult = {
                     "node_bindings": {
                         **subresult["node_bindings"],
@@ -243,6 +363,11 @@ class Binder:
                 new_subkgraph = copy.deepcopy(subkgraph)
                 new_subkgraph["nodes"].update(kgraph["nodes"])
                 new_subkgraph["edges"].update(kgraph["edges"])
+                self.logger.debug(
+                    {
+                        "state": "Yielding generate_from_result",
+                    }
+                )
                 yield new_subkgraph, new_subresult
 
     async def __aenter__(self):
