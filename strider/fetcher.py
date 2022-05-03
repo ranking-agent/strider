@@ -150,7 +150,12 @@ class Binder:
 
         self.logger.debug(
             {
-                "state": "before calling generators"
+                "state": " calling generators lookup",
+                "qgraph": qgraph,
+                "onehop": onehop,
+                "kps": [
+                    self.kps[kp_id].id for kp_id in self.plan[qedge_id]
+                ]
             }
         )
 
