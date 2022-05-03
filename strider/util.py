@@ -6,6 +6,8 @@ from json.decoder import JSONDecodeError
 import re
 from typing import Callable, Iterable, Union
 import statistics
+import logging
+from logging.config import dictConfig
 
 import httpx
 from starlette.middleware.cors import CORSMiddleware
@@ -231,7 +233,7 @@ def setup_logging():
     """Set up logging."""
     with open("logging_setup.yml", "r") as stream:
         config = yaml.load(stream.read(), Loader=yaml.SafeLoader)
-    logging.config.dictConfig(config)
+    dictConfig(config)
 
 
 def ensure_list(arg: Union[str, list[str]]) -> list[str]:
