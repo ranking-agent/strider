@@ -105,12 +105,23 @@ class Binder:
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
+        self.lookup_id = 0
+        self.generate_from_kp_id = 0
+        self.generate_from_result_id = 0
+
     async def lookup(
         self,
         qgraph: Graph = None,
+        callstack: list = None
     ):
         """Expand from query graph node."""
         # if this is a leaf node, we're done
+        pid = self.lookup_id
+        self.lookup_id = self.lookup_id + 1
+        if not callstack:
+            callstack = [f"lookup_id: {pid}"]
+        else:
+            callstack.append(f"lookup_id: {pid}")
         if qgraph is None:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
@@ -139,12 +150,14 @@ class Binder:
 
         self.logger.debug(
             {
-                "state": "intializing generate_from_kp"
+                "state": "intializing generate_from_kp",
+                "lookup_id": pid,
+                "callstack": callstack
             }
         )
 
         generators = [
-            self.generate_from_kp(qgraph, onehop, self.kps[kp_id])
+            self.generate_from_kp(qgraph, onehop, self.kps[kp_id], callstack=copy.deepcopy(callstack))
             for kp_id in self.plan[qedge_id]
         ]
 
@@ -155,31 +168,41 @@ class Binder:
                 "onehop": onehop,
                 "kps": [
                     self.kps[kp_id].id for kp_id in self.plan[qedge_id]
-                ]
+                ],
+                "lookup_id": pid,
+                "callstack": callstack
             }
         )
 
         async with aiostream.stream.merge(*generators).stream() as streamer:
             self.logger.debug(
                 {
-                    "state": "merging streamer from lookup"
+                    "state": "merging streamer from lookup",
+                    "lookup_id": pid,
+                    "callstack": callstack
                 }
             )
             async for output in streamer:
                 self.logger.debug(
                     {
                         "state": "yielding lookup",
+                        "lookup_id": pid,
+                        "callstack": callstack
                     }
                 )
                 yield output
             self.logger.debug(
                 {
-                    "state": "finishing streamer from lookup"
+                    "state": "finishing streamer from lookup",
+                    "lookup_id": pid,
+                    "callstack": callstack
                 }
             )
         self.logger.debug(
             {
-                "state": "finishing lookup"
+                "state": "finishing lookup",
+                "lookup_id": pid,
+                "callstack": callstack
             }
         )
 
@@ -188,10 +211,19 @@ class Binder:
         qgraph,
         onehop_qgraph,
         kp: KnowledgeProvider,
+        callstack: list = None
     ):
+        pid = self.generate_from_kp_id
+        self.generate_from_kp_id = self.generate_from_kp_id + 1
+        if not callstack:
+            callstack = [f"generate_from_kp_id: {pid}"]
+        else:
+            callstack.append(f"generate_from_kp_id: {pid}")
         self.logger.debug(
             {
-                "state": "Starting generate_from_kp"
+                "state": "Starting generate_from_kp",
+                "generate_from_KP_id": pid,
+                "callstack": callstack
             }
         )
         """Generate one-hop results from KP."""
@@ -201,6 +233,8 @@ class Binder:
         self.logger.debug(
             {
                 "state": "Generated one hop response",
+                "generate_from_KP_id": pid,
+                "callstack": callstack
             }
         )
         onehop_response = enforce_constraints(onehop_response)
@@ -211,14 +245,18 @@ class Binder:
 
         self.logger.debug(
             {
-                "state": "Get next edge"
+                "state": "Get next edge",
+                "generate_from_KP_id": pid,
+                "callstack": callstack
             }
         )
 
         if onehop_results:
             self.logger.debug(
                 {
-                    "state": "entered if"
+                    "state": "entered if",
+                    "generate_from_KP_id": pid,
+                    "callstack": callstack
                 }
             )
             subqgraph = copy.deepcopy(qgraph)
@@ -229,20 +267,26 @@ class Binder:
         else:
             self.logger.debug(
                 {
-                    "state": "did not enter"
+                    "state": "did not enter",
+                    "generate_from_KP_id": pid,
+                    "callstack": callstack
                 }
             )
         for batch_results in batch(onehop_results, 1_000_000):
             self.logger.debug(
                 {
-                    "state": "Batched results"
+                    "state": "Batched results",
+                    "generate_from_KP_id": pid,
+                    "callstack": callstack
                 }
             )
             result_map = defaultdict(list)
             for result in batch_results:
                 self.logger.debug(
                     {
-                        "state": "single result in batch"
+                        "state": "single result in batch",
+                        "generate_from_KP_id": pid,
+                        "callstack": callstack
                     }
                 )
                 # add edge to results and kgraph
@@ -283,7 +327,9 @@ class Binder:
 
             self.logger.debug(
                 {
-                    "state": "Initiating generators"
+                    "state": "Initiating generators",
+                    "generate_from_KP_id": pid,
+                    "callstack": callstack
                 }
             )
 
@@ -291,37 +337,48 @@ class Binder:
                 self.generate_from_result(
                     copy.deepcopy(subqgraph),
                     lambda result: result_map[key_fcn(result)],
+                    callstack=copy.deepcopy(callstack)
                 )
             )
         
         self.logger.debug(
             {
-                "state": "calling generators from generate_from_kp"
+                "state": "calling generators from generate_from_kp",
+                "generate_from_KP_id": pid,
+                "callstack": callstack
             }
         )
 
         async with aiostream.stream.merge(*generators).stream() as streamer:
             self.logger.debug(
                 {
-                    "state": "merging streamer from generate_from_kp"
+                    "state": "merging streamer from generate_from_kp",
+                    "generate_from_KP_id": pid,
+                    "callstack": callstack
                 }
             )
             async for result in streamer:
                 self.logger.debug(
                     {
                         "state": "Yielding from generate_from_kp",
+                        "generate_from_KP_id": pid,
+                        "callstack": callstack
                     }
                 )
                 yield result
             self.logger.debug(
                 {
-                    "state": "finishing streamer generate_from_kp"
+                    "state": "finishing streamer generate_from_kp",
+                    "generate_from_KP_id": pid,
+                    "callstack": callstack
                 }
             )
         
         self.logger.debug(
             {
-                "state": "finishing generate_from_kp"
+                "state": "finishing generate_from_kp",
+                "generate_from_KP_id": pid,
+                "callstack": callstack
             }
         )
         return
@@ -330,29 +387,39 @@ class Binder:
         self,
         qgraph,
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
+        callstack: list = None
     ):
         # LOGGER.debug(
         #     "Expanding from result %s...",
         #     result,
         # )
+        pid = self.generate_from_result_id
+        self.generate_from_result_id = self.generate_from_result_id + 1
+        if not callstack:
+            callstack = [f"generate_from_result_id: {pid}"]
+        else:
+            callstack.append(f"generate_from_result_id: {pid}")
         self.logger.debug(
             {
                 "state": "Starting generate_from_result",
+                "generate_from_result_id": pid
             }
         )
         async for subkgraph, subresult in self.lookup(
-            qgraph,
+            qgraph, callstack=copy.deepcopy(callstack)
         ):
             self.logger.debug(
                 {
                     "state": "Generating with subk",
+                    "generate_from_result_id": pid
                 }
             )
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
                 self.logger.debug(
                     {
-                        "state": "generating with subresult"
+                        "state": "generating with subresult",
+                        "generate_from_result_id": pid
                     }
                 )
                 new_subresult = {
@@ -371,6 +438,7 @@ class Binder:
                 self.logger.debug(
                     {
                         "state": "Yielding generate_from_result",
+                        "generate_from_result_id": pid
                     }
                 )
                 yield new_subkgraph, new_subresult
