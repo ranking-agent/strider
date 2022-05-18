@@ -277,9 +277,10 @@ class Binder:
         # Update qgraph identifiers
         message = Message.parse_obj({"query_graph": qgraph})
         curies = get_curies(message)
-        await self.synonymizer.load_curies(*curies)
-        curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
-        map_qgraph_curies(message.query_graph, curie_map, primary=True)
+        if len(curies):
+            await self.synonymizer.load_curies(*curies)
+            curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
+            map_qgraph_curies(message.query_graph, curie_map, primary=True)
 
         self.qgraph = message.query_graph.dict()
 
@@ -289,7 +290,6 @@ class Binder:
         # Initialize registry
         registry = Registry(settings.kpregistry_url, self.logger)
 
-        self.logger.debug("Generating plan")
         # Generate traversal plan
         self.plan, kps = await generate_plan(
             self.qgraph,
