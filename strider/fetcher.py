@@ -134,7 +134,9 @@ class Binder:
         }
 
         generators = [
-            self.generate_from_kp(qgraph, onehop, self.kps[kp_id], copy.deepcopy(call_stack))
+            self.generate_from_kp(
+                qgraph, onehop, self.kps[kp_id], copy.deepcopy(call_stack)
+            )
             for kp_id in self.plan[qedge_id]
         ]
         async with aiostream.stream.merge(*generators).stream() as streamer:
@@ -167,7 +169,9 @@ class Binder:
             # remove orphaned nodes
             subqgraph.remove_orphaned()
         else:
-            self.logger.debug(f"Ending call stack with no results: {(', ').join(call_stack)}")
+            self.logger.debug(
+                f"Ending call stack with no results: {(', ').join(call_stack)}"
+            )
         for batch_results in batch(onehop_results, 1_000_000):
             result_map = defaultdict(list)
             for result in batch_results:
@@ -226,7 +230,8 @@ class Binder:
         call_stack: List,
     ):
         async for subkgraph, subresult in self.lookup(
-            qgraph, call_stack,
+            qgraph,
+            call_stack,
         ):
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
