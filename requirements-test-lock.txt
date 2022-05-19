@@ -18,7 +18,7 @@ httpx==0.18.2
 idna==3.3
 iniconfig==1.1.1
 jsonpickle==1.4.2
-kp-registry @ git+https://github.com/ranking-agent/kp_registry@f55bde83e3c3c0921d8c724a6c5dd55341a2bf4a
+kp-registry @ git+https://github.com/ranking-agent/kp_registry@be6d4b0503b02d6c16b3660d03b445fb3303df14
 numpy==1.21.0
 orjson==3.6.0
 packaging==21.2
