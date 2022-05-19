@@ -63,11 +63,7 @@ setup_logger()
     "http://ctd/query",
     Response(
         status_code=200,
-        content=json.dumps(
-            {
-                "message": {}
-            }
-        ),
+        content=json.dumps({"message": {}}),
     ),
 )
 async def test_kp_response_empty_message(client):
@@ -85,9 +81,7 @@ async def test_kp_response_empty_message(client):
 
     # Create query
     q = {
-        "message": {
-            "query_graph": QGRAPH
-        },
+        "message": {"query_graph": QGRAPH},
         # "log_level": "WARNING"
     }
 
@@ -163,9 +157,7 @@ async def test_kp_response_empty_message_pinned_two_hop(client):
 
     # Create query
     q = {
-        "message": {
-            "query_graph": QGRAPH
-        },
+        "message": {"query_graph": QGRAPH},
         "log_level": "WARNING",
     }
 

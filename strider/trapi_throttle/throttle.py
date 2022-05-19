@@ -270,14 +270,17 @@ class ThrottledServer:
                     if len(request_curie_mapping) == 1:
                         request_id = next(iter(request_curie_mapping))
                         # Make a copy
-                        response_values[request_id] = ReasonerResponse(message=Message())
+                        response_values[request_id] = ReasonerResponse(
+                            message=Message()
+                        )
                         response_values[
                             request_id
                         ].message.query_graph = request_value_mapping[
                             request_id
                         ].message.query_graph.copy()
                         response_values[request_id].message.knowledge_graph = (
-                            message.knowledge_graph or KnowledgeGraph(nodes={}, edges={})
+                            message.knowledge_graph
+                            or KnowledgeGraph(nodes={}, edges={})
                         ).copy()
                         response_values[request_id].message.results = (
                             message.results or HashableSet(__root__=[])
@@ -288,7 +291,9 @@ class ThrottledServer:
                             filtered_msg = filter_by_curie_mapping(
                                 message, curie_mapping, kp_id=self.id
                             )
-                            filtered_msg.query_graph = request_value_mapping[request_id].message.query_graph.copy()
+                            filtered_msg.query_graph = request_value_mapping[
+                                request_id
+                            ].message.query_graph.copy()
                             response_values[request_id] = ReasonerResponse(
                                 message=filtered_msg
                             )
