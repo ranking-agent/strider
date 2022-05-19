@@ -38,6 +38,8 @@ def create_kp(args):
     source, edge, target = args
     return {
         "url": "http://mykp",
+        "infores": "mykp",
+        "maturity": "development",
         "operations": [
             {
                 "subject_category": source,
@@ -360,6 +362,8 @@ def kps_from_string(s):
         if name not in kps:
             kps[name] = {
                 "url": f"http://{name}",
+                "infores": name,
+                "maturity": "development",
                 "operations": [],
             }
         kps[name]["operations"].append(

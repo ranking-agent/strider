@@ -122,6 +122,8 @@ async def translator_overlay(
                 metakg = response.json()
             kps[host] = {
                 "url": f"http://{host}/query",
+                "infores": host,
+                "maturity": "development",
                 "operations": [
                     {
                         "subject_category": edge["subject"],
