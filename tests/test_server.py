@@ -606,6 +606,8 @@ async def test_kp_500(client):
     {
         "ctd": {
             "url": "http://ctd/query",
+            "infores": "ctd",
+            "maturity": "development",
             "operations": [
                 {
                     "subject_category": "biolink:ChemicalSubstance",
@@ -652,6 +654,8 @@ async def test_kp_unavailable(client):
     {
         "ctd": {
             "url": "http://ctd/query",
+            "infores": "ctd",
+            "maturity": "development",
             "operations": [
                 {
                     "subject_category": "biolink:ChemicalSubstance",
@@ -754,6 +758,8 @@ async def test_kp_no_kg(client):
     {
         "ctd": {
             "url": "http://ctd/query",
+            "infores": "ctd",
+            "maturity": "development",
             "operations": [
                 {
                     "subject_category": "biolink:ChemicalSubstance",

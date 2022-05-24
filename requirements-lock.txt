@@ -19,7 +19,7 @@ orjson==3.6.0
 pydantic==1.8.2
 python-dotenv==0.17.0
 PyYAML==5.4
-reasoner-pydantic==2.1.2
+reasoner-pydantic==2.2.2
 redis==3.5.3
 rfc3986==1.5.0
 sniffio==1.2.0

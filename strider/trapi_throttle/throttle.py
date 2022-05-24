@@ -266,43 +266,53 @@ class ThrottledServer:
                     )
                 )
 
-                if len(request_curie_mapping) == 1:
-                    request_id = next(iter(request_curie_mapping))
-                    # Make a copy
-                    response_values[request_id] = ReasonerResponse(message=Message())
-                    response_values[
-                        request_id
-                    ].message.query_graph = request_value_mapping[
-                        request_id
-                    ].message.query_graph.copy()
-                    response_values[request_id].message.knowledge_graph = (
-                        message.knowledge_graph or KnowledgeGraph(nodes={}, edges={})
-                    ).copy()
-                    response_values[request_id].message.results = (
-                        message.results or HashableSet(__root__=[])
-                    ).copy()
-                else:
-                    # Split using the request_curie_mapping
-                    for request_id, curie_mapping in request_curie_mapping.items():
-                        try:
+                try:
+                    if len(request_curie_mapping) == 1:
+                        request_id = next(iter(request_curie_mapping))
+                        # Make a copy
+                        response_values[request_id] = ReasonerResponse(
+                            message=Message()
+                        )
+                        response_values[
+                            request_id
+                        ].message.query_graph = request_value_mapping[
+                            request_id
+                        ].message.query_graph.copy()
+                        response_values[request_id].message.knowledge_graph = (
+                            message.knowledge_graph
+                            or KnowledgeGraph(nodes={}, edges={})
+                        ).copy()
+                        response_values[request_id].message.results = (
+                            message.results or HashableSet(__root__=[])
+                        ).copy()
+                    else:
+                        # Split using the request_curie_mapping
+                        for request_id, curie_mapping in request_curie_mapping.items():
                             filtered_msg = filter_by_curie_mapping(
                                 message, curie_mapping, kp_id=self.id
                             )
-                            filtered_msg.query_graph = QueryGraph.parse_obj(
-                                request_value_mapping[request_id]
-                            )
+                            filtered_msg.query_graph = request_value_mapping[
+                                request_id
+                            ].message.query_graph.copy()
                             response_values[request_id] = ReasonerResponse(
                                 message=filtered_msg
                             )
-                        except BatchingError as err:
-                            # the response is probably malformed
-                            response_values[request_id] = err
+                except Exception as err:
+                    # Raise more descriptive error message of response message parsing
+                    raise Exception(
+                        "[{}] Failed to parse message response: {} with Error: {}".format(
+                            self.id,
+                            response.json(),
+                            err,
+                        )
+                    )
             except (
                 asyncio.exceptions.TimeoutError,
                 httpx.RequestError,
                 httpx.HTTPStatusError,
                 JSONDecodeError,
                 pydantic.ValidationError,
+                Exception,
             ) as e:
                 for request_id, curie_mapping in request_curie_mapping.items():
                     response_values[request_id] = ReasonerResponse(

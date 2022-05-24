@@ -9,30 +9,26 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 8""88888P'    "888" d888b    o888o `Y8bod88P" `Y8bod8P' d888b
 
 """
-import asyncio
 from collections import defaultdict
 from collections.abc import Iterable
 import copy
-from itertools import chain
 from json.decoder import JSONDecodeError
 import logging
 from datetime import datetime
 
 from strider.constraints import enforce_constraints
-from typing import Any, Callable, Optional
+from typing import Callable, Optional, List
 
 import aiostream
 import httpx
 import pydantic
-from reasoner_pydantic import QueryGraph, Result, Response, MetaKnowledgeGraph, Message
+from reasoner_pydantic import MetaKnowledgeGraph, Message
 from redis import Redis
 
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
 from .compatibility import KnowledgePortal, Synonymizer
 from .trapi import (
-    get_canonical_qgraphs,
-    filter_by_qgraph,
     get_curies,
     map_qgraph_curies,
     fill_categories_predicates,
@@ -108,18 +104,19 @@ class Binder:
     async def lookup(
         self,
         qgraph: Graph = None,
+        call_stack: List = [],
     ):
         """Expand from query graph node."""
         # if this is a leaf node, we're done
         if qgraph is None:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
+            self.logger.debug(f"Finished call stack: {(', ').join(call_stack)}")
             yield {"nodes": dict(), "edges": dict()}, {
                 "node_bindings": dict(),
                 "edge_bindings": dict(),
             }
             return
-        self.logger.debug(f"Lookup for qgraph: {qgraph}")
 
         try:
             qedge_id, qedge = get_next_qedge(qgraph)
@@ -137,7 +134,9 @@ class Binder:
         }
 
         generators = [
-            self.generate_from_kp(qgraph, onehop, self.kps[kp_id])
+            self.generate_from_kp(
+                qgraph, onehop, self.kps[kp_id], copy.deepcopy(call_stack)
+            )
             for kp_id in self.plan[qedge_id]
         ]
         async with aiostream.stream.merge(*generators).stream() as streamer:
@@ -149,8 +148,11 @@ class Binder:
         qgraph,
         onehop_qgraph,
         kp: KnowledgeProvider,
+        call_stack: List,
     ):
         """Generate one-hop results from KP."""
+        # keep track of call stack for each kp plan branch
+        call_stack.append(kp.id)
         onehop_response = await kp.solve_onehop(
             onehop_qgraph,
         )
@@ -166,6 +168,10 @@ class Binder:
             subqgraph["edges"].pop(qedge_id)
             # remove orphaned nodes
             subqgraph.remove_orphaned()
+        else:
+            self.logger.debug(
+                f"Ending call stack with no results: {(', ').join(call_stack)}"
+            )
         for batch_results in batch(onehop_results, 1_000_000):
             result_map = defaultdict(list)
             for result in batch_results:
@@ -209,6 +215,7 @@ class Binder:
                 self.generate_from_result(
                     copy.deepcopy(subqgraph),
                     lambda result: result_map[key_fcn(result)],
+                    call_stack,
                 )
             )
 
@@ -220,13 +227,11 @@ class Binder:
         self,
         qgraph,
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
+        call_stack: List,
     ):
-        # LOGGER.debug(
-        #     "Expanding from result %s...",
-        #     result,
-        # )
         async for subkgraph, subresult in self.lookup(
             qgraph,
+            call_stack,
         ):
             for result, kgraph in get_results(subresult):
                 # combine one-hop with subquery results
