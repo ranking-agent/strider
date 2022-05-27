@@ -122,9 +122,10 @@ class KnowledgePortal:
         if not logger:
             logger = self.logger
         curies = get_curies(message)
-        await self.synonymizer.load_curies(*curies)
-        curie_map = self.synonymizer.map(curies, prefixes, logger)
-        return apply_curie_map(message, curie_map)
+        if len(curies):
+            await self.synonymizer.load_curies(*curies)
+            curie_map = self.synonymizer.map(curies, prefixes, logger)
+            apply_curie_map(message, curie_map)
 
     async def fetch(
         self,
@@ -175,6 +176,8 @@ def add_source(message: Message):
             dict(
                 attribute_type_id="biolink:aggregator_knowledge_source",
                 value="infores:aragorn",
+                value_type_id="biolink:InformationResource",
+                attribute_source="infores:aragorn",
             )
         ]
 
@@ -288,7 +291,7 @@ class Synonymizer:
         if not prefixes:
             # There are no preferred prefixes for these categories - use the prefixes that Biolink prefers
             logger.debug(
-                "[{}] Cannot not find preferred prefixes for at least one of: {}".format(
+                "[{}] Cannot find preferred prefixes for at least one of: {}".format(
                     getattr(logger, "context", ""),
                     categories,
                 )
