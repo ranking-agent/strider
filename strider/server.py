@@ -1,5 +1,4 @@
 """Simple ReasonerStdAPI server."""
-from asyncio.log import logger
 import copy
 import datetime
 import hashlib
