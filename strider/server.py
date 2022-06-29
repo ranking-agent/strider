@@ -358,7 +358,9 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
     async def single_lookup(query_key):
         query_result = await lookup(queries[query_key], redis_client)
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=600.0)
+            ) as client:
                 await client.post(callback, json=query_result)
         except Exception as e:
             LOGGER.debug(e)
