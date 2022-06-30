@@ -363,7 +363,7 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
             ) as client:
                 await client.post(callback, json=query_result)
         except Exception as e:
-            LOGGER.debug(e)
+            LOGGER.error(e)
             raise e
 
     await asyncio.gather(*map(single_lookup, query_keys), return_exceptions=True)
