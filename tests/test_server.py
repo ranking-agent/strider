@@ -2258,9 +2258,7 @@ async def test_multiquery(client):
 
     expected_status = {
         "message": {},
-        "status_communication": {
-            "strider_multiquery_status": "complete"
-        }
+        "status_communication": {"strider_multiquery_status": "complete"},
     }
 
     assert dict(output_final) == expected_status
