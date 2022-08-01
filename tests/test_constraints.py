@@ -1,9 +1,9 @@
 """Test constraints."""
-from strider.constraints import satisfies_constraint, enforce_constraints
+from strider.constraints import satisfies_attribute_constraint, enforce_constraints
 
 
 def test_equal():
-    """Test satisfies_constraint() with operator "=="."""
+    """Test satisfies_attribute_constraint() with operator "=="."""
     qnode = {
         "attributes": [
             {
@@ -17,20 +17,20 @@ def test_equal():
         "operator": "==",
         "value": "foo",
     }
-    assert satisfies_constraint(qnode, constraint)
+    assert satisfies_attribute_constraint(qnode, constraint)
     constraint = {
         "id": "test",
         "operator": "==",
         "value": "bar",
     }
-    assert not satisfies_constraint(qnode, constraint)
+    assert not satisfies_attribute_constraint(qnode, constraint)
     constraint = {
         "id": "test",
         "not": True,
         "operator": "==",
         "value": "bar",
     }
-    assert satisfies_constraint(qnode, constraint)
+    assert satisfies_attribute_constraint(qnode, constraint)
 
 
 def test_gt():
@@ -48,20 +48,20 @@ def test_gt():
         "operator": ">",
         "value": 3,
     }
-    assert satisfies_constraint(qnode, constraint)
+    assert satisfies_attribute_constraint(qnode, constraint)
     constraint = {
         "id": "test",
         "operator": ">",
         "value": 7,
     }
-    assert not satisfies_constraint(qnode, constraint)
+    assert not satisfies_attribute_constraint(qnode, constraint)
     constraint = {
         "id": "test",
         "not": True,
         "operator": ">",
         "value": 7,
     }
-    assert satisfies_constraint(qnode, constraint)
+    assert satisfies_attribute_constraint(qnode, constraint)
 
 
 def test_match():
@@ -79,20 +79,20 @@ def test_match():
         "operator": "matches",
         "value": r".*(iss){2,}.*",
     }
-    assert satisfies_constraint(qnode, constraint)
+    assert satisfies_attribute_constraint(qnode, constraint)
     constraint = {
         "id": "test",
         "operator": "matches",
         "value": r".*(iss){3,}.*",
     }
-    assert not satisfies_constraint(qnode, constraint)
+    assert not satisfies_attribute_constraint(qnode, constraint)
     constraint = {
         "id": "test",
         "not": True,
         "operator": "matches",
         "value": r".*(iss){3,}.*",
     }
-    assert satisfies_constraint(qnode, constraint)
+    assert satisfies_attribute_constraint(qnode, constraint)
 
 
 def test_enforce_constraints():
