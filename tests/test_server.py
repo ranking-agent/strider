@@ -1582,8 +1582,7 @@ async def test_exception_response(client):
 )
 async def test_constraint_error(client):
     """
-    Test that we throw an error and exit if we encounter
-    any constraints (not implemented yet)
+    Test that we properly handle attributes
     """
     QGRAPH = query_graph_from_string(
         """
