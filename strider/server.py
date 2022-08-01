@@ -49,7 +49,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="3.18.1",
+    version="3.18.2",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
@@ -364,8 +364,22 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
                 await client.post(callback, json=query_result)
         except Exception as e:
             LOGGER.error(e)
+        return query_result
 
-    await asyncio.gather(*map(single_lookup, query_keys), return_exceptions=True)
+    query_results = await asyncio.gather(
+        *map(single_lookup, query_keys), return_exceptions=True
+    )
+
+    query_results = {
+        "message": {},
+        "status_communication": {"strider_multiquery_status": "complete"},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
+            await client.post(callback, json=query_results)
+    except Exception as e:
+        LOGGER.error(e)
 
 
 @APP.post("/query", response_model=ReasonerResponse)

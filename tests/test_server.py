@@ -2207,6 +2207,7 @@ async def test_multiquery(client):
         outputs = []
         outputs.append(await queue.get())
         outputs.append(await queue.get())
+        output_final = await queue.get()
     output1 = {}
     output2 = {}
     for output in outputs:
@@ -2254,3 +2255,10 @@ async def test_multiquery(client):
         },
         output2,
     )
+
+    expected_status = {
+        "message": {},
+        "status_communication": {"strider_multiquery_status": "complete"},
+    }
+
+    assert dict(output_final) == expected_status
