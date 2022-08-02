@@ -34,7 +34,7 @@ def result_satisfies_constraints(result: dict, kgraph: dict, qgraph: dict) -> bo
     for qnode_id, node_bindings in result["node_bindings"].items():
         for node_binding in node_bindings:
             knode = kgraph["nodes"][node_binding["id"]]
-            for constraint in qgraph["nodes"][qnode_id].get("attribute_constraints", []):
+            for constraint in qgraph["nodes"][qnode_id].get("constraints", []):
                 if not satisfies_attribute_constraint(knode, constraint):
                     return False
     for qedge_id, edge_bindings in result["edge_bindings"].items():
