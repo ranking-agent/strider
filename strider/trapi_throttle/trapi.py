@@ -2,6 +2,7 @@ import copy
 
 from reasoner_pydantic import Message, QueryGraph
 from reasoner_pydantic.kgraph import KnowledgeGraph
+from reasoner_pydantic.utils import HashableSet
 
 
 class BatchingError(Exception):
@@ -88,11 +89,13 @@ def filter_by_curie_mapping(
 
     # Only keep results where there is a node binding
     # that connects to our given kgraph_node_id
-    filtered_msg.results = {
-        result.copy()
-        for result in message.results
-        if result_contains_node_bindings(result, curie_mapping)
-    }
+    filtered_msg.results = HashableSet(
+        __root__=[
+            result.copy()
+            for result in message.results
+            if result_contains_node_bindings(result, curie_mapping)
+        ]
+    )
 
     # Construct result-specific knowledge graph
     filtered_msg.knowledge_graph = KnowledgeGraph(
