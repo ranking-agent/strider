@@ -40,10 +40,12 @@ def result_satisfies_constraints(result: dict, kgraph: dict, qgraph: dict) -> bo
     for qedge_id, edge_bindings in result["edge_bindings"].items():
         for edge_binding in edge_bindings:
             kedge = kgraph["edges"][edge_binding["id"]]
-            for constraint in qgraph["edges"][qedge_id].get("attribute_constraints", []):
+            for constraint in qgraph["edges"][qedge_id].get(
+                "attribute_constraints", []
+            ):
                 if not satisfies_attribute_constraint(kedge, constraint):
                     return False
-    
+
     return True
 
 
