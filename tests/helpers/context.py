@@ -10,8 +10,8 @@ from asgiar import ASGIAR
 from fastapi import FastAPI, Response
 import httpx
 from kp_registry.routers.kps import registry_router
-from binder.testing import kp_overlay
 
+from .mock_kp.testing import kp_overlay
 from .normalizer import norm_router
 from .utils import normalizer_data_from_string
 
