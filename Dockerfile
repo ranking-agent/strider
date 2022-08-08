@@ -1,4 +1,8 @@
+# Use RENCI python base image
 FROM renciorg/renci-python-image:v0.0.1
+
+# Build from this branch. Default to master
+ARG BRANCH_NAME=master
 
 # Add image info
 LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
