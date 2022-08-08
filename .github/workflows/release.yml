@@ -12,7 +12,7 @@ jobs:
             - name: Check out the repo
               uses: actions/checkout@v2
               with:
-                  ref: BRANCH_NAME
+                  ref: ${{ github.event.release.target_commitish }}
             - name: Get the version
               id: get_version
               run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
@@ -23,4 +23,3 @@ jobs:
                   password: ${{ secrets.CR_PAT }}
                   registry: ghcr.io
                   tags: latest,${{ steps.get_version.outputs.VERSION }}
-                  build-args: BRANCH_NAME=${{ github.event.release.target_commitish }}
