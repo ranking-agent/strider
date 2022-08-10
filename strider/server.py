@@ -361,7 +361,8 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=600.0)
             ) as client:
-                await client.post(callback, json=query_result)
+                callback_response = await client.post(callback, json=query_result)
+                LOGGER.INFO(f'Called back to {callback}. Status={callback_response.status_code}')
         except Exception as e:
             LOGGER.error(e)
         return query_result
@@ -375,9 +376,12 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
         "status_communication": {"strider_multiquery_status": "complete"},
     }
 
+
+    LOGGER.INFO(f'All jobs complete.  Sending back done signal.')
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
-            await client.post(callback, json=query_results)
+            callback_response = await client.post(callback, json=query_results)
+            LOGGER.INFO(f'Sent completion to {callback}. Status={callback_response.status_code}')
     except Exception as e:
         LOGGER.error(e)
 
