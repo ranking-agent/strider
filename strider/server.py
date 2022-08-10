@@ -49,7 +49,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="3.18.2",
+    version="3.18.3",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
@@ -361,7 +361,10 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=600.0)
             ) as client:
-                await client.post(callback, json=query_result)
+                callback_response = await client.post(callback, json=query_result)
+                LOGGER.info(
+                    f"Called back to {callback}. Status={callback_response.status_code}"
+                )
         except Exception as e:
             LOGGER.error(e)
         return query_result
@@ -375,9 +378,13 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
         "status_communication": {"strider_multiquery_status": "complete"},
     }
 
+    LOGGER.info(f"All jobs complete.  Sending back done signal.")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
-            await client.post(callback, json=query_results)
+            callback_response = await client.post(callback, json=query_results)
+            LOGGER.info(
+                f"Sent completion to {callback}. Status={callback_response.status_code}"
+            )
     except Exception as e:
         LOGGER.error(e)
 
