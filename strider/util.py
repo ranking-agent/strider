@@ -13,6 +13,8 @@ import yaml
 import bmt
 from bmt import Toolkit as BMToolkit
 
+import logging
+
 
 def camel_to_snake(s, sep=" "):
     return re.sub(r"(?<!^)(?=[A-Z])", sep, s).lower()

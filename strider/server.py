@@ -34,9 +34,10 @@ from .query_planner import NoAnswersError, generate_plan
 from .scoring import score_graph
 from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
-from .util import add_cors_manually
+from .util import add_cors_manually, setup_logging
 from .trapi_openapi import TRAPI
 
+setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 DESCRIPTION = """
@@ -49,7 +50,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="3.18.3",
+    version="3.18.4",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
