@@ -12,7 +12,7 @@ from starlette.middleware.cors import CORSMiddleware
 import yaml
 import bmt
 from bmt import Toolkit as BMToolkit
-import logging
+import logging.config
 
 
 def camel_to_snake(s, sep=" "):
