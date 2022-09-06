@@ -379,6 +379,10 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
             )
         except asyncio.TimeoutError:
             LOGGER.warning("Process cancelled due to timeout.")
+            query_result = {
+                "message": {},
+                "status_communication": {"strider_process_status": "timeout"},
+            }
         try:
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=600.0)
