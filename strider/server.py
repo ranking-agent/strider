@@ -356,7 +356,7 @@ async def async_lookup(
             lookup(query_dict, redis_client), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.info("Process cancelled due to timeout.")
+        LOGGER.warning("Process cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
@@ -378,7 +378,7 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
                 lookup(queries[query_key], redis_client), timeout=max_process_time
             )
         except asyncio.TimeoutError:
-            LOGGER.info("Process cancelled due to timeout.")
+            LOGGER.warning("Process cancelled due to timeout.")
         try:
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=600.0)
@@ -442,7 +442,7 @@ async def sync_query(
             lookup(query_dict, redis_client), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.info("Process cancelled due to timeout.")
+        LOGGER.warning("Process cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
