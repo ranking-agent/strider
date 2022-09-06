@@ -351,7 +351,9 @@ async def async_lookup(
 ):
     """Perform lookup and send results to callback url"""
     try:
-        query_results = await asyncio.wait_for(lookup(query_dict, redis_client), timeout=max_process_time)
+        query_results = await asyncio.wait_for(
+            lookup(query_dict, redis_client), timeout=max_process_time
+        )
     except asyncio.TimeoutError:
         LOGGER.info("Process cancelled due to timeout.")
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
@@ -363,7 +365,9 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
 
     async def single_lookup(query_key):
         try:
-            query_result = await asyncio.wait_for(lookup(queries[query_key], redis_client), timeout=max_process_time)
+            query_result = await asyncio.wait_for(
+                lookup(queries[query_key], redis_client), timeout=max_process_time
+            )
         except asyncio.TimeoutError:
             LOGGER.info("Process cancelled due to timeout.")
         try:
@@ -424,7 +428,9 @@ async def sync_query(
         raise HTTPException(400, "operations must have id 'lookup'")
 
     try:
-        query_results = await asyncio.wait_for(lookup(query_dict, redis_client), timeout=max_process_time)
+        query_results = await asyncio.wait_for(
+            lookup(query_dict, redis_client), timeout=max_process_time
+        )
     except asyncio.TimeoutError:
         LOGGER.info("Process cancelled due to timeout.")
 
