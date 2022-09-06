@@ -357,6 +357,10 @@ async def async_lookup(
         )
     except asyncio.TimeoutError:
         LOGGER.info("Process cancelled due to timeout.")
+        query_results = {
+            "message": {},
+            "status_communication": {"strider_process_status": "timeout"},
+        }
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
             await client.post(callback, json=query_results)
@@ -439,6 +443,10 @@ async def sync_query(
         )
     except asyncio.TimeoutError:
         LOGGER.info("Process cancelled due to timeout.")
+        query_results = {
+            "message": {},
+            "status_communication": {"strider_process_status": "timeout"},
+        }
 
     # Return results
     return JSONResponse(query_results)
