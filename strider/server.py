@@ -46,6 +46,8 @@ DESCRIPTION = """
 Translator Autonomous Relay Agent
 """
 
+max_process_time = os.getenv("max_process_time", "3400")
+
 openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
@@ -348,7 +350,10 @@ async def async_lookup(
     redis_client: Redis,
 ):
     """Perform lookup and send results to callback url"""
-    query_results = await lookup(query_dict, redis_client)
+    try:
+        query_results = await asyncio.wait_for(lookup(query_dict, redis_client), timeout=max_process_time)
+    except asyncio.TimeoutError:
+        LOGGER.info("Process cancelled due to timeout.")
     async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
         await client.post(callback, json=query_results)
 
@@ -357,7 +362,10 @@ async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: 
     "Performs lookup for multiple queries and sends all results to callback url"
 
     async def single_lookup(query_key):
-        query_result = await lookup(queries[query_key], redis_client)
+        try:
+            query_result = await asyncio.wait_for(lookup(queries[query_key], redis_client), timeout=max_process_time)
+        except asyncio.TimeoutError:
+            LOGGER.info("Process cancelled due to timeout.")
         try:
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=600.0)
@@ -415,7 +423,10 @@ async def sync_query(
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
 
-    query_results = await lookup(query_dict, redis_client)
+    try:
+        query_results = await asyncio.wait_for(lookup(query_dict, redis_client), timeout=max_process_time)
+    except asyncio.TimeoutError:
+        LOGGER.info("Process cancelled due to timeout.")
 
     # Return results
     return JSONResponse(query_results)
