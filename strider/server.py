@@ -46,7 +46,7 @@ DESCRIPTION = """
 Translator Autonomous Relay Agent
 """
 
-max_process_time = os.getenv("max_process_time", "3400")
+max_process_time = settings.max_process_time
 
 openapi_args = dict(
     title="Strider",
