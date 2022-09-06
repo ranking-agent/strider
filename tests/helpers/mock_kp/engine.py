@@ -183,7 +183,12 @@ class KnowledgeProvider:
         """Get edge constraints."""
         kwargs = dict()
         for key, value in qedge.items():
-            if key in ("subject", "object", "attribute_constraints", "qualifier_constraints"):
+            if key in (
+                "subject",
+                "object",
+                "attribute_constraints",
+                "qualifier_constraints",
+            ):
                 continue
             if isinstance(value, list) and len(value) == 1:
                 value = value[0]
