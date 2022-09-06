@@ -432,6 +432,7 @@ async def sync_query(
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
 
+    query_results = {}
     try:
         query_results = await asyncio.wait_for(
             lookup(query_dict, redis_client), timeout=max_process_time
