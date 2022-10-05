@@ -116,3 +116,14 @@ walkthrough:
 1. ... gets results for (a) from KPs
 1. ... gets results for (b) recursively
 1. ... combines results from (a) and (b)
+
+### ca. October 2022
+
+changes:
+* remove redis and use native python logging for logs
+
+pros:
+* redis was crashing under heavy load (multiple creative mode)
+
+components:
+* Python web server/worker
