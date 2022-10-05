@@ -22,7 +22,6 @@ import aiostream
 import httpx
 import pydantic
 from reasoner_pydantic import MetaKnowledgeGraph, Message
-from redis import Redis
 
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
