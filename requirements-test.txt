@@ -1,5 +1,4 @@
 asgiar==0.2.0
-fakeredis==1.5.0
 httpx==0.18.2
 kp-registry @ git+https://github.com/ranking-agent/kp_registry
 pytest==6.2.4
