@@ -206,7 +206,7 @@ class Synonymizer:
         # get all curie synonyms
         url_base = f"{settings.normalizer_url}/get_normalized_nodes"
         try:
-            async with httpx.AsyncClient(timeout=60*5) as client:
+            async with httpx.AsyncClient(timeout=60 * 5) as client:
                 response = await client.post(
                     url_base,
                     json={"curies": list(curies)},

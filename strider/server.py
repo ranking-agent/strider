@@ -342,7 +342,7 @@ async def lookup(
     level_number = logging._nameToLevel[log_level]
     # Set up logger
     log_handler = QueryLogger().log_handler
-    logger = logging.getLogger(f'strider.{qid}')
+    logger = logging.getLogger(f"strider.{qid}")
     logger.setLevel(level_number)
     logger.addHandler(log_handler)
 
@@ -476,9 +476,7 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
             LOGGER.error(f"Callback to {callback} failed with: {e}")
         return query_result
 
-    await asyncio.gather(
-        *map(single_lookup, query_keys), return_exceptions=True
-    )
+    await asyncio.gather(*map(single_lookup, query_keys), return_exceptions=True)
 
     query_results = {
         "message": {},
@@ -493,7 +491,9 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
                 f"Sent completion to {callback}. Status={callback_response.status_code}"
             )
     except Exception as e:
-        LOGGER.error(f"Failed to send 'completed' response back to {callback} with error: {e}")
+        LOGGER.error(
+            f"Failed to send 'completed' response back to {callback} with error: {e}"
+        )
 
 
 @APP.post("/plan", response_model=dict[str, list[str]], include_in_schema=False)
@@ -514,7 +514,7 @@ async def score_results(
 ) -> Message:
     """
     Score results.
-    
+
     TODO: Either fix or remove, doesn't work currently
     """
     message = query.message.dict()
