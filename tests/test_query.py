@@ -1,7 +1,6 @@
 """Test Strider."""
 import json
 
-import fakeredis
 from fastapi.responses import Response
 import pytest
 
@@ -10,20 +9,11 @@ from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 
 from strider.config import settings
-from strider.server import APP, lookup
+from strider.server import lookup
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
-
-
-@pytest.fixture()
-def redis():
-    """Create a Redis client."""
-    return fakeredis.FakeRedis(
-        encoding="utf-8",
-        decode_responses=True,
-    )
 
 
 setup_logger()
@@ -43,7 +33,7 @@ setup_logger()
         """
     },
 )
-async def test_solve_ex1(redis):
+async def test_solve_ex1():
     """Test solving the ex1 query graph"""
     QGRAPH = query_graph_from_string(
         """
@@ -63,7 +53,7 @@ async def test_solve_ex1(redis):
     }
 
     # Run
-    output = await lookup(q, redis)
+    output = await lookup(q)
 
     validate_message(
         {
@@ -100,7 +90,7 @@ async def test_solve_ex1(redis):
         """
     },
 )
-async def test_mixed_canonical(redis):
+async def test_mixed_canonical():
     """Test qedge with mixed canonical and non-canonical predicates."""
     QGRAPH = query_graph_from_string(
         """
@@ -118,7 +108,7 @@ async def test_mixed_canonical(redis):
     }
 
     # Run
-    output = await lookup(q, redis)
+    output = await lookup(q)
 
     assert len(output["message"]["results"]) == 2
 
@@ -135,7 +125,7 @@ async def test_mixed_canonical(redis):
         """
     },
 )
-async def test_symmetric_noncanonical(redis):
+async def test_symmetric_noncanonical():
     """Test qedge with the symmetric, non-canonical predicate genetically_interacts_with."""
     QGRAPH = query_graph_from_string(
         """
@@ -153,7 +143,7 @@ async def test_symmetric_noncanonical(redis):
     }
 
     # Run
-    output = await lookup(q, redis)
+    output = await lookup(q)
 
     assert len(output["message"]["results"]) == 1
 
@@ -232,7 +222,7 @@ async def test_symmetric_noncanonical(redis):
         ),
     ),
 )
-async def test_disambiguation(redis):
+async def test_disambiguation():
     """
     Test disambiguating batch results with qnode_id.
     """
@@ -251,7 +241,7 @@ async def test_disambiguation(redis):
     }
 
     # Run
-    output = await lookup(q, redis)
+    output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
     validate_message(
@@ -342,7 +332,7 @@ async def test_disambiguation(redis):
         ),
     ),
 )
-async def test_trivial_unbatching(redis):
+async def test_trivial_unbatching():
     """Test trivial unbatching with batch size one."""
     QGRAPH = query_graph_from_string(
         """
@@ -359,7 +349,7 @@ async def test_trivial_unbatching(redis):
     }
 
     # Run
-    output = await lookup(q, redis)
+    output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
     validate_message(
@@ -412,7 +402,7 @@ async def test_trivial_unbatching(redis):
         CHEBI:6801 categories biolink:Disease
         """,
 )
-async def test_gene_protein_conflation(redis):
+async def test_gene_protein_conflation():
     """Test conflation of biolink:Gene and biolink:Protein categories.
     e0 checks to make sure that Protein is added to Gene nodes, and e1
     checks that Gene is added to Protein nodes. Additionally, e2 checks
@@ -434,7 +424,7 @@ async def test_gene_protein_conflation(redis):
     q = {"message": {"query_graph": QGRAPH}, "log_level": "ERROR"}
 
     # Run query
-    output = await lookup(q, redis)
+    output = await lookup(q)
 
     # Check to see that appropriate nodes are in results
     validate_message(
@@ -485,7 +475,7 @@ async def test_gene_protein_conflation(redis):
         """,
     },
 )
-async def test_node_set(redis):
+async def test_node_set():
     """Test that is_set is handled correctly."""
     QGRAPH = query_graph_from_string(
         """
@@ -506,7 +496,7 @@ async def test_node_set(redis):
     }
 
     # Run
-    output = await lookup(q, redis)
+    output = await lookup(q)
     assert len(output["message"]["results"]) == 2
     assert {
         len(result["node_bindings"]["n1"]) for result in output["message"]["results"]

@@ -3,7 +3,6 @@ import asyncio
 import json
 from pathlib import Path
 
-import fakeredis
 from fastapi.responses import Response
 import httpx
 import pytest
@@ -23,17 +22,11 @@ from tests.helpers.utils import query_graph_from_string, validate_message
 import strider
 from strider.config import settings
 from strider.server import APP
-from strider.storage import get_client
 from strider.fetcher import Binder
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
-
-APP.dependency_overrides[get_client] = lambda: fakeredis.FakeRedis(
-    encoding="utf-8",
-    decode_responses=True,
-)
 
 
 @pytest.fixture()
@@ -43,7 +36,7 @@ async def client():
         yield client_
 
 
-setup_logger()
+logger = setup_logger()
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
@@ -2137,11 +2130,7 @@ async def test_yield_independent_results(client):
         """
     )
 
-    binder = Binder(
-        "test-qid",
-        10,
-        redis_client=fakeredis.FakeRedis(encoding="utf-8", decode_responses=True),
-    )
+    binder = Binder(logger)
     await binder.setup(QGRAPH)
 
     async with binder:

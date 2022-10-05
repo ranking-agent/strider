@@ -34,35 +34,9 @@ from .trapi import (
     fill_categories_predicates,
 )
 from .query_planner import generate_plan, get_next_qedge
-from .storage import RedisGraph, RedisList, RedisLogHandler
 from .kp_registry import Registry
 from .config import settings
 from .util import KnowledgeProvider, WBMT, batch
-
-
-class ReasonerLogEntryFormatter(logging.Formatter):
-    """Format to match Reasoner API LogEntry"""
-
-    def format(self, record):
-        log_entry = {}
-
-        # If given a string use that as the message
-        if isinstance(record.msg, str):
-            log_entry["message"] = record.msg
-
-        # If given a dict, just use that as the log entry
-        # Make sure everything is serializeable
-        if isinstance(record.msg, dict):
-            log_entry |= record.msg
-
-        # Add timestamp
-        iso_timestamp = datetime.utcfromtimestamp(record.created).isoformat()
-        log_entry["timestamp"] = iso_timestamp
-
-        # Add level
-        log_entry["level"] = record.levelname
-
-        return log_entry
 
 
 _logger = logging.getLogger(__name__)
@@ -75,29 +49,11 @@ _logger.addHandler(sh)
 class Binder:
     """Binder."""
 
-    def __init__(
-        self,
-        qid: str,
-        log_level: int = logging.DEBUG,
-        name: Optional[str] = None,
-        redis_client: Optional[Redis] = None,
-    ):
+    def __init__(self, logger):
         """Initialize."""
-        self.name = name
-
-        # Set up logger
-        handler = RedisLogHandler(f"{qid}:log", redis_client)
-        handler.setFormatter(ReasonerLogEntryFormatter())
-        self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(log_level)
-        self.logger.addHandler(handler)
-
+        self.logger = logger
         self.synonymizer = Synonymizer(self.logger)
         self.portal = KnowledgePortal(self.synonymizer, self.logger)
-
-        # Set up DB results objects
-        self.kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
-        self.results = RedisList(f"{qid}:results", redis_client)
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 

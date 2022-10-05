@@ -41,6 +41,8 @@ def setup_logger():
     handler.setFormatter(ColoredFormatter())
     logger.addHandler(handler)
 
+    return logger
+
 
 def assert_no_level(logger, allowed_level, exceptions=0):
     """

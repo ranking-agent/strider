@@ -22,7 +22,6 @@ from reasoner_pydantic.kgraph import KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
 from reasoner_pydantic.utils import HashableMapping, HashableSet
 from reasoner_pydantic.message import Result
-from redis import Redis
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
 
@@ -32,10 +31,10 @@ from .fetcher import Binder
 from .node_sets import collapse_sets
 from .query_planner import NoAnswersError, generate_plan
 from .scoring import score_graph
-from .storage import RedisGraph, RedisList, get_client as get_redis_client
 from .config import settings
 from .util import add_cors_manually, setup_logging
 from .trapi_openapi import TRAPI
+from .logger import QueryLogger
 
 setup_logging()
 LOGGER = logging.getLogger(__name__)
@@ -249,7 +248,6 @@ async def get_results(
 
 async def lookup(
     query_dict: dict,
-    redis_client: Redis,
 ) -> dict:
     """Perform lookup operation."""
     # Generate Query ID
@@ -260,13 +258,13 @@ async def lookup(
     log_level = query_dict["log_level"] or "ERROR"
 
     level_number = logging._nameToLevel[log_level]
+    # Set up logger
+    log_handler = QueryLogger().log_handler
+    logger = logging.getLogger(f'strider.{qid}')
+    logger.setLevel(level_number)
+    logger.addHandler(log_handler)
 
-    binder = Binder(
-        qid,
-        level_number,
-        name="me",
-        redis_client=redis_client,
-    )
+    binder = Binder(logger)
 
     try:
         await binder.setup(qgraph)
@@ -277,7 +275,7 @@ async def lookup(
                 "knowledge_graph": {"nodes": {}, "edges": {}},
                 "results": [],
             },
-            "logs": list(RedisList(f"{qid}:log", redis_client).get()),
+            "logs": list(log_handler.contents()),
         }
 
     # Result container to map our "custom" results to "real" results
@@ -340,20 +338,19 @@ async def lookup(
     collapse_sets(message_dict)
     output_query.message = Message.parse_obj(message_dict)
 
-    output_query.logs = list(RedisList(f"{qid}:log", redis_client).get())
+    output_query.logs = list(log_handler.contents())
     return output_query.dict()
 
 
 async def async_lookup(
     callback,
     query_dict: dict,
-    redis_client: Redis,
 ):
     """Perform lookup and send results to callback url"""
     query_results = {}
     try:
         query_results = await asyncio.wait_for(
-            lookup(query_dict, redis_client), timeout=max_process_time
+            lookup(query_dict), timeout=max_process_time
         )
     except asyncio.TimeoutError:
         LOGGER.warning("Process cancelled due to timeout.")
@@ -368,14 +365,14 @@ async def async_lookup(
         LOGGER.error(e)
 
 
-async def multi_lookup(callback, queries: dict, query_keys: list, redis_client: Redis):
+async def multi_lookup(callback, queries: dict, query_keys: list):
     "Performs lookup for multiple queries and sends all results to callback url"
 
     async def single_lookup(query_key):
         query_result = {}
         try:
             query_result = await asyncio.wait_for(
-                lookup(queries[query_key], redis_client), timeout=max_process_time
+                lookup(queries[query_key]), timeout=max_process_time
             )
         except asyncio.TimeoutError:
             LOGGER.warning("Process cancelled due to timeout.")

@@ -1,5 +1,4 @@
 """Test weird kp responses."""
-import fakeredis
 import httpx
 import json
 import pytest
@@ -17,16 +16,10 @@ from tests.helpers.utils import query_graph_from_string
 
 from strider.server import APP
 from strider.config import settings
-from strider.storage import get_client
 
 # Switch prefix path before importing server
 settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
-
-APP.dependency_overrides[get_client] = lambda: fakeredis.FakeRedis(
-    encoding="utf-8",
-    decode_responses=True,
-)
 
 
 @pytest.fixture()
