@@ -14,7 +14,6 @@ from collections.abc import Iterable
 import copy
 from json.decoder import JSONDecodeError
 import logging
-from datetime import datetime
 
 from strider.constraints import enforce_constraints
 from typing import Callable, Optional, List
@@ -264,10 +263,9 @@ class Binder:
         for kp_id, kp in kps.items():
             url = kp["url"][:-5] + "meta_knowledge_graph"
             try:
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=10.0) as client:
                     response = await client.get(
                         url,
-                        timeout=10,
                     )
                 response.raise_for_status()
                 meta_kg = response.json()

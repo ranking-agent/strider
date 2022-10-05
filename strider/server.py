@@ -1,14 +1,10 @@
 """Simple ReasonerStdAPI server."""
-import copy
 import datetime
-import hashlib
 import os
 import uuid
-import json
 import logging
 import traceback
 import pprint
-from typing import Optional
 import asyncio
 
 from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request
@@ -95,6 +91,7 @@ APP.add_middleware(
 )
 
 if settings.profiler:
+    # importing this file will engage profiler
     from .profiler import profiler_middleware
 
 # Custom exception handler is necessary to ensure that
@@ -130,6 +127,23 @@ APP.middleware("http")(catch_exceptions_middleware)
 async def print_config():
     pretty_config = pprint.pformat(settings.dict())
     LOGGER.info(f" App Configuration:\n {pretty_config}")
+
+
+APP.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@APP.get("/docs", include_in_schema=False)
+async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
+    """Customize Swagger UI."""
+    root_path = req.scope.get("root_path", "").rstrip("/")
+    openapi_url = root_path + APP.openapi_url
+    swagger_favicon_url = root_path + "/static/favicon.svg"
+    return get_swagger_ui_html(
+        openapi_url=openapi_url,
+        title=APP.title + " - Swagger UI",
+        oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
+        swagger_favicon_url=swagger_favicon_url,
+    )
 
 
 EXAMPLE = {
@@ -209,41 +223,109 @@ MEXAMPLE = {
 }
 
 
-def get_finished_query(
-    qid: str,
-    redis_client: Redis,
+@APP.post("/query", response_model=ReasonerResponse)
+async def sync_query(
+    query: Query = Body(..., example=EXAMPLE),
 ) -> dict:
-    qgraph = RedisGraph(f"{qid}:qgraph", redis_client)
-    kgraph = RedisGraph(f"{qid}:kgraph", redis_client)
-    results = RedisList(f"{qid}:results", redis_client)
-    logs = RedisList(f"{qid}:log", redis_client)
+    """Handle synchronous query."""
+    # parse requested workflow
+    query_dict = query.dict()
+    workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
+    if not isinstance(workflow, list):
+        raise HTTPException(400, "workflow must be a list")
+    if not len(workflow) == 1:
+        raise HTTPException(400, "workflow must contain exactly 1 operation")
+    if "id" not in workflow[0]:
+        raise HTTPException(400, "workflow must have property 'id'")
+    if workflow[0]["id"] == "filter_results_top_n":
+        max_results = workflow[0]["parameters"]["max_results"]
+        if max_results < len(query_dict["message"]["results"]):
+            query_dict["message"]["results"] = query_dict["message"]["results"][
+                :max_results
+            ]
+        return query_dict
+    if not workflow[0]["id"] == "lookup":
+        raise HTTPException(400, "operations must have id 'lookup'")
 
-    expiration_seconds = int(settings.store_results_for.total_seconds())
+    query_results = {}
+    try:
+        query_results = await asyncio.wait_for(
+            lookup(query_dict), timeout=max_process_time
+        )
+    except asyncio.TimeoutError:
+        LOGGER.warning("Process cancelled due to timeout.")
+        query_results = {
+            "message": {},
+            "status_communication": {"strider_process_status": "timeout"},
+        }
 
-    qgraph.expire(expiration_seconds)
-    kgraph.expire(expiration_seconds)
-    results.expire(expiration_seconds)
-    logs.expire(expiration_seconds)
-
-    results = list(results.get())
-
-    return dict(
-        message=dict(
-            query_graph=qgraph.get(),
-            knowledge_graph=kgraph.get(),
-            results=results,
-        ),
-        logs=list(logs.get()),
-    )
+    # Return results
+    return JSONResponse(query_results)
 
 
-@APP.post("/query_result", response_model=ReasonerResponse)
-async def get_results(
-    qid: str,
-    redis_client: Redis = Depends(get_redis_client),
-) -> dict:
-    """Get results for a running or finished query"""
-    return get_finished_query(qid, redis_client)
+@APP.post("/asyncquery", response_model=ReasonerResponse)
+async def async_query(
+    background_tasks: BackgroundTasks,
+    query: AsyncQuery = Body(..., example=AEXAMPLE),
+):
+    """Handle asynchronous query."""
+    # parse requested workflow
+    query_dict = query.dict()
+    callback = query_dict["callback"]
+    workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
+    if not isinstance(workflow, list):
+        raise HTTPException(400, "workflow must be a list")
+    if not len(workflow) == 1:
+        raise HTTPException(400, "workflow must contain exactly 1 operation")
+    if "id" not in workflow[0]:
+        raise HTTPException(400, "workflow must have property 'id'")
+    if workflow[0]["id"] == "filter_results_top_n":
+        max_results = workflow[0]["parameters"]["max_results"]
+        if max_results < len(query_dict["message"]["results"]):
+            query_dict["message"]["results"] = query_dict["message"]["results"][
+                :max_results
+            ]
+        return query_dict
+    if not workflow[0]["id"] == "lookup":
+        raise HTTPException(400, "operations must have id 'lookup'")
+
+    LOGGER.info(f"Doing async lookup for {callback}")
+    background_tasks.add_task(async_lookup, callback, query_dict)
+
+    return
+
+
+@APP.post("/multiquery", response_model=dict[str, ReasonerResponse])
+async def multi_query(
+    background_tasks: BackgroundTasks,
+    multiquery: dict[str, AsyncQuery] = Body(..., example=MEXAMPLE),
+):
+    """Handles multiple queries. Queries are sent back to a callback url as a dict with keys corresponding to keys of original query."""
+    query_keys = list(multiquery.keys())
+    callback = multiquery[query_keys[0]].dict().get("callback")
+    if not callback:
+        raise HTTPException(400, "callback url must be specified")
+    queries = {}
+    for query in query_keys:
+        query_dict = multiquery[query].dict()
+        query_callback = query_dict["callback"]
+        workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
+        if not isinstance(workflow, list):
+            raise HTTPException(400, "workflow must be a list")
+        if not len(workflow) == 1:
+            raise HTTPException(400, "workflow must contain exactly 1 operation")
+        if "id" not in workflow[0]:
+            raise HTTPException(400, "workflow must have property 'id'")
+        if not workflow[0]["id"] == "lookup":
+            raise HTTPException(400, "operations must have id 'lookup'")
+        if query_callback != callback:
+            raise HTTPException(400, "callback url for all queries must be the same")
+        queries[query] = query_dict
+
+    LOGGER.info(f"Starting multi lookup for {callback}")
+    background_tasks.add_task(multi_lookup, callback, queries, query_keys)
+
+    return
 
 
 async def lookup(
@@ -359,8 +441,10 @@ async def async_lookup(
             "status_communication": {"strider_process_status": "timeout"},
         }
     try:
+        LOGGER.info(f"Posting to callback {callback}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
-            await client.post(callback, json=query_results)
+            res = await client.post(callback, json=query_results)
+            LOGGER.info(f"Posted to callback with code {res.status_code}")
     except Exception as e:
         LOGGER.error(e)
 
@@ -389,10 +473,10 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
                     f"Called back to {callback}. Status={callback_response.status_code}"
                 )
         except Exception as e:
-            LOGGER.error(e)
+            LOGGER.error(f"Callback to {callback} failed with: {e}")
         return query_result
 
-    query_results = await asyncio.gather(
+    await asyncio.gather(
         *map(single_lookup, query_keys), return_exceptions=True
     )
 
@@ -401,7 +485,7 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
         "status_communication": {"strider_multiquery_status": "complete"},
     }
 
-    LOGGER.info(f"All jobs complete.  Sending back done signal.")
+    LOGGER.info(f"All jobs complete.  Sending done signal to {callback}.")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
             callback_response = await client.post(callback, json=query_results)
@@ -409,159 +493,10 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
                 f"Sent completion to {callback}. Status={callback_response.status_code}"
             )
     except Exception as e:
-        LOGGER.error(e)
+        LOGGER.error(f"Failed to send 'completed' response back to {callback} with error: {e}")
 
 
-@APP.post("/query", response_model=ReasonerResponse)
-async def sync_query(
-    query: Query = Body(..., example=EXAMPLE),
-    redis_client: Redis = Depends(get_redis_client),
-) -> dict:
-    """Handle synchronous query."""
-    # parse requested workflow
-    query_dict = query.dict()
-    workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
-    if not isinstance(workflow, list):
-        raise HTTPException(400, "workflow must be a list")
-    if not len(workflow) == 1:
-        raise HTTPException(400, "workflow must contain exactly 1 operation")
-    if "id" not in workflow[0]:
-        raise HTTPException(400, "workflow must have property 'id'")
-    if workflow[0]["id"] == "filter_results_top_n":
-        max_results = workflow[0]["parameters"]["max_results"]
-        if max_results < len(query_dict["message"]["results"]):
-            query_dict["message"]["results"] = query_dict["message"]["results"][
-                :max_results
-            ]
-        return query_dict
-    if not workflow[0]["id"] == "lookup":
-        raise HTTPException(400, "operations must have id 'lookup'")
-
-    query_results = {}
-    try:
-        query_results = await asyncio.wait_for(
-            lookup(query_dict, redis_client), timeout=max_process_time
-        )
-    except asyncio.TimeoutError:
-        LOGGER.warning("Process cancelled due to timeout.")
-        query_results = {
-            "message": {},
-            "status_communication": {"strider_process_status": "timeout"},
-        }
-
-    # Return results
-    return JSONResponse(query_results)
-
-
-APP.mount("/static", StaticFiles(directory="static"), name="static")
-
-
-@APP.get("/docs", include_in_schema=False)
-async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
-    """Customize Swagger UI."""
-    root_path = req.scope.get("root_path", "").rstrip("/")
-    openapi_url = root_path + APP.openapi_url
-    swagger_favicon_url = root_path + "/static/favicon.svg"
-    return get_swagger_ui_html(
-        openapi_url=openapi_url,
-        title=APP.title + " - Swagger UI",
-        oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
-        swagger_favicon_url=swagger_favicon_url,
-    )
-
-
-@APP.post("/asyncquery", response_model=ReasonerResponse)
-async def async_query(
-    background_tasks: BackgroundTasks,
-    query: AsyncQuery = Body(..., example=AEXAMPLE),
-    redis_client: Redis = Depends(get_redis_client),
-):
-    """Handle asynchronous query."""
-    # parse requested workflow
-    query_dict = query.dict()
-    callback = query_dict["callback"]
-    workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
-    if not isinstance(workflow, list):
-        raise HTTPException(400, "workflow must be a list")
-    if not len(workflow) == 1:
-        raise HTTPException(400, "workflow must contain exactly 1 operation")
-    if "id" not in workflow[0]:
-        raise HTTPException(400, "workflow must have property 'id'")
-    if workflow[0]["id"] == "filter_results_top_n":
-        max_results = workflow[0]["parameters"]["max_results"]
-        if max_results < len(query_dict["message"]["results"]):
-            query_dict["message"]["results"] = query_dict["message"]["results"][
-                :max_results
-            ]
-        return query_dict
-    if not workflow[0]["id"] == "lookup":
-        raise HTTPException(400, "operations must have id 'lookup'")
-
-    background_tasks.add_task(async_lookup, callback, query_dict, redis_client)
-
-    return
-
-
-def parse_bindings(bindings):
-    """Parse bindings into message format."""
-    kgraph = {
-        "nodes": dict(),
-        "edges": dict(),
-    }
-    result = {
-        "node_bindings": [],
-        "edge_bindings": [],
-    }
-    for key, element in bindings.items():
-        if key.startswith("_"):
-            result[key[1:]] = element
-            continue
-        kid = element.pop("kid")
-        qid = element.pop("qid")
-        element.pop("kid_qid", None)
-        if key.startswith("e_"):
-            result["edge_bindings"].append(
-                {
-                    "qg_id": qid,
-                    "kg_id": kid,
-                }
-            )
-            kgraph["edges"][kid] = {
-                "id": kid,
-                **element,
-            }
-        else:
-            result["node_bindings"].append(
-                {
-                    "qg_id": qid,
-                    "kg_id": kid,
-                }
-            )
-            kgraph["nodes"][kid] = {
-                "id": kid,
-                **element,
-            }
-    return result, kgraph
-
-
-async def extract_results(query_id, since, limit, offset, database):
-    """Extract results from database."""
-    statement = f'SELECT * FROM "{query_id}"'
-    if since is not None:
-        statement += f" WHERE _timestamp >= {since}"
-    statement += " ORDER BY _timestamp ASC"
-    if limit is not None:
-        statement += f" LIMIT {limit}"
-    if offset:
-        statement += f" OFFSET {offset}"
-    rows = await database.execute(statement)
-    return [
-        tuple(json.loads(value) if isinstance(value, str) else value for value in row)
-        for row in rows
-    ]
-
-
-@APP.post("/plan", response_model=dict[str, list[str]])
+@APP.post("/plan", response_model=dict[str, list[str]], include_in_schema=False)
 async def generate_traversal_plan(
     query: Query,
 ) -> list[list[str]]:
@@ -573,11 +508,15 @@ async def generate_traversal_plan(
     return plan
 
 
-@APP.post("/score", response_model=Message)
+@APP.post("/score", response_model=Message, include_in_schema=False)
 async def score_results(
     query: Query,
 ) -> Message:
-    """Score results."""
+    """
+    Score results.
+    
+    TODO: Either fix or remove, doesn't work currently
+    """
     message = query.message.dict()
     identifiers = {
         knode["id"]: knode.get("equivalent_identifiers", [])
@@ -606,36 +545,3 @@ async def score_results(
             message["query_graph"],
         )
     return message
-
-
-@APP.post("/multiquery", response_model=dict[str, ReasonerResponse])
-async def multi_query(
-    background_tasks: BackgroundTasks,
-    multiquery: dict[str, AsyncQuery] = Body(..., example=MEXAMPLE),
-    redis_client: Redis = Depends(get_redis_client),
-):
-    """Handles multiple queries. Queries are sent back to a callback url as a dict with keys corresponding to keys of original query."""
-    query_keys = list(multiquery.keys())
-    callback = multiquery[query_keys[0]].dict().get("callback")
-    if not callback:
-        raise HTTPException(400, "callback url must be specified")
-    queries = {}
-    for query in query_keys:
-        query_dict = multiquery[query].dict()
-        query_callback = query_dict["callback"]
-        workflow = query_dict.get("workflow", None) or [{"id": "lookup"}]
-        if not isinstance(workflow, list):
-            raise HTTPException(400, "workflow must be a list")
-        if not len(workflow) == 1:
-            raise HTTPException(400, "workflow must contain exactly 1 operation")
-        if "id" not in workflow[0]:
-            raise HTTPException(400, "workflow must have property 'id'")
-        if not workflow[0]["id"] == "lookup":
-            raise HTTPException(400, "operations must have id 'lookup'")
-        if query_callback != callback:
-            raise HTTPException(400, "callback url for all queries must be the same")
-        queries[query] = query_dict
-
-    background_tasks.add_task(multi_lookup, callback, queries, query_keys, redis_client)
-
-    return

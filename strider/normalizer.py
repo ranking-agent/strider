@@ -1,6 +1,5 @@
 import logging
 from strider.util import StriderRequestError, post_json
-import httpx
 
 
 class Normalizer:

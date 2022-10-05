@@ -3,10 +3,11 @@ import asyncio
 from itertools import combinations
 import json
 import logging
-import os
 
 import httpx
 import numpy as np
+
+from .config import settings
 
 LOGGER = logging.getLogger(__name__)
 OMNICORP_RETRIES = 5
