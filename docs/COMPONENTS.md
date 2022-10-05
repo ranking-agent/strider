@@ -27,7 +27,7 @@
 * `results.py` **probably obsolete**
 * `scoring.py` **probably obsolete**
 * `server.py` builds the [FastAPI](https://fastapi.tiangolo.com/) server and endpoints
-* `storage.py` defines interfaces for accessing and manipulating Redis storage
+<!-- * `storage.py` defines interfaces for accessing and manipulating Redis storage -->
 * `trapi_openapi.py` defines the TRAPI subclass of FastAPI to add the common TRAPI elements to the OpenAPI schema
 * `trapi.py` defines utilities for TRAPI messages, including normalizing and merging
 * `traversal.py` contains code for verifying that a query graph can be solved with the KPs available (traversable)

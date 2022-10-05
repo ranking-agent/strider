@@ -5,12 +5,7 @@ services:
     image: strider
     build:
       context: .
-    environment:
-      REDIS_URL: redis://redis
     volumes:
       - ./logs:/home/murphy/logs
     ports:
       - '5781:5781'
-  redis:
-    build:
-      context: redis/

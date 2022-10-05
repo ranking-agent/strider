@@ -47,14 +47,12 @@ A docker-compose file is included for easy deployment. To use, you also must set
 
 * `KPREGISTRY_URL` - The url for an independent KP registry server (https://github.com/ranking-agent/kp_registry).
 * `OMNICORP_URL` - The url for an independent omnicorp server.
-* `REDIS_URL` - The url for an independent redis database server.
 * `OPENAPI_SERVER_URL` - The url at which _this_ Strider instance will be accessible - for the purpose of generating a portable OpenAPI schema, e.g. for use with the [SmartAPI registry](https://smart-api.info/registry?q=strider).
 
 example:
 ```
 KPREGISTRY_URL=http://robokop.renci.org:4983
 OMNICORP_URL=http://robokop.renci.org:3210
-REDIS_URL=redis://localhost
 OPENAPI_SERVER_URL=https://strider.renci.org/1.1
 ```
 
