@@ -50,7 +50,7 @@ async def count_pubs(*curies):
     """Count pubs shared by curies."""
     url = f"{settings.omnicorp_url}/shared?"
     params = {"curie": curies}
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         for _ in range(OMNICORP_RETRIES):
             try:
                 response = await client.get(
