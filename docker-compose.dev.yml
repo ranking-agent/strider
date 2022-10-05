@@ -3,7 +3,7 @@ version: '3'
 services:
   # Run our own kp-registry
   kp-registry:
-    image: ghcr.io/ranking-agent/kp-registry:v2.2.0
+    image: ghcr.io/ranking-agent/kp-registry:v2.5.0
     volumes:
       - ./data:/app/data
     ports:
@@ -15,10 +15,3 @@ services:
     command: --bind 0.0.0.0:5781 --reload
     environment:
       KPREGISTRY_URL: ${KPREGISTRY_URL:-http://kp-registry:4983}
-  # Redis debugging UI 
-  redis-commander:
-    image: rediscommander/redis-commander:latest
-    environment:
-      REDIS_HOSTS: local:redis:6379
-    ports:
-      - "8081:8081"
