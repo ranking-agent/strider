@@ -18,9 +18,9 @@ handlers:
     backupCount: 9
 loggers:
   strider:
-      level: DEBUG
-      handlers:
-        - console
-        - file
+    level: DEBUG
+    handlers:
+      - console
+      - file
 incremental: false
 disable_existing_loggers: false
