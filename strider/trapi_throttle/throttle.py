@@ -226,11 +226,10 @@ class ThrottledServer:
                 merged_request_value = merged_request_value.dict()
                 merged_request_value["submitter"] = "infores:aragorn"
                 merged_request_value = remove_null_values(merged_request_value)
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
                     response = await client.post(
                         self.url,
                         json=merged_request_value,
-                        timeout=self.timeout,
                     )
                 if response.status_code == 429:
                     # reset TAT

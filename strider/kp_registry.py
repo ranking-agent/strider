@@ -36,7 +36,7 @@ class Registry:
 
     async def get_all(self):
         """Get all KPs."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{self.url}/kps",
             )
@@ -45,7 +45,7 @@ class Registry:
 
     async def get_one(self, url):
         """Get a specific KP."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{self.url}/kps/{url}",
             )
@@ -59,13 +59,16 @@ class Registry:
         #     kp.name: await kp.get_operations()
         #     for kp in kps
         # }
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{self.url}/kps", json=kps)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{self.url}/kps",
+                json=kps,
+            )
             assert response.status_code < 300
 
     async def delete_one(self, url):
         """Delete a specific KP."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.delete(
                 f"{self.url}/kps/{url}",
             )
@@ -149,7 +152,7 @@ class Registry:
 
     async def delete_all(self):
         """Delete all KPs."""
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{self.url}/clear",
             )
