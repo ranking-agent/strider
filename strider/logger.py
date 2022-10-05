@@ -44,6 +44,8 @@ class QueryLogHandler(logging.Handler):
         return self.log_queue
 
 
+# Create unique logger for each query
+# https://stackoverflow.com/a/37967421
 class QueryLogger(object):
     """Query-specific logger."""
 
