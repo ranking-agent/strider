@@ -5,7 +5,7 @@ certifi==2022.9.24
 coverage==6.5.0
 h11==0.12.0
 httpcore==0.13.7
-httpx==0.18.2
+httpx==0.23.0
 idna==3.4
 iniconfig==1.1.1
 kp-registry @ git+https://github.com/ranking-agent/kp_registry@be6d4b0503b02d6c16b3660d03b445fb3303df14
