@@ -500,3 +500,34 @@ def get_message_stats(m):
         len(nb_list) for r in m["results"] for nb_list in r["node_bindings"].values()
     )
     return stats
+
+
+def get_kp_operations_queries(
+    subject_categories: Union[str, list[str]] = None,
+    predicates: Union[str, list[str]] = None,
+    object_categories: Union[str, list[str]] = None,
+):
+    """Build queries to send to kp registry."""
+    if isinstance(subject_categories, str):
+        subject_categories = [subject_categories]
+    if isinstance(predicates, str):
+        predicates = [predicates]
+    if isinstance(object_categories, str):
+        object_categories = [object_categories]
+    subject_categories = [
+        desc for cat in subject_categories for desc in WBMT.get_descendants(cat)
+    ]
+    predicates = [
+        desc for pred in predicates for desc in WBMT.get_descendants(pred)
+    ]
+    inverse_predicates = [
+        desc
+        for pred in predicates
+        if (inverse := WBMT.predicate_inverse(pred))
+        for desc in WBMT.get_descendants(inverse)
+    ]
+    object_categories = [
+        desc for cat in object_categories for desc in WBMT.get_descendants(cat)
+    ]
+
+    return subject_categories, object_categories, predicates, inverse_predicates

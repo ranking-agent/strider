@@ -7,7 +7,7 @@ import traceback
 import pprint
 import asyncio
 
-from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request, status
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -21,8 +21,10 @@ from reasoner_pydantic.message import Result
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
 
+from kp_registry import Registry
 from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse
 
+from .caching import save_kp_registry, get_registry_lock, remove_registry_lock
 from .fetcher import Binder
 from .node_sets import collapse_sets
 from .query_planner import NoAnswersError, generate_plan
@@ -34,6 +36,7 @@ from .logger import QueryLogger
 
 setup_logging()
 LOGGER = logging.getLogger(__name__)
+registry = Registry()
 
 DESCRIPTION = """
 <img src="/static/favicon.svg" width="200px">
@@ -127,6 +130,8 @@ APP.middleware("http")(catch_exceptions_middleware)
 async def print_config():
     pretty_config = pprint.pformat(settings.dict())
     LOGGER.info(f" App Configuration:\n {pretty_config}")
+    if not settings.offline_mode:
+        await reload_kp_registry()
 
 
 APP.mount("/static", StaticFiles(directory="static"), name="static")
@@ -144,6 +149,23 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
         oauth2_redirect_url=APP.swagger_ui_oauth2_redirect_url,
         swagger_favicon_url=swagger_favicon_url,
     )
+
+
+async def reload_kp_registry():
+    """Reload the kp registry and store in cache."""
+    if await get_registry_lock():
+        LOGGER.info('getting registry of kps')
+        kps = await registry.retrieve_kps()
+        await save_kp_registry(kps)
+        LOGGER.info('kp registry refreshed.')
+        await remove_registry_lock()
+
+
+@APP.post('/refresh', status_code=status.HTTP_202_ACCEPTED, include_in_schema=False)
+async def refresh_kps(background_tasks: BackgroundTasks):
+    """Refresh registered KPs by consulting SmartAPI registry."""
+    background_tasks.add_task(reload_kp_registry)
+    return "Queued refresh. It will take a few seconds."
 
 
 EXAMPLE = {
@@ -349,7 +371,7 @@ async def lookup(
     binder = Binder(logger)
 
     try:
-        await binder.setup(qgraph)
+        await binder.setup(qgraph, registry)
     except NoAnswersError:
         return {
             "message": {

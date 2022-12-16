@@ -1,17 +1,8 @@
 version: '3'
 
 services:
-  # Run our own kp-registry
-  kp-registry:
-    image: ghcr.io/ranking-agent/kp-registry:v2.5.0
-    volumes:
-      - ./data:/app/data
-    ports:
-      - '4983:4983'
   # Set up reloading using volume mounts
   strider:
     volumes:
       - ./:/app
     command: --bind 0.0.0.0:5781 --reload
-    environment:
-      KPREGISTRY_URL: ${KPREGISTRY_URL:-http://kp-registry:4983}

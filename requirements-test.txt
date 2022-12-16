@@ -1,6 +1,5 @@
 asgiar==0.2.0
 httpx==0.18.2
-kp-registry @ git+https://github.com/ranking-agent/kp_registry
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1

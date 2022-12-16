@@ -1,11 +1,41 @@
-version: '3'
+version: '3.7'
 
 services:
   strider:
     image: strider
+    container_name: strider
     build:
       context: .
     volumes:
-      - ./logs:/home/murphy/logs
+      - ./logs:/app/logs
     ports:
       - '5781:5781'
+    networks:
+      - strider
+    environment:
+      REDIS_HOST: ${REDIS_HOST:-redis}
+  redis:
+    image: redis/redis-stack-server:latest
+    container_name: redis
+    build:
+      context: redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+    networks:
+      - insight
+      - strider
+    volumes:
+      - ./data:/data
+  redisinsight:
+    image: redislabs/redisinsight:latest
+    container_name: redis-insight
+    ports:
+      - '8001:8001'
+    networks:
+      - insight
+    volumes:
+      - ./data:/data
+networks:
+  insight:
+  strider:

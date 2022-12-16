@@ -3,6 +3,18 @@ import asyncio
 from collections import OrderedDict, namedtuple
 from functools import wraps
 import json
+import redis.asyncio as aioredis
+
+from strider.config import settings
+from strider.traversal import NoAnswersError
+
+
+kp_redis_pool = aioredis.ConnectionPool(
+    host=settings.redis_host,
+    port=settings.redis_port,
+    db=1,
+    # max_connections=30,
+)
 
 
 def make_key(args, kwargs):
@@ -91,3 +103,80 @@ def async_locking_cache(fcn, maxsize=32):
     wrapper.cache_info = cache_info
 
     return wrapper
+
+
+async def get_kp_onehop(kp_id, onehop):
+    """Get onehop from cache if saved."""
+    client = await aioredis.Redis(
+        connection_pool=onehop_redis_pool,
+        # retry=retry,
+        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        max_connections=30,
+    )
+    response = await client.get(f"{kp_id}:{json.dumps(onehop)}")
+    print('closing client')
+    await client.close()
+    if response is not None:
+        response = json.loads(response)
+    return response
+
+
+async def save_kp_onehop(kp_id, onehop, response):
+    """Cache a kp onehop."""
+    client = await aioredis.Redis(
+        connection_pool=onehop_redis_pool,
+        # retry=retry,
+        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        max_connections=30,
+    )
+    key = f"{kp_id}:{json.dumps(onehop)}"
+    await client.setex(key, settings.redis_expiration, json.dumps(response))
+    print('closing client')
+    await client.close()
+
+
+async def save_kp_registry(kps):
+    """Cache a registry of all kps."""
+    client = await aioredis.Redis(connection_pool=kp_redis_pool)
+    await client.set('kps', json.dumps(kps))
+    await client.close()
+
+
+async def get_kp_registry():
+    """Get the registry of kps from cache."""
+    client = await aioredis.Redis(
+        connection_pool=kp_redis_pool,
+        # retry=retry,
+        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        max_connections=30,
+    )
+    response = await client.get('kps')
+    print('closing client')
+    await client.close()
+    if response is None:
+        raise NoAnswersError("Failed to get kp registry from cache.")
+    return json.loads(response)
+
+
+async def get_registry_lock():
+    """Lock registry lookup so only one worker will retrieve."""
+    client = await aioredis.Redis(connection_pool=kp_redis_pool)
+    locked = await client.get('locked')
+    if locked is None:
+        await client.setex('locked', 360, 1)
+        print('closing client')
+        await client.close()
+        return True
+    print('closing client')
+    await client.close()
+    return False
+
+
+async def remove_registry_lock():
+    """Remove lock from registry."""
+    client = await aioredis.Redis(connection_pool=kp_redis_pool)
+    await client.delete('locked')
+    print('closing client')
+    await client.close()
+
+

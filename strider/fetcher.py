@@ -12,6 +12,7 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 from collections import defaultdict
 from collections.abc import Iterable
 import copy
+import json
 from json.decoder import JSONDecodeError
 import logging
 
@@ -21,6 +22,7 @@ from typing import Callable, Optional, List
 import aiostream
 import httpx
 import pydantic
+from kp_registry import Registry
 from reasoner_pydantic import MetaKnowledgeGraph, Message
 
 from .trapi_throttle.throttle import ThrottledServer
@@ -32,9 +34,9 @@ from .trapi import (
     fill_categories_predicates,
 )
 from .query_planner import generate_plan, get_next_qedge
-from .kp_registry import Registry
 from .config import settings
 from .util import KnowledgeProvider, WBMT, batch
+from .caching import get_kp_onehop, save_kp_onehop
 
 
 _logger = logging.getLogger(__name__)
@@ -107,13 +109,22 @@ class Binder:
         """Generate one-hop results from KP."""
         # keep track of call stack for each kp plan branch
         call_stack.append(kp.id)
-        onehop_response = await kp.solve_onehop(
-            onehop_qgraph,
-        )
-        onehop_response = enforce_constraints(onehop_response)
-        onehop_kgraph = onehop_response["knowledge_graph"]
-        onehop_results = onehop_response["results"]
-        qedge_id = next(iter(onehop_qgraph["edges"].keys()))
+        onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
+        if onehop_response is None and not settings.offline_mode:
+            # onehop not in cache, have to go get response
+            self.logger.info(f"Need to get onehop for: {kp.id}:{json.dumps(onehop_qgraph)}")
+            onehop_response = await kp.solve_onehop(
+                onehop_qgraph,
+            )
+            await save_kp_onehop(kp.id, onehop_qgraph, onehop_response)
+        if onehop_response is None:
+            # Offline mode and query wasn't cached, just continue
+            onehop_results = []
+        else:
+            onehop_response = enforce_constraints(onehop_response)
+            onehop_kgraph = onehop_response["knowledge_graph"]
+            onehop_results = onehop_response["results"]
+            qedge_id = next(iter(onehop_qgraph["edges"].keys()))
         generators = []
 
         if onehop_results:
@@ -230,6 +241,7 @@ class Binder:
     async def setup(
         self,
         qgraph: dict,
+        registry: Registry,
     ):
         """Set up."""
 
@@ -246,65 +258,19 @@ class Binder:
         # Fill in missing categories and predicates using normalizer
         await fill_categories_predicates(self.qgraph, self.logger)
 
-        # Initialize registry
-        registry = Registry(settings.kpregistry_url, self.logger)
-
         # Generate traversal plan
         self.plan, kps = await generate_plan(
             self.qgraph,
-            kp_registry=registry,
             logger=self.logger,
+            registry=registry,
         )
 
         # extract KP preferred prefixes from plan
         self.kp_preferred_prefixes = dict()
         self.portal.tservers = dict()
         for kp_id, kp in kps.items():
-            url = kp["url"][:-5] + "meta_knowledge_graph"
             try:
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    response = await client.get(
-                        url,
-                    )
-                response.raise_for_status()
-                meta_kg = response.json()
-                MetaKnowledgeGraph.parse_obj(meta_kg)
-                self.kp_preferred_prefixes[kp_id] = {
-                    category: data["id_prefixes"]
-                    for category, data in meta_kg["nodes"].items()
-                }
-            except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as err:
-                self.logger.warning(
-                    "Unable to get meta knowledge graph from KP {}: {}".format(
-                        kp_id,
-                        str(err),
-                    ),
-                )
-                self.kp_preferred_prefixes[kp_id] = dict()
-            except httpx.HTTPStatusError as e:
-                self.logger.warning(
-                    "Received error response from /meta_knowledge_graph for KP {}: {}".format(
-                        kp_id,
-                        e.response.text,
-                    ),
-                )
-                self.kp_preferred_prefixes[kp_id] = dict()
-            except JSONDecodeError as err:
-                self.logger.warning(
-                    "Unable to parse meta knowledge graph from KP {}: {}".format(
-                        kp_id,
-                        str(err),
-                    ),
-                )
-                self.kp_preferred_prefixes[kp_id] = dict()
-            except pydantic.ValidationError as err:
-                self.logger.warning(
-                    "Meta knowledge graph from KP {} is non-compliant: {}".format(
-                        kp_id,
-                        str(err),
-                    ),
-                )
-                self.kp_preferred_prefixes[kp_id] = dict()
+                self.kp_preferred_prefixes[kp_id] = kp['details']['preferred_prefixes']
             except Exception as err:
                 self.logger.warning(
                     "Something went wrong while parsing meta knowledge graph from KP {}: {}".format(

@@ -3,6 +3,5 @@ version: '3'
 services:
   strider:
     environment:
-      KPREGISTRY_URL: ${KPREGISTRY_URL}
       BIOLINK_URL:    ${BIOLINK_URL}
       OMNICORP_URL:   ${OMNICORP_URL}
