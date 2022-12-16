@@ -7,14 +7,17 @@ class Settings(BaseSettings):
     openapi_server_url: Optional[AnyUrl]
     openapi_server_maturity: str = "development"
     openapi_server_location: str = "RENCI"
-    kpregistry_url: AnyUrl = "https://kp-registry.renci.org"
     omnicorp_url: AnyUrl = "http://robokop.renci.org:3210"
     biolink_url: AnyUrl = "https://bl-lookup-sri.renci.org"
     normalizer_url: AnyUrl = "https://nodenormalization-sri.renci.org"
     max_process_time: int = 3400
+    redis_host: str = "localhost"
+    redis_port: int = 6379
+    redis_expiration: int = 604800 # one week
 
     profiler: bool = False
     use_cache: bool = True
+    offline_mode: bool = False
 
     class Config:
         env_file = ".env"

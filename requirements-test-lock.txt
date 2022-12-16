@@ -8,7 +8,6 @@ httpcore==0.13.7
 httpx==0.18.2
 idna==3.4
 iniconfig==1.1.1
-kp-registry @ git+https://github.com/ranking-agent/kp_registry@be6d4b0503b02d6c16b3660d03b445fb3303df14
 orjson==3.6.0
 packaging==21.3
 pluggy==0.13.1

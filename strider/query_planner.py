@@ -1,16 +1,15 @@
 """Query planner."""
 from collections import defaultdict, namedtuple
-import logging
 import copy
+from itertools import chain
+import logging
 import math
 from typing import Generator
 
-from reasoner_pydantic import QueryGraph
-
-from strider.kp_registry import Registry
+from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
-from strider.util import KnowledgeProvider
+from strider.util import KnowledgeProvider, get_kp_operations_queries, StriderRequestError
 
 LOGGER = logging.getLogger(__name__)
 
@@ -141,11 +140,74 @@ def ensure_traversal_connected(graph, path):
     # path_nodes + pinned_nodes must cover all nodes in the graph
     return pinned_nodes | path_nodes == graph_nodes
 
+def search(
+    registry,
+    subject_category,
+    predicate,
+    object_category,
+    maturity,
+    **kwargs,
+):
+    """Search for KPs matching a pattern."""
+    # maturity is list of enums
+    allowed_maturity = list(maturity)
+    kps = {}
+    for kp, val in registry.items():
+        if val["maturity"] not in allowed_maturity:
+            # maturity not allowed, skipping
+            continue
+        kp_name = val["infores"]
+        for operation in val["operations"]:
+            if (
+                any(
+                    category == operation["subject_category"]
+                    for category in subject_category
+                )
+                and any(
+                    predicate == operation["predicate"] for predicate in predicate
+                )
+                and any(
+                    category == operation["object_category"]
+                    for category in object_category
+                )
+            ):
+                if kp_name not in kps:
+                    kps[kp_name] = {
+                        "url": val["url"],
+                        "title": kp,
+                        "infores": val["infores"],
+                        "maturity": val["maturity"],
+                        "operations": [],
+                        "details": copy.deepcopy(val["details"]),
+                    }
+                else:
+                    existing_maturity = allowed_maturity.index(
+                        kps[kp_name]["maturity"]
+                    )
+                    new_maturity = allowed_maturity.index(val["maturity"])
+                    if new_maturity < existing_maturity:
+                        kps[kp_name] = {
+                            "url": val["url"],
+                            "title": kp,
+                            "infores": val["infores"],
+                            "maturity": val["maturity"],
+                            "operations": [],
+                            "details": copy.deepcopy(val["details"]),
+                        }
+                    elif new_maturity > existing_maturity:
+                        # worse kp maturity, skip
+                        continue
+                kps[kp_name]["operations"].append(operation.copy())
+
+    # switch keys from infores to title
+    kps = {val["title"]: kps[key] for key, val in kps.items()}
+    return kps
+
 
 async def generate_plan(
     qgraph: dict,
-    kp_registry: Registry = None,
     logger: logging.Logger = None,
+    registry = None,
 ) -> tuple[dict[str, list[str]], dict[str, KnowledgeProvider]]:
     """Generate traversal plan."""
     # check that qgraph is traversable
@@ -153,22 +215,56 @@ async def generate_plan(
 
     if logger is None:
         logger = logging.getLogger(__name__)
-    if kp_registry is None:
-        kp_registry = Registry(settings.kpregistry_url)
     kps = dict()
     plan = dict()
+    if settings.openapi_server_maturity == "development":
+        maturity = ["development", "production"]
+    else:
+        maturity = ["production", "development"]
+    registry = await get_kp_registry()
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
         provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
             "provided_by", {}
         )
-        kp_results = await kp_registry.search(
+        subject_categories, object_categories, predicates, inverse_predicates = get_kp_operations_queries(
             qgraph["nodes"][qedge["subject"]]["categories"],
             qedge["predicates"],
             qgraph["nodes"][qedge["object"]]["categories"],
-            allowlist=provided_by["allowlist"],
-            denylist=provided_by["denylist"],
         )
+        try:
+            direct_kps = search(
+                registry,
+                subject_categories,
+                predicates,
+                object_categories,
+                maturity,
+            )
+        except StriderRequestError:
+            logger.error("Failed to get kps from registry.")
+            return {}
+        if inverse_predicates:
+            try:
+                inverse_kps = search(
+                    registry,
+                    subject_categories,
+                    inverse_predicates,
+                    object_categories,
+                    maturity,
+                )
+            except StriderRequestError:
+                logger.error("Failed to get kps from registry.")
+                return {}
+        else:
+            inverse_kps = dict()
+        kp_results = {
+            kpid: details
+            for kpid, details in chain(*(direct_kps.items(), inverse_kps.items()))
+            if (
+                (provided_by["allowlist"] is None or kpid in provided_by["allowlist"])
+                and (provided_by["denylist"] is None or kpid not in provided_by["denylist"])
+            )
+        }
         if not kp_results:
             msg = f"No KPs for qedge '{qedge_id}'"
             logger.info(msg)
