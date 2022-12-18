@@ -281,6 +281,12 @@ async def sync_query(
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
+    except Exception as e:
+        LOGGER.warning(f"Sync query failed unexpectedly: {e}")
+        query_results = {
+            "message": {},
+            "status_communication": {"strider_process_status": "error"},
+        }
 
     # Return results
     LOGGER.info("Returning sync query")
@@ -464,6 +470,12 @@ async def async_lookup(
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
+    except Exception as e:
+        LOGGER.warning(f"[{qid}]: Query failed unexpectedly: {e}")
+        query_results = {
+            "message": {},
+            "status_communication": {"strider_process_status": "error"},
+        }
     try:
         LOGGER.info(f"Posting to callback {callback}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
@@ -487,6 +499,12 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
             query_result = {
                 "message": {},
                 "status_communication": {"strider_process_status": "timeout"},
+            }
+        except Exception as e:
+            LOGGER.warning(f"[{qid}]: Query failed unexpectedly: {e}")
+            query_result = {
+                "message": {},
+                "status_communication": {"strider_process_status": "error"},
             }
         try:
             async with httpx.AsyncClient(
