@@ -21,6 +21,12 @@ kp_redis_pool = aioredis.ConnectionPool(
     db=1,
     # max_connections=30,
 )
+post_request_redis_pool = aioredis.ConnectionPool(
+    host=settings.redis_host,
+    port=settings.redis_port,
+    db=2,
+    # max_connections=30,
+)
 
 
 def make_key(args, kwargs):
@@ -186,3 +192,31 @@ async def remove_registry_lock():
     await client.close()
 
 
+async def save_post_request(url, request, response):
+    """Save response from post request in cache."""
+    client = await aioredis.Redis(
+        connection_pool=post_request_redis_pool,
+        # retry=retry,
+        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        max_connections=30,
+    )
+    key = f'{{"{url}":{json.dumps(request)}}}'
+    await client.setex(key, settings.redis_expiration, json.dumps(response))
+    print('closing client')
+    await client.close()
+
+
+async def get_post_response(url, request):
+    """Get post response from cache."""
+    client = await aioredis.Redis(
+        connection_pool=post_request_redis_pool,
+        # retry=retry,
+        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        max_connections=30,
+    )
+    response = await client.get(f'{{"{url}":{json.dumps(request)}}}')
+    print('closing client')
+    await client.close()
+    if response is not None:
+        response = json.loads(response)
+    return response

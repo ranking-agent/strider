@@ -17,6 +17,7 @@ from .util import (
     remove_null_values,
     log_response,
     log_request,
+    post_json,
 )
 from .trapi import apply_curie_map, get_curies
 from .config import settings
@@ -204,42 +205,24 @@ class Synonymizer:
     async def load_curies(self, *curies: list[str]):
         """Load CURIES into map."""
         # get all curie synonyms
-        url_base = f"{settings.normalizer_url}/get_normalized_nodes"
         try:
-            async with httpx.AsyncClient(timeout=60 * 5) as client:
-                response = await client.post(
-                    url_base,
-                    json={"curies": list(curies)},
-                )
-                response.raise_for_status()
-        except httpx.RequestError as e:
-            # Log error
-            self.logger.warning(
-                {
-                    "message": "RequestError contacting normalizer. Results may be incomplete",
-                    "request": log_request(e.request),
-                    "error": str(e),
-                }
+            response = await post_json(
+                f"{settings.normalizer_url}/get_normalized_nodes",
+                {"curies": curies},
+                self.logger,
+                "Node Normalizer",
             )
+        except StriderRequestError:
             return
-        except httpx.HTTPStatusError as e:
-            # Log error with response
-            self.logger.warning(
-                {
-                    "message": "Error contacting normalizer. Results may be incomplete",
-                    "request": log_request(e.request),
-                    "response": e.response.text,
-                    "error": str(e),
-                }
-            )
-            return
+        except Exception as e:
+            self.logger.error(e)
 
         entities = [
             Entity(
                 entity["type"],
                 [synonym["identifier"] for synonym in entity["equivalent_identifiers"]],
             )
-            for entity in response.json().values()
+            for entity in response.values()
             if entity
         ]
         self._data |= {
