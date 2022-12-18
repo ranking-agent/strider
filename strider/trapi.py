@@ -318,8 +318,6 @@ async def fill_categories_predicates(
         if ("categories" not in node) or (node["categories"] is None):
             node["categories"] = ["biolink:NamedThing"]
 
-    logger.debug("Contacting node normalizer to get categories for curies")
-
     # Use node normalizer to add
     # a category to nodes with a curie
     for node in qg["nodes"].values():

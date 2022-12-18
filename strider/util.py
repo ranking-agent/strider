@@ -13,6 +13,8 @@ import yaml
 import bmt
 from bmt import Toolkit as BMToolkit
 import logging.config
+from strider.caching import save_post_request, get_post_response
+from strider.config import settings
 
 
 def camel_to_snake(s, sep=" "):
@@ -158,52 +160,69 @@ async def post_json(url, request, logger, log_name):
     """
     Make post request and write errors to log if present
     """
-    try:
-        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
-            response = await client.post(
-                url,
-                json=request,
+    response = await get_post_response(url, request)
+    if response is not None or settings.offline_mode:
+        return response
+    elif settings.offline_mode:
+        return {}
+    else:
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+                logger.debug(f"Sending request to {url}")
+                response = await client.post(
+                    url,
+                    json=request,
+                )
+                response.raise_for_status()
+                response = response.json()
+                await save_post_request(url, request, response)
+                return response
+        except httpx.ReadTimeout as e:
+            logger.warning(
+                {
+                    "message": f"{log_name} took >60 seconds to respond",
+                    "error": str(e),
+                    "request": log_request(e.request),
+                }
             )
-            response.raise_for_status()
-            return response.json()
-    except httpx.ReadTimeout as e:
-        logger.warning(
-            {
-                "message": f"{log_name} took >60 seconds to respond",
-                "error": str(e),
-                "request": log_request(e.request),
-            }
-        )
-    except httpx.RequestError as e:
-        # Log error
-        logger.warning(
-            {
-                "message": f"Request Error contacting {log_name}",
-                "error": str(e),
-                "request": log_request(e.request),
-            }
-        )
-    except httpx.HTTPStatusError as e:
-        # Log error with response
-        logger.warning(
-            {
-                "message": f"Response Error contacting {log_name}",
-                "error": str(e),
-                "request": log_request(e.request),
-                "response": log_response(e.response),
-            }
-        )
-    except JSONDecodeError as e:
-        # Log error with response
-        logger.warning(
-            {
-                "message": f"Received bad JSON data from {log_name}",
-                "request": e.request,
-                "response": e.response.text,
-                "error": str(e),
-            }
-        )
-    raise StriderRequestError
+        except httpx.RequestError as e:
+            # Log error
+            logger.warning(
+                {
+                    "message": f"Request Error contacting {log_name}",
+                    "error": str(e),
+                    "request": log_request(e.request),
+                }
+            )
+        except httpx.HTTPStatusError as e:
+            # Log error with response
+            logger.warning(
+                {
+                    "message": f"Response Error contacting {log_name}",
+                    "error": str(e),
+                    "request": log_request(e.request),
+                    "response": log_response(e.response),
+                }
+            )
+        except JSONDecodeError as e:
+            # Log error with response
+            logger.warning(
+                {
+                    "message": f"Received bad JSON data from {log_name}",
+                    "request": e.request,
+                    "response": e.response.text,
+                    "error": str(e),
+                }
+            )
+        except Exception as e:
+            # General catch all
+            logger.warning(
+                {
+                    "message": f"Something went wrong when contacting {log_name}.",
+                    "error": str(e),
+                }
+            )
+        raise StriderRequestError
 
 
 class KnowledgeProvider:
