@@ -271,17 +271,19 @@ async def sync_query(
 
     query_results = {}
     try:
-        query_results = await asyncio.wait_for(
+        LOGGER.info("Starting sync query")
+        _, query_results = await asyncio.wait_for(
             lookup(query_dict), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.warning("Process cancelled due to timeout.")
+        LOGGER.warning("Sync query cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
 
     # Return results
+    LOGGER.info("Returning sync query")
     return JSONResponse(query_results)
 
 
@@ -373,7 +375,7 @@ async def lookup(
     try:
         await binder.setup(qgraph, registry)
     except NoAnswersError:
-        return {
+        return qid, {
             "message": {
                 "query_graph": qgraph,
                 "knowledge_graph": {"nodes": {}, "edges": {}},
@@ -443,7 +445,7 @@ async def lookup(
     output_query.message = Message.parse_obj(message_dict)
 
     output_query.logs = list(log_handler.contents())
-    return output_query.dict()
+    return qid, output_query.dict()
 
 
 async def async_lookup(
@@ -453,11 +455,11 @@ async def async_lookup(
     """Perform lookup and send results to callback url"""
     query_results = {}
     try:
-        query_results = await asyncio.wait_for(
+        qid, query_results = await asyncio.wait_for(
             lookup(query_dict), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.warning("Process cancelled due to timeout.")
+        LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
@@ -477,11 +479,11 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
     async def single_lookup(query_key):
         query_result = {}
         try:
-            query_result = await asyncio.wait_for(
+            qid, query_result = await asyncio.wait_for(
                 lookup(queries[query_key]), timeout=max_process_time
             )
         except asyncio.TimeoutError:
-            LOGGER.warning("Process cancelled due to timeout.")
+            LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
             query_result = {
                 "message": {},
                 "status_communication": {"strider_process_status": "timeout"},
@@ -492,10 +494,10 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
             ) as client:
                 callback_response = await client.post(callback, json=query_result)
                 LOGGER.info(
-                    f"Called back to {callback}. Status={callback_response.status_code}"
+                    f"[{qid}]: Called back to {callback}. Status={callback_response.status_code}"
                 )
         except Exception as e:
-            LOGGER.error(f"Callback to {callback} failed with: {e}")
+            LOGGER.error(f"[{qid}]: Callback to {callback} failed with: {e}")
         return query_result
 
     await asyncio.gather(*map(single_lookup, query_keys), return_exceptions=True)
