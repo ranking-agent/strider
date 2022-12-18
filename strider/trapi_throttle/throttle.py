@@ -232,9 +232,13 @@ class ThrottledServer:
                         json=merged_request_value,
                     )
                 if response.status_code == 429:
-                    # reset TAT
-                    interval = self.request_duration / self.request_qty
-                    tat = datetime.datetime.utcnow() + interval
+                    time_to_sleep = 65
+                    self.logger.info(
+                        "[{id}] Too Many Requests. Trying again in {tts} seconds.".format(
+                            id=self.id,
+                            tts=time_to_sleep,
+                        )
+                    )
                     # re-queue requests
                     for request_id in request_value_mapping:
                         await self.request_queue.put(
@@ -248,6 +252,7 @@ class ThrottledServer:
                             )
                         )
                     # try again later
+                    await asyncio.sleep(time_to_sleep)
                     continue
 
                 response.raise_for_status()
