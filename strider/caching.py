@@ -9,6 +9,12 @@ from strider.config import settings
 from strider.traversal import NoAnswersError
 
 
+onehop_redis_pool = aioredis.ConnectionPool(
+    host=settings.redis_host,
+    port=settings.redis_port,
+    db=0,
+    # max_connections=30,
+)
 kp_redis_pool = aioredis.ConnectionPool(
     host=settings.redis_host,
     port=settings.redis_port,
