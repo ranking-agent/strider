@@ -16,7 +16,7 @@ httptools==0.2.0
 httpx==0.18.2
 idna==3.4
 jsonpickle==1.4.2
-kp-registry==2.6.1
+kp-registry==3.0.0
 numpy==1.21.0
 orjson==3.6.0
 packaging==21.3
