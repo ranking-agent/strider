@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_expiration: int = 604800 # one week
+    redis_password: str = "supersecretpassword"
 
     profiler: bool = False
     use_cache: bool = True
