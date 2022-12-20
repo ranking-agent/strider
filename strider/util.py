@@ -165,7 +165,7 @@ async def post_json(url, request, logger, log_name):
         # if we got back from cache
         return response
     elif settings.offline_mode:
-        logger.debug('POST JSON: Didn\'t get anything back from cache in offline mode.')
+        logger.debug("POST JSON: Didn't get anything back from cache in offline mode.")
         # if not in cache and in offline mode
         return {}
     else:
@@ -539,9 +539,7 @@ def get_kp_operations_queries(
     subject_categories = [
         desc for cat in subject_categories for desc in WBMT.get_descendants(cat)
     ]
-    predicates = [
-        desc for pred in predicates for desc in WBMT.get_descendants(pred)
-    ]
+    predicates = [desc for pred in predicates for desc in WBMT.get_descendants(pred)]
     inverse_predicates = [
         desc
         for pred in predicates

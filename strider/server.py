@@ -151,14 +151,14 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
 async def reload_kp_registry():
     """Reload the kp registry and store in cache."""
     if await get_registry_lock():
-        LOGGER.info('getting registry of kps')
+        LOGGER.info("getting registry of kps")
         kps = await registry.retrieve_kps()
         await save_kp_registry(kps)
-        LOGGER.info('kp registry refreshed.')
+        LOGGER.info("kp registry refreshed.")
         await remove_registry_lock()
 
 
-@APP.post('/refresh', status_code=status.HTTP_202_ACCEPTED, include_in_schema=False)
+@APP.post("/refresh", status_code=status.HTTP_202_ACCEPTED, include_in_schema=False)
 async def refresh_kps(background_tasks: BackgroundTasks):
     """Refresh registered KPs by consulting SmartAPI registry."""
     background_tasks.add_task(reload_kp_registry)

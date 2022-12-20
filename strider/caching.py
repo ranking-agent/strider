@@ -148,7 +148,7 @@ async def save_kp_onehop(kp_id, onehop, response):
 async def save_kp_registry(kps):
     """Cache a registry of all kps."""
     client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    await client.set('kps', json.dumps(kps))
+    await client.set("kps", json.dumps(kps))
     await client.close()
 
 
@@ -157,7 +157,7 @@ async def get_kp_registry():
     client = await aioredis.Redis(
         connection_pool=kp_redis_pool,
     )
-    response = await client.get('kps')
+    response = await client.get("kps")
     await client.close()
     if response is None:
         raise NoAnswersError("Failed to get kp registry from cache.")
@@ -167,9 +167,9 @@ async def get_kp_registry():
 async def get_registry_lock():
     """Lock registry lookup so only one worker will retrieve."""
     client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    locked = await client.get('locked')
+    locked = await client.get("locked")
     if locked is None:
-        await client.setex('locked', 360, 1)
+        await client.setex("locked", 360, 1)
         await client.close()
         return True
     await client.close()
@@ -179,7 +179,7 @@ async def get_registry_lock():
 async def remove_registry_lock():
     """Remove lock from registry."""
     client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    await client.delete('locked')
+    await client.delete("locked")
     await client.close()
 
 

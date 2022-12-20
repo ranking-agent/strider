@@ -112,13 +112,17 @@ class Binder:
         onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
         if onehop_response is None and not settings.offline_mode:
             # onehop not in cache, have to go get response
-            self.logger.info(f"Need to get onehop for: {kp.id}:{json.dumps(onehop_qgraph)}")
+            self.logger.debug(
+                f"Need to get onehop for: {kp.id}:{json.dumps(onehop_qgraph)}"
+            )
             onehop_response = await kp.solve_onehop(
                 onehop_qgraph,
             )
             await save_kp_onehop(kp.id, onehop_qgraph, onehop_response)
         if onehop_response is None and settings.offline_mode:
-            self.logger.debug('FETCHER: Didn\'t get anything back from cache in offline mode.')
+            self.logger.debug(
+                "FETCHER: Didn't get anything back from cache in offline mode."
+            )
             # Offline mode and query wasn't cached, just continue
             onehop_results = []
         else:
@@ -271,7 +275,7 @@ class Binder:
         self.portal.tservers = dict()
         for kp_id, kp in kps.items():
             try:
-                self.kp_preferred_prefixes[kp_id] = kp['details']['preferred_prefixes']
+                self.kp_preferred_prefixes[kp_id] = kp["details"]["preferred_prefixes"]
             except Exception as err:
                 self.logger.warning(
                     "Something went wrong while parsing meta knowledge graph from KP {}: {}".format(
