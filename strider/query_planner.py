@@ -9,7 +9,11 @@ from typing import Generator
 from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
-from strider.util import KnowledgeProvider, get_kp_operations_queries, StriderRequestError
+from strider.util import (
+    KnowledgeProvider,
+    get_kp_operations_queries,
+    StriderRequestError,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -140,6 +144,7 @@ def ensure_traversal_connected(graph, path):
     # path_nodes + pinned_nodes must cover all nodes in the graph
     return pinned_nodes | path_nodes == graph_nodes
 
+
 def search(
     registry,
     subject_category,
@@ -163,9 +168,7 @@ def search(
                     category == operation["subject_category"]
                     for category in subject_category
                 )
-                and any(
-                    predicate == operation["predicate"] for predicate in predicate
-                )
+                and any(predicate == operation["predicate"] for predicate in predicate)
                 and any(
                     category == operation["object_category"]
                     for category in object_category
@@ -181,9 +184,7 @@ def search(
                         "details": copy.deepcopy(val["details"]),
                     }
                 else:
-                    existing_maturity = allowed_maturity.index(
-                        kps[kp_name]["maturity"]
-                    )
+                    existing_maturity = allowed_maturity.index(kps[kp_name]["maturity"])
                     new_maturity = allowed_maturity.index(val["maturity"])
                     if new_maturity < existing_maturity:
                         kps[kp_name] = {
@@ -207,7 +208,7 @@ def search(
 async def generate_plan(
     qgraph: dict,
     logger: logging.Logger = None,
-    registry = None,
+    registry=None,
 ) -> tuple[dict[str, list[str]], dict[str, KnowledgeProvider]]:
     """Generate traversal plan."""
     # check that qgraph is traversable
@@ -227,7 +228,12 @@ async def generate_plan(
         provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
             "provided_by", {}
         )
-        subject_categories, object_categories, predicates, inverse_predicates = get_kp_operations_queries(
+        (
+            subject_categories,
+            object_categories,
+            predicates,
+            inverse_predicates,
+        ) = get_kp_operations_queries(
             qgraph["nodes"][qedge["subject"]]["categories"],
             qedge["predicates"],
             qgraph["nodes"][qedge["object"]]["categories"],
@@ -262,7 +268,10 @@ async def generate_plan(
             for kpid, details in chain(*(direct_kps.items(), inverse_kps.items()))
             if (
                 (provided_by["allowlist"] is None or kpid in provided_by["allowlist"])
-                and (provided_by["denylist"] is None or kpid not in provided_by["denylist"])
+                and (
+                    provided_by["denylist"] is None
+                    or kpid not in provided_by["denylist"]
+                )
             )
         }
         if not kp_results:
