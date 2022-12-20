@@ -4,7 +4,6 @@ import os
 import uuid
 import logging
 import traceback
-import pprint
 import asyncio
 
 from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request, status
@@ -128,8 +127,6 @@ APP.middleware("http")(catch_exceptions_middleware)
 
 @APP.on_event("startup")
 async def print_config():
-    pretty_config = pprint.pformat(settings.dict())
-    LOGGER.info(f" App Configuration:\n {pretty_config}")
     if not settings.offline_mode:
         await reload_kp_registry()
 
