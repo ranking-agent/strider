@@ -117,7 +117,8 @@ class Binder:
                 onehop_qgraph,
             )
             await save_kp_onehop(kp.id, onehop_qgraph, onehop_response)
-        if onehop_response is None:
+        if onehop_response is None and settings.offline_mode:
+            self.logger.debug('FETCHER: Didn\'t get anything back from cache in offline mode.')
             # Offline mode and query wasn't cached, just continue
             onehop_results = []
         else:
