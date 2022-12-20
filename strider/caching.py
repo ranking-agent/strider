@@ -9,23 +9,29 @@ from strider.config import settings
 from strider.traversal import NoAnswersError
 
 
-onehop_redis_pool = aioredis.ConnectionPool(
+onehop_redis_pool = aioredis.BlockingConnectionPool(
     host=settings.redis_host,
     port=settings.redis_port,
     db=0,
-    # max_connections=30,
+    password=settings.redis_password,
+    max_connections=10,
+    timeout=600,
 )
-kp_redis_pool = aioredis.ConnectionPool(
+kp_redis_pool = aioredis.BlockingConnectionPool(
     host=settings.redis_host,
     port=settings.redis_port,
     db=1,
-    # max_connections=30,
+    password=settings.redis_password,
+    max_connections=10,
+    timeout=600,
 )
-post_request_redis_pool = aioredis.ConnectionPool(
+post_request_redis_pool = aioredis.BlockingConnectionPool(
     host=settings.redis_host,
     port=settings.redis_port,
     db=2,
-    # max_connections=30,
+    password=settings.redis_password,
+    max_connections=10,
+    timeout=600,
 )
 
 
@@ -121,12 +127,8 @@ async def get_kp_onehop(kp_id, onehop):
     """Get onehop from cache if saved."""
     client = await aioredis.Redis(
         connection_pool=onehop_redis_pool,
-        # retry=retry,
-        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        max_connections=30,
     )
     response = await client.get(f"{kp_id}:{json.dumps(onehop)}")
-    print('closing client')
     await client.close()
     if response is not None:
         response = json.loads(response)
@@ -137,13 +139,9 @@ async def save_kp_onehop(kp_id, onehop, response):
     """Cache a kp onehop."""
     client = await aioredis.Redis(
         connection_pool=onehop_redis_pool,
-        # retry=retry,
-        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        max_connections=30,
     )
     key = f"{kp_id}:{json.dumps(onehop)}"
     await client.setex(key, settings.redis_expiration, json.dumps(response))
-    print('closing client')
     await client.close()
 
 
@@ -158,12 +156,8 @@ async def get_kp_registry():
     """Get the registry of kps from cache."""
     client = await aioredis.Redis(
         connection_pool=kp_redis_pool,
-        # retry=retry,
-        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        max_connections=30,
     )
     response = await client.get('kps')
-    print('closing client')
     await client.close()
     if response is None:
         raise NoAnswersError("Failed to get kp registry from cache.")
@@ -176,10 +170,8 @@ async def get_registry_lock():
     locked = await client.get('locked')
     if locked is None:
         await client.setex('locked', 360, 1)
-        print('closing client')
         await client.close()
         return True
-    print('closing client')
     await client.close()
     return False
 
@@ -188,7 +180,6 @@ async def remove_registry_lock():
     """Remove lock from registry."""
     client = await aioredis.Redis(connection_pool=kp_redis_pool)
     await client.delete('locked')
-    print('closing client')
     await client.close()
 
 
@@ -196,13 +187,9 @@ async def save_post_request(url, request, response):
     """Save response from post request in cache."""
     client = await aioredis.Redis(
         connection_pool=post_request_redis_pool,
-        # retry=retry,
-        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        max_connections=30,
     )
     key = f'{{"{url}":{json.dumps(request)}}}'
     await client.setex(key, settings.redis_expiration, json.dumps(response))
-    print('closing client')
     await client.close()
 
 
@@ -210,12 +197,8 @@ async def get_post_response(url, request):
     """Get post response from cache."""
     client = await aioredis.Redis(
         connection_pool=post_request_redis_pool,
-        # retry=retry,
-        # retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
-        max_connections=30,
     )
     response = await client.get(f'{{"{url}":{json.dumps(request)}}}')
-    print('closing client')
     await client.close()
     if response is not None:
         response = json.loads(response)
