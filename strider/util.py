@@ -161,9 +161,12 @@ async def post_json(url, request, logger, log_name):
     Make post request and write errors to log if present
     """
     response = await get_post_response(url, request)
-    if response is not None or settings.offline_mode:
+    if response is not None:
+        # if we got back from cache
         return response
     elif settings.offline_mode:
+        logger.debug('POST JSON: Didn\'t get anything back from cache in offline mode.')
+        # if not in cache and in offline mode
         return {}
     else:
         try:
