@@ -124,6 +124,32 @@ async def catch_exceptions_middleware(request: Request, call_next):
 
 APP.middleware("http")(catch_exceptions_middleware)
 
+if settings.jaeger_enabled:
+    LOGGER.info("Starting up Jaeger")
+
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+    from opentelemetry import trace
+    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+    service_name = 'STRIDER'
+    trace.set_tracer_provider(
+        TracerProvider(
+            resource=Resource.create({telemetery_service_name_key: service_name})
+        )
+    )
+    jaeger_exporter = JaegerExporter(
+        agent_host_name=settings.jaeger_host,
+        agent_port=int(settings.jaeger_port),
+    )
+    trace.get_tracer_provider().add_span_processor(
+        BatchSpanProcessor(jaeger_exporter)
+    )
+    tracer = trace.get_tracer(__name__)
+    FastAPIInstrumentor.instrument_app(APP, tracer_provider=trace, excluded_urls="docs,openapi.json")
+
 
 @APP.on_event("startup")
 async def print_config():
@@ -484,7 +510,6 @@ async def async_lookup(
 
 async def multi_lookup(callback, queries: dict, query_keys: list):
     "Performs lookup for multiple queries and sends all results to callback url"
-
     async def single_lookup(query_key):
         query_result = {}
         try:
