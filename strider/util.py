@@ -160,72 +160,74 @@ async def post_json(url, request, logger, log_name):
     """
     Make post request and write errors to log if present
     """
-    response = await get_post_response(url, request)
-    if response is not None:
-        # if we got back from cache
-        return response
-    elif settings.offline_mode:
-        logger.debug("POST JSON: Didn't get anything back from cache in offline mode.")
-        # if not in cache and in offline mode
-        return {}
-    else:
-        try:
-            async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
-                logger.debug(f"Sending request to {url}")
-                response = await client.post(
-                    url,
-                    json=request,
-                )
-                response.raise_for_status()
-                response = response.json()
-                await save_post_request(url, request, response)
-                return response
-        except httpx.ReadTimeout as e:
-            logger.warning(
-                {
-                    "message": f"{log_name} took >60 seconds to respond",
-                    "error": str(e),
-                    "request": log_request(e.request),
-                }
+    # Commenting out cache because node norm is usually very quick and takes up
+    # too much memory in the cache
+    # response = await get_post_response(url, request)
+    # if response is not None:
+    #     # if we got back from cache
+    #     return response
+    # elif settings.offline_mode:
+    #     logger.debug("POST JSON: Didn't get anything back from cache in offline mode.")
+    #     # if not in cache and in offline mode
+    #     return {}
+    # else:
+    try:
+        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+            logger.debug(f"Sending request to {url}")
+            response = await client.post(
+                url,
+                json=request,
             )
-        except httpx.RequestError as e:
-            # Log error
-            logger.warning(
-                {
-                    "message": f"Request Error contacting {log_name}",
-                    "error": str(e),
-                    "request": log_request(e.request),
-                }
-            )
-        except httpx.HTTPStatusError as e:
-            # Log error with response
-            logger.warning(
-                {
-                    "message": f"Response Error contacting {log_name}",
-                    "error": str(e),
-                    "request": log_request(e.request),
-                    "response": log_response(e.response),
-                }
-            )
-        except JSONDecodeError as e:
-            # Log error with response
-            logger.warning(
-                {
-                    "message": f"Received bad JSON data from {log_name}",
-                    "request": e.request,
-                    "response": e.response.text,
-                    "error": str(e),
-                }
-            )
-        except Exception as e:
-            # General catch all
-            logger.warning(
-                {
-                    "message": f"Something went wrong when contacting {log_name}.",
-                    "error": str(e),
-                }
-            )
-        raise StriderRequestError
+            response.raise_for_status()
+            response = response.json()
+            await save_post_request(url, request, response)
+            return response
+    except httpx.ReadTimeout as e:
+        logger.warning(
+            {
+                "message": f"{log_name} took >60 seconds to respond",
+                "error": str(e),
+                "request": log_request(e.request),
+            }
+        )
+    except httpx.RequestError as e:
+        # Log error
+        logger.warning(
+            {
+                "message": f"Request Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+            }
+        )
+    except httpx.HTTPStatusError as e:
+        # Log error with response
+        logger.warning(
+            {
+                "message": f"Response Error contacting {log_name}",
+                "error": str(e),
+                "request": log_request(e.request),
+                "response": log_response(e.response),
+            }
+        )
+    except JSONDecodeError as e:
+        # Log error with response
+        logger.warning(
+            {
+                "message": f"Received bad JSON data from {log_name}",
+                "request": e.request,
+                "response": e.response.text,
+                "error": str(e),
+            }
+        )
+    except Exception as e:
+        # General catch all
+        logger.warning(
+            {
+                "message": f"Something went wrong when contacting {log_name}.",
+                "error": str(e),
+            }
+        )
+    raise StriderRequestError
 
 
 class KnowledgeProvider:
