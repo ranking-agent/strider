@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     redis_expiration: int = 604800  # one week
     redis_password: str = "supersecretpassword"
 
-    jaeger_enabled: bool = True
+    jaeger_enabled: str = "True"
     jaeger_host: str = "jaeger"
     jaeger_port: int = 6831
 
