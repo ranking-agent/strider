@@ -124,7 +124,7 @@ async def catch_exceptions_middleware(request: Request, call_next):
 
 APP.middleware("http")(catch_exceptions_middleware)
 
-if settings.jaeger_enabled:
+if settings.jaeger_enabled == "True":
     LOGGER.info("Starting up Jaeger")
 
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
