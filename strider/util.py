@@ -180,7 +180,7 @@ async def post_json(url, request, logger, log_name):
             )
             response.raise_for_status()
             response = response.json()
-            await save_post_request(url, request, response)
+            # await save_post_request(url, request, response)
             return response
     except httpx.ReadTimeout as e:
         logger.warning(
