@@ -6,7 +6,6 @@ import json
 import redis.asyncio as aioredis
 
 from strider.config import settings
-from strider.traversal import NoAnswersError
 
 
 onehop_redis_pool = aioredis.BlockingConnectionPool(
@@ -159,9 +158,9 @@ async def get_kp_registry():
     )
     response = await client.get("kps")
     await client.close()
-    if response is None:
-        raise NoAnswersError("Failed to get kp registry from cache.")
-    return json.loads(response)
+    if response is not None:
+        response = json.loads(response)
+    return response
 
 
 async def get_registry_lock():
