@@ -118,11 +118,16 @@ WBMT = WrappedBMT()
 def elide_curies(payload):
     """Elide CURIES in TRAPI request/response."""
     payload = copy.deepcopy(payload)
-    if "message" not in payload:
-        return payload
-    for qnode in payload["message"]["query_graph"]["nodes"].values():
-        if (num_curies := len(qnode.get("ids", None) or [])) > 10:
-            qnode["ids"] = f"**{num_curies} CURIEs not shown for brevity**"
+    if "nodes" in payload:  # qgraphs
+        for qnode in payload["nodes"].values():
+            if (num_curies := len(qnode.get("ids", None) or [])) > 10:
+                qnode["ids"] = f"**{num_curies} CURIEs not shown for brevity**"
+    if "curies" in payload:  # node norm responses
+        payload["curies"] = f"**{len(payload['curies'])} CURIEs not shown for brevity**"
+    if "message" in payload:  # messages
+        for qnode in payload["message"]["query_graph"]["nodes"].values():
+            if (num_curies := len(qnode.get("ids", None) or [])) > 10:
+                qnode["ids"] = f"**{num_curies} CURIEs not shown for brevity**"
     return payload
 
 
