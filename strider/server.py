@@ -396,7 +396,7 @@ async def lookup(
 
     qgraph = query_dict["message"]["query_graph"]
 
-    log_level = query_dict["log_level"] or "ERROR"
+    log_level = query_dict["log_level"] or "INFO"
 
     level_number = logging._nameToLevel[log_level]
     # Set up logger
