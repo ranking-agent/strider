@@ -13,17 +13,14 @@ from collections import defaultdict
 from collections.abc import Iterable
 import copy
 import json
-from json.decoder import JSONDecodeError
 import logging
 
 from strider.constraints import enforce_constraints
-from typing import Callable, Optional, List
+from typing import Callable, List
 
 import aiostream
-import httpx
-import pydantic
 from kp_registry import Registry
-from reasoner_pydantic import MetaKnowledgeGraph, Message
+from reasoner_pydantic import Message
 
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
@@ -35,15 +32,13 @@ from .trapi import (
 )
 from .query_planner import generate_plan, get_next_qedge
 from .config import settings
-from .util import KnowledgeProvider, WBMT, batch
+from .util import (
+    KnowledgeProvider,
+    WBMT,
+    batch,
+    elide_curies,
+)
 from .caching import get_kp_onehop, save_kp_onehop
-
-
-_logger = logging.getLogger(__name__)
-sh = logging.StreamHandler()
-formatter = logging.Formatter("[%(asctime)s: %(levelname)s/%(name)s]: %(message)s")
-sh.setFormatter(formatter)
-_logger.addHandler(sh)
 
 
 class Binder:
@@ -67,7 +62,7 @@ class Binder:
         if qgraph is None:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
-            self.logger.debug(f"Finished call stack: {(', ').join(call_stack)}")
+            self.logger.info(f"Finished call stack: {(', ').join(call_stack)}")
             yield {"nodes": dict(), "edges": dict()}, {
                 "node_bindings": dict(),
                 "edge_bindings": dict(),
@@ -109,19 +104,24 @@ class Binder:
         """Generate one-hop results from KP."""
         # keep track of call stack for each kp plan branch
         call_stack.append(kp.id)
+        self.logger.info(f"Current call stack: {(', ').join(call_stack)}")
         onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
+        if onehop_response is not None:
+            self.logger.info(
+                f"[{kp.id}]: Got onehop from cache"
+            )
         if onehop_response is None and not settings.offline_mode:
             # onehop not in cache, have to go get response
-            self.logger.debug(
-                f"Need to get onehop for: {kp.id}:{json.dumps(onehop_qgraph)}"
+            self.logger.info(
+                f"[{kp.id}] Need to get results for: {json.dumps(elide_curies(onehop_qgraph))}"
             )
             onehop_response = await kp.solve_onehop(
                 onehop_qgraph,
             )
             await save_kp_onehop(kp.id, onehop_qgraph, onehop_response)
         if onehop_response is None and settings.offline_mode:
-            self.logger.debug(
-                "FETCHER: Didn't get anything back from cache in offline mode."
+            self.logger.info(
+                f"[{kp.id}] Didn't get anything back from cache in offline mode."
             )
             # Offline mode and query wasn't cached, just continue
             onehop_results = []
@@ -139,7 +139,7 @@ class Binder:
             # remove orphaned nodes
             subqgraph.remove_orphaned()
         else:
-            self.logger.debug(
+            self.logger.info(
                 f"Ending call stack with no results: {(', ').join(call_stack)}"
             )
         for batch_results in batch(onehop_results, 1_000_000):
@@ -269,6 +269,7 @@ class Binder:
             logger=self.logger,
             registry=registry,
         )
+        self.logger.info(f"Generated query plan: {self.plan}")
 
         # extract KP preferred prefixes from plan
         self.kp_preferred_prefixes = dict()

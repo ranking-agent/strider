@@ -295,7 +295,7 @@ async def sync_query(
     query_results = {}
     try:
         LOGGER.info("Starting sync query")
-        _, query_results = await asyncio.wait_for(
+        qid, query_results = await asyncio.wait_for(
             lookup(query_dict), timeout=max_process_time
         )
     except asyncio.TimeoutError:
@@ -312,7 +312,7 @@ async def sync_query(
         }
 
     # Return results
-    LOGGER.info("Returning sync query")
+    LOGGER.info(f"[{qid}] Returning sync query")
     return JSONResponse(query_results)
 
 
@@ -354,6 +354,8 @@ async def multi_query(
     multiquery: dict[str, AsyncQuery] = Body(..., example=MEXAMPLE),
 ):
     """Handles multiple queries. Queries are sent back to a callback url as a dict with keys corresponding to keys of original query."""
+    # Generate multiuery ID
+    multiqid = str(uuid.uuid4())[:8]
     query_keys = list(multiquery.keys())
     callback = multiquery[query_keys[0]].dict().get("callback")
     if not callback:
@@ -375,18 +377,22 @@ async def multi_query(
             raise HTTPException(400, "callback url for all queries must be the same")
         queries[query] = query_dict
 
-    LOGGER.info(f"Starting multi lookup for {callback}")
-    background_tasks.add_task(multi_lookup, callback, queries, query_keys)
+    LOGGER.info(f"[{multiqid}] Starting {len(query_keys)} multi lookup queries for {callback}")
+    background_tasks.add_task(multi_lookup, multiqid, callback, queries, query_keys)
 
     return
 
 
 async def lookup(
     query_dict: dict,
+    id: str = None,
 ) -> dict:
     """Perform lookup operation."""
     # Generate Query ID
     qid = str(uuid.uuid4())[:8]
+    if id:
+        # if part of multiquery, add multiquery id
+        qid = f"{id}.{qid}"
 
     qgraph = query_dict["message"]["query_graph"]
 
@@ -401,9 +407,11 @@ async def lookup(
 
     binder = Binder(logger)
 
+    logger.info(f"Doing lookup for qgraph: {qgraph}")
     try:
         await binder.setup(qgraph, registry)
     except NoAnswersError:
+        logger.info("Returning no results.")
         return qid, {
             "message": {
                 "query_graph": qgraph,
@@ -500,21 +508,21 @@ async def async_lookup(
             "status_communication": {"strider_process_status": "error"},
         }
     try:
-        LOGGER.info(f"Posting to callback {callback}")
+        LOGGER.info(f"[{qid}] Posting to callback {callback}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
             res = await client.post(callback, json=query_results)
-            LOGGER.info(f"Posted to callback with code {res.status_code}")
+            LOGGER.info(f"[{qid}] Posted to {callback} with code {res.status_code}")
     except Exception as e:
         LOGGER.error(e)
 
 
-async def multi_lookup(callback, queries: dict, query_keys: list):
+async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
     "Performs lookup for multiple queries and sends all results to callback url"
     async def single_lookup(query_key):
         query_result = {}
         try:
             qid, query_result = await asyncio.wait_for(
-                lookup(queries[query_key]), timeout=max_process_time
+                lookup(queries[query_key], multiqid), timeout=max_process_time
             )
         except asyncio.TimeoutError:
             LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
@@ -547,16 +555,16 @@ async def multi_lookup(callback, queries: dict, query_keys: list):
         "status_communication": {"strider_multiquery_status": "complete"},
     }
 
-    LOGGER.info(f"All jobs complete.  Sending done signal to {callback}.")
+    LOGGER.info(f"[{multiqid}] All jobs complete.  Sending done signal to {callback}.")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
             callback_response = await client.post(callback, json=query_results)
             LOGGER.info(
-                f"Sent completion to {callback}. Status={callback_response.status_code}"
+                f"[{multiqid}] Sent completion to {callback}. Status={callback_response.status_code}"
             )
     except Exception as e:
         LOGGER.error(
-            f"Failed to send 'completed' response back to {callback} with error: {e}"
+            f"[{multiqid}] Failed to send 'completed' response back to {callback} with error: {e}"
         )
 
 
