@@ -155,10 +155,9 @@ def search(
 ):
     """Search for KPs matching a pattern."""
     # maturity is list of enums
-    allowed_maturity = list(maturity)
     kps = {}
     for kp, val in registry.items():
-        if val["maturity"] not in allowed_maturity:
+        if val["maturity"] != maturity:
             # maturity not allowed, skipping
             continue
         kp_name = val["infores"]
@@ -174,30 +173,14 @@ def search(
                     for category in object_category
                 )
             ):
-                if kp_name not in kps:
-                    kps[kp_name] = {
-                        "url": val["url"],
-                        "title": kp,
-                        "infores": val["infores"],
-                        "maturity": val["maturity"],
-                        "operations": [],
-                        "details": copy.deepcopy(val["details"]),
-                    }
-                else:
-                    existing_maturity = allowed_maturity.index(kps[kp_name]["maturity"])
-                    new_maturity = allowed_maturity.index(val["maturity"])
-                    if new_maturity < existing_maturity:
-                        kps[kp_name] = {
-                            "url": val["url"],
-                            "title": kp,
-                            "infores": val["infores"],
-                            "maturity": val["maturity"],
-                            "operations": [],
-                            "details": copy.deepcopy(val["details"]),
-                        }
-                    elif new_maturity > existing_maturity:
-                        # worse kp maturity, skip
-                        continue
+                kps[kp_name] = {
+                    "url": val["url"],
+                    "title": kp,
+                    "infores": val["infores"],
+                    "maturity": val["maturity"],
+                    "operations": [],
+                    "details": copy.deepcopy(val["details"]),
+                }
                 kps[kp_name]["operations"].append(operation.copy())
 
     # switch keys from infores to title
@@ -218,11 +201,11 @@ async def generate_plan(
         logger = logging.getLogger(__name__)
     kps = dict()
     plan = dict()
-    if settings.openapi_server_maturity == "development":
-        maturity = ["development", "production"]
-    else:
-        maturity = ["production", "development"]
     registry = await get_kp_registry()
+    if registry is None:
+        msg = f"Failed to get kp registry."
+        logger.info(msg)
+        raise NoAnswersError(msg)
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
         provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
@@ -238,29 +221,21 @@ async def generate_plan(
             qedge["predicates"],
             qgraph["nodes"][qedge["object"]]["categories"],
         )
-        try:
-            direct_kps = search(
+        direct_kps = search(
+            registry,
+            subject_categories,
+            predicates,
+            object_categories,
+            settings.openapi_server_maturity,
+        )
+        if inverse_predicates:
+            inverse_kps = search(
                 registry,
                 subject_categories,
-                predicates,
+                inverse_predicates,
                 object_categories,
-                maturity,
+                settings.openapi_server_maturity,
             )
-        except StriderRequestError:
-            logger.error("Failed to get kps from registry.")
-            return {}
-        if inverse_predicates:
-            try:
-                inverse_kps = search(
-                    registry,
-                    subject_categories,
-                    inverse_predicates,
-                    object_categories,
-                    maturity,
-                )
-            except StriderRequestError:
-                logger.error("Failed to get kps from registry.")
-                return {}
         else:
             inverse_kps = dict()
         kp_results = {
