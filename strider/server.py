@@ -133,7 +133,11 @@ if settings.jaeger_enabled == "True":
     from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    import warnings
+    # httpx connections are kept open after a session , for otel, and warnings are going to be thrown
+    # this line ignores such warnings
+    warnings.simplefilter("ignore", category=ResourceWarning)
     service_name = 'STRIDER'
     trace.set_tracer_provider(
         TracerProvider(
@@ -149,6 +153,7 @@ if settings.jaeger_enabled == "True":
     )
     tracer = trace.get_tracer(__name__)
     FastAPIInstrumentor.instrument_app(APP, tracer_provider=trace, excluded_urls="docs,openapi.json")
+    HTTPXClientInstrumentor().instrument()
 
 
 @APP.on_event("startup")
