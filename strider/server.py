@@ -135,9 +135,11 @@ if settings.jaeger_enabled == "True":
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
     import warnings
-    # httpx connections are kept open after a session , for otel, and warnings are going to be thrown
-    # this line ignores such warnings
-    warnings.simplefilter("ignore", category=ResourceWarning)
+    # httpx connections need to be open a little longer by the otel decorators
+    # but some libs display warnings of resource being unclosed.
+    # these supresses such warnings.
+    logging.captureWarnings(capture=True)
+    warnings.filterwarnings("ignore",category=ResourceWarning)
     service_name = 'STRIDER'
     trace.set_tracer_provider(
         TracerProvider(
