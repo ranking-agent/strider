@@ -45,8 +45,9 @@ six==1.16.0
 sniffio==1.3.0
 starlette==0.14.2
 thrift==0.16.0
-typing-extensions==4.5.0
+typing_extensions==4.5.0
 uvicorn==0.14.0
+uvloop==0.17.0
 watchgod==0.8.2
 websockets==10.4
 wrapt==1.15.0
