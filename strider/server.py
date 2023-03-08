@@ -140,7 +140,7 @@ if settings.jaeger_enabled == "True":
     # these supresses such warnings.
     logging.captureWarnings(capture=True)
     warnings.filterwarnings("ignore",category=ResourceWarning)
-    service_name = 'STRIDER'
+    service_name = os.environ.get('OTEL_SERVICE_NAME', 'STRIDER')
     trace.set_tracer_provider(
         TracerProvider(
             resource=Resource.create({telemetery_service_name_key: service_name})
