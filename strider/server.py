@@ -3,6 +3,7 @@ import datetime
 import os
 import uuid
 import logging
+import warnings
 import traceback
 import asyncio
 
@@ -134,7 +135,7 @@ if settings.jaeger_enabled == "True":
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-    import warnings
+
     # httpx connections need to be open a little longer by the otel decorators
     # but some libs display warnings of resource being unclosed.
     # these supresses such warnings.
