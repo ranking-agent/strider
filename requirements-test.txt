@@ -1,7 +1,9 @@
 asgiar==0.2.0
+fakeredis==2.10.2
 httpx==0.18.2
 pytest==6.2.4
 pytest-asyncio==0.15.1
 pytest-cov==2.12.1
+pytest-mock==3.10.0
 orjson==3.6.0
 tqdm==4.62.3

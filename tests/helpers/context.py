@@ -5,13 +5,10 @@ from functools import partial, wraps
 from typing import Optional
 from urllib.parse import urlparse
 
-import aiosqlite
 from asgiar import ASGIAR
 from fastapi import FastAPI, Response
 import httpx
-from kp_registry.routers.kps import registry_router
 
-from .mock_kp.testing import kp_overlay
 from .normalizer import norm_router
 from .utils import normalizer_data_from_string
 
@@ -35,22 +32,6 @@ def with_context(context, *args_, **kwargs_):
         return wrapper
 
     return decorator
-
-
-@asynccontextmanager
-async def registry_overlay(url, kps):
-    """Registry server context manager."""
-    async with AsyncExitStack() as stack:
-        app = FastAPI()
-        connection = await stack.enter_async_context(aiosqlite.connect(":memory:"))
-        app.include_router(registry_router(connection))
-        await stack.enter_async_context(ASGIAR(app, host=url_to_host(url)))
-        # Register KPs passed to the function
-        async with httpx.AsyncClient() as client:
-            response = await client.post(f"{url}/kps", json=kps)
-            response.raise_for_status()
-
-        yield
 
 
 @asynccontextmanager
@@ -94,9 +75,9 @@ async def response_overlay(url, response: Response):
 
 @asynccontextmanager
 async def translator_overlay(
-    registry_url: str,
     normalizer_url: str,
-    kp_data: dict[str, str] = {},
+    response_url: str,
+    response: Response,
     normalizer_data: str = "",
 ):
     """Registry + KPs + Normalizer context manager."""
@@ -107,41 +88,12 @@ async def translator_overlay(
                 normalizer_data,
             )
         )
-        kps = dict()
-        for host, data_string in kp_data.items():
-            await stack.enter_async_context(
-                kp_overlay(
-                    host,
-                    data=data_string,
-                )
+        await stack.enter_async_context(
+            response_overlay(
+                response_url,
+                response,
             )
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"http://{host}/meta_knowledge_graph")
-                response.raise_for_status()
-                metakg = response.json()
-            kps[host] = {
-                "url": f"http://{host}/query",
-                "infores": host,
-                "maturity": "development",
-                "operations": [
-                    {
-                        "subject_category": edge["subject"],
-                        "predicate": edge["predicate"],
-                        "object_category": edge["object"],
-                    }
-                    for edge in metakg["edges"]
-                ],
-                "details": {
-                    "preferred_prefixes": {
-                        category: value["id_prefixes"]
-                        for category, value in metakg["nodes"].items()
-                    }
-                },
-            }
-
-        # Start registry context using KPs constructed above
-        await stack.enter_async_context(registry_overlay(registry_url, kps))
+        )
 
         yield
 
@@ -166,8 +118,6 @@ async def callback_overlay(url: str, queue: Optional[asyncio.Queue] = None):
         yield
 
 
-with_kp_overlay = partial(with_context, kp_overlay)
-with_registry_overlay = partial(with_context, registry_overlay)
 with_translator_overlay = partial(with_context, translator_overlay)
 with_norm_overlay = partial(with_context, norm_overlay)
 with_response_overlay = partial(with_context, response_overlay)

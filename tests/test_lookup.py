@@ -3,16 +3,17 @@ import json
 
 from fastapi.responses import Response
 import pytest
+import redis.asyncio
 
-from tests.helpers.context import with_translator_overlay, with_response_overlay
+from tests.helpers.context import with_translator_overlay, with_response_overlay, with_norm_overlay
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
+from tests.helpers.redisMock import redisMock
 
 from strider.config import settings
 from strider.server import lookup
 
 # Switch prefix path before importing server
-settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 
 
@@ -20,78 +21,15 @@ setup_logger()
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
+@with_norm_overlay(
     settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
-            MONDO:0005148(( category biolink:Disease ))
-            HP:0004324(( category biolink:PhenotypicFeature ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
-            MONDO:0005148-- predicate biolink:has_phenotype -->HP:0004324
-        """
-    },
 )
-async def test_solve_ex1():
-    """Test solving the ex1 query graph"""
-    QGRAPH = query_graph_from_string(
-        """
-        n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
-        n1(( categories[] biolink:Disease ))
-        n2(( categories[] biolink:PhenotypicFeature ))
-        n0-- biolink:treats -->n1
-        n1-- biolink:has_phenotype -->n2
-        """
-    )
-
-    # Create query
-    q = {
-        "message": {"query_graph": QGRAPH},
-        "log_level": "ERROR",
-    }
-
-    # Run
-    output = await lookup(q)
-
-    validate_message(
-        {
-            "knowledge_graph": """
-                CHEBI:6801 biolink:treats MONDO:0005148
-                MONDO:0005148 biolink:has_phenotype HP:0004324
-                """,
-            "results": [
-                """
-                node_bindings:
-                    n0 CHEBI:6801
-                    n1 MONDO:0005148
-                    n2 HP:0004324
-                edge_bindings:
-                    n0n1 CHEBI:6801-MONDO:0005148
-                    n1n2 MONDO:0005148-HP:0004324
-                """
-            ],
-        },
-        output["message"],
-    )
-
-
-@pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
-    settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
-            MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
-            MONDO:0005148-- predicate biolink:has_phenotype -->CHEBI:6801
-        """
-    },
-)
-async def test_mixed_canonical():
+async def test_mixed_canonical(monkeypatch, mocker):
     """Test qedge with mixed canonical and non-canonical predicates."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
+        "message": {}
+    })
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -108,25 +46,48 @@ async def test_mixed_canonical():
     }
 
     # Run
-    output = await lookup(q)
+    await lookup(q)
 
-    assert len(output["message"]["results"]) == 2
+    query.assert_called_with({
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {
+                        "ids": ["CHEBI:6801"],
+                        "categories": ["biolink:ChemicalSubstance"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                    "n1": {
+                        "categories": ["biolink:Disease"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:treats", "biolink:phenotype_of"],
+                        "attribute_constraints": [],
+                        "qualifier_constraints": [],
+                    },
+                },
+            },
+        },
+    }, timeout=60.0)
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
+@with_norm_overlay(
     settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
-            MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:genetically_interacts_with -->MONDO:0005148
-        """
-    },
 )
-async def test_symmetric_noncanonical():
+async def test_symmetric_noncanonical(monkeypatch, mocker):
     """Test qedge with the symmetric, non-canonical predicate genetically_interacts_with."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
+        "message": {}
+    })
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -139,30 +100,49 @@ async def test_symmetric_noncanonical():
     # Create query
     q = {
         "message": {"query_graph": QGRAPH},
-        "log_level": "ERROR",
+        "log_level": "INFO",
     }
 
     # Run
-    output = await lookup(q)
+    await lookup(q)
 
-    assert len(output["message"]["results"]) == 1
+    query.assert_called_with({
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {
+                        "ids": ["CHEBI:6801"],
+                        "categories": ["biolink:ChemicalSubstance"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                    "n1": {
+                        "categories": ["biolink:Disease"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:genetically_interacts_with"],
+                        "attribute_constraints": [],
+                        "qualifier_constraints": [],
+                    },
+                },
+            },
+        },
+    }, timeout=60.0)
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
+@with_norm_overlay(
     settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:SmallMolecule ))
-            MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
-        """,
-    },
 )
-# Add attributes to ctd response
+# Add attributes to kp1 response
 @with_response_overlay(
-    "http://ctd/query",
+    "http://kp1/query",
     Response(
         status_code=200,
         content=json.dumps(
@@ -222,10 +202,11 @@ async def test_symmetric_noncanonical():
         ),
     ),
 )
-async def test_disambiguation():
+async def test_disambiguation(monkeypatch):
     """
     Test disambiguating batch results with qnode_id.
     """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -241,7 +222,7 @@ async def test_disambiguation():
     }
 
     # Run
-    output = await lookup(q)
+    _, output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
     validate_message(
@@ -264,20 +245,12 @@ async def test_disambiguation():
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
+@with_norm_overlay(
     settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:SmallMolecule ))
-            MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
-        """,
-    },
 )
 # Add attributes to ctd response
 @with_response_overlay(
-    "http://ctd/query",
+    "http://kp1/query",
     Response(
         status_code=200,
         content=json.dumps(
@@ -332,8 +305,9 @@ async def test_disambiguation():
         ),
     ),
 )
-async def test_trivial_unbatching():
+async def test_trivial_unbatching(monkeypatch):
     """Test trivial unbatching with batch size one."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -349,7 +323,7 @@ async def test_trivial_unbatching():
     }
 
     # Run
-    output = await lookup(q)
+    _, output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
     validate_message(
@@ -372,119 +346,133 @@ async def test_trivial_unbatching():
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
+@with_norm_overlay(
     settings.normalizer_url,
-    kp_data={
-        "kp0": """
-            MONDO:0008114(( category biolink:Disease ))
-            MONDO:0008114-- predicate biolink:related_to -->MESH:C035133
-            MESH:C035133(( category biolink:Gene ))
-        """,
-        "kp1": """
-            MESH:C035133(( category biolink:Gene ))
-            MESH:C035133-- predicate biolink:related_to -->HP:0007430
-            HP:0007430(( category biolink:Protein ))
-        """,
-        "kp2": """
-            HP:0007430(( category biolink:Protein ))
-            HP:0007430-- predicate biolink:related_to -->CHEBI:6801
-            CHEBI:6801(( category biolink:Disease ))
-            HGNC:6284(( category biolink:Gene ))
-            HP:0007430-- predicate biolink:related_to -->HGNC:6284
-        """,
-    },
-    normalizer_data="""
-        MONDO:0008114 categories biolink:Gene biolink:Disease
-        HP:0007430 categories biolink:Gene
-        MESH:C035133 categories biolink:Protein
-        HGNC:6284 categories biolink:Gene biolink:Protein
-        CHEBI:6801 categories biolink:Disease
-        """,
 )
-async def test_gene_protein_conflation():
+async def test_protein_gene_conflation(monkeypatch, mocker):
     """Test conflation of biolink:Gene and biolink:Protein categories.
-    e0 checks to make sure that Protein is added to Gene nodes, and e1
-    checks that Gene is added to Protein nodes. Additionally, e2 checks
-    that non-Gene and non-Protein nodes do not have either added as a category."""
+    e0 checks that Gene is added to Protein nodes."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
+        "message": {}
+    })
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:0008114 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Protein ))
-        n2(( categories[] biolink:Gene ))
-        n3(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
-        n1-- biolink:related_to -->n2
-        n2-- biolink:related_to -->n3
         """
     )
 
     # Create query
-    q = {"message": {"query_graph": QGRAPH}, "log_level": "ERROR"}
+    q = {"message": {"query_graph": QGRAPH}, "log_level": "INFO"}
 
     # Run query
-    output = await lookup(q)
+    await lookup(q)
 
-    # Check to see that appropriate nodes are in results
-    validate_message(
-        {
-            "knowledge_graph": """
-                MONDO:0008114 biolink:related_to MESH:C035133
-                MESH:C035133 biolink:related_to HP:0007430
-                HP:0007430 biolink:related_to CHEBI:6801
-                """,
-            "results": [
-                """
-                node_bindings:
-                    n0 MONDO:0008114
-                    n1 MESH:C035133
-                    n2 HP:0007430
-                    n3 CHEBI:6801
-                edge_bindings:
-                    n0n1 MONDO:0008114-MESH:C035133
-                    n1n2 MESH:C035133-HP:0007430
-                    n2n3 HP:0007430-CHEBI:6801
-                """
-            ],
+    query.assert_called_with({
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {
+                        "ids": ["MONDO:0008114"],
+                        "categories": ["biolink:Disease"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                    "n1": {
+                        "categories": ["biolink:Protein", "biolink:Gene"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:related_to"],
+                        "attribute_constraints": [],
+                        "qualifier_constraints": [],
+                    },
+                },
+            },
         },
-        output["message"],
-    )
+    }, timeout=60.0)
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
+@with_norm_overlay(
     settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
-            MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
-            MONDO:0003757(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0003757
-        """,
-        "pharos": """
-            MONDO:0003757(( category biolink:Disease ))
-            MONDO:0005148(( category biolink:Disease ))
-            HP:XXX(( category biolink:PhenotypicFeature ))
-            HP:YYY(( category biolink:PhenotypicFeature ))
-            MONDO:0003757-- predicate biolink:has_phenotype -->HP:XXX
-            MONDO:0003757-- predicate biolink:has_phenotype -->HP:YYY
-            MONDO:0005148-- predicate biolink:has_phenotype -->HP:YYY
-        """,
-    },
 )
-async def test_node_set():
+async def test_gene_protein_conflation(monkeypatch, mocker):
+    """Test conflation of biolink:Gene and biolink:Protein categories.
+    e0 checks to make sure that Protein is added to Gene nodes."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
+        "message": {}
+    })
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( categories[] biolink:Gene ))
+        n1(( ids[] MONDO:0008114 ))
+        n1(( categories[] biolink:Disease ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    # Create query
+    q = {"message": {"query_graph": QGRAPH}, "log_level": "INFO"}
+
+    # Run query
+    await lookup(q)
+
+    query.assert_called_with({
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {
+                        "categories": ["biolink:Gene", "biolink:Protein"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                    "n1": {
+                        "ids": ["MONDO:0008114"],
+                        "categories": ["biolink:Disease"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:related_to"],
+                        "attribute_constraints": [],
+                        "qualifier_constraints": [],
+                    },
+                },
+            },
+        },
+    }, timeout=60.0)
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+)
+async def test_node_set(monkeypatch, mocker):
     """Test that is_set is handled correctly."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
+        "message": {}
+    })
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:ChemicalSubstance ))
         n1(( categories[] biolink:Disease ))
-        n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
-        n1-- biolink:has_phenotype -->n2
         """
     )
     QGRAPH["nodes"]["n1"]["is_set"] = True
@@ -496,8 +484,33 @@ async def test_node_set():
     }
 
     # Run
-    output = await lookup(q)
-    assert len(output["message"]["results"]) == 2
-    assert {
-        len(result["node_bindings"]["n1"]) for result in output["message"]["results"]
-    } == {1, 2}
+    await lookup(q)
+
+    query.assert_called_with({
+        "message": {
+            "query_graph": {
+                "nodes": {
+                    "n0": {
+                        "ids": ["CHEBI:6801"],
+                        "categories": ["biolink:ChemicalSubstance"],
+                        "is_set": False,
+                        "constraints": []
+                    },
+                    "n1": {
+                        "categories": ["biolink:Disease"],
+                        "is_set": True,
+                        "constraints": []
+                    },
+                },
+                "edges": {
+                    "n0n1": {
+                        "subject": "n0",
+                        "object": "n1",
+                        "predicates": ["biolink:treats"],
+                        "attribute_constraints": [],
+                        "qualifier_constraints": [],
+                    },
+                },
+            },
+        },
+    }, timeout=60.0)

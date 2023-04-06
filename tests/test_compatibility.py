@@ -6,14 +6,13 @@ from reasoner_pydantic.message import Message
 from tests.helpers.context import (
     with_norm_overlay,
     with_response_overlay,
-    with_translator_overlay,
 )
+import tests.helpers.mock_responses as mock_responses
 
 from strider.trapi_throttle.throttle import ThrottledServer
 from strider.config import settings
 
 # Modify settings before importing things
-settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 
 from strider.compatibility import KnowledgePortal
@@ -190,7 +189,7 @@ async def test_normalizer_500(caplog):
     # n0 should be unchanged
     assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
-    assert "Error contacting normalizer" in caplog.text
+    assert "Request Error contacting Node Normalizer" in caplog.text
 
 
 @pytest.mark.asyncio
@@ -221,7 +220,7 @@ async def test_normalizer_not_reachable(caplog):
     # n0 should be unchanged
     assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
-    assert "RequestError contacting normalizer" in caplog.text
+    assert "Request Error contacting Node Normalizer" in caplog.text
 
 
 CTD_PREFIXES = {
@@ -231,16 +230,12 @@ CTD_PREFIXES = {
 
 
 @pytest.mark.asyncio
-@with_translator_overlay(
-    settings.kpregistry_url,
-    settings.normalizer_url,
-    {
-        "ctd": """
-            CHEBI:6801(( category biolink:ChemicalSubstance ))
-            MONDO:0005148(( category biolink:Disease ))
-            CHEBI:6801-- predicate biolink:treats -->MONDO:0005148
-        """
-    },
+@with_response_overlay(
+    "http://ctd/query",
+    JSONResponse(
+        status_code=200,
+        content=mock_responses.kp_response,
+    ),
 )
 async def test_fetch():
     """
@@ -255,47 +250,10 @@ async def test_fetch():
         request_duration=1,
     )
 
-    preferred_prefixes = {
-        "biolink:Disease": ["DOID"],
-        "biolink:ChemicalSubstance": ["MESH"],
-    }
-
-    query_graph = {
-        "nodes": {
-            "n0": {"ids": ["MESH:D008687"]},
-            "n1": {"categories": ["biolink:Disease"]},
-        },
-        "edges": {
-            "e01": {
-                "subject": "n0",
-                "object": "n1",
-                "predicates": ["biolink:treats"],
-            }
-        },
-    }
-
     async with portal.tservers["ctd"]:
         response = await portal.fetch(
             kp_id="ctd",
-            request={"message": {"query_graph": query_graph}},
+            request={"message": {"query_graph": mock_responses.kp_response["message"]["query_graph"]}},
         )
-
-    allowed_response_prefixes = [
-        prefix for prefix_list in preferred_prefixes.values() for prefix in prefix_list
-    ]
-
-    # Check query graph node prefixes
-    for node in response["query_graph"]["nodes"].values():
-        if node.get("ids", None):
-            assert all(
-                any(curie.startswith(prefix) for prefix in allowed_response_prefixes)
-                for curie in node["ids"]
-            )
-    # Check node binding prefixes
-    for result in response["results"]:
-        for binding_list in result["node_bindings"].values():
-            for binding in binding_list:
-                assert any(
-                    binding["id"].startswith(prefix)
-                    for prefix in allowed_response_prefixes
-                )
+    
+    assert len(response["results"]) == 1

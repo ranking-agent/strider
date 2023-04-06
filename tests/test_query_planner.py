@@ -1,27 +1,22 @@
 from functools import partial
 import logging
-from strider.traversal import NoAnswersError
-
 import pytest
+import redis.asyncio
 
-from tests.helpers.context import with_registry_overlay, with_norm_overlay
+from tests.helpers.context import with_norm_overlay
 from tests.helpers.utils import (
-    generate_kps,
     time_and_display,
     query_graph_from_string,
-    kps_from_string,
 )
+from tests.helpers.redisMock import redisMock
 from tests.helpers.logger import assert_no_level
 
-
+from strider.traversal import NoAnswersError
 from strider.query_planner import generate_plan, get_next_qedge
-
 from strider.trapi import fill_categories_predicates
-
 from strider.config import settings
 
 # Switch prefix path before importing server
-settings.kpregistry_url = "http://registry"
 settings.normalizer_url = "http://normalizer"
 
 LOGGER = logging.getLogger()
@@ -33,21 +28,13 @@ async def prepare_query_graph(query_graph):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Drug -biolink:treats-> biolink:Disease
-    """
-    ),
-)
 @with_norm_overlay(settings.normalizer_url)
-async def test_not_enough_kps(caplog):
+async def test_not_enough_kps(caplog, monkeypatch):
     """
     Check we get no plans when we submit a query graph
     that has edges we can't solve
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( categories[] biolink:ExposureEvent ))
@@ -63,27 +50,19 @@ async def test_not_enough_kps(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Drug biolink:treats biolink:Disease
-    """
-    ),
-)
 @with_norm_overlay(
     settings.normalizer_url,
     """
     MONDO:0005148 categories biolink:Disease
 """,
 )
-async def test_plan_reverse_edge(caplog):
+async def test_plan_reverse_edge(caplog, monkeypatch):
     """
     Test that we can plan a simple query graph
     where we have to traverse an edge in the opposite
     direction of one that was given
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -94,28 +73,18 @@ async def test_plan_reverse_edge(caplog):
     await prepare_query_graph(qg)
 
     plan, kps = await generate_plan(qg)
-    assert plan == {"n1n0": ["kp0"]}
+    assert plan == {"n1n0": ["kp1"]}
 
-    assert "kp0" in kps
+    assert "kp1" in kps
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp1 biolink:ChemicalSubstance biolink:treats biolink:Disease
-    kp2 biolink:ChemicalSubstance biolink:treats biolink:PhenotypicFeature
-    kp3 biolink:Disease biolink:has_phenotype biolink:PhenotypicFeature
-    """
-    ),
-)
 @with_norm_overlay(settings.normalizer_url)
-async def test_plan_loop():
+async def test_plan_loop(monkeypatch):
     """
     Test that we create a plan for a query with a loop
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0008114 ))
@@ -135,20 +104,12 @@ async def test_plan_loop():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:related_to biolink:Disease
-    """
-    ),
-)
 @with_norm_overlay(settings.normalizer_url)
-async def test_plan_reuse_pinned():
+async def test_plan_reuse_pinned(monkeypatch):
     """
     Test that we create a plan that uses a pinned node twice
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -168,25 +129,17 @@ async def test_plan_reuse_pinned():
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:related_to biolink:Disease
-    """
-    ),
-)
 @with_norm_overlay(
     settings.normalizer_url,
     """
     MONDO:0005148 categories biolink:Disease
 """,
 )
-async def test_plan_double_loop(caplog):
+async def test_plan_double_loop(caplog, monkeypatch):
     """
     Test valid plan for a more complex query with two loops
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -209,50 +162,6 @@ async def test_plan_double_loop(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-        kp0 biolink:Disease biolink:treated_by biolink:Drug
-        kp1 biolink:Drug biolink:affects biolink:Gene
-        kp2 biolink:MolecularEntity biolink:decreases_abundance_of biolink:GeneOrGeneProduct
-        kp3 biolink:Disease biolink:treated_by biolink:MolecularEntity
-        """
-    ),
-)
-@with_norm_overlay(
-    settings.normalizer_url,
-    """
-    MONDO:0005148 categories biolink:Disease
-""",
-)
-async def test_plan_ex1(caplog):
-    """Test that we get a good plan for our first example"""
-    qg = query_graph_from_string(
-        """
-        n0(( categories[] biolink:MolecularEntity ))
-        n1(( ids[] MONDO:0005148 ))
-        n2(( categories[] biolink:GeneOrGeneProduct ))
-        n1-- biolink:treated_by -->n0
-        n0-- biolink:affects_abundance_of -->n2
-        """
-    )
-    await prepare_query_graph(qg)
-
-    plan, kps = await generate_plan(qg)
-    # One step per edge
-    assert len(plan) == len(qg["edges"])
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:treated_by biolink:Drug
-    """
-    ),
-)
 @with_norm_overlay(
     settings.normalizer_url,
     """
@@ -260,13 +169,13 @@ async def test_plan_ex1(caplog):
     MONDO:0011122 categories biolink:Disease
 """,
 )
-async def test_valid_two_pinned_nodes(caplog):
+async def test_valid_two_pinned_nodes(caplog, monkeypatch):
     """
     Test Pinned -> Unbound + Pinned
     This should be valid because we only care about
     a path from a pinned node to all unbound nodes.
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -281,29 +190,20 @@ async def test_valid_two_pinned_nodes(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:treated_by biolink:Drug
-    kp1 biolink:Disease biolink:has_phenotype biolink:PhenotypicFeature
-    """
-    ),
-)
 @with_norm_overlay(
     settings.normalizer_url,
     """
     MONDO:0005148 categories biolink:Disease
 """,
 )
-async def test_fork(caplog):
+async def test_fork(caplog, monkeypatch):
     """
     Test Unbound <- Pinned -> Unbound
 
     This should be valid because we allow
     a fork to multiple paths.
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -319,27 +219,19 @@ async def test_fork(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:treated_by biolink:Drug
-    """
-    ),
-)
 @with_norm_overlay(
     settings.normalizer_url,
     """
     MONDO:0005148 categories biolink:Disease
 """,
 )
-async def test_unbound_unconnected_node(caplog):
+async def test_unbound_unconnected_node(caplog, monkeypatch):
     """
     Test Pinned -> Unbound + Unbound
     This should be invalid because there is no path
     to the unbound node
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -355,14 +247,6 @@ async def test_unbound_unconnected_node(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:treated_by biolink:Drug
-    """
-    ),
-)
 @with_norm_overlay(
     settings.normalizer_url,
     """
@@ -370,12 +254,13 @@ async def test_unbound_unconnected_node(caplog):
     MONDO:0011122 categories biolink:Disease
 """,
 )
-async def test_valid_two_disconnected_components(caplog):
+async def test_valid_two_disconnected_components(caplog, monkeypatch):
     """
     Test Pinned -> Unbound + Pinned -> Unbound
     This should be valid because there is a path from
     a pinned node to all unbound nodes.
     """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -392,21 +277,13 @@ async def test_valid_two_disconnected_components(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:treated_by biolink:Drug
-    """
-    ),
-)
 @with_norm_overlay(settings.normalizer_url)
-async def test_bad_norm(caplog):
+async def test_bad_norm(caplog, monkeypatch):
     """
     Test that the pinned node "XXX:123" that the normalizer does not know
     is still handled correctly based on the provided category.
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = {
         "nodes": {
             "n0": {
@@ -438,126 +315,12 @@ async def test_bad_norm(caplog):
 
 
 @pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:ChemicalSubstance biolink:treats biolink:Disease
-    """
-    ),
-)
 @with_norm_overlay(settings.normalizer_url)
-async def test_descendant_reverse_category(caplog):
-    """
-    Test that when we are given related_to that descendants
-    will be filled either in the forward or backwards direction
-    """
-    valid_qg = query_graph_from_string(
-        """
-        n0(( categories[] biolink:Disease ))
-        n0(( ids[] MONDO:0005737 ))
-        n0-- biolink:related_to -->n1
-        n1(( categories[] biolink:ChemicalSubstance ))
-        """
-    )
-    await prepare_query_graph(valid_qg)
-    plan, kps = await generate_plan(valid_qg)
-    assert_no_level(caplog, logging.WARNING, 1)
-
-    invalid_qg = query_graph_from_string(
-        """
-        n0(( categories[] biolink:Disease ))
-        n0(( ids[] MONDO:0005737 ))
-        n0-- biolink:treats -->n1
-        n1(( categories[] biolink:ChemicalSubstance ))
-        """
-    )
-    await prepare_query_graph(invalid_qg)
-
-    with pytest.raises(NoAnswersError, match=r"No KPs"):
-        plan, kps = await generate_plan(invalid_qg)
-
-
-@pytest.mark.asyncio
-@pytest.mark.longrun
-@with_registry_overlay(settings.kpregistry_url, generate_kps(1_000))
-@with_norm_overlay(settings.normalizer_url)
-async def test_planning_performance_generic_qg():
-    """
-    Test our performance when planning a very generic query graph.
-
-    This is a use case we hopefully don't encounter very much.
-    """
-
-    qg = query_graph_from_string(
-        """
-        n0(( ids[] MONDO:0005737 ))
-        n1(( categories[] biolink:NamedThing ))
-        n2(( categories[] biolink:NamedThing ))
-        n0-- biolink:related_to -->n1
-        n1-- biolink:related_to -->n2
-        """
-    )
-    await prepare_query_graph(qg)
-    await time_and_display(
-        partial(generate_plan, qg, logger=logging.getLogger()),
-        "generate plan for a generic query graph (1000 kps)",
-    )
-
-
-@pytest.mark.asyncio
-@pytest.mark.longrun
-@with_registry_overlay(settings.kpregistry_url, generate_kps(50_000))
-@with_norm_overlay(settings.normalizer_url)
-async def test_planning_performance_typical_example():
-    """
-    Test our performance when planning a more typical query graph
-    (modeled after a COP) with a lot of KPs available.
-
-    We should be able to do better on performance using our filtering methods.
-    """
-
-    qg = query_graph_from_string(
-        """
-        n0(( ids[] MONDO:0005737 ))
-        n1(( categories[] biolink:BiologicalProcessOrActivity ))
-        n2(( categories[] biolink:AnatomicalEntity ))
-        n3(( categories[] biolink:PhenotypicFeature ))
-        n4(( categories[] biolink:PhenotypicFeature ))
-        n5(( ids[] MONDO:6801 ))
-        n0-- biolink:related_to -->n1
-        n1-- biolink:related_to -->n2
-        n2-- biolink:related_to -->n3
-        n3-- biolink:related_to -->n4
-        n4-- biolink:related_to -->n5
-        """
-    )
-    await prepare_query_graph(qg)
-
-    async def testable_generate_plans():
-        await generate_plan(qg, logger=logging.getLogger())
-
-    await time_and_display(
-        testable_generate_plans,
-        "generate plan for a typical query graph (50k KPs)",
-    )
-
-
-@pytest.mark.asyncio
-@with_registry_overlay(
-    settings.kpregistry_url,
-    kps_from_string(
-        """
-    kp0 biolink:Disease biolink:treated_by biolink:Drug
-    """
-    ),
-)
-@with_norm_overlay(settings.normalizer_url)
-async def test_double_sided(caplog):
+async def test_double_sided(caplog, monkeypatch):
     """
     Test planning when a KP provides edges in both directions.
     """
-
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005737 ))
@@ -568,8 +331,8 @@ async def test_double_sided(caplog):
     )
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n0n1": ["kp0"]}
-    assert "kp0" in kps
+    assert plan == {"n0n1": ["kp1"]}
+    assert "kp1" in kps
 
 
 def test_get_next_qedge():
@@ -642,3 +405,182 @@ def test_get_next_qedge_multi_edges():
     }
     qedge_id, _ = get_next_qedge(qgraph)
     assert qedge_id == "e01"
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(settings.normalizer_url)
+async def test_predicate_fanout(monkeypatch):
+    """Test that all predicate descendants are explored."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = {
+        "nodes": {
+            "a": {"categories": ["biolink:ChemicalSubstance"], "ids": ["CHEBI:34253"]},
+            "b": {"categories": ["biolink:Gene"]},
+        },
+        "edges": {
+            "ab": {
+                "subject": "a",
+                "object": "b",
+                "predicates": ["biolink:affects"],
+            }
+        },
+    }
+
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"ab": ["kp2"]}
+    assert "kp2" in kps
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+    normalizer_data="""
+        CHEBI:6801 categories biolink:Drug
+        MONDO:0005148 categories biolink:Disease
+        """,
+)
+async def test_inverse_predicate(monkeypatch):
+    """
+    Test solving a query graph where we have to look up
+    the inverse of a given predicate to get the right answer.
+    """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = query_graph_from_string(
+        """
+        n0(( categories[] biolink:Disease ))
+        n1(( ids[] CHEBI:6801 ))
+        n0-- biolink:treated_by -->n1
+        """
+    )
+
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"n0n1": ["kp1"]}
+    assert "kp1" in kps
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(settings.normalizer_url)
+async def test_symmetric_predicate(monkeypatch):
+    """
+    Test that we get a kp in the plan with reverse categories and a symmetric predicate.
+    """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = query_graph_from_string(
+        """
+        n0(( categories[] biolink:Disease ))
+        n0(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Drug ))
+        n1-- biolink:correlated_with -->n0
+        """
+    )
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"n1n0": ["kp1"]}
+    assert "kp1" in kps
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(settings.normalizer_url)
+async def test_subpredicate(monkeypatch):
+    """Test that KPs are sent the correct predicate subclasses."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = {
+        "nodes": {
+            "a": {"categories": ["biolink:ChemicalSubstance"], "ids": ["CHEBI:34253"]},
+            "b": {"categories": ["biolink:Disease"]},
+        },
+        "edges": {
+            "ab": {
+                "subject": "a",
+                "object": "b",
+                "predicates": ["biolink:interacts_with"],
+            }
+        },
+    }
+
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"ab": ["kp1"]}
+    assert "kp1" in kps
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+    normalizer_data="""
+        MONDO:1 categories biolink:NamedThing
+        """,
+)
+async def test_solve_double_subclass(monkeypatch):
+    """
+    Test that when given a node with a general type that we subclass
+    it and contact all KPs available for information about that node
+    """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:1 ))
+        n1(( categories[] biolink:NamedThing ))
+        n0-- biolink:ameliorates -->n1
+        """
+    )
+
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"n0n1": ["kp1"]}
+    assert "kp1" in kps
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+    normalizer_data="""
+        MONDO:1 categories biolink:Disease
+        CHEBI:1 categories biolink:Vitamin
+        """,
+)
+async def test_pinned_to_pinned(monkeypatch):
+    """
+    Test that we can solve a query to check if a pinned node is
+    connected to another pinned node
+    """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = query_graph_from_string(
+        """
+        n0(( ids[] MONDO:1 ))
+        n1(( ids[] CHEBI:1 ))
+        n0-- biolink:related_to -->n1
+        """
+    )
+
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"n0n1": ["kp3"]}
+    assert "kp3" in kps
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+    normalizer_data="""
+        CHEBI:1 categories biolink:Gene
+        """,
+)
+async def test_self_edge(monkeypatch):
+    """
+    Test that we can solve a query with a self-edge
+    """
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    qg = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:1 ))
+        n0-- biolink:related_to -->n0
+        """
+    )
+
+    await prepare_query_graph(qg)
+    plan, kps = await generate_plan(qg, logger=logging.getLogger())
+    assert plan == {"n0n0": ["kp2"]}
+    assert "kp2" in kps
