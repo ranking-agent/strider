@@ -519,7 +519,6 @@ def validate_message(template, value):
 
     # Validate results
     for index, template_result_string in enumerate(template["results"]):
-
         # Parse string representation
         template_result_string = inspect.cleandoc(template_result_string)
         template_result = {}

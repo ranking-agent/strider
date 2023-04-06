@@ -443,7 +443,6 @@ class ThrottledServer:
         qgraphs = get_canonical_qgraphs(query.message.query_graph)
 
         for qgraph in qgraphs:
-
             subquery = Query(message=Message(query_graph=qgraph))
 
             # Queue query for processing

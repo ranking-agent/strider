@@ -26,6 +26,7 @@ PROFILE_DIRECTORY = tempfile.mkdtemp()
 
 captured_profiles = []
 
+
 # Middleware to capture profile data and save it
 # to files
 @APP.middleware("http")
