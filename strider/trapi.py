@@ -217,7 +217,7 @@ def get_canonical_qedge(
         if slot is None:
             predicates.append(predicate)
             continue
-        is_canonical = slot.annotations.get("biolink:canonical_predicate", False)
+        is_canonical = slot.annotations.get("canonical_predicate", False)
         if is_canonical or slot.symmetric or slot.inverse is None:
             # predicate is canonical, use it
             predicates.append(predicate)

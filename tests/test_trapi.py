@@ -113,7 +113,8 @@ def test_uncanonicalizable_qgraph():
             },
         }
     )
-    assert len(get_canonical_qgraphs(qgraph)) == 2
+    qgraphs = get_canonical_qgraphs(qgraph)
+    assert len(qgraphs) == 2
 
 
 def test_filter_by_qgraph_category():

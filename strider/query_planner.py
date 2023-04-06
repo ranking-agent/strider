@@ -231,9 +231,9 @@ async def generate_plan(
         if inverse_predicates:
             inverse_kps = search(
                 registry,
-                subject_categories,
-                inverse_predicates,
                 object_categories,
+                inverse_predicates,
+                subject_categories,
                 settings.openapi_server_maturity,
             )
         else:

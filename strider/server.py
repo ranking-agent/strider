@@ -301,6 +301,7 @@ async def sync_query(
         raise HTTPException(400, "operations must have id 'lookup'")
 
     query_results = {}
+    qid = ""
     try:
         LOGGER.info("Starting sync query")
         qid, query_results = await asyncio.wait_for(
@@ -308,12 +309,14 @@ async def sync_query(
         )
     except asyncio.TimeoutError:
         LOGGER.warning("Sync query cancelled due to timeout.")
+        qid = "Timeout"
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
     except Exception as e:
         LOGGER.warning(f"Sync query failed unexpectedly: {e}")
+        qid = "Exception"
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "error"},
