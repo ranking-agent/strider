@@ -5,7 +5,10 @@ from fastapi.responses import Response
 import pytest
 import redis.asyncio
 
-from tests.helpers.context import with_translator_overlay, with_response_overlay, with_norm_overlay
+from tests.helpers.context import (
+    with_response_overlay,
+    with_norm_overlay,
+)
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 from tests.helpers.redisMock import redisMock
@@ -27,9 +30,10 @@ setup_logger()
 async def test_mixed_canonical(monkeypatch, mocker):
     """Test qedge with mixed canonical and non-canonical predicates."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -48,34 +52,37 @@ async def test_mixed_canonical(monkeypatch, mocker):
     # Run
     await lookup(q)
 
-    query.assert_called_with({
-        "message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {
-                        "ids": ["CHEBI:6801"],
-                        "categories": ["biolink:ChemicalSubstance"],
-                        "is_set": False,
-                        "constraints": []
+    query.assert_called_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:ChemicalSubstance"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Disease"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
                     },
-                    "n1": {
-                        "categories": ["biolink:Disease"],
-                        "is_set": False,
-                        "constraints": []
-                    },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "object": "n1",
-                        "predicates": ["biolink:treats", "biolink:phenotype_of"],
-                        "attribute_constraints": [],
-                        "qualifier_constraints": [],
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:treats", "biolink:phenotype_of"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        },
                     },
                 },
             },
         },
-    }, timeout=60.0)
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -85,9 +92,10 @@ async def test_mixed_canonical(monkeypatch, mocker):
 async def test_symmetric_noncanonical(monkeypatch, mocker):
     """Test qedge with the symmetric, non-canonical predicate genetically_interacts_with."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -106,34 +114,37 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
     # Run
     await lookup(q)
 
-    query.assert_called_with({
-        "message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {
-                        "ids": ["CHEBI:6801"],
-                        "categories": ["biolink:ChemicalSubstance"],
-                        "is_set": False,
-                        "constraints": []
+    query.assert_called_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:ChemicalSubstance"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Disease"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
                     },
-                    "n1": {
-                        "categories": ["biolink:Disease"],
-                        "is_set": False,
-                        "constraints": []
-                    },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "object": "n1",
-                        "predicates": ["biolink:genetically_interacts_with"],
-                        "attribute_constraints": [],
-                        "qualifier_constraints": [],
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:genetically_interacts_with"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        },
                     },
                 },
             },
         },
-    }, timeout=60.0)
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -353,9 +364,10 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
     """Test conflation of biolink:Gene and biolink:Protein categories.
     e0 checks that Gene is added to Protein nodes."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:0008114 ))
@@ -371,34 +383,37 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
     # Run query
     await lookup(q)
 
-    query.assert_called_with({
-        "message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {
-                        "ids": ["MONDO:0008114"],
-                        "categories": ["biolink:Disease"],
-                        "is_set": False,
-                        "constraints": []
+    query.assert_called_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["MONDO:0008114"],
+                            "categories": ["biolink:Disease"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Protein", "biolink:Gene"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
                     },
-                    "n1": {
-                        "categories": ["biolink:Protein", "biolink:Gene"],
-                        "is_set": False,
-                        "constraints": []
-                    },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "object": "n1",
-                        "predicates": ["biolink:related_to"],
-                        "attribute_constraints": [],
-                        "qualifier_constraints": [],
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:related_to"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        },
                     },
                 },
             },
         },
-    }, timeout=60.0)
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -409,9 +424,10 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
     """Test conflation of biolink:Gene and biolink:Protein categories.
     e0 checks to make sure that Protein is added to Gene nodes."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:Gene ))
@@ -427,34 +443,37 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
     # Run query
     await lookup(q)
 
-    query.assert_called_with({
-        "message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {
-                        "categories": ["biolink:Gene", "biolink:Protein"],
-                        "is_set": False,
-                        "constraints": []
+    query.assert_called_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "categories": ["biolink:Gene", "biolink:Protein"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "ids": ["MONDO:0008114"],
+                            "categories": ["biolink:Disease"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
                     },
-                    "n1": {
-                        "ids": ["MONDO:0008114"],
-                        "categories": ["biolink:Disease"],
-                        "is_set": False,
-                        "constraints": []
-                    },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "object": "n1",
-                        "predicates": ["biolink:related_to"],
-                        "attribute_constraints": [],
-                        "qualifier_constraints": [],
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:related_to"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        },
                     },
                 },
             },
         },
-    }, timeout=60.0)
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -464,9 +483,10 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
 async def test_node_set(monkeypatch, mocker):
     """Test that is_set is handled correctly."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -486,31 +506,34 @@ async def test_node_set(monkeypatch, mocker):
     # Run
     await lookup(q)
 
-    query.assert_called_with({
-        "message": {
-            "query_graph": {
-                "nodes": {
-                    "n0": {
-                        "ids": ["CHEBI:6801"],
-                        "categories": ["biolink:ChemicalSubstance"],
-                        "is_set": False,
-                        "constraints": []
+    query.assert_called_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:ChemicalSubstance"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Disease"],
+                            "is_set": True,
+                            "constraints": [],
+                        },
                     },
-                    "n1": {
-                        "categories": ["biolink:Disease"],
-                        "is_set": True,
-                        "constraints": []
-                    },
-                },
-                "edges": {
-                    "n0n1": {
-                        "subject": "n0",
-                        "object": "n1",
-                        "predicates": ["biolink:treats"],
-                        "attribute_constraints": [],
-                        "qualifier_constraints": [],
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:treats"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        },
                     },
                 },
             },
         },
-    }, timeout=60.0)
+        timeout=60.0,
+    )
