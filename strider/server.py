@@ -131,7 +131,10 @@ if settings.jaeger_enabled == "True":
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry import trace
     from opentelemetry.exporter.jaeger.thrift import JaegerExporter
-    from opentelemetry.sdk.resources import SERVICE_NAME as telemetery_service_name_key, Resource
+    from opentelemetry.sdk.resources import (
+        SERVICE_NAME as telemetery_service_name_key,
+        Resource,
+    )
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
     from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
@@ -140,8 +143,8 @@ if settings.jaeger_enabled == "True":
     # but some libs display warnings of resource being unclosed.
     # these supresses such warnings.
     logging.captureWarnings(capture=True)
-    warnings.filterwarnings("ignore",category=ResourceWarning)
-    service_name = os.environ.get('OTEL_SERVICE_NAME', 'STRIDER')
+    warnings.filterwarnings("ignore", category=ResourceWarning)
+    service_name = os.environ.get("OTEL_SERVICE_NAME", "STRIDER")
     trace.set_tracer_provider(
         TracerProvider(
             resource=Resource.create({telemetery_service_name_key: service_name})
@@ -151,11 +154,11 @@ if settings.jaeger_enabled == "True":
         agent_host_name=settings.jaeger_host,
         agent_port=int(settings.jaeger_port),
     )
-    trace.get_tracer_provider().add_span_processor(
-        BatchSpanProcessor(jaeger_exporter)
-    )
+    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(jaeger_exporter))
     tracer = trace.get_tracer(__name__)
-    FastAPIInstrumentor.instrument_app(APP, tracer_provider=trace, excluded_urls="docs,openapi.json")
+    FastAPIInstrumentor.instrument_app(
+        APP, tracer_provider=trace, excluded_urls="docs,openapi.json"
+    )
     HTTPXClientInstrumentor().instrument()
 
 
@@ -388,7 +391,9 @@ async def multi_query(
             raise HTTPException(400, "callback url for all queries must be the same")
         queries[query] = query_dict
 
-    LOGGER.info(f"[{multiqid}] Starting {len(query_keys)} multi lookup queries for {callback}")
+    LOGGER.info(
+        f"[{multiqid}] Starting {len(query_keys)} multi lookup queries for {callback}"
+    )
     background_tasks.add_task(multi_lookup, multiqid, callback, queries, query_keys)
 
     return
@@ -529,6 +534,7 @@ async def async_lookup(
 
 async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
     "Performs lookup for multiple queries and sends all results to callback url"
+
     async def single_lookup(query_key):
         query_result = {}
         try:

@@ -108,7 +108,9 @@ async def test_duplicate_results(client, monkeypatch):
     "http://kp1/query",
     Response(
         status_code=200,
-        content=json.dumps(mock_responses.duplicate_result_response_different_predicate),
+        content=json.dumps(
+            mock_responses.duplicate_result_response_different_predicate
+        ),
     ),
 )
 async def test_dont_merge_results_different_predicates(client, monkeypatch):
@@ -148,9 +150,10 @@ async def test_dont_merge_results_different_predicates(client, monkeypatch):
 async def test_solve_missing_predicate(client, monkeypatch, mocker):
     """Test solving a query graph, in which the predicate is missing."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] HP:001 ))
@@ -169,8 +172,36 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
     await client.post("/query", json=q)
 
     query.assert_called_once_with(
-        {"message": {
-            "query_graph": {"nodes": {"n0": {"ids": ["HP:001"], "categories": ["biolink:Gene"], "is_set": False, "constraints": []}, "n1": {"categories": ["biolink:Gene", "biolink:Protein"], "is_set": False, "constraints": []}}, "edges": {"n0n1": {"subject": "n0", "object": "n1", "predicates": ["biolink:related_to"], "attribute_constraints": [], "qualifier_constraints": []}}}}}, timeout=60.0)
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["HP:001"],
+                            "categories": ["biolink:Gene"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Gene", "biolink:Protein"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                    },
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:related_to"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        }
+                    },
+                }
+            }
+        },
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -178,9 +209,10 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
 async def test_solve_missing_category(client, monkeypatch, mocker):
     """Test solving the ex1 query graph, in which one of the categories is missing."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -197,8 +229,38 @@ async def test_solve_missing_category(client, monkeypatch, mocker):
 
     # Run
     await client.post("/query", json=q)
-    
-    query.assert_called_once_with({"message": {"query_graph": {"nodes": {"n0": {"ids": ["CHEBI:6801"], "categories": ["biolink:NamedThing"], "is_set": False, "constraints": []}, "n1": {"categories": ["biolink:Disease"], "is_set": False, "constraints": []}}, "edges": {"n0n1": {"subject": "n0", "object": "n1", "predicates": ["biolink:treats"], "attribute_constraints": [], "qualifier_constraints": []}}}}}, timeout=60.0)
+
+    query.assert_called_once_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:NamedThing"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Disease"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                    },
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:treats"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        }
+                    },
+                }
+            }
+        },
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -214,9 +276,10 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
     the one in the node normalizer.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:ChemicalSubstance ))
@@ -232,7 +295,37 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
     # Run
     await client.post("/query", json=q)
 
-    query.assert_called_once_with({"message": {"query_graph": {"nodes": {"n0": {"ids": ["CHEBI:6801"], "categories": ["biolink:Vitamin"], "is_set": False, "constraints": []}, "n1": {"categories": ["biolink:Disease"], "is_set": False, "constraints": []}}, "edges": {"n0n1": {"subject": "n0", "object": "n1", "predicates": ["biolink:treats"], "attribute_constraints": [], "qualifier_constraints": []}}}}}, timeout=60.0)
+    query.assert_called_once_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:Vitamin"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Disease"],
+                            "is_set": False,
+                            "constraints": [],
+                        },
+                    },
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:treats"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        }
+                    },
+                }
+            }
+        },
+        timeout=60.0,
+    )
 
 
 @pytest.mark.asyncio
@@ -368,9 +461,10 @@ async def test_solve_not_real_predicate(client, monkeypatch, mocker):
     predicates that we don't recognize
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    query = mocker.patch("strider.trapi_throttle.throttle.ThrottledServer._query", return_value={
-        "message": {}
-    })
+    query = mocker.patch(
+        "strider.trapi_throttle.throttle.ThrottledServer._query",
+        return_value={"message": {}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -673,8 +767,14 @@ async def test_multiquery(client, monkeypatch):
     )
 
     q = {
-        "query1": {"callback": "http://test_callback/", "message": {"query_graph": QGRAPH1}},
-        "query2": {"callback": "http://test_callback/", "message": {"query_graph": QGRAPH2}},
+        "query1": {
+            "callback": "http://test_callback/",
+            "message": {"query_graph": QGRAPH1},
+        },
+        "query2": {
+            "callback": "http://test_callback/",
+            "message": {"query_graph": QGRAPH2},
+        },
     }
     queue = asyncio.Queue()
     async with callback_overlay("http://test_callback/", queue):

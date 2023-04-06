@@ -16,9 +16,7 @@ kp_response = {
         "knowledge_graph": {
             "nodes": {
                 "MESH:D008687": {
-                    "categories": [
-                        "biolink:SmallMolecule"
-                    ],
+                    "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
                 },
                 "MONDO:0005148": {
@@ -67,9 +65,7 @@ duplicate_result_response = {
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
-                    "categories": [
-                        "biolink:SmallMolecule"
-                    ],
+                    "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
                 },
                 "MONDO:0005148": {
@@ -118,9 +114,7 @@ duplicate_result_response_2 = {
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
-                    "categories": [
-                        "biolink:SmallMolecule"
-                    ],
+                    "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
                 },
                 "MONDO:0005148": {
@@ -169,9 +163,7 @@ duplicate_result_response_different_predicate = {
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
-                    "categories": [
-                        "biolink:SmallMolecule"
-                    ],
+                    "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
                 },
                 "MONDO:0005148": {
@@ -220,9 +212,7 @@ loop_response_1 = {
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
-                    "categories": [
-                        "biolink:SmallMolecule"
-                    ],
+                    "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
                 },
                 "MONDO:0005148": {
@@ -284,9 +274,7 @@ response_with_attributes = {
         "knowledge_graph": {
             "nodes": {
                 "MESH:D008687": {
-                    "categories": [
-                        "biolink:SmallMolecule"
-                    ],
+                    "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
                 },
                 "MONDO:0005148": {
@@ -306,7 +294,7 @@ response_with_attributes = {
                             "value": "infores:kp3",
                             "attribute_type_id": "biolink:knowledge_source",
                         }
-                    ]
+                    ],
                 },
             },
         },
