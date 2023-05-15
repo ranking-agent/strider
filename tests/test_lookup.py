@@ -189,6 +189,12 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                                 "subject": "CHEBI:XXX",
                                 "predicate": "biolink:treats",
                                 "object": "MONDO:0005148",
+                                "sources": [
+                                    {
+                                        "resource_id": "kp1",
+                                        "resource_role": "primary_knowledge_source",
+                                    },
+                                ],
                             },
                         },
                     },
@@ -304,6 +310,12 @@ async def test_disambiguation(monkeypatch):
                                 "subject": "CHEBI:XXX",
                                 "predicate": "biolink:treats",
                                 "object": "MONDO:0005148",
+                                "sources": [
+                                    {
+                                        "resource_id": "kp1",
+                                        "resource_role": "primary_knowledge_source",
+                                    },
+                                ],
                             },
                         },
                     },
