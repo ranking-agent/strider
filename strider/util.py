@@ -314,13 +314,19 @@ def message_to_list_form(message):
                     }
                     for qg_id, binding in result["node_bindings"].items()
                 ],
-                "edge_bindings": [
+                "analyses": [
                     {
-                        "qg_id": qg_id,
-                        **binding,
+                        "resource_id": "infores:aragorn",
+                        "edge_bindings": [
+                            {
+                                "qg_id": qg_id,
+                                **binding,
+                            }
+                            for qg_id, binding in analysis["edge_bindings"].items()
+                        ],
                     }
-                    for qg_id, binding in result["edge_bindings"].items()
-                ],
+                    for analysis in result.get("analyses",[])
+                ]
             }
             for result in message.get("results", [])
         ]
@@ -353,10 +359,16 @@ def message_to_dict_form(message):
                         binding["qg_id"]: [binding]
                         for binding in result["node_bindings"]
                     },
-                    "edge_bindings": {
-                        binding["qg_id"]: [binding]
-                        for binding in result["edge_bindings"]
-                    },
+                    "analyses": [
+                        {
+                            "resource_id": "infores:aragorn",
+                            "edge_bindings": {
+                                binding["qg_id"]: [binding]
+                                for binding in analysis["edge_bindings"]
+                            },
+                        }
+                        for analysis in result.get("analyses", [])
+                    ]
                 }
                 for result in message.get("results", [])
             ]
@@ -369,10 +381,16 @@ def message_to_dict_form(message):
                         key: [{"kg_id": el} for el in ensure_list(bindings)]
                         for key, bindings in result["node_bindings"].items()
                     },
-                    "edge_bindings": {
-                        key: [{"kg_id": el} for el in ensure_list(bindings)]
-                        for key, bindings in result["edge_bindings"].items()
-                    },
+                    "analyses": [
+                        {
+                            "resource_id": "infores:aragorn",
+                            "edge_bindings": {
+                                key: [{"kg_id": el} for el in ensure_list(bindings)]
+                                for key, bindings in analysis["edge_bindings"].items()
+                            },
+                        }
+                        for analysis in result.get("analyses", [])
+                    ]
                 }
                 for result in message.get("results", [])
             ]

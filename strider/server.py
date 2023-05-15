@@ -463,26 +463,27 @@ async def lookup(
             # Mergeable results must:
             ## Have identical node bindings
             ## Have the same subject-predicate-object in edge bindings
-            result_custom = result.copy(deep=True)
-            for eb_set in result_custom.edge_bindings.values():
-                for eb in eb_set:
-                    eb.subject = result_kgraph.edges[eb.id].subject
-                    eb.predicate = result_kgraph.edges[eb.id].predicate
-                    eb.object = result_kgraph.edges[eb.id].object
-                    eb.id = None
+            for analysis in result.get("analyses", []):
+                analysis_custom = analysis.copy(deep=True)
+                for eb_set in analysis_custom.edge_bindings.values():
+                    for eb in eb_set:
+                        eb.subject = result_kgraph.edges[eb.id].subject
+                        eb.predicate = result_kgraph.edges[eb.id].predicate
+                        eb.object = result_kgraph.edges[eb.id].object
+                        eb.id = None
 
-            # Make a result with no edge bindings
-            unbound_result = result.copy(deep=True)
-            [eb_set.clear() for eb_set in unbound_result.edge_bindings.values()]
+                # Make a result with no edge bindings
+                unbound_analysis = analysis.copy(deep=True)
+                [eb_set.clear() for eb_set in unbound_analysis.edge_bindings.values()]
 
-            # Get existing result to merge, or a blank one
-            existing_result = output_results.get(result_custom, default=unbound_result)
+                # Get existing result to merge, or a blank one
+                existing_analysis = output_results.get(analysis_custom, default=unbound_analysis)
 
-            # Update result with new data
-            for qg_node, eb_set in existing_result.edge_bindings.items():
-                eb_set.update(result.edge_bindings[qg_node])
+                # Update result with new data
+                for qg_node, eb_set in existing_analysis.edge_bindings.items():
+                    eb_set.update(analysis.edge_bindings[qg_node])
 
-            output_results[result_custom] = existing_result
+                output_results[analysis_custom] = existing_analysis
 
     output_query = Query(
         message=Message(
@@ -626,7 +627,8 @@ async def score_results(
                     "qid": eb["qg_id"],
                     "kid": eb["kg_id"],
                 }
-                for eb in result["edge_bindings"]
+                for analysis in result.get("analyses", [])
+                for eb in analysis["edge_bindings"]
             },
         }
         result["score"] = await score_graph(
