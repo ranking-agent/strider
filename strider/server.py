@@ -22,7 +22,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
 
 from kp_registry import Registry
-from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse
+from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse, Results
 
 from .caching import save_kp_registry, get_registry_lock, remove_registry_lock
 from .fetcher import Binder
@@ -438,58 +438,32 @@ async def lookup(
         }
 
     # Result container to map our "custom" results to "real" results
-    output_results = HashableMapping[Result, Result]()
+    output_results = Results.parse_obj([])
 
     output_kgraph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
 
     async with binder:
-        async for result_kgraph_dict, result_dict in binder.lookup(None):
+        async for result_kgraph_dict, results in binder.lookup(None):
             # TODO figure out how to remove this conversion
             result_message = Message.parse_obj(
                 {
                     "knowledge_graph": result_kgraph_dict,
-                    "results": [result_dict],
+                    "results": [results],
                 }
             )
             result_message._normalize_kg_edge_ids()
 
-            result = next(iter(result_message.results))
-            result_kgraph = result_message.knowledge_graph
-
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
 
-            # Rewrite result so that mergeable results end up with the same hash
-            # Mergeable results must:
-            ## Have identical node bindings
-            ## Have the same subject-predicate-object in edge bindings
-            for analysis in result.get("analyses", []):
-                analysis_custom = analysis.copy(deep=True)
-                for eb_set in analysis_custom.edge_bindings.values():
-                    for eb in eb_set:
-                        eb.subject = result_kgraph.edges[eb.id].subject
-                        eb.predicate = result_kgraph.edges[eb.id].predicate
-                        eb.object = result_kgraph.edges[eb.id].object
-                        eb.id = None
-
-                # Make a result with no edge bindings
-                unbound_analysis = analysis.copy(deep=True)
-                [eb_set.clear() for eb_set in unbound_analysis.edge_bindings.values()]
-
-                # Get existing result to merge, or a blank one
-                existing_analysis = output_results.get(analysis_custom, default=unbound_analysis)
-
-                # Update result with new data
-                for qg_node, eb_set in existing_analysis.edge_bindings.items():
-                    eb_set.update(analysis.edge_bindings[qg_node])
-
-                output_results[analysis_custom] = existing_analysis
+            # Update the results
+            output_results.update(result_message.results)
 
     output_query = Query(
         message=Message(
             query_graph=QueryGraph.parse_obj(qgraph),
             knowledge_graph=output_kgraph,
-            results=HashableSet[Result](__root__=set(output_results.values())),
+            results=output_results,
         )
     )
 

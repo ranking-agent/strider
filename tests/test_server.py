@@ -113,7 +113,7 @@ async def test_duplicate_results(client, monkeypatch):
         ),
     ),
 )
-async def test_dont_merge_results_different_predicates(client, monkeypatch):
+async def test_merge_results_different_predicates(client, monkeypatch):
     """
     Test that if we get results from KPs with different predicates
     then the results are not merged together
@@ -138,12 +138,9 @@ async def test_dont_merge_results_different_predicates(client, monkeypatch):
 
     # Check message structure
     assert len(output["message"]["knowledge_graph"]["edges"]) == 2
-    assert len(output["message"]["results"]) == 2
+    assert len(output["message"]["results"]) == 1
     result = output["message"]["results"][0]
-    assert len(result["analyses"]) == 1
-    assert len(result["analyses"][0]["edge_bindings"]) == 1
-    eb_list = next(iter(result.values()))
-    assert len(eb_list) == 2
+    assert len(result["analyses"]) == 2
 
 
 @pytest.mark.asyncio
