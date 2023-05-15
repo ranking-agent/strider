@@ -10,6 +10,7 @@ def collapse_sets(message: dict) -> None:
         if not qnode.get("is_set", False)
     }
     if len(unique_qnodes) == len(message["query_graph"]["nodes"]):
+        # no set nodes
         return
     unique_qedges = {
         qedge_id
@@ -19,7 +20,7 @@ def collapse_sets(message: dict) -> None:
     result_buckets = defaultdict(
         lambda: {
             "node_bindings": defaultdict(set),
-            "analyses": [{"edge_bindings": defaultdict(set)}],
+            "analyses": [],
         }
     )
     for result in message["results"]:
@@ -41,9 +42,11 @@ def collapse_sets(message: dict) -> None:
                 binding["id"] for binding in result["node_bindings"][qnode_id]
             }
         for qedge_id in message["query_graph"]["edges"]:
-            result_buckets[bucket_key]["edge_bindings"][qedge_id] |= {
-                binding["id"] for binding in result["edge_bindings"][qedge_id]
-            }
+            for index, analysis in enumerate(result.get("analyses", [])):
+                result_buckets[bucket_key]["analyses"].append({"edge_bindings": defaultdict(set)})
+                result_buckets[bucket_key]["analyses"][index]["edge_bindings"][qedge_id] |= {
+                    binding["id"] for binding in analysis["edge_bindings"][qedge_id]
+                }
     for result in result_buckets.values():
         result["node_bindings"] = {
             qnode_id: [{"id": binding} for binding in bindings]
