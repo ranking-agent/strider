@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     openapi_server_url: Optional[AnyUrl]
     openapi_server_maturity: str = "development"
     openapi_server_location: str = "RENCI"
+    kp_trapi_version: str = "1.4.0"
     omnicorp_url: AnyUrl = "http://robokop.renci.org:3210"
     biolink_url: AnyUrl = "https://bl-lookup-sri.renci.org"
     normalizer_url: AnyUrl = "https://nodenormalization-sri.renci.org"
