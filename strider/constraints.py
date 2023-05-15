@@ -37,14 +37,15 @@ def result_satisfies_constraints(result: dict, kgraph: dict, qgraph: dict) -> bo
             for constraint in qgraph["nodes"][qnode_id].get("constraints", []):
                 if not satisfies_attribute_constraint(knode, constraint):
                     return False
-    for qedge_id, edge_bindings in result["edge_bindings"].items():
-        for edge_binding in edge_bindings:
-            kedge = kgraph["edges"][edge_binding["id"]]
-            for constraint in qgraph["edges"][qedge_id].get(
-                "attribute_constraints", []
-            ):
-                if not satisfies_attribute_constraint(kedge, constraint):
-                    return False
+    for analysis in result.get("analyses", []):
+        for qedge_id, edge_bindings in analysis["edge_bindings"].items():
+            for edge_binding in edge_bindings:
+                kedge = kgraph["edges"][edge_binding["id"]]
+                for constraint in qgraph["edges"][qedge_id].get(
+                    "attribute_constraints", []
+                ):
+                    if not satisfies_attribute_constraint(kedge, constraint):
+                        return False
 
     return True
 
@@ -70,7 +71,8 @@ def enforce_constraints(message: dict) -> dict:
         "edges": {
             binding["id"]: message["knowledge_graph"]["edges"][binding["id"]]
             for result in message["results"]
-            for _, bindings in result["edge_bindings"].items()
+            for analysis in result.get("analyses", [])
+            for _, bindings in analysis["edge_bindings"].items()
             for binding in bindings
         },
     }

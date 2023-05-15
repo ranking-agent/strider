@@ -47,9 +47,10 @@ def remove_unbound_from_kg(message):
                 bound_knodes.add(nb["id"])
     bound_kedges = set()
     for result in message["results"]:
-        for edge_binding_list in result["edge_bindings"].values():
-            for nb in edge_binding_list:
-                bound_kedges.add(nb["id"])
+        for analysis in result.get("analyses", []):
+            for edge_binding_list in analysis["edge_bindings"].values():
+                for nb in edge_binding_list:
+                    bound_kedges.add(nb["id"])
 
     message["knowledge_graph"]["nodes"] = {
         nid: node
@@ -108,7 +109,8 @@ def filter_by_curie_mapping(
         edges={
             binding.id: message.knowledge_graph.edges[binding.id]
             for result in filtered_msg.results
-            for _, bindings in result.edge_bindings.items()
+            for analysis in result.analyses
+            for _, bindings in analysis.edge_bindings.items()
             for binding in bindings
         },
     )

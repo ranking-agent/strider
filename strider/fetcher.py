@@ -152,7 +152,8 @@ class Binder:
                     },
                     "edges": {
                         binding["id"]: onehop_kgraph["edges"][binding["id"]]
-                        for _, bindings in result["edge_bindings"].items()
+                        for analysis in result.get("analyses", [])
+                        for _, bindings in analysis["edge_bindings"].items()
                         for binding in bindings
                     },
                 }
@@ -211,6 +212,7 @@ class Binder:
                     "edge_bindings": {
                         **subresult["edge_bindings"],
                         **result["edge_bindings"],
+                        # reconsider
                     },
                 }
                 new_subkgraph = copy.deepcopy(subkgraph)

@@ -19,7 +19,7 @@ def collapse_sets(message: dict) -> None:
     result_buckets = defaultdict(
         lambda: {
             "node_bindings": defaultdict(set),
-            "edge_bindings": defaultdict(set),
+            "analyses": [{"edge_bindings": defaultdict(set)}],
         }
     )
     for result in message["results"]:
@@ -32,7 +32,8 @@ def collapse_sets(message: dict) -> None:
             + [
                 binding["id"]
                 for qedge_id in unique_qedges
-                for binding in result["edge_bindings"][qedge_id]
+                for analysis in result.get("analyses", [])
+                for binding in analysis["edge_bindings"][qedge_id]
             ]
         )
         for qnode_id in message["query_graph"]["nodes"]:
@@ -48,8 +49,9 @@ def collapse_sets(message: dict) -> None:
             qnode_id: [{"id": binding} for binding in bindings]
             for qnode_id, bindings in result["node_bindings"].items()
         }
-        result["edge_bindings"] = {
-            qedge_id: [{"id": binding} for binding in bindings]
-            for qedge_id, bindings in result["edge_bindings"].items()
-        }
+        for analysis in result.get("analyses", []):
+            analysis["edge_bindings"] = {
+                qedge_id: [{"id": binding} for binding in bindings]
+                for qedge_id, bindings in analysis["edge_bindings"].items()
+            }
     message["results"] = list(result_buckets.values())

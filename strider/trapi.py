@@ -40,7 +40,8 @@ def result_hash(result):
     )
     edge_bindings_information = frozenset(
         (key, frozenset(bound["id"] for bound in value))
-        for key, value in result["edge_bindings"].items()
+        for analysis in result.get("analyses", [])
+        for key, value in analysis["edge_bindings"].items()
     )
     return (node_bindings_information, edge_bindings_information)
 
@@ -414,7 +415,8 @@ def filter_by_qgraph(message, qgraph):
         )
         and all(
             is_valid_edge_binding(message, eb, qgraph["edges"][qg_id])
-            for qg_id, eb_list in result["edge_bindings"].items()
+            for analysis in result.get("analyses", [])
+            for qg_id, eb_list in analysis["edge_bindings"].items()
             for eb in eb_list
         )
     ]
@@ -434,9 +436,10 @@ def remove_unbound_from_kg(message):
                 bound_knodes.add(nb["id"])
     bound_kedges = set()
     for result in message["results"]:
-        for edge_binding_list in result["edge_bindings"].values():
-            for nb in edge_binding_list:
-                bound_kedges.add(nb["id"])
+        for analysis in result.get("analyses", []):
+            for edge_binding_list in analysis["edge_bindings"].values():
+                for nb in edge_binding_list:
+                    bound_kedges.add(nb["id"])
 
     message["knowledge_graph"]["nodes"] = {
         nid: node
