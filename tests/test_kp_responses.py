@@ -152,7 +152,7 @@ async def test_kp_500(client, monkeypatch):
     output = response.json()
 
     # Check that we stored the error
-    assert "Response Error contacting kp0" in output["logs"][0]["message"]
+    assert "Response Error contacting infores:kp0" in output["logs"][0]["message"]
     assert "Internal server error" in output["logs"][0]["response"]["data"]
     # Ensure we have results from the other KPs
     assert len(output["message"]["knowledge_graph"]["nodes"]) > 0
@@ -196,7 +196,7 @@ async def test_kp_not_trapi(client, monkeypatch):
 
     # Check that we stored the error
     assert (
-        "Received non-TRAPI compliant response from kp1" in output["logs"][0]["message"]
+        "Received non-TRAPI compliant response from infores:kp1" in output["logs"][0]["message"]
     )
 
 
