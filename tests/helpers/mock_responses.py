@@ -33,7 +33,7 @@ kp_response = {
                     "predicate": "biolink:treats",
                     "sources": [
                         {
-                            "resource_id": "kp0",
+                            "resource_id": "infores:kp0",
                             "resource_role": "primary_knowledge_source"
                         }
                     ]
@@ -93,7 +93,7 @@ duplicate_result_response = {
                     "predicate": "biolink:treats",
                     "sources": [
                         {
-                            "resource_id": "kp0",
+                            "resource_id": "infores:kp0",
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
@@ -153,7 +153,7 @@ duplicate_result_response_2 = {
                     "predicate": "biolink:treats",
                     "sources": [
                         {
-                            "resource_id": "kp0",
+                            "resource_id": "infores:kp0",
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
@@ -213,7 +213,7 @@ duplicate_result_response_different_predicate = {
                     "predicate": "biolink:affects",
                     "sources": [
                         {
-                            "resource_id": "kp1",
+                            "resource_id": "infores:kp1",
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
@@ -273,7 +273,7 @@ loop_response_1 = {
                     "predicate": "biolink:affects",
                     "sources": [
                         {
-                            "resource_id": "kp0",
+                            "resource_id": "infores:kp0",
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
@@ -352,7 +352,7 @@ response_with_attributes = {
                     ],
                     "sources": [
                         {
-                            "resource_id": "kp0",
+                            "resource_id": "infores:kp3",
                             "resource_role": "primary_knowledge_source",
                         },
                     ],

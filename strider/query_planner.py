@@ -183,8 +183,6 @@ def search(
                 }
                 kps[kp_name]["operations"].append(operation.copy())
 
-    # switch keys from infores to title
-    kps = {val["title"]: kps[key] for key, val in kps.items()}
     return kps
 
 
