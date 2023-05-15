@@ -325,6 +325,12 @@ async def test_kp_response_no_qg(client, monkeypatch):
                                 "subject": "CHEBI:6801",
                                 "predicate": "biolink:treats",
                                 "object": "MONDO:0005148",
+                                "sources": [
+                                    {
+                                        "resource_id": "infores:kp1",
+                                        "resource_role": "primary_knowledge_source"
+                                    }
+                                ]
                             },
                         },
                     },
