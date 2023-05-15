@@ -65,7 +65,7 @@ class Binder:
             self.logger.info(f"Finished call stack: {(', ').join(call_stack)}")
             yield {"nodes": dict(), "edges": dict()}, {
                 "node_bindings": dict(),
-                "edge_bindings": dict(),
+                "analyses": [],
             }
             return
 
@@ -209,11 +209,11 @@ class Binder:
                         **subresult["node_bindings"],
                         **result["node_bindings"],
                     },
-                    "edge_bindings": {
-                        **subresult["edge_bindings"],
-                        **result["edge_bindings"],
+                    "analyses": [
+                        *subresult["analyses"],
+                        *result["analyses"],
                         # reconsider
-                    },
+                    ],
                 }
                 new_subkgraph = copy.deepcopy(subkgraph)
                 new_subkgraph["nodes"].update(kgraph["nodes"])
