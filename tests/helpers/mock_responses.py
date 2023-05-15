@@ -33,7 +33,7 @@ kp_response = {
                     "predicate": "biolink:treats",
                     "sources": [
                         {
-                            "resource_id": "ctd",
+                            "resource_id": "kp0",
                             "resource_role": "primary_knowledge_source"
                         }
                     ]
@@ -56,7 +56,7 @@ kp_response = {
                 },
                 "analyses": [
                     {
-                        "resource_id": "ctd",
+                        "resource_id": "kp0",
                         "edge_bindings": {
                             "n0n1": [
                                 {
@@ -91,6 +91,12 @@ duplicate_result_response = {
                     "subject": "CHEBI:6801",
                     "object": "MONDO:0005148",
                     "predicate": "biolink:treats",
+                    "sources": [
+                        {
+                            "resource_id": "kp0",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
                 },
             },
         },
@@ -110,6 +116,7 @@ duplicate_result_response = {
                 },
                 "analyses": [
                     {
+                        "resource_id": "kp0",
                         "edge_bindings": {
                             "n0n1": [
                                 {
@@ -144,6 +151,12 @@ duplicate_result_response_2 = {
                     "subject": "CHEBI:6801",
                     "object": "MONDO:0005148",
                     "predicate": "biolink:treats",
+                    "sources": [
+                        {
+                            "resource_id": "kp0",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
                 },
             },
         },
@@ -163,6 +176,7 @@ duplicate_result_response_2 = {
                 },
                 "analyses": [
                     {
+                        "resource_id": "kp0",
                         "edge_bindings": {
                             "n0n1": [
                                 {
@@ -197,6 +211,12 @@ duplicate_result_response_different_predicate = {
                     "subject": "CHEBI:6801",
                     "object": "MONDO:0005148",
                     "predicate": "biolink:affects",
+                    "sources": [
+                        {
+                            "resource_id": "kp1",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
                 },
             },
         },
@@ -216,6 +236,7 @@ duplicate_result_response_different_predicate = {
                 },
                 "analyses": [
                     {
+                        "resource_id": "kp1",
                         "edge_bindings": {
                             "n0n1": [
                                 {
@@ -250,6 +271,12 @@ loop_response_1 = {
                     "subject": "CHEBI:6801",
                     "object": "MONDO:0005148",
                     "predicate": "biolink:affects",
+                    "sources": [
+                        {
+                            "resource_id": "kp0",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
                 },
             },
         },
@@ -269,6 +296,7 @@ loop_response_1 = {
                 },
                 "analyses": [
                     {
+                        "resource_id": "kp0",
                         "edge_bindings": {
                             "n0n1": [
                                 {
@@ -320,7 +348,13 @@ response_with_attributes = {
                         {
                             "value": "infores:kp3",
                             "attribute_type_id": "biolink:knowledge_source",
-                        }
+                        },
+                    ],
+                    "sources": [
+                        {
+                            "resource_id": "kp0",
+                            "resource_role": "primary_knowledge_source",
+                        },
                     ],
                 },
             },
@@ -341,6 +375,7 @@ response_with_attributes = {
                 },
                 "analyses": [
                     {
+                        "resource_id": "kp0",
                         "edge_bindings": {
                             "n0n1": [
                                 {
