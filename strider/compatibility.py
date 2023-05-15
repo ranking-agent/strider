@@ -164,23 +164,25 @@ class KnowledgePortal:
         if message.get("results") is None:
             message["results"] = []
 
-        add_source(message)
+        add_source(message, kp_id)
 
         return message
 
 
-def add_source(message: Message):
+def add_source(message: Message, kp_id):
     """Add provenance annotation to kedges.
     Sources from which we retrieve data add their own prov, we add prov for aragorn."""
     for kedge in message["knowledge_graph"]["edges"].values():
-        kedge["attributes"] = (kedge.get("attributes", None) or []) + [
-            dict(
-                attribute_type_id="biolink:aggregator_knowledge_source",
-                value="infores:aragorn",
-                value_type_id="biolink:InformationResource",
-                attribute_source="infores:aragorn",
-            )
-        ]
+        kedge["sources"].append(
+            {
+                "resource_id": "infores:aragorn",
+                "resource_role": "aggregator_knowledge_source",
+                "upstream_resource_ids": [
+                    kp_id
+                ]
+            }
+        )
+            
 
 
 Entity = namedtuple("Entity", ["categories", "identifiers"])

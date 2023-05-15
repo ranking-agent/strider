@@ -648,20 +648,17 @@ async def test_provenance(client, monkeypatch):
     # Run
     response = await client.post("/query", json=q)
     output = response.json()
-    edge = list(output["message"]["knowledge_graph"]["edges"].values())[0]
-    attributes = edge["attributes"]
-    values = [i["value"] for i in attributes]
-    attribute_type_ids = [i["attribute_type_id"] for i in attributes]
-    assert "infores:aragorn" in values
-    assert "infores:kp3" in values
-    assert "biolink:aggregator_knowledge_source" in attribute_type_ids
-    assert "biolink:knowledge_source" in attribute_type_ids
-    assert values.index("infores:aragorn") == attribute_type_ids.index(
-        "biolink:aggregator_knowledge_source"
-    )
-    assert values.index("infores:kp3") == attribute_type_ids.index(
-        "biolink:knowledge_source"
-    )
+    sources = list(output["message"]["knowledge_graph"]["edges"].values())[0]["sources"]
+    assert len(sources) == 2
+    resource_ids = [i["resource_id"] for i in sources]
+    assert "infores:aragorn" in resource_ids
+    assert "infores:kp3" in resource_ids
+    for source in sources:
+        if source["resource_id"] == "infores:aragorn":
+            assert source["resource_role"] == "aggregator_knowledge_source"
+            assert source["upstream_resource_ids"] == ["infores:kp3"]
+        if source["resource_id"] == "infores:kp3":
+            assert source["resource_role"] == "primary_knowledge_source"
 
 
 @pytest.mark.asyncio

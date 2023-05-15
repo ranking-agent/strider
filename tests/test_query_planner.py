@@ -73,9 +73,9 @@ async def test_plan_reverse_edge(caplog, monkeypatch):
     await prepare_query_graph(qg)
 
     plan, kps = await generate_plan(qg)
-    assert plan == {"n1n0": ["kp1"]}
+    assert plan == {"n1n0": ["infores:kp1"]}
 
-    assert "kp1" in kps
+    assert "infores:kp1" in kps
 
 
 @pytest.mark.asyncio
@@ -331,8 +331,8 @@ async def test_double_sided(caplog, monkeypatch):
     )
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n0n1": ["kp1"]}
-    assert "kp1" in kps
+    assert plan == {"n0n1": ["infores:kp1"]}
+    assert "infores:kp1" in kps
 
 
 def test_get_next_qedge():
@@ -428,8 +428,8 @@ async def test_predicate_fanout(monkeypatch):
 
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"ab": ["kp2"]}
-    assert "kp2" in kps
+    assert plan == {"ab": ["infores:kp2"]}
+    assert "infores:kp2" in kps
 
 
 @pytest.mark.asyncio
@@ -456,8 +456,8 @@ async def test_inverse_predicate(monkeypatch):
 
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n0n1": ["kp1"]}
-    assert "kp1" in kps
+    assert plan == {"n0n1": ["infores:kp1"]}
+    assert "infores:kp1" in kps
 
 
 @pytest.mark.asyncio
@@ -477,8 +477,8 @@ async def test_symmetric_predicate(monkeypatch):
     )
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n1n0": ["kp1"]}
-    assert "kp1" in kps
+    assert plan == {"n1n0": ["infores:kp1"]}
+    assert "infores:kp1" in kps
 
 
 @pytest.mark.asyncio
@@ -502,8 +502,8 @@ async def test_subpredicate(monkeypatch):
 
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"ab": ["kp1"]}
-    assert "kp1" in kps
+    assert plan == {"ab": ["infores:kp1"]}
+    assert "infores:kp1" in kps
 
 
 @pytest.mark.asyncio
@@ -529,8 +529,8 @@ async def test_solve_double_subclass(monkeypatch):
 
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n0n1": ["kp1"]}
-    assert "kp1" in kps
+    assert plan == {"n0n1": ["infores:kp1"]}
+    assert "infores:kp1" in kps
 
 
 @pytest.mark.asyncio
@@ -557,8 +557,8 @@ async def test_pinned_to_pinned(monkeypatch):
 
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n0n1": ["kp3"]}
-    assert "kp3" in kps
+    assert plan == {"n0n1": ["infores:kp3"]}
+    assert "infores:kp3" in kps
 
 
 @pytest.mark.asyncio
@@ -582,5 +582,5 @@ async def test_self_edge(monkeypatch):
 
     await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, logger=logging.getLogger())
-    assert plan == {"n0n0": ["kp2"]}
-    assert "kp2" in kps
+    assert plan == {"n0n0": ["infores:kp2"]}
+    assert "infores:kp2" in kps
