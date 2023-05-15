@@ -31,6 +31,12 @@ kp_response = {
                     "subject": "MESH:D008687",
                     "object": "MONDO:0005148",
                     "predicate": "biolink:treats",
+                    "sources": [
+                        {
+                            "resource_id": "ctd",
+                            "resource_role": "primary_knowledge_source"
+                        }
+                    ]
                 },
             },
         },
@@ -48,13 +54,18 @@ kp_response = {
                         },
                     ],
                 },
-                "edge_bindings": {
-                    "n0n1": [
-                        {
-                            "id": "n0n1",
-                        },
-                    ],
-                },
+                "analyses": [
+                    {
+                        "resource_id": "ctd",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        }
+                    }
+                ],
             },
         ],
     },
@@ -97,13 +108,17 @@ duplicate_result_response = {
                         },
                     ],
                 },
-                "edge_bindings": {
-                    "n0n1": [
-                        {
-                            "id": "n0n1",
-                        },
-                    ],
-                },
+                "analyses": [
+                    {
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        }
+                    }
+                ],
             },
         ],
     },
@@ -146,13 +161,17 @@ duplicate_result_response_2 = {
                         },
                     ],
                 },
-                "edge_bindings": {
-                    "n0n1": [
-                        {
-                            "id": "n0n1",
-                        },
-                    ],
-                },
+                "analyses": [
+                    {
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        }
+                    }
+                ],
             },
         ],
     },
@@ -195,14 +214,18 @@ duplicate_result_response_different_predicate = {
                         },
                     ],
                 },
-                "edge_bindings": {
-                    "n0n1": [
-                        {
-                            "id": "n0n1",
-                        },
-                    ],
-                },
-            },
+                "analyses": [
+                    {
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        }
+                    }
+                ],
+            }
         ],
     },
 }
@@ -244,13 +267,17 @@ loop_response_1 = {
                         },
                     ],
                 },
-                "edge_bindings": {
-                    "n0n1": [
-                        {
-                            "id": "n0n1",
-                        },
-                    ],
-                },
+                "analyses": [
+                    {
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        }
+                    }
+                ],
             },
         ],
     },
@@ -312,13 +339,17 @@ response_with_attributes = {
                         },
                     ],
                 },
-                "edge_bindings": {
-                    "n0n1": [
-                        {
-                            "id": "n0n1",
-                        },
-                    ],
-                },
+                "analyses": [
+                    {
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        }
+                    }
+                ],
             },
         ],
     },

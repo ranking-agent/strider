@@ -140,7 +140,8 @@ async def test_dont_merge_results_different_predicates(client, monkeypatch):
     assert len(output["message"]["knowledge_graph"]["edges"]) == 2
     assert len(output["message"]["results"]) == 2
     result = output["message"]["results"][0]
-    assert len(result["edge_bindings"]) == 1
+    assert len(result["analyses"]) == 1
+    assert len(result["analyses"][0]["edge_bindings"]) == 1
     eb_list = next(iter(result.values()))
     assert len(eb_list) == 2
 

@@ -151,16 +151,14 @@ def test_enforce_constraints():
                     "n0": [
                         {"id": "a"},
                     ],
-                },
-                "edge_bindings": {},
+                }
             },
             {
                 "node_bindings": {
                     "n0": [
                         {"id": "b"},
                     ],
-                },
-                "edge_bindings": {},
+                }
             },
         ],
     }

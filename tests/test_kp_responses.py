@@ -334,9 +334,14 @@ async def test_kp_response_no_qg(client, monkeypatch):
                                 "n0": [{"id": "CHEBI:6801"}],
                                 "n1": [{"id": "MONDO:0005148"}],
                             },
-                            "edge_bindings": {
-                                "n0n1": [{"id": "n0n1"}],
-                            },
+                            "analyses":[
+                                {
+                                    "resource_id": "infores:ara0",
+                                    "edge_bindings": {
+                                        "n0n1": [{"id": "n0n1"}],
+                                    },
+                                }
+                            ]
                         },
                     ],
                 }
@@ -385,8 +390,10 @@ async def test_constraint_error(client, monkeypatch):
                 node_bindings:
                     n0 CHEBI:6801
                     n1 MONDO:0005148
-                edge_bindings:
-                    n0n1 CHEBI:6801-MONDO:0005148
+                analyses: [
+                    edge_bindings:
+                        n0n1 CHEBI:6801-MONDO:0005148
+                ]
                 """,
             ],
         },

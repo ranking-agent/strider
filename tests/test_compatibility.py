@@ -250,12 +250,14 @@ async def test_fetch():
         request_duration=1,
     )
 
+    qgraph = mock_responses.kp_response["message"]["query_graph"]
+
     async with portal.tservers["ctd"]:
         response = await portal.fetch(
             kp_id="ctd",
             request={
                 "message": {
-                    "query_graph": mock_responses.kp_response["message"]["query_graph"]
+                    "query_graph": qgraph
                 }
             },
         )

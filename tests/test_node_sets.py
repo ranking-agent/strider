@@ -19,27 +19,42 @@ def test_node_sets():
                 "n0": [{"id": "a0"}],
                 "n1": [{"id": "b0"}],
             },
-            "edge_bindings": {
-                "e01": [{"id": "c0"}],
-            },
+            "analyses": [
+                {
+                    "resource_id": "infores:ara0",
+                    "edge_bindings": {
+                        "e01": [{"id": "c0"}],
+                    },
+                }
+            ]
         },
         {
             "node_bindings": {
                 "n0": [{"id": "a1"}],
                 "n1": [{"id": "b0"}],
             },
-            "edge_bindings": {
-                "e01": [{"id": "c1"}],
-            },
+            "analyses": [
+                {
+                    "resource_id": "infores:ara0",
+                    "edge_bindings": {
+                        "e01": [{"id": "c1"}],
+                    },
+                }
+            ]
         },
         {
             "node_bindings": {
                 "n0": [{"id": "a0"}],
                 "n1": [{"id": "b1"}],
             },
-            "edge_bindings": {
-                "e01": [{"id": "c2"}],
-            },
+            "analyses": [
+                {
+                    "resource_id": "infores:ara0",
+                    "edge_bindings": {
+                        "e01": [{"id": "c2"}],
+                    },
+                }
+            ]
         },
     ]
     message = {

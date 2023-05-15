@@ -9,7 +9,7 @@ import string
 
 from reasoner_pydantic.message import Message
 from reasoner_pydantic.shared import Attribute, SubAttribute
-from reasoner_pydantic.results import NodeBinding, EdgeBinding, Result
+from reasoner_pydantic.results import NodeBinding, EdgeBinding, Result, Analysis
 from reasoner_pydantic.qgraph import QueryGraph
 from reasoner_pydantic.kgraph import Edge, KnowledgeGraph, Node
 
@@ -140,16 +140,20 @@ def generate_message(spec) -> Message:
             "node_bindings" : {
                 "count_per_node" : 1
             },
-            "edge_bindings" : {
-                "count_per_edge" : 1,
-                "attributes" : {
-                    "count" : 100,
-                    "spec": {
-                        "subattribute_count": 5,
-                        "value_type": "string"
+            "analyses": [
+                {
+                    "edge_bindings" : {
+                        "count_per_edge" : 1,
+                        "attributes" : {
+                            "count" : 100,
+                            "spec": {
+                                "subattribute_count": 5,
+                                "value_type": "string"
+                            }
+                        }
                     }
                 }
-            }
+            ]
         }
     }
     """
@@ -218,30 +222,34 @@ def generate_message(spec) -> Message:
                     ]
                     for kgnid in kg_node_ids
                 },
-                edge_bindings={
-                    f"QGraphEdge:{get_random()}": [
-                        EdgeBinding(
-                            id=kgeid,
-                            attributes=[
-                                generate_attribute(
-                                    spec["results"]["edge_bindings"]["attributes"][
-                                        "spec"
+                analyses = [
+                    Analysis(
+                        edge_bindings={
+                            f"QGraphEdge:{get_random()}": [
+                                EdgeBinding(
+                                    id=kgeid,
+                                    attributes=[
+                                        generate_attribute(
+                                            spec["results"]["edge_bindings"]["attributes"][
+                                                "spec"
+                                            ],
+                                            get_random,
+                                        )
+                                        for _ in range(
+                                            spec["results"]["edge_bindings"]["attributes"][
+                                                "count"
+                                            ],
+                                        )
                                     ],
-                                    get_random,
                                 )
                                 for _ in range(
-                                    spec["results"]["edge_bindings"]["attributes"][
-                                        "count"
-                                    ],
+                                    spec["results"]["edge_bindings"]["count_per_edge"]
                                 )
-                            ],
-                        )
-                        for _ in range(
-                            spec["results"]["edge_bindings"]["count_per_edge"]
-                        )
-                    ]
-                    for kgeid in kg_edge_ids
-                },
+                            ]
+                            for kgeid in kg_edge_ids
+                        },
+                    )
+                ]
             )
             for _ in range(spec["results"]["count"])
         ],
@@ -556,39 +564,43 @@ def validate_message(template, value):
                         raise ValueError(f"Extra node bindings found for {qg_node_id}")
 
                 # Validate edge bindings
-                for edge_binding_string in template_result["edge_bindings"]:
-                    qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
+                if len(template_result.get("analyses", [])) != len(value_result.get("analyses", [])):
+                    raise ValueError(f"Extra analyses found for result {value_result}")
+                for template_analysis in template_result.get("analyses", []):
+                    for value_analysis in value_result.get("analyses", []):
+                        for edge_binding_string in template_analysis["edge_bindings"]:
+                            qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
 
-                    # Find KG edge IDs from the kg edge strings
-                    kg_edge_ids = []
-                    for kg_edge_string in kg_edge_strings:
-                        sub, obj = kg_edge_string.split("-")
-                        kg_edge_id = next(
-                            kg_edge_id
-                            for kg_edge_id, kg_edge in value["knowledge_graph"][
-                                "edges"
-                            ].items()
-                            if kg_edge["subject"] == sub and kg_edge["object"] == obj
-                        )
-                        kg_edge_ids.append(kg_edge_id)
+                            # Find KG edge IDs from the kg edge strings
+                            kg_edge_ids = []
+                            for kg_edge_string in kg_edge_strings:
+                                sub, obj = kg_edge_string.split("-")
+                                kg_edge_id = next(
+                                    kg_edge_id
+                                    for kg_edge_id, kg_edge in value["knowledge_graph"][
+                                        "edges"
+                                    ].items()
+                                    if kg_edge["subject"] == sub and kg_edge["object"] == obj
+                                )
+                                kg_edge_ids.append(kg_edge_id)
 
-                    if qg_edge_id not in value_result["edge_bindings"]:
-                        raise ValueError(
-                            f"Could not find binding for edge {qg_edge_id}"
-                        )
+                            if qg_edge_id not in value_result["edge_bindings"]:
+                                raise ValueError(
+                                    f"Could not find binding for edge {qg_edge_id}"
+                                )
 
-                    for kg_edge_id in kg_edge_ids:
-                        if not any(
-                            nb["id"] == kg_edge_id
-                            for nb in value_result["edge_bindings"][qg_edge_id]
-                        ):
-                            raise ValueError(
-                                f"Expected edge binding {qg_edge_id} to {kg_edge_id}"
-                            )
-                    if len(value_result["edge_bindings"][qg_edge_id]) != len(
-                        kg_edge_ids
-                    ):
-                        raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+                            for kg_edge_id in kg_edge_ids:
+                                if not any(
+                                    nb["id"] == kg_edge_id
+                                    for nb in value_result["edge_bindings"][qg_edge_id]
+                                ):
+                                    raise ValueError(
+                                        f"Expected edge binding {qg_edge_id} to {kg_edge_id}"
+                                    )
+                            if len(value_result["edge_bindings"][qg_edge_id]) != len(
+                                kg_edge_ids
+                            ):
+                                raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
             except ValueError as err:
                 continue
             break
