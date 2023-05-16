@@ -16,7 +16,7 @@ from tests.helpers.context import (
     callback_overlay,
 )
 from tests.helpers.logger import setup_logger
-from tests.helpers.utils import query_graph_from_string, validate_message
+from tests.helpers.utils import query_graph_from_string
 from tests.helpers.redisMock import redisMock
 import tests.helpers.mock_responses as mock_responses
 
