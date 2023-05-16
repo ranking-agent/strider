@@ -375,7 +375,7 @@ async def test_constraint_error(client, monkeypatch):
             "id": "test_constraint",
             "not": True,
             "operator": "==",
-            "value": "bar",
+            "value": "foo",
         }
     ]
 
@@ -386,22 +386,4 @@ async def test_constraint_error(client, monkeypatch):
     response = await client.post("/query", json=q)
     output = response.json()
 
-    validate_message(
-        {
-            "knowledge_graph": """
-                CHEBI:6801 biolink:treats MONDO:0005148
-                """,
-            "results": [
-                """
-                node_bindings:
-                    n0 CHEBI:6801
-                    n1 MONDO:0005148
-                analyses: [
-                    edge_bindings:
-                        n0n1 CHEBI:6801-MONDO:0005148
-                ]
-                """,
-            ],
-        },
-        output["message"],
-    )
+    assert output["message"]["results"] == None

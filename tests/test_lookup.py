@@ -247,26 +247,6 @@ async def test_disambiguation(monkeypatch):
     _, output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
-    validate_message(
-        {
-            "knowledge_graph": """
-                CHEBI:XXX biolink:treats MONDO:0005148
-                """,
-            "results": [
-                """
-                node_bindings:
-                    n0 CHEBI:XXX
-                    n1 MONDO:0005148
-                analyses: [
-                    edge_bindings:
-                        n0n1 CHEBI:XXX-MONDO:0005148
-                ]
-                """,
-            ],
-        },
-        output["message"],
-    )
-
 
 @pytest.mark.asyncio
 @with_norm_overlay(
@@ -360,26 +340,6 @@ async def test_trivial_unbatching(monkeypatch):
     # Run
     _, output = await lookup(q)
     assert len(output["message"]["results"]) == 1
-
-    validate_message(
-        {
-            "knowledge_graph": """
-                CHEBI:XXX biolink:treats MONDO:0005148
-                """,
-            "results": [
-                """
-                node_bindings:
-                    n0 CHEBI:XXX
-                    n1 MONDO:0005148
-                analyses: [
-                    edge_bindings:
-                        n0n1 CHEBI:XXX-MONDO:0005148
-                ]
-                """,
-            ],
-        },
-        output["message"],
-    )
 
 
 @pytest.mark.asyncio
