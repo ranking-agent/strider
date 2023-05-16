@@ -209,14 +209,14 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                                 ],
                                 "n1": [{"id": "MONDO:0005148"}],
                             },
-                            "analyses":[
+                            "analyses": [
                                 {
                                     "resource_id": "infores:ara0",
                                     "edge_bindings": {
                                         "n0n1": [{"id": "n0n1"}],
                                     },
                                 }
-                            ]
+                            ],
                         },
                     ],
                 }
@@ -305,14 +305,14 @@ async def test_disambiguation(monkeypatch):
                                 "n0": [{"id": "CHEBI:XXX"}],
                                 "n1": [{"id": "MONDO:0005148"}],
                             },
-                            "analyses":[
+                            "analyses": [
                                 {
                                     "resource_id": "infores:ara0",
                                     "edge_bindings": {
                                         "n0n1": [{"id": "n0n1"}],
                                     },
                                 }
-                            ]
+                            ],
                         },
                     ],
                 }

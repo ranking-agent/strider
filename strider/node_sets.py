@@ -43,10 +43,12 @@ def collapse_sets(message: dict) -> None:
             }
         for qedge_id in message["query_graph"]["edges"]:
             for index, analysis in enumerate(result.get("analyses", [])):
-                result_buckets[bucket_key]["analyses"].append({"edge_bindings": defaultdict(set)})
-                result_buckets[bucket_key]["analyses"][index]["edge_bindings"][qedge_id] |= {
-                    binding["id"] for binding in analysis["edge_bindings"][qedge_id]
-                }
+                result_buckets[bucket_key]["analyses"].append(
+                    {"edge_bindings": defaultdict(set)}
+                )
+                result_buckets[bucket_key]["analyses"][index]["edge_bindings"][
+                    qedge_id
+                ] |= {binding["id"] for binding in analysis["edge_bindings"][qedge_id]}
     for result in result_buckets.values():
         result["node_bindings"] = {
             qnode_id: [{"id": binding} for binding in bindings]

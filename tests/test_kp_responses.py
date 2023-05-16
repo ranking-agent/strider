@@ -196,7 +196,8 @@ async def test_kp_not_trapi(client, monkeypatch):
 
     # Check that we stored the error
     assert (
-        "Received non-TRAPI compliant response from infores:kp1" in output["logs"][0]["message"]
+        "Received non-TRAPI compliant response from infores:kp1"
+        in output["logs"][0]["message"]
     )
 
 
@@ -328,9 +329,9 @@ async def test_kp_response_no_qg(client, monkeypatch):
                                 "sources": [
                                     {
                                         "resource_id": "infores:kp1",
-                                        "resource_role": "primary_knowledge_source"
+                                        "resource_role": "primary_knowledge_source",
                                     }
-                                ]
+                                ],
                             },
                         },
                     },
@@ -340,14 +341,14 @@ async def test_kp_response_no_qg(client, monkeypatch):
                                 "n0": [{"id": "CHEBI:6801"}],
                                 "n1": [{"id": "MONDO:0005148"}],
                             },
-                            "analyses":[
+                            "analyses": [
                                 {
                                     "resource_id": "infores:ara0",
                                     "edge_bindings": {
                                         "n0n1": [{"id": "n0n1"}],
                                     },
                                 }
-                            ]
+                            ],
                         },
                     ],
                 }

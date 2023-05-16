@@ -255,11 +255,7 @@ async def test_fetch():
     async with portal.tservers["ctd"]:
         response = await portal.fetch(
             kp_id="ctd",
-            request={
-                "message": {
-                    "query_graph": qgraph
-                }
-            },
+            request={"message": {"query_graph": qgraph}},
         )
 
     assert len(response["results"]) == 1

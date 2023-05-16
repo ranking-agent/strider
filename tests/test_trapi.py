@@ -51,11 +51,11 @@ def test_filter_by_qgraph_id():
         "results": [
             {
                 "node_bindings": {"n0": [{"id": "MONDO:1"}]},
-                "analyses": [{"edge_bindings": {}}]
+                "analyses": [{"edge_bindings": {}}],
             },
             {
                 "node_bindings": {"n0": [{"id": "MONDO:2"}]},
-                "analyses": [{"edge_bindings": {}}]
+                "analyses": [{"edge_bindings": {}}],
             },
         ],
     }
@@ -137,11 +137,11 @@ def test_filter_by_qgraph_category():
         "results": [
             {
                 "node_bindings": {"n0": [{"id": "MONDO:1"}]},
-                "analyses": [{"edge_bindings": {}}]
+                "analyses": [{"edge_bindings": {}}],
             },
             {
                 "node_bindings": {"n0": [{"id": "MONDO:2"}]},
-                "analyses": [{"edge_bindings": {}}]
+                "analyses": [{"edge_bindings": {}}],
             },
         ],
     }
@@ -186,7 +186,7 @@ def test_filter_by_qgraph_predicate():
         "results": [
             {
                 "node_bindings": {},
-                "analyses": [{"edge_bindings": {"e1": [{"id": "ke1"}]}}]
+                "analyses": [{"edge_bindings": {"e1": [{"id": "ke1"}]}}],
             },
             {
                 "node_bindings": {},
