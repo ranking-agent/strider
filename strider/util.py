@@ -325,8 +325,8 @@ def message_to_list_form(message):
                             for qg_id, binding in analysis["edge_bindings"].items()
                         ],
                     }
-                    for analysis in result.get("analyses",[])
-                ]
+                    for analysis in result.get("analyses", [])
+                ],
             }
             for result in message.get("results", [])
         ]
@@ -368,7 +368,7 @@ def message_to_dict_form(message):
                             },
                         }
                         for analysis in result.get("analyses", [])
-                    ]
+                    ],
                 }
                 for result in message.get("results", [])
             ]
@@ -390,7 +390,7 @@ def message_to_dict_form(message):
                             },
                         }
                         for analysis in result.get("analyses", [])
-                    ]
+                    ],
                 }
                 for result in message.get("results", [])
             ]

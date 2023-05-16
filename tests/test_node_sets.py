@@ -26,7 +26,7 @@ def test_node_sets():
                         "e01": [{"id": "c0"}],
                     },
                 }
-            ]
+            ],
         },
         {
             "node_bindings": {
@@ -40,7 +40,7 @@ def test_node_sets():
                         "e01": [{"id": "c1"}],
                     },
                 }
-            ]
+            ],
         },
         {
             "node_bindings": {
@@ -54,7 +54,7 @@ def test_node_sets():
                         "e01": [{"id": "c2"}],
                     },
                 }
-            ]
+            ],
         },
     ]
     message = {

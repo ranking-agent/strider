@@ -222,7 +222,7 @@ def generate_message(spec) -> Message:
                     ]
                     for kgnid in kg_node_ids
                 },
-                analyses = [
+                analyses=[
                     Analysis(
                         edge_bindings={
                             f"QGraphEdge:{get_random()}": [
@@ -230,15 +230,15 @@ def generate_message(spec) -> Message:
                                     id=kgeid,
                                     attributes=[
                                         generate_attribute(
-                                            spec["results"]["edge_bindings"]["attributes"][
-                                                "spec"
-                                            ],
+                                            spec["results"]["edge_bindings"][
+                                                "attributes"
+                                            ]["spec"],
                                             get_random,
                                         )
                                         for _ in range(
-                                            spec["results"]["edge_bindings"]["attributes"][
-                                                "count"
-                                            ],
+                                            spec["results"]["edge_bindings"][
+                                                "attributes"
+                                            ]["count"],
                                         )
                                     ],
                                 )
@@ -249,7 +249,7 @@ def generate_message(spec) -> Message:
                             for kgeid in kg_edge_ids
                         },
                     )
-                ]
+                ],
             )
             for _ in range(spec["results"]["count"])
         ],
@@ -564,12 +564,16 @@ def validate_message(template, value):
                         raise ValueError(f"Extra node bindings found for {qg_node_id}")
 
                 # Validate edge bindings
-                if len(template_result.get("analyses", [])) != len(value_result.get("analyses", [])):
+                if len(template_result.get("analyses", [])) != len(
+                    value_result.get("analyses", [])
+                ):
                     raise ValueError(f"Extra analyses found for result {value_result}")
                 for template_analysis in template_result.get("analyses", []):
                     for value_analysis in value_result.get("analyses", []):
                         for edge_binding_string in template_analysis["edge_bindings"]:
-                            qg_edge_id, *kg_edge_strings = edge_binding_string.split(" ")
+                            qg_edge_id, *kg_edge_strings = edge_binding_string.split(
+                                " "
+                            )
 
                             # Find KG edge IDs from the kg edge strings
                             kg_edge_ids = []
@@ -580,7 +584,8 @@ def validate_message(template, value):
                                     for kg_edge_id, kg_edge in value["knowledge_graph"][
                                         "edges"
                                     ].items()
-                                    if kg_edge["subject"] == sub and kg_edge["object"] == obj
+                                    if kg_edge["subject"] == sub
+                                    and kg_edge["object"] == obj
                                 )
                                 kg_edge_ids.append(kg_edge_id)
 
@@ -600,7 +605,9 @@ def validate_message(template, value):
                             if len(value_result["edge_bindings"][qg_edge_id]) != len(
                                 kg_edge_ids
                             ):
-                                raise ValueError(f"Extra edge bindings found for {qg_edge_id}")
+                                raise ValueError(
+                                    f"Extra edge bindings found for {qg_edge_id}"
+                                )
             except ValueError as err:
                 continue
             break

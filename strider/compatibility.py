@@ -177,12 +177,9 @@ def add_source(message: Message, kp_id):
             {
                 "resource_id": "infores:aragorn",
                 "resource_role": "aggregator_knowledge_source",
-                "upstream_resource_ids": [
-                    kp_id
-                ]
+                "upstream_resource_ids": [kp_id],
             }
         )
-            
 
 
 Entity = namedtuple("Entity", ["categories", "identifiers"])

@@ -22,7 +22,13 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
 
 from kp_registry import Registry
-from reasoner_pydantic import Query, AsyncQuery, Message, Response as ReasonerResponse, Results
+from reasoner_pydantic import (
+    Query,
+    AsyncQuery,
+    Message,
+    Response as ReasonerResponse,
+    Results,
+)
 
 from .caching import save_kp_registry, get_registry_lock, remove_registry_lock
 from .fetcher import Binder

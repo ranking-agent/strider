@@ -34,9 +34,9 @@ kp_response = {
                     "sources": [
                         {
                             "resource_id": "infores:kp0",
-                            "resource_role": "primary_knowledge_source"
+                            "resource_role": "primary_knowledge_source",
                         }
-                    ]
+                    ],
                 },
             },
         },
@@ -63,7 +63,7 @@ kp_response = {
                                     "id": "n0n1",
                                 },
                             ],
-                        }
+                        },
                     }
                 ],
             },
@@ -123,7 +123,7 @@ duplicate_result_response = {
                                     "id": "n0n1",
                                 },
                             ],
-                        }
+                        },
                     }
                 ],
             },
@@ -183,7 +183,7 @@ duplicate_result_response_2 = {
                                     "id": "n0n1",
                                 },
                             ],
-                        }
+                        },
                     }
                 ],
             },
@@ -243,7 +243,7 @@ duplicate_result_response_different_predicate = {
                                     "id": "n0n1",
                                 },
                             ],
-                        }
+                        },
                     }
                 ],
             }
@@ -303,7 +303,7 @@ loop_response_1 = {
                                     "id": "n0n1",
                                 },
                             ],
-                        }
+                        },
                     }
                 ],
             },
@@ -382,7 +382,7 @@ response_with_attributes = {
                                     "id": "n0n1",
                                 },
                             ],
-                        }
+                        },
                     }
                 ],
             },
