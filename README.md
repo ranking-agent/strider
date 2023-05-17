@@ -7,7 +7,7 @@ This service accepts a biomedical question as a [Translator reasoner standard me
 
 ## Demonstration
 
-A live version of the API can be found [here](https://strider.renci.org/1.3/docs).
+A live version of the API can be found [here](https://strider.renci.org/1.4/docs).
 
 ## Local Development
 
@@ -53,7 +53,7 @@ example:
 ```
 KPREGISTRY_URL=http://robokop.renci.org:4983
 OMNICORP_URL=http://robokop.renci.org:3210
-OPENAPI_SERVER_URL=https://strider.renci.org/1.1
+OPENAPI_SERVER_URL=https://strider.renci.org/1.4
 ```
 
 After creating this at the root of the repository you can run:
