@@ -466,7 +466,8 @@ async def lookup(
             output_results.update(result_message.results)
 
     for result in output_results:
-        result.combine_analyses_by_resource_id()
+        if len(result.analyses) > 1:
+            result.combine_analyses_by_resource_id()
 
     output_query = Query(
         message=Message(
