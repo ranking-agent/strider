@@ -183,7 +183,7 @@ def add_source(message: Message, kp_id):
     for result in message.get("results", []):
         for analysis in result.get("analyses", []):
             analysis["resource_id"] = "infores:aragorn"
-            #remove KP scores
+            # remove KP scores
             analysis["score"] = None
 
 
