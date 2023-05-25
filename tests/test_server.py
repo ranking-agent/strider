@@ -140,7 +140,7 @@ async def test_merge_results_different_predicates(client, monkeypatch):
     assert len(output["message"]["knowledge_graph"]["edges"]) == 2
     assert len(output["message"]["results"]) == 1
     result = output["message"]["results"][0]
-    assert len(result["analyses"]) == 2
+    assert len(result["analyses"]) == 1
 
 
 @pytest.mark.asyncio
