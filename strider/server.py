@@ -56,7 +56,7 @@ openapi_args = dict(
     title="Strider",
     description=DESCRIPTION,
     docs_url=None,
-    version="4.3.1",
+    version="4.3.2",
     terms_of_service=(
         "http://robokop.renci.org:7055/tos"
         "?service_long=Strider"
@@ -458,7 +458,6 @@ async def lookup(
                 }
             )
             result_message._normalize_kg_edge_ids()
-
 
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
