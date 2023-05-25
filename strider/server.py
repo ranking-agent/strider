@@ -459,14 +459,15 @@ async def lookup(
             )
             result_message._normalize_kg_edge_ids()
 
-            for result in result_message.results:
-                result.combine_analyses_by_resource_id()
 
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
 
             # Update the results
             output_results.update(result_message.results)
+
+    for result in output_results:
+        result.combine_analyses_by_resource_id()        
 
     output_query = Query(
         message=Message(
