@@ -387,4 +387,4 @@ async def test_constraint_error(client, monkeypatch):
     response = await client.post("/query", json=q)
     output = response.json()
 
-    assert output["message"]["results"] == None
+    assert output["message"]["results"] == []
