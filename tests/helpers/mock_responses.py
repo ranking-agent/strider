@@ -375,7 +375,7 @@ response_with_attributes = {
                 },
                 "analyses": [
                     {
-                        "resource_id": "kp0",
+                        "resource_id": "kp3",
                         "edge_bindings": {
                             "n0n1": [
                                 {
