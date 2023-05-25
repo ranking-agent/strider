@@ -180,6 +180,10 @@ def add_source(message: Message, kp_id):
                 "upstream_resource_ids": [kp_id],
             }
         )
+    for result in message.get("results", []):
+        for analysis in result.get("analyses", []):
+            analysis["resource_id"] = "infores:aragorn"
+            analysis["score"] = None
 
 
 Entity = namedtuple("Entity", ["categories", "identifiers"])
