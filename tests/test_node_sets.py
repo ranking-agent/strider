@@ -21,7 +21,7 @@ def test_node_sets():
             },
             "analyses": [
                 {
-                    "resource_id": "infores:ara0",
+                    "resource_id": "infores:aragorn",
                     "edge_bindings": {
                         "e01": [{"id": "c0"}],
                     },
@@ -35,7 +35,7 @@ def test_node_sets():
             },
             "analyses": [
                 {
-                    "resource_id": "infores:ara0",
+                    "resource_id": "infores:aragorn",
                     "edge_bindings": {
                         "e01": [{"id": "c1"}],
                     },
@@ -49,7 +49,7 @@ def test_node_sets():
             },
             "analyses": [
                 {
-                    "resource_id": "infores:ara0",
+                    "resource_id": "infores:aragorn",
                     "edge_bindings": {
                         "e01": [{"id": "c2"}],
                     },

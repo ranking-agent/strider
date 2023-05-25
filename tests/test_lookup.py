@@ -211,7 +211,7 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                             },
                             "analyses": [
                                 {
-                                    "resource_id": "infores:ara0",
+                                    "resource_id": "infores:kp1",
                                     "edge_bindings": {
                                         "n0n1": [{"id": "n0n1"}],
                                     },
@@ -307,7 +307,7 @@ async def test_disambiguation(monkeypatch):
                             },
                             "analyses": [
                                 {
-                                    "resource_id": "infores:ara0",
+                                    "resource_id": "infores:kp1",
                                     "edge_bindings": {
                                         "n0n1": [{"id": "n0n1"}],
                                     },
