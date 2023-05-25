@@ -343,7 +343,7 @@ async def test_kp_response_no_qg(client, monkeypatch):
                             },
                             "analyses": [
                                 {
-                                    "resource_id": "infores:ara0",
+                                    "resource_id": "infores:kp1",
                                     "edge_bindings": {
                                         "n0n1": [{"id": "n0n1"}],
                                     },
