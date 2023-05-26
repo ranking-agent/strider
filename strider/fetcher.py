@@ -66,7 +66,7 @@ class Binder:
             yield {"nodes": dict(), "edges": dict()}, {
                 "node_bindings": dict(),
                 "analyses": [],
-            }
+            }, {}
             return
 
         try:
@@ -127,6 +127,7 @@ class Binder:
             onehop_response = enforce_constraints(onehop_response)
             onehop_kgraph = onehop_response["knowledge_graph"]
             onehop_results = onehop_response["results"]
+            onehop_auxgraphs = onehop_response.get("auxiliary_graphs") or {}
             qedge_id = next(iter(onehop_qgraph["edges"].keys()))
         generators = []
 
@@ -158,6 +159,12 @@ class Binder:
                     },
                 }
 
+                result_auxgraph = {
+                    [graph_id]: onehop_auxgraphs[graph_id]
+                    for analysis in result.get("analyses", [])
+                    for graph_id in analysis.get("support_graphs") or []
+                }
+
                 # pin nodes
                 for qnode_id, bindings in result["node_bindings"].items():
                     if qnode_id not in subqgraph["nodes"]:
@@ -178,7 +185,9 @@ class Binder:
                     for qnode_id, bindings in res["node_bindings"].items()
                     if qnode_id in qnode_ids
                 )
-                result_map[key_fcn(result)].append((result, result_kgraph))
+                result_map[key_fcn(result)].append(
+                    (result, result_kgraph, result_auxgraph)
+                )
 
             generators.append(
                 self.generate_from_result(
@@ -198,11 +207,11 @@ class Binder:
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
         call_stack: List,
     ):
-        async for subkgraph, subresult in self.lookup(
+        async for subkgraph, subresult, subauxgraph in self.lookup(
             qgraph,
             call_stack,
         ):
-            for result, kgraph in get_results(subresult):
+            for result, kgraph, auxgraph in get_results(subresult):
                 # combine one-hop with subquery results
                 new_subresult = {
                     "node_bindings": {
@@ -218,7 +227,9 @@ class Binder:
                 new_subkgraph = copy.deepcopy(subkgraph)
                 new_subkgraph["nodes"].update(kgraph["nodes"])
                 new_subkgraph["edges"].update(kgraph["edges"])
-                yield new_subkgraph, new_subresult
+                new_auxgraph = copy.deepcopy(subauxgraph)
+                new_auxgraph.update(auxgraph)
+                yield new_subkgraph, new_subresult, new_auxgraph
 
     async def __aenter__(self):
         """Enter context."""
