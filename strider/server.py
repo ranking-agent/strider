@@ -448,6 +448,7 @@ async def lookup(
 
     output_kgraph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
 
+    output_auxgraphs = AuxiliaryGraphs.parse_obj({})
     async with binder:
         async for result_kgraph_dict, result, result_auxgraph in binder.lookup(None):
             result_message = Message.parse_obj(
