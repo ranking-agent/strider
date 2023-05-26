@@ -449,18 +449,21 @@ async def lookup(
     output_kgraph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
 
     async with binder:
-        async for result_kgraph_dict, results in binder.lookup(None):
-            # TODO figure out how to remove this conversion
+        async for result_kgraph_dict, result, result_auxgraph in binder.lookup(None):
             result_message = Message.parse_obj(
                 {
                     "knowledge_graph": result_kgraph_dict,
-                    "results": [results],
+                    "results": [result],
+                    "auxiliary_graphs": result_auxgraph,
                 }
             )
             result_message._normalize_kg_edge_ids()
 
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
+
+            # Update the aux graphs
+            output_auxgraphs.update(result_message.auxiliary_graphs)
 
             # Update the results
             output_results.update(result_message.results)
@@ -473,7 +476,7 @@ async def lookup(
         message=Message(
             query_graph=QueryGraph.parse_obj(qgraph),
             knowledge_graph=output_kgraph,
-            results=output_results,
+            auxiliary_graphs=output_auxgraphs,
         )
     )
 
