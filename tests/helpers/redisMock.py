@@ -1,5 +1,6 @@
 """Mock Redis."""
 import fakeredis.aioredis as fakeredis
+import gzip
 import json
 
 
@@ -151,6 +152,6 @@ async def redisMock(connection_pool=None):
     # Here's where I got documentation for how to do async fakeredis:
     # https://github.com/cunla/fakeredis-py/issues/66#issuecomment-1316045893
     redis = await fakeredis.FakeRedis()
-    await redis.set("kps", json.dumps(default_kps))
+    await redis.set("kps", gzip.compress(json.dumps(default_kps).encode()))
     # set up mock function
     return redis
