@@ -27,7 +27,7 @@ from reasoner_pydantic import (
     AsyncQuery,
     Message,
     Response as ReasonerResponse,
-    Results,
+    AuxiliaryGraphs,
 )
 
 from .caching import save_kp_registry, get_registry_lock, remove_registry_lock
