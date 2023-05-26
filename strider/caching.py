@@ -2,6 +2,7 @@
 import asyncio
 from collections import OrderedDict, namedtuple
 from functools import wraps
+import gzip
 import json
 import redis.asyncio as aioredis
 
@@ -130,7 +131,7 @@ async def get_kp_onehop(kp_id, onehop):
     response = await client.get(f"{kp_id}:{json.dumps(onehop)}")
     await client.close()
     if response is not None:
-        response = json.loads(response)
+        response = json.loads(gzip.decompress(response))
     return response
 
 
@@ -140,14 +141,16 @@ async def save_kp_onehop(kp_id, onehop, response):
         connection_pool=onehop_redis_pool,
     )
     key = f"{kp_id}:{json.dumps(onehop)}"
-    await client.setex(key, settings.redis_expiration, json.dumps(response))
+    await client.setex(
+        key, settings.redis_expiration, gzip.compress(json.dumps(response).encode())
+    )
     await client.close()
 
 
 async def save_kp_registry(kps):
     """Cache a registry of all kps."""
     client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    await client.set("kps", json.dumps(kps))
+    await client.set("kps", gzip.compress(json.dumps(kps).encode()))
     await client.close()
 
 
@@ -159,7 +162,7 @@ async def get_kp_registry():
     response = await client.get("kps")
     await client.close()
     if response is not None:
-        response = json.loads(response)
+        response = json.loads(gzip.decompress(response))
     return response
 
 
@@ -188,7 +191,9 @@ async def save_post_request(url, request, response):
         connection_pool=post_request_redis_pool,
     )
     key = f'{{"{url}":{json.dumps(request)}}}'
-    await client.setex(key, settings.redis_expiration, json.dumps(response))
+    await client.setex(
+        key, settings.redis_expiration, gzip.compress(json.dumps(response).encode())
+    )
     await client.close()
 
 
@@ -200,5 +205,5 @@ async def get_post_response(url, request):
     response = await client.get(f'{{"{url}":{json.dumps(request)}}}')
     await client.close()
     if response is not None:
-        response = json.loads(response)
+        response = json.loads(gzip.decompress(response))
     return response
