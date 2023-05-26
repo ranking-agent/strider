@@ -443,14 +443,15 @@ async def lookup(
             "logs": list(log_handler.contents()),
         }
 
-    # Result container to map our "custom" results to "real" results
-    output_results = Results.parse_obj([])
+    # Result container to make result merging much faster
+    output_results = HashableMapping[Result, Result]()
 
     output_kgraph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
 
     output_auxgraphs = AuxiliaryGraphs.parse_obj({})
     async with binder:
         async for result_kgraph_dict, result, result_auxgraph in binder.lookup(None):
+            # Message parsing also normalizes kgraph edge ids and updates result and aux graph edge ids
             result_message = Message.parse_obj(
                 {
                     "knowledge_graph": result_kgraph_dict,
@@ -458,7 +459,7 @@ async def lookup(
                     "auxiliary_graphs": result_auxgraph,
                 }
             )
-            result_message._normalize_kg_edge_ids()
+
 
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
@@ -467,9 +468,17 @@ async def lookup(
             output_auxgraphs.update(result_message.auxiliary_graphs)
 
             # Update the results
-            output_results.update(result_message.results)
+            # hashmap lookup is very quick
+            sub_result = next(iter(result_message.results))
+            existing_result = output_results.get(sub_result, None)
+            if existing_result:
+                # update existing result
+                existing_result.update(sub_result)
+            else:
+                # add new result to hashmap
+                output_results[sub_result] = sub_result
 
-    for result in output_results:
+    for result in output_results.values():
         if len(result.analyses) > 1:
             result.combine_analyses_by_resource_id()
 
@@ -477,6 +486,7 @@ async def lookup(
         message=Message(
             query_graph=QueryGraph.parse_obj(qgraph),
             knowledge_graph=output_kgraph,
+            results=HashableSet[Result](__root__=set(output_results.values())),
             auxiliary_graphs=output_auxgraphs,
         )
     )
