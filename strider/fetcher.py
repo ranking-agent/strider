@@ -107,7 +107,9 @@ class Binder:
         self.logger.info(f"Current call stack: {(', ').join(call_stack)}")
         onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
         if onehop_response is not None:
-            self.logger.info(f"[{kp.id}]: Got onehop from cache")
+            self.logger.info(
+                f"[{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
+            )
         if onehop_response is None and not settings.offline_mode:
             # onehop not in cache, have to go get response
             self.logger.info(
