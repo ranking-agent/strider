@@ -256,19 +256,23 @@ class ThrottledServer:
                     continue
 
                 response.raise_for_status()
+                response_dict = response.json()
 
-                # Parse with reasoner_pydantic to validate
-                response_body = ReasonerResponse.parse_obj(response.json())
-                await self.postproc(response_body, self.logger)
-                message = response_body.message
-                results = message.results or []
+                msg = response_dict.get("message") or {}
+                results = msg.get("results", [])
+                num_results = len(results)
                 self.logger.info(
                     "[{}] Received response with {} results in {} seconds".format(
                         self.id,
-                        len(results),
+                        num_results,
                         response.elapsed.total_seconds(),
                     )
                 )
+
+                # Parse with reasoner_pydantic to validate
+                response_body = ReasonerResponse.parse_obj(response_dict)
+                await self.postproc(response_body, self.logger)
+                message = response_body.message
 
                 try:
                     if len(request_curie_mapping) == 1:
