@@ -332,7 +332,8 @@ async def sync_query(
         }
 
     # Return results
-    LOGGER.info(f"[{qid}] Returning sync query")
+    num_results = len(query_results.get("message", {}).get("results", []))
+    LOGGER.info(f"[{qid}] Returning sync query with {num_results} results")
     return JSONResponse(query_results)
 
 
