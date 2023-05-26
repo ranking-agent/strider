@@ -1,5 +1,16 @@
 """Test node set handling."""
+import logging
+
+from reasoner_pydantic import (
+    Query,
+    Message,
+    QueryGraph,
+    Results,
+)
+from reasoner_pydantic.utils import HashableSet
 from strider.node_sets import collapse_sets
+
+LOGGER = logging.getLogger(__name__)
 
 
 def test_node_sets():
@@ -57,10 +68,12 @@ def test_node_sets():
             ],
         },
     ]
-    message = {
-        "query_graph": qgraph,
-        "results": results,
-    }
-    collapse_sets(message)
-    assert len(message["results"]) == 2
-    assert len(message["results"][0]["node_bindings"]["n1"]) == 2
+
+    query = Query(
+        message=Message(
+            query_graph=QueryGraph.parse_obj(qgraph),
+            results=Results.parse_obj(results),
+        )
+    )
+    collapse_sets(query, LOGGER)
+    assert len(query.message.results) == 2

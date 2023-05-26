@@ -481,9 +481,7 @@ async def lookup(
     )
 
     # Collapse sets
-    message_dict = output_query.message.dict()
-    collapse_sets(message_dict)
-    output_query.message = Message.parse_obj(message_dict)
+    collapse_sets(output_query, logger)
 
     output_query.logs = list(log_handler.contents())
     return qid, output_query.dict()

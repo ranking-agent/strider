@@ -1,17 +1,23 @@
 """Node sets."""
 from collections import defaultdict
+from datetime import datetime
+from reasoner_pydantic import Message
 
 
-def collapse_sets(message: dict) -> None:
+def collapse_sets(query: dict, logger) -> None:
     """Collase results according to is_set qnode notations."""
+    # just deserializing the query_graph is very fast
+    qgraph = query.message.query_graph.dict()
     unique_qnodes = {
         qnode_id
-        for qnode_id, qnode in message["query_graph"]["nodes"].items()
+        for qnode_id, qnode in qgraph["nodes"].items()
         if not qnode.get("is_set", False)
     }
-    if len(unique_qnodes) == len(message["query_graph"]["nodes"]):
+    if len(unique_qnodes) == len(query.message.query_graph.nodes):
         # no set nodes
         return
+    logger.info("Collapsing sets. This might take a while...")
+    message = query.message.dict()
     unique_qedges = {
         qedge_id
         for qedge_id, qedge in message["query_graph"]["edges"].items()
@@ -44,7 +50,10 @@ def collapse_sets(message: dict) -> None:
         for qedge_id in message["query_graph"]["edges"]:
             for index, analysis in enumerate(result.get("analyses", [])):
                 result_buckets[bucket_key]["analyses"].append(
-                    {"edge_bindings": defaultdict(set)}
+                    {
+                        "resource_id": analysis["resource_id"],
+                        "edge_bindings": defaultdict(set),
+                    }
                 )
                 result_buckets[bucket_key]["analyses"][index]["edge_bindings"][
                     qedge_id
@@ -60,3 +69,7 @@ def collapse_sets(message: dict) -> None:
                 for qedge_id, bindings in analysis["edge_bindings"].items()
             }
     message["results"] = list(result_buckets.values())
+
+    query.message = Message.parse_obj(message)
+
+    logger.info("Finished collapsing all the sets")
