@@ -461,7 +461,6 @@ async def lookup(
                 }
             )
 
-
             # Update the kgraph
             output_kgraph.update(result_message.knowledge_graph)
 
