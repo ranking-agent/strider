@@ -259,7 +259,7 @@ class ThrottledServer:
                 response_dict = response.json()
 
                 msg = response_dict.get("message") or {}
-                results = msg.get("results", [])
+                results = msg.get("results") or []
                 num_results = len(results)
                 self.logger.info(
                     "[{}] Received response with {} results in {} seconds".format(
