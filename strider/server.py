@@ -27,6 +27,7 @@ from reasoner_pydantic import (
     AsyncQuery,
     Message,
     Response as ReasonerResponse,
+    Results,
     AuxiliaryGraphs,
 )
 
@@ -480,15 +481,17 @@ async def lookup(
                 # add new result to hashmap
                 output_results[sub_result_hash] = sub_result
 
+    results = Results.parse_obj([])
     for result in output_results.values():
         if len(result.analyses) > 1:
             result.combine_analyses_by_resource_id()
+        results.add(result)
 
     output_query = Query(
         message=Message(
             query_graph=QueryGraph.parse_obj(qgraph),
             knowledge_graph=output_kgraph,
-            results=HashableSet[Result](__root__=set(output_results.values())),
+            results=results,
             auxiliary_graphs=output_auxgraphs,
         )
     )
