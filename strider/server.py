@@ -445,7 +445,7 @@ async def lookup(
         }
 
     # Result container to make result merging much faster
-    output_results = HashableMapping[Result, Result]()
+    output_results = HashableMapping[str, Result]()
 
     output_kgraph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
 
@@ -470,13 +470,14 @@ async def lookup(
             # Update the results
             # hashmap lookup is very quick
             sub_result = next(iter(result_message.results))
-            existing_result = output_results.get(sub_result, None)
+            sub_result_hash = hash(sub_result)
+            existing_result = output_results.get(sub_result_hash, None)
             if existing_result:
                 # update existing result
                 existing_result.update(sub_result)
             else:
                 # add new result to hashmap
-                output_results[sub_result] = sub_result
+                output_results[sub_result_hash] = sub_result
 
     for result in output_results.values():
         if len(result.analyses) > 1:
