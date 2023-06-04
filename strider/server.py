@@ -67,9 +67,9 @@ openapi_args = dict(
     translator_component="ARA",
     translator_teams=["Ranking Agent"],
     contact={
-        "name": "Kenneth Morton",
-        "email": "kenny@covar.com",
-        "x-id": "kennethmorton",
+        "name": "Abrar Mesbah",
+        "email": "amesbah@covar.com",
+        "x-id": "uhbrar",
         "x-role": "responsible developer",
     },
     trapi_operations=[
