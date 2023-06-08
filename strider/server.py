@@ -31,14 +31,13 @@ from reasoner_pydantic import (
     AuxiliaryGraphs,
 )
 
-from .caching import save_kp_registry, get_registry_lock, remove_registry_lock
+from .caching import get_kp_registry, save_kp_registry, get_registry_lock, remove_registry_lock
 from .fetcher import Binder
 from .node_sets import collapse_sets
 from .query_planner import NoAnswersError, generate_plan
-from .scoring import score_graph
 from .config import settings
 from .util import add_cors_manually, setup_logging
-from .trapi_openapi import TRAPI
+from .openapi import TRAPI
 from .logger import QueryLogger
 
 setup_logging()
@@ -599,41 +598,9 @@ async def generate_traversal_plan(
     return plan
 
 
-@APP.post("/score", response_model=Message, include_in_schema=False)
-async def score_results(
-    query: Query,
-) -> Message:
-    """
-    Score results.
-
-    TODO: Either fix or remove, doesn't work currently
-    """
-    message = query.message.dict()
-    identifiers = {
-        knode["id"]: knode.get("equivalent_identifiers", [])
-        for knode in message["knowledge_graph"]["nodes"]
-    }
-    for result in message["results"]:
-        graph = {
-            "nodes": {
-                nb["qg_id"]: {
-                    "qid": nb["qg_id"],
-                    "kid": nb["kg_id"],
-                    "equivalent_identifiers": identifiers[nb["kg_id"]],
-                }
-                for nb in result["node_bindings"]
-            },
-            "edges": {
-                eb["qg_id"]: {
-                    "qid": eb["qg_id"],
-                    "kid": eb["kg_id"],
-                }
-                for analysis in result.get("analyses", [])
-                for eb in analysis["edge_bindings"]
-            },
-        }
-        result["score"] = await score_graph(
-            graph,
-            message["query_graph"],
-        )
-    return message
+@APP.get("/kps")
+async def get_kps():
+    """Return all kps in registry."""
+    registry = await get_kp_registry()
+    # print(registry)
+    return list(registry.keys())

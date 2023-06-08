@@ -24,7 +24,8 @@ from reasoner_pydantic import Message
 
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
-from .compatibility import KnowledgePortal, Synonymizer
+from .synonymizer import Synonymizer
+from .knowledge_provider import KnowledgePortal, KnowledgeProvider
 from .trapi import (
     get_curies,
     map_qgraph_curies,
@@ -33,7 +34,6 @@ from .trapi import (
 from .query_planner import generate_plan, get_next_qedge
 from .config import settings
 from .util import (
-    KnowledgeProvider,
     WBMT,
     batch,
     elide_curies,
