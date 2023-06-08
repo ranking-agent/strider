@@ -15,7 +15,7 @@ from strider.config import settings
 # Modify settings before importing things
 settings.normalizer_url = "http://normalizer"
 
-from strider.compatibility import KnowledgePortal
+from strider.knowledge_provider import KnowledgePortal
 
 
 @pytest.mark.asyncio
