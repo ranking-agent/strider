@@ -235,28 +235,6 @@ async def post_json(url, request, logger, log_name):
     raise StriderRequestError
 
 
-class KnowledgeProvider:
-    """Knowledge provider."""
-
-    def __init__(self, details, portal, id, *args, **kwargs):
-        """Initialize."""
-        self.details = details
-        self.portal = portal
-        # self.portal: KnowledgePortal = portal
-        self.id = id
-
-    async def solve_onehop(self, request):
-        """Solve one-hop query."""
-        return await self.portal.fetch(
-            self.id,
-            {"message": {"query_graph": request}},
-        )
-
-
-class KPError(Exception):
-    """Exception in a KP request."""
-
-
 def setup_logging():
     """Set up logging."""
     with open("logging_setup.yml", "r") as stream:

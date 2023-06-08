@@ -9,11 +9,8 @@ from typing import Generator
 from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
-from strider.util import (
-    KnowledgeProvider,
-    get_kp_operations_queries,
-    StriderRequestError,
-)
+from strider.knowledge_provider import KnowledgeProvider
+from strider.util import get_kp_operations_queries
 
 LOGGER = logging.getLogger(__name__)
 

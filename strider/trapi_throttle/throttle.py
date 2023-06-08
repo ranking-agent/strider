@@ -16,14 +16,13 @@ import pydantic
 from reasoner_pydantic import (
     Response as ReasonerResponse,
     Query,
-    QueryGraph,
     Message,
     KnowledgeGraph,
 )
 from reasoner_pydantic.utils import HashableSet
 import uuid
 
-from .trapi import BatchingError, get_curies, remove_curies, filter_by_curie_mapping
+from .trapi import get_curies, remove_curies, filter_by_curie_mapping
 from .utils import get_keys_with_value, log_response
 from ..trapi import get_canonical_qgraphs
 from ..util import elide_curies, log_request, remove_null_values
