@@ -1,6 +1,7 @@
 """Constraint handling."""
 import operator
 import re
+from reasoner_pydantic import KnowledgeGraph, HashableSequence
 
 operator_map = {
     "==": operator.eq,
@@ -31,19 +32,17 @@ def satisfies_attribute_constraint(kel: dict, constraint: dict) -> bool:
 
 def result_satisfies_constraints(result: dict, kgraph: dict, qgraph: dict) -> bool:
     """Determine whether result satisfies qgraph constraints."""
-    for qnode_id, node_bindings in result["node_bindings"].items():
+    for qnode_id, node_bindings in result.node_bindings.items():
         for node_binding in node_bindings:
-            knode = kgraph["nodes"][node_binding["id"]]
-            for constraint in qgraph["nodes"][qnode_id].get("constraints", []):
+            knode = kgraph.nodes[node_binding.id]
+            for constraint in qgraph.nodes[qnode_id].constraints:
                 if not satisfies_attribute_constraint(knode, constraint):
                     return False
-    for analysis in result.get("analyses", []):
-        for qedge_id, edge_bindings in analysis["edge_bindings"].items():
+    for analysis in result.analyses:
+        for qedge_id, edge_bindings in analysis.edge_bindings.items():
             for edge_binding in edge_bindings:
-                kedge = kgraph["edges"][edge_binding["id"]]
-                for constraint in qgraph["edges"][qedge_id].get(
-                    "attribute_constraints", []
-                ):
+                kedge = kgraph.edges[edge_binding.id]
+                for constraint in qgraph.edges[qedge_id].attribute_constraints:
                     if not satisfies_attribute_constraint(kedge, constraint):
                         return False
 
@@ -52,28 +51,40 @@ def result_satisfies_constraints(result: dict, kgraph: dict, qgraph: dict) -> bo
 
 def enforce_constraints(message: dict) -> dict:
     """Enforce qgraph constraints from qgraph on results/kgraph."""
-    message["results"] = [
-        result
-        for result in message["results"]
-        if result_satisfies_constraints(
-            result,
-            message["knowledge_graph"],
-            message["query_graph"],
-        )
+    # check if any constraints exist before filtering all results and kgraph
+    node_constraints = [
+        node.constraints
+        for node in message.query_graph.nodes.values()
+        if "constraints" in node and len(node.constraints)
     ]
-    message["knowledge_graph"] = {
-        "nodes": {
-            binding["id"]: message["knowledge_graph"]["nodes"][binding["id"]]
-            for result in message["results"]
-            for _, bindings in result["node_bindings"].items()
-            for binding in bindings
-        },
-        "edges": {
-            binding["id"]: message["knowledge_graph"]["edges"][binding["id"]]
-            for result in message["results"]
-            for analysis in result.get("analyses", [])
-            for _, bindings in analysis["edge_bindings"].items()
-            for binding in bindings
-        },
-    }
+    edge_constraints = [
+        edge.attribute_contraints
+        for edge in message.query_graph.edges.values()
+        if "attribute_constraints" in edge and len(edge.attribute_constraints)
+    ]
+    if node_constraints or edge_constraints:
+        message.results = HashableSequence(__root__=[
+            result
+            for result in message.results
+            if result_satisfies_constraints(
+                result,
+                message.knowledge_graph,
+                message.query_graph,
+            )
+        ])
+        message.knowledge_graph = KnowledgeGraph.parse_obj({
+            "nodes": {
+                binding.id: message.knowledge_graph.nodes[binding.id]
+                for result in message.results
+                for _, bindings in result.node_bindings.items()
+                for binding in bindings
+            },
+            "edges": {
+                binding.id: message.knowledge_graph.edges[binding.id]
+                for result in message.results
+                for analysis in result.analyses
+                for _, bindings in analysis.edge_bindings.items()
+                for binding in bindings
+            },
+        })
     return message

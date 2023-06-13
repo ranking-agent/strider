@@ -11,12 +11,6 @@ def get_keys_with_value(dct: dict, value):
     return [k for k, v in dct.items() if v == value]
 
 
-async def gather_dict(dct):
-    """Gather a dict of coroutines"""
-    values = await asyncio.gather(*dct.values())
-    return {k: v for k, v in zip(dct.keys(), values)}
-
-
 def log_request(r):
     """Serialize a httpx.Request object into a dict for logging"""
     return {
