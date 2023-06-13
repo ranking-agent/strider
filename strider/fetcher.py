@@ -20,7 +20,13 @@ from typing import Callable, List
 
 import aiostream
 from kp_registry import Registry
-from reasoner_pydantic import Message
+from reasoner_pydantic import (
+    Message,
+    QueryGraph,
+    KnowledgeGraph,
+    AuxiliaryGraphs,
+    Result,
+)
 
 from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
@@ -63,10 +69,10 @@ class Binder:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
             self.logger.info(f"Finished call stack: {(', ').join(call_stack)}")
-            yield {"nodes": dict(), "edges": dict()}, {
+            yield QueryGraph.parse_obj({"nodes": dict(), "edges": dict()}), Result.parse_obj({
                 "node_bindings": dict(),
                 "analyses": [],
-            }, {}
+            }), AuxiliaryGraphs.parse_obj({})
             return
 
         try:
@@ -110,6 +116,7 @@ class Binder:
             self.logger.info(
                 f"[{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
             )
+            onehop_response = Message.parse_obj(onehop_response)
         if onehop_response is None and not settings.offline_mode:
             # onehop not in cache, have to go get response
             self.logger.info(
@@ -118,7 +125,7 @@ class Binder:
             onehop_response = await kp.solve_onehop(
                 onehop_qgraph,
             )
-            await save_kp_onehop(kp.id, onehop_qgraph, onehop_response)
+            await save_kp_onehop(kp.id, onehop_qgraph, onehop_response.dict())
         if onehop_response is None and settings.offline_mode:
             self.logger.info(
                 f"[{kp.id}] Didn't get anything back from cache in offline mode."
@@ -127,9 +134,9 @@ class Binder:
             onehop_results = []
         else:
             onehop_response = enforce_constraints(onehop_response)
-            onehop_kgraph = onehop_response["knowledge_graph"]
-            onehop_results = onehop_response["results"]
-            onehop_auxgraphs = onehop_response.get("auxiliary_graphs") or {}
+            onehop_kgraph = onehop_response.knowledge_graph
+            onehop_results = onehop_response.results
+            onehop_auxgraphs = onehop_response.auxiliary_graphs
             qedge_id = next(iter(onehop_qgraph["edges"].keys()))
         generators = []
 
@@ -147,44 +154,44 @@ class Binder:
             result_map = defaultdict(list)
             for result in batch_results:
                 # add edge to results and kgraph
-                result_kgraph = {
+                result_kgraph = KnowledgeGraph.parse_obj({
                     "nodes": {
-                        binding["id"]: onehop_kgraph["nodes"][binding["id"]]
-                        for _, bindings in result["node_bindings"].items()
+                        binding.id: onehop_kgraph.nodes[binding.id]
+                        for _, bindings in result.node_bindings.items()
                         for binding in bindings
                     },
                     "edges": {
-                        binding["id"]: onehop_kgraph["edges"][binding["id"]]
-                        for analysis in result.get("analyses", [])
-                        for _, bindings in analysis["edge_bindings"].items()
+                        binding.id: onehop_kgraph.edges[binding.id]
+                        for analysis in result.analyses or []
+                        for _, bindings in analysis.edge_bindings.items()
                         for binding in bindings
                     },
-                }
+                })
 
-                result_auxgraph = {
+                result_auxgraph = AuxiliaryGraphs.parse_obj({
                     [graph_id]: onehop_auxgraphs[graph_id]
-                    for analysis in result.get("analyses", [])
-                    for graph_id in analysis.get("support_graphs") or []
-                }
+                    for analysis in result.analyses or []
+                    for graph_id in analysis.support_graphs or []
+                })
 
                 # pin nodes
-                for qnode_id, bindings in result["node_bindings"].items():
+                for qnode_id, bindings in result.node_bindings.items():
                     if qnode_id not in subqgraph["nodes"]:
                         continue
                     subqgraph["nodes"][qnode_id]["ids"] = (
                         subqgraph["nodes"][qnode_id].get("ids") or []
-                    ) + [binding["id"] for binding in bindings]
+                    ) + [binding.id for binding in bindings]
                 qnode_ids = set(subqgraph["nodes"].keys()) & set(
-                    result["node_bindings"].keys()
+                    result.node_bindings.keys()
                 )
                 key_fcn = lambda res: tuple(
                     (
                         qnode_id,
                         tuple(
-                            binding["id"] for binding in bindings  # probably only one
+                            binding.id for binding in bindings  # probably only one
                         ),
                     )
-                    for qnode_id, bindings in res["node_bindings"].items()
+                    for qnode_id, bindings in res.node_bindings.items()
                     if qnode_id in qnode_ids
                 )
                 result_map[key_fcn(result)].append(
@@ -215,20 +222,21 @@ class Binder:
         ):
             for result, kgraph, auxgraph in get_results(subresult):
                 # combine one-hop with subquery results
-                new_subresult = {
+                # Need to create a new result with all node bindings combined
+                new_subresult = Result.parse_obj({
                     "node_bindings": {
-                        **subresult["node_bindings"],
-                        **result["node_bindings"],
+                        **subresult.node_bindings,
+                        **result.node_bindings,
                     },
                     "analyses": [
-                        *subresult["analyses"],
-                        *result["analyses"],
+                        *subresult.analyses,
+                        *result.analyses,
                         # reconsider
                     ],
-                }
+                })
                 new_subkgraph = copy.deepcopy(subkgraph)
-                new_subkgraph["nodes"].update(kgraph["nodes"])
-                new_subkgraph["edges"].update(kgraph["edges"])
+                new_subkgraph.nodes.update(kgraph.nodes)
+                new_subkgraph.edges.update(kgraph.edges)
                 new_auxgraph = copy.deepcopy(subauxgraph)
                 new_auxgraph.update(auxgraph)
                 yield new_subkgraph, new_subresult, new_auxgraph

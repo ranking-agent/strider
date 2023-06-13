@@ -19,7 +19,7 @@ from reasoner_pydantic import (
     Message,
     KnowledgeGraph,
 )
-from reasoner_pydantic.utils import HashableSet
+from reasoner_pydantic.utils import HashableSequence
 import uuid
 
 from .trapi import get_curies, remove_curies, filter_by_curie_mapping
@@ -290,7 +290,7 @@ class ThrottledServer:
                             or KnowledgeGraph(nodes={}, edges={})
                         ).copy()
                         response_values[request_id].message.results = (
-                            message.results or HashableSet(__root__=[])
+                            message.results or HashableSequence(__root__=[])
                         ).copy()
                     else:
                         # Split using the request_curie_mapping
@@ -328,7 +328,7 @@ class ThrottledServer:
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took >60 seconds to respond",
+                            "message": f"{self.id} took > {self.timeout} seconds to respond",
                             "error": str(e),
                             "request": elide_curies(merged_request_value),
                         }
@@ -336,7 +336,7 @@ class ThrottledServer:
                 elif isinstance(e, httpx.ReadTimeout):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took >60 seconds to respond",
+                            "message": f"{self.id} took > {self.timeout} seconds to respond",
                             "error": str(e),
                             "request": log_request(e.request),
                         }
@@ -481,7 +481,7 @@ class ThrottledServer:
 
         combined_output.message.query_graph = query.message.query_graph
 
-        return combined_output.dict()
+        return combined_output
 
 
 class DuplicateError(Exception):

@@ -7,7 +7,6 @@ from reasoner_pydantic import (
     QueryGraph,
     Results,
 )
-from reasoner_pydantic.utils import HashableSet
 from strider.node_sets import collapse_sets
 
 LOGGER = logging.getLogger(__name__)

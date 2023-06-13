@@ -16,7 +16,7 @@ from fastapi.staticfiles import StaticFiles
 import httpx
 from reasoner_pydantic.kgraph import KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
-from reasoner_pydantic.utils import HashableMapping, HashableSet
+from reasoner_pydantic.utils import HashableMapping
 from reasoner_pydantic.message import Result
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import HTMLResponse, Response
@@ -452,33 +452,36 @@ async def lookup(
 
     output_auxgraphs = AuxiliaryGraphs.parse_obj({})
     async with binder:
-        async for result_kgraph_dict, result, result_auxgraph in binder.lookup(None):
+        async for result_kgraph, result, result_auxgraph in binder.lookup(None):
             # Message parsing also normalizes kgraph edge ids and updates result and aux graph edge ids
-            result_message = Message.parse_obj(
-                {
-                    "knowledge_graph": result_kgraph_dict,
-                    "results": [result],
-                    "auxiliary_graphs": result_auxgraph,
-                }
-            )
+            # result_message = Message.parse_obj(
+            #     {
+            #         "knowledge_graph": result_kgraph_dict,
+            #         "results": [result],
+            #         "auxiliary_graphs": result_auxgraph,
+            #     }
+            # )
 
             # Update the kgraph
-            output_kgraph.update(result_message.knowledge_graph)
+            output_kgraph.update(result_kgraph)
 
             # Update the aux graphs
-            output_auxgraphs.update(result_message.auxiliary_graphs)
+            output_auxgraphs.update(result_auxgraph)
 
             # Update the results
             # hashmap lookup is very quick
-            sub_result = next(iter(result_message.results))
-            sub_result_hash = hash(sub_result)
-            existing_result = output_results.get(sub_result_hash, None)
+            # sub_result = next(iter(result))
+            # sub_result_hash = hash(sub_result)
+            sub_result_hash = hash(result)
+            existing_result = output_results.get(result, None)
             if existing_result:
                 # update existing result
-                existing_result.update(sub_result)
+                # existing_result.update(sub_result)
+                existing_result.update(result)
             else:
                 # add new result to hashmap
-                output_results[sub_result_hash] = sub_result
+                # output_results[sub_result_hash] = sub_result
+                output_results[sub_result_hash] = result
 
     results = Results.parse_obj([])
     for result in output_results.values():
