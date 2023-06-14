@@ -487,7 +487,7 @@ async def lookup(
     for result in output_results.values():
         if len(result.analyses) > 1:
             result.combine_analyses_by_resource_id()
-        results.add(result)
+        results.append(result)
 
     output_query = Query(
         message=Message(
