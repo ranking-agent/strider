@@ -177,7 +177,7 @@ async def post_json(url, request, logger, log_name):
     #     return {}
     # else:
     try:
-        async with httpx.AsyncClient(verify=False, timeout=60.0) as client:
+        async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
             logger.debug(f"Sending request to {url}")
             response = await client.post(
                 url,
