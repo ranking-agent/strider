@@ -116,7 +116,7 @@ class Binder:
             self.logger.info(
                 f"[{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
             )
-            onehop_response = Message.parse_obj(onehop_response)
+            onehop_response = Message.parse_obj(onehop_response, normalize=False)
         if onehop_response is None and not settings.offline_mode:
             # onehop not in cache, have to go get response
             self.logger.info(
