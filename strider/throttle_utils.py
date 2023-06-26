@@ -1,7 +1,7 @@
 """Throttle Utility Functions."""
 from reasoner_pydantic import Message, QueryGraph
 from reasoner_pydantic.kgraph import KnowledgeGraph
-from reasoner_pydantic.utils import HashableSequence
+from reasoner_pydantic.utils import HashableSequence, HashableMapping
 
 
 class BatchingError(Exception):
@@ -84,6 +84,27 @@ def filter_by_curie_mapping(
             for binding in bindings
         },
     )
+
+    edge_aux_graphs = [
+        aux_graph_id
+        for result in filtered_msg.results
+        for analysis in result.analyses or []
+        for _, bindings in analysis.edge_bindings.items()
+        for binding in bindings
+        for attribute in message.knowledge_graph.edges[binding.id].attributes
+        if attribute.attribute_type_id == "biolink:support_graphs"
+        for aux_graph_id in attribute.value
+    ]
+    result_aux_graphs = [
+        aux_graph_id
+        for result in filtered_msg.results
+        for analysis in result.analyses or []
+        for aux_graph_id in analysis.support_graphs or []
+    ]
+    filtered_msg.auxiliary_graphs = HashableMapping({
+        aux_graph_id: message.auxiliary_graphs[aux_graph_id]
+        for aux_graph_id in edge_aux_graphs.extend(result_aux_graphs)
+    })
 
     return filtered_msg
 
