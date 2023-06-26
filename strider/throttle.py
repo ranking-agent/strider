@@ -19,7 +19,7 @@ from reasoner_pydantic import (
     Message,
     KnowledgeGraph,
 )
-from reasoner_pydantic.utils import HashableSequence
+from reasoner_pydantic.utils import HashableSequence, HashableMapping
 import uuid
 
 from .throttle_utils import get_keys_with_value, log_response, get_curies, remove_curies, filter_by_curie_mapping
@@ -288,6 +288,9 @@ class ThrottledServer:
                         ).copy()
                         response_values[request_id].message.results = (
                             message.results or HashableSequence(__root__=[])
+                        ).copy()
+                        response_values[request_id].message.auxiliary_graphs = (
+                            message.auxiliary_graphs or HashableMapping(__root__={})
                         ).copy()
                     else:
                         # Split using the request_curie_mapping

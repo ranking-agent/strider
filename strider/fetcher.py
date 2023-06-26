@@ -166,10 +166,26 @@ class Fetcher:
                     },
                 })
 
-                result_auxgraph = AuxiliaryGraphs.parse_obj({
-                    [graph_id]: onehop_auxgraphs[graph_id]
+                # collect all auxiliary graph ids from results and edges
+                aux_graphs = [
+                    aux_graph_id
                     for analysis in result.analyses or []
-                    for graph_id in analysis.support_graphs or []
+                    for aux_graph_id in analysis.support_graphs or []
+                ]
+
+                aux_graphs.extend([
+                    aux_graph_id
+                    for analysis in result.analyses or []
+                    for _, bindings in analysis.edge_bindings.items()
+                    for binding in bindings
+                    for attribute in onehop_kgraph.edges[binding.id].attributes
+                    if attribute.attribute_type_id == "biolink:support_graphs"
+                    for aux_graph_id in attribute.value
+                ])
+
+                result_auxgraph = AuxiliaryGraphs.parse_obj({
+                    aux_graph_id: onehop_auxgraphs[aux_graph_id]
+                    for aux_graph_id in aux_graphs
                 })
 
                 # pin nodes
