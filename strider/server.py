@@ -1,4 +1,12 @@
-"""Simple ReasonerStdAPI server."""
+"""
+ .oooooo..o     .             o8o        .o8
+d8P'    `Y8   .o8             `"'       "888
+Y88bo.      .o888oo oooo d8b oooo   .oooo888   .ooooo.  oooo d8b
+ `"Y8888o.    888   `888""8P `888  d88' `888  d88' `88b `888""8P
+     `"Y88b   888    888      888  888   888  888ooo888  888
+oo     .d8P   888 .  888      888  888   888  888    .o  888
+8""88888P'    "888" d888b    o888o `Y8bod88P" `Y8bod8P' d888b
+"""
 import datetime
 import os
 import uuid
@@ -7,7 +15,7 @@ import warnings
 import traceback
 import asyncio
 
-from fastapi import Body, Depends, HTTPException, BackgroundTasks, Request, status
+from fastapi import Body, HTTPException, BackgroundTasks, Request, status
 from fastapi.openapi.docs import (
     get_swagger_ui_html,
 )
@@ -32,11 +40,11 @@ from reasoner_pydantic import (
 )
 
 from .caching import get_kp_registry, save_kp_registry, get_registry_lock, remove_registry_lock
-from .fetcher import Binder
+from .fetcher import Fetcher
 from .node_sets import collapse_sets
 from .query_planner import NoAnswersError, generate_plan
 from .config import settings
-from .util import add_cors_manually, setup_logging
+from .utils import add_cors_manually, setup_logging
 from .openapi import TRAPI
 from .logger import QueryLogger
 
@@ -66,9 +74,9 @@ openapi_args = dict(
     translator_component="ARA",
     translator_teams=["Ranking Agent"],
     contact={
-        "name": "Abrar Mesbah",
-        "email": "amesbah@covar.com",
-        "x-id": "uhbrar",
+        "name": "Max Wang",
+        "email": "max@covar.com",
+        "x-id": "maximusunc",
         "x-role": "responsible developer",
     },
     trapi_operations=[
@@ -429,11 +437,11 @@ async def lookup(
     logger.setLevel(level_number)
     logger.addHandler(log_handler)
 
-    binder = Binder(logger)
+    fetcher = Fetcher(logger)
 
     logger.info(f"Doing lookup for qgraph: {qgraph}")
     try:
-        await binder.setup(qgraph, registry)
+        await fetcher.setup(qgraph, registry)
     except NoAnswersError:
         logger.info("Returning no results.")
         return qid, {
@@ -453,6 +461,8 @@ async def lookup(
     output_auxgraphs = AuxiliaryGraphs.parse_obj({})
     async with binder:
         async for result_kgraph, result, result_auxgraph in binder.lookup(None):
+    async with fetcher:
+        async for result_kgraph, result, result_auxgraph in fetcher.lookup(None):
             # Message parsing also normalizes kgraph edge ids and updates result and aux graph edge ids
             # result_message = Message.parse_obj(
             #     {

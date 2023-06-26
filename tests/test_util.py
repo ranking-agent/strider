@@ -1,5 +1,5 @@
 """Test utilities."""
-from strider.util import remove_null_values, get_kp_operations_queries
+from strider.utils import remove_null_values
 from strider.trapi import filter_ancestor_types
 
 

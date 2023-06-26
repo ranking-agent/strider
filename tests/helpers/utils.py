@@ -13,7 +13,7 @@ from reasoner_pydantic.results import NodeBinding, EdgeBinding, Result, Analysis
 from reasoner_pydantic.qgraph import QueryGraph
 from reasoner_pydantic.kgraph import Edge, KnowledgeGraph, Node
 
-from strider.util import WBMT
+from strider.utils import WBMT
 
 
 def load_kps(fpath):

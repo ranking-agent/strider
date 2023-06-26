@@ -1,5 +1,4 @@
-import copy
-
+"""Throttle Utility Functions."""
 from reasoner_pydantic import Message, QueryGraph
 from reasoner_pydantic.kgraph import KnowledgeGraph
 from reasoner_pydantic.utils import HashableSequence
@@ -33,35 +32,6 @@ def remove_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
     for node in qgraph.nodes.values():
         node.ids = None
     return qgraph
-
-
-def remove_unbound_from_kg(message):
-    """
-    Remove all knowledge graph nodes and edges without a binding
-    """
-
-    bound_knodes = set()
-    for result in message["results"]:
-        for node_binding_list in result["node_bindings"].values():
-            for nb in node_binding_list:
-                bound_knodes.add(nb["id"])
-    bound_kedges = set()
-    for result in message["results"]:
-        for analysis in result.get("analyses", []):
-            for edge_binding_list in analysis["edge_bindings"].values():
-                for nb in edge_binding_list:
-                    bound_kedges.add(nb["id"])
-
-    message["knowledge_graph"]["nodes"] = {
-        nid: node
-        for nid, node in message["knowledge_graph"]["nodes"].items()
-        if nid in bound_knodes
-    }
-    message["knowledge_graph"]["edges"] = {
-        eid: edge
-        for eid, edge in message["knowledge_graph"]["edges"].items()
-        if eid in bound_kedges
-    }
 
 
 def result_contains_node_bindings(result, bindings: dict[str, list[str]]):
@@ -116,3 +86,27 @@ def filter_by_curie_mapping(
     )
 
     return filtered_msg
+
+
+def get_keys_with_value(dct: dict, value):
+    """Return keys where the value matches the given"""
+    return [k for k, v in dct.items() if v == value]
+
+
+def log_request(r):
+    """Serialize a httpx.Request object into a dict for logging"""
+    return {
+        "method": r.method,
+        "url": str(r.url),
+        "headers": dict(r.headers),
+        "data": r.read().decode(),
+    }
+
+
+def log_response(r):
+    """Serialize a httpx.Response object into a dict for logging"""
+    return {
+        "status_code": r.status_code,
+        "headers": dict(r.headers),
+        "data": r.text,
+    }

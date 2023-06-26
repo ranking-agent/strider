@@ -4,13 +4,12 @@ import copy
 from itertools import chain
 import logging
 import math
-from typing import Generator
+from typing import Generator, Union
 
 from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
-from strider.knowledge_provider import KnowledgeProvider
-from strider.util import get_kp_operations_queries
+from strider.utils import WBMT
 
 LOGGER = logging.getLogger(__name__)
 
@@ -183,11 +182,40 @@ def search(
     return kps
 
 
+def get_kp_operations_queries(
+    subject_categories: Union[str, list[str]] = None,
+    predicates: Union[str, list[str]] = None,
+    object_categories: Union[str, list[str]] = None,
+):
+    """Build queries to send to kp registry."""
+    if isinstance(subject_categories, str):
+        subject_categories = [subject_categories]
+    if isinstance(predicates, str):
+        predicates = [predicates]
+    if isinstance(object_categories, str):
+        object_categories = [object_categories]
+    subject_categories = [
+        desc for cat in subject_categories for desc in WBMT.get_descendants(cat)
+    ]
+    predicates = [desc for pred in predicates for desc in WBMT.get_descendants(pred)]
+    inverse_predicates = [
+        desc
+        for pred in predicates
+        if (inverse := WBMT.predicate_inverse(pred))
+        for desc in WBMT.get_descendants(inverse)
+    ]
+    object_categories = [
+        desc for cat in object_categories for desc in WBMT.get_descendants(cat)
+    ]
+
+    return subject_categories, object_categories, predicates, inverse_predicates
+
+
 async def generate_plan(
     qgraph: dict,
     logger: logging.Logger = None,
     registry=None,
-) -> tuple[dict[str, list[str]], dict[str, KnowledgeProvider]]:
+) -> tuple[dict[str, list[str]], dict[str, dict]]:
     """Generate traversal plan."""
     # check that qgraph is traversable
     get_traversals(qgraph)
