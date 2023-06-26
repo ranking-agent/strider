@@ -22,18 +22,11 @@ from reasoner_pydantic import (
 from reasoner_pydantic.utils import HashableSequence
 import uuid
 
-from .trapi import get_curies, remove_curies, filter_by_curie_mapping
-from .utils import get_keys_with_value, log_response
-from ..trapi import get_canonical_qgraphs
-from ..util import elide_curies, log_request, remove_null_values
-from ..caching import async_locking_cache
-from ..config import settings
-
-
-class KPInformation(pydantic.main.BaseModel):
-    url: pydantic.AnyHttpUrl
-    request_qty: int
-    request_duration: datetime.timedelta
+from .throttle_utils import get_keys_with_value, log_response, get_curies, remove_curies, filter_by_curie_mapping
+from .trapi import get_canonical_qgraphs
+from .utils import elide_curies, log_request, remove_null_values
+from .caching import async_locking_cache
+from .config import settings
 
 
 def log_errors(fcn):
@@ -64,7 +57,6 @@ class ThrottledServer:
         request_duration: float,
         *args,
         max_batch_size: Optional[int] = None,
-        timeout: float = 60.0,
         preproc: Callable = anull,
         postproc: Callable = anull,
         logger: logging.Logger = None,
@@ -78,7 +70,6 @@ class ThrottledServer:
         self.url = url
         self.request_qty = request_qty
         self.request_duration = datetime.timedelta(seconds=request_duration)
-        self.timeout = timeout
         self.max_batch_size = max_batch_size
         self.preproc = preproc
         self.postproc = postproc
@@ -208,24 +199,24 @@ class ThrottledServer:
 
             response_values = dict()
             try:
+                self.logger.context = self.id
+                await self.preproc(merged_request_value)
+                # TODO rewrite this whole function to use pydantic model
+                merged_request_value = merged_request_value.dict()
+                merged_request_value["submitter"] = "infores:aragorn"
+                merged_request_value = remove_null_values(merged_request_value)
                 # Make request
                 self.logger.info(
                     "[{id}] Sending request made of {subrequests} subrequests ({curies} curies)".format(
                         id=self.id,
                         subrequests=len(request_curie_mapping),
                         curies=" x ".join(
-                            str(len(qnode.ids or []))
-                            for qnode in merged_request_value.message.query_graph.nodes.values()
+                            str(len(qnode.get("ids") or []))
+                            for qnode in merged_request_value["message"]["query_graph"]["nodes"].values()
                         ),
                     )
                 )
-                self.logger.context = self.id
-                await self.preproc(merged_request_value, self.logger)
-                # TODO rewrite this whole function to use pydantic model
-                merged_request_value = merged_request_value.dict()
-                merged_request_value["submitter"] = "infores:aragorn"
-                merged_request_value = remove_null_values(merged_request_value)
-                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                async with httpx.AsyncClient(timeout=settings.kp_timeout) as client:
                     response = await client.post(
                         self.url,
                         json=merged_request_value,
@@ -267,10 +258,16 @@ class ThrottledServer:
                         response.elapsed.total_seconds(),
                     )
                 )
+                if response.elapsed.total_seconds() > (settings.kp_timeout * 10):
+                    self.logger.warning(
+                        f"Response from {self.id} took way too long: {response.elapsed.total_seconds()} seconds"
+                    )
 
                 # Parse with reasoner_pydantic to validate
+                start_time = datetime.datetime.now()
                 response_body = ReasonerResponse.parse_obj(response_dict)
-                await self.postproc(response_body, self.logger)
+                self.logger.info(f"Response parsing took {(datetime.datetime.now() - start_time).total_seconds()} seconds")
+                await self.postproc(response_body)
                 message = response_body.message
 
                 try:
@@ -328,7 +325,7 @@ class ThrottledServer:
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took > {self.timeout} seconds to respond",
+                            "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
                             "error": str(e),
                             "request": elide_curies(merged_request_value),
                         }
@@ -336,7 +333,7 @@ class ThrottledServer:
                 elif isinstance(e, httpx.ReadTimeout):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took > {self.timeout} seconds to respond",
+                            "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
                             "error": str(e),
                             "request": log_request(e.request),
                         }
@@ -382,6 +379,7 @@ class ThrottledServer:
                         {
                             "message": f"Something went wrong while querying {self.id}",
                             "error": str(e),
+                            "traceback": e.with_traceback(),
                         }
                     )
 
@@ -402,19 +400,14 @@ class ThrottledServer:
                 # Update TAT
                 tat = datetime.datetime.utcnow() + interval
 
-    async def __aenter__(
-        self,
-    ):
+    async def __aenter__(self):
         """Set KP info and start processing task."""
         loop = asyncio.get_event_loop()
         self.worker = loop.create_task(self.process_batch())
 
         return self
 
-    async def __aexit__(
-        self,
-        *args,
-    ):
+    async def __aexit__(self):
         """Cancel KP processing task."""
         task: Task = self.worker
         self.worker = None
@@ -426,11 +419,11 @@ class ThrottledServer:
         except asyncio.CancelledError:
             pass
 
+    @log_errors
     async def _query(
         self,
         query: Query,
         priority: float = 0,  # lowest goes first
-        timeout: Optional[float] = 60.0,
     ) -> ReasonerResponse:
         """Queue up a query for batching and return when completed"""
         if self.worker is None:
@@ -482,41 +475,3 @@ class ThrottledServer:
         combined_output.message.query_graph = query.message.query_graph
 
         return combined_output
-
-
-class DuplicateError(Exception):
-    """Duplicate KP."""
-
-
-class Throttle:
-    """TRAPI Throttle."""
-
-    def __init__(self, *args, **kwargs):
-        """Initialize."""
-        self.servers: dict[str, ThrottledServer] = dict()
-
-    async def register_kp(
-        self,
-        kp_id: str,
-        kp_info: dict,
-    ):
-        """Set KP info and start processing task."""
-        if kp_id in self.servers:
-            raise DuplicateError(f"{kp_id} already exists")
-        self.servers[kp_id] = ThrottledServer(kp_id, **kp_info)
-        await self.servers[kp_id].__aenter__()
-
-    async def unregister_kp(
-        self,
-        kp_id: str,
-    ):
-        """Cancel KP processing task."""
-        await self.servers.pop(kp_id).__aexit__()
-
-    async def query(
-        self,
-        kp_id: str,
-        query: dict,
-    ) -> dict:
-        """Queue up a query for batching and return when completed"""
-        return await self.servers[kp_id].query(query)

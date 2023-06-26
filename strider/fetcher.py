@@ -1,14 +1,4 @@
-"""Fetcher 2.0.
-
- .oooooo..o     .             o8o        .o8
-d8P'    `Y8   .o8             `"'       "888
-Y88bo.      .o888oo oooo d8b oooo   .oooo888   .ooooo.  oooo d8b
- `"Y8888o.    888   `888""8P `888  d88' `888  d88' `88b `888""8P
-     `"Y88b   888    888      888  888   888  888ooo888  888
-oo     .d8P   888 .  888      888  888   888  888    .o  888
-8""88888P'    "888" d888b    o888o `Y8bod88P" `Y8bod8P' d888b
-
-"""
+"""Fetcher 2.0."""
 from collections import defaultdict
 from collections.abc import Iterable
 import copy
@@ -28,33 +18,41 @@ from reasoner_pydantic import (
     Result,
 )
 
-from .trapi_throttle.throttle import ThrottledServer
 from .graph import Graph
-from .synonymizer import Synonymizer
-from .knowledge_provider import KnowledgePortal, KnowledgeProvider
+from .normalizer import Normalizer
+from .knowledge_provider import KnowledgeProvider
 from .trapi import (
-    get_curies,
     map_qgraph_curies,
     fill_categories_predicates,
 )
 from .query_planner import generate_plan, get_next_qedge
 from .config import settings
-from .util import (
+from .utils import (
     WBMT,
     batch,
     elide_curies,
+    get_curies,
 )
 from .caching import get_kp_onehop, save_kp_onehop
 
 
-class Binder:
-    """Binder."""
+class Fetcher:
+    """Strider lookup engine.
+
+    The lookup process involves three recursive async generators:
+        lookup -> generate_from_kp -> generate_from_result -> lookup
+    Steps:
+    - Given a query, develop a kp plan for each edge. KPs are found based on their meta_knowledge_graphs
+    - Grab the weightiest edge from the query and send that onehop to kps according to the plan
+    - Once a response is received, each result is stored in a map so that once all hops have been completed,
+        a full result can be returned for merging.
+    """
 
     def __init__(self, logger):
         """Initialize."""
         self.logger = logger
-        self.synonymizer = Synonymizer(self.logger)
-        self.portal = KnowledgePortal(self.synonymizer, self.logger)
+        self.normalizer = Normalizer(self.logger)
+        self.kps = dict()
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
@@ -243,25 +241,14 @@ class Binder:
 
     async def __aenter__(self):
         """Enter context."""
-        for tserver in self.portal.tservers.values():
-            await tserver.__aenter__()
+        for kp in self.kps.values():
+            await kp.throttle.__aenter__()
         return self
 
     async def __aexit__(self, *args):
         """Exit context."""
-        for tserver in self.portal.tservers.values():
-            await tserver.__aexit__()
-
-    def get_processor(self, preferred_prefixes):
-        """Get processor."""
-
-        async def processor(request, logger: logging.Logger = None):
-            """Map message CURIE prefixes."""
-            if logger is None:
-                logger = self.logger
-            await self.portal.map_prefixes(request.message, preferred_prefixes)
-
-        return processor
+        for kp in self.kps.values():
+            await kp.throttle.__aexit__()
 
     # pylint: disable=arguments-differ
     async def setup(
@@ -275,8 +262,8 @@ class Binder:
         message = Message.parse_obj({"query_graph": qgraph})
         curies = get_curies(message)
         if len(curies):
-            await self.synonymizer.load_curies(*curies)
-            curie_map = self.synonymizer.map(curies, self.preferred_prefixes)
+            await self.normalizer.load_curies(*curies)
+            curie_map = self.normalizer.map(curies, self.preferred_prefixes)
             map_qgraph_curies(message.query_graph, curie_map, primary=True)
 
         self.qgraph = message.query_graph.dict()
@@ -294,7 +281,6 @@ class Binder:
 
         # extract KP preferred prefixes from plan
         self.kp_preferred_prefixes = dict()
-        self.portal.tservers = dict()
         for kp_id, kp in kps.items():
             try:
                 self.kp_preferred_prefixes[kp_id] = kp["details"]["preferred_prefixes"]
@@ -307,20 +293,8 @@ class Binder:
                 )
                 self.kp_preferred_prefixes[kp_id] = dict()
 
-            self.portal.tservers[kp_id] = ThrottledServer(
+            self.kps[kp_id] = KnowledgeProvider(
                 kp_id,
-                url=kp["url"],
-                request_qty=1,
-                request_duration=1,
-                preproc=self.get_processor(self.kp_preferred_prefixes[kp_id]),
-                postproc=self.get_processor(self.preferred_prefixes),
-                logger=self.logger,
+                kp,
+                self.logger,
             )
-        self.kps = {
-            kp_id: KnowledgeProvider(
-                details,
-                self.portal,
-                kp_id,
-            )
-            for kp_id, details in kps.items()
-        }

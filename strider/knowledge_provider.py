@@ -1,9 +1,9 @@
 import asyncio
 import httpx
 from json.decoder import JSONDecodeError
-import logging
 import pydantic
 from reasoner_pydantic import (
+    Response,
     Message,
     QueryGraph,
     KnowledgeGraph,
@@ -12,81 +12,100 @@ from reasoner_pydantic import (
     RetrievalSource,
 )
 
-from .trapi_throttle.throttle import ThrottledServer
-from .util import (
-    StriderRequestError,
+from .throttle import ThrottledServer
+from .utils import (
+    WBMT,
     elide_curies,
+    get_curies,
     remove_null_values,
     log_response,
     log_request,
 )
-from .trapi import apply_curie_map, get_curies
-from .synonymizer import Synonymizer
+from .trapi import apply_curie_map
+from .normalizer import Normalizer
+from .config import settings
 
 
-class KPError(Exception):
-    """Exception in a KP request."""
+class KnowledgeProvider:
+    """Knowledge provider."""
 
-
-class KnowledgePortal:
-    """Knowledge portal."""
-
-    def __init__(
-        self,
-        synonymizer: "Synonymizer" = None,
-        logger: logging.Logger = None,
-    ):
+    def __init__(self, kp_id, kp, logger, *args, **kwargs):
         """Initialize."""
-        if not logger:
-            logger = logging.getLogger(__name__)
-        if not synonymizer:
-            synonymizer = Synonymizer(logger=logger)
+        self.id = kp_id
+        self.kp = kp
         self.logger = logger
-        self.synonymizer = synonymizer
-        self.tservers: dict[str, ThrottledServer] = dict()
+        self.preferred_prefixes = WBMT.entity_prefix_mapping
+        self.throttle = ThrottledServer(
+            kp_id,
+            url=kp["url"],
+            request_qty=1,
+            request_duration=1,
+            logger=logger,
+            preproc=self.get_processor(self.kp["details"]["preferred_prefixes"]),
+            postproc=self.get_processor(self.preferred_prefixes),
+            *args,
+            *kwargs,
+        )
+        self.normalizer = Normalizer(logger=logger)
+    
 
-    async def make_throttled_request(
+    def get_processor(self, preferred_prefixes):
+        """Get processor."""
+
+        async def processor(request):
+            """Map message CURIE prefixes."""
+            await self.map_prefixes(request.message, preferred_prefixes)
+
+        return processor
+    
+    async def map_prefixes(
         self,
-        kp_id: str,
-        request: dict,
-        logger: logging.Logger,
-        timeout: float = 60.0,
-    ):
-        """
-        Make post request and write errors to log if present
-        """
+        message: Message,
+        prefixes: dict[str, list[str]],
+    ) -> Message:
+        """Map prefixes."""
+        curies = get_curies(message)
+        if len(curies):
+            await self.normalizer.load_curies(*curies)
+            curie_map = self.normalizer.map(curies, prefixes)
+            apply_curie_map(message, curie_map)
+
+    async def solve_onehop(self, request):
+        """Solve one-hop query."""
+        request = remove_null_values(request)
+        response = None
         try:
-            return await self.tservers[kp_id].query(request, timeout=timeout)
+            response = await self.throttle.query({"message": {"query_graph": request}})
         except asyncio.TimeoutError as e:
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"{kp_id} took >{timeout} seconds to respond",
+                    "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
                     "error": str(e),
                     "request": elide_curies(request),
                 }
             )
         except httpx.ReadTimeout as e:
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"{kp_id} took >60 seconds to respond",
+                    "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
                     "error": str(e),
                     "request": log_request(e.request),
                 }
             )
         except httpx.RequestError as e:
             # Log error
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"Request Error contacting {kp_id}",
+                    "message": f"Request Error contacting {self.id}",
                     "error": str(e),
                     "request": log_request(e.request),
                 }
             )
         except httpx.HTTPStatusError as e:
             # Log error with response
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"Response Error contacting {kp_id}",
+                    "message": f"Response Error contacting {self.id}",
                     "error": str(e),
                     "request": log_request(e.request),
                     "response": log_response(e.response),
@@ -94,70 +113,33 @@ class KnowledgePortal:
             )
         except JSONDecodeError as e:
             # Log error with response
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"Received bad JSON data from {kp_id}",
+                    "message": f"Received bad JSON data from {self.id}",
                     "request": e.request,
                     "response": e.response.text,
                     "error": str(e),
                 }
             )
         except pydantic.ValidationError as e:
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"Received non-TRAPI compliant response from {kp_id}",
+                    "message": f"Received non-TRAPI compliant response from {self.id}",
                     "error": str(e),
                 }
             )
         except Exception as e:
-            logger.warning(
+            self.logger.warning(
                 {
-                    "message": f"Knowledge_Provider: Something went wrong while querying {kp_id}",
+                    "message": f"Knowledge_Provider: Something went wrong while querying {self.id}",
                     "error": str(e),
                     "traceback": e.with_traceback(),
                 }
             )
-        raise StriderRequestError
-
-    async def map_prefixes(
-        self,
-        message: Message,
-        prefixes: dict[str, list[str]],
-        logger: logging.Logger = None,
-    ) -> Message:
-        """Map prefixes."""
-        if not logger:
-            logger = self.logger
-        curies = get_curies(message)
-        if len(curies):
-            await self.synonymizer.load_curies(*curies)
-            curie_map = self.synonymizer.map(curies, prefixes, logger)
-            apply_curie_map(message, curie_map)
-
-    async def fetch(
-        self,
-        kp_id: str,
-        request: dict,
-    ):
-        """Wrap fetch with CURIE mapping(s)."""
-        request = remove_null_values(request)
-
-        try:
-            response = await self.make_throttled_request(
-                kp_id,
-                request,
-                self.logger,
-            )
-        except StriderRequestError:
-            # Continue processing with an empty response object
-            response = {
-                "message": {
-                    "query_graph": request["message"]["query_graph"],
-                    "knowledge_graph": {"nodes": {}, "edges": {}},
-                    "results": [],
-                }
-            }
-
+        
+        if response is None:
+            response = Response.parse_obj({"message": {}})
+    
         message = response.message
         if message.query_graph is None:
             message = Message(
@@ -173,27 +155,9 @@ class KnowledgePortal:
         if message.auxiliary_graphs is None:
             message.auxiliary_graphs = AuxiliaryGraphs.parse_obj({})
 
-        add_source(message, kp_id)
+        add_source(message, self.id)
 
         return message
-
-
-class KnowledgeProvider:
-    """Knowledge provider."""
-
-    def __init__(self, details, portal, id, *args, **kwargs):
-        """Initialize."""
-        self.details = details
-        self.portal = portal
-        # self.portal: KnowledgePortal = portal
-        self.id = id
-
-    async def solve_onehop(self, request):
-        """Solve one-hop query."""
-        return await self.portal.fetch(
-            self.id,
-            {"message": {"query_graph": request}},
-        )
 
 
 def add_source(message: Message, kp_id):

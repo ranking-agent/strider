@@ -1,11 +1,10 @@
 """General utilities."""
 import copy
-import functools
 import json
 from json.decoder import JSONDecodeError
 import re
-from typing import Callable, Iterable, Union
-import statistics
+from reasoner_pydantic import Message
+from typing import Iterable
 
 import httpx
 from starlette.middleware.cors import CORSMiddleware
@@ -13,8 +12,6 @@ import yaml
 import bmt
 from bmt import Toolkit as BMToolkit
 import logging.config
-from strider.caching import save_post_request, get_post_response
-from strider.config import settings
 
 
 def camel_to_snake(s, sep=" "):
@@ -165,17 +162,6 @@ async def post_json(url, request, logger, log_name):
     """
     Make post request and write errors to log if present
     """
-    # Commenting out cache because node norm is usually very quick and takes up
-    # too much memory in the cache
-    # response = await get_post_response(url, request)
-    # if response is not None:
-    #     # if we got back from cache
-    #     return response
-    # elif settings.offline_mode:
-    #     logger.debug("POST JSON: Didn't get anything back from cache in offline mode.")
-    #     # if not in cache and in offline mode
-    #     return {}
-    # else:
     try:
         async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
             logger.debug(f"Sending request to {url}")
@@ -185,7 +171,6 @@ async def post_json(url, request, logger, log_name):
             )
             response.raise_for_status()
             response = response.json()
-            # await save_post_request(url, request, response)
             return response
     except httpx.ReadTimeout as e:
         logger.warning(
@@ -242,13 +227,6 @@ def setup_logging():
     logging.config.dictConfig(config)
 
 
-def ensure_list(arg: Union[str, list[str]]) -> list[str]:
-    """Enclose in list if necessary."""
-    if isinstance(arg, list):
-        return arg
-    return [arg]
-
-
 def batch(iterable: Iterable, n: int = 1):
     """Batch things into batches of size n."""
     N = len(iterable)
@@ -256,144 +234,20 @@ def batch(iterable: Iterable, n: int = 1):
         yield iterable[ndx : min(ndx + n, N)]
 
 
-def listify_value(input_dictionary: dict[str, any], key: str):
-    """If the provided key is not a list, wrap it in a list"""
-    if key not in input_dictionary:
-        return
-    if isinstance(input_dictionary[key], str):
-        input_dictionary[key] = [input_dictionary[key]]
+def get_curies(message: Message) -> list[str]:
+    """Get all node curies used in message.
 
-
-def extract_predicate_direction(predicate: str) -> tuple[str, bool]:
-    """Extract predicate direction from string with enclosing arrows"""
-    if "<-" in predicate:
-        return predicate[2:-1], True
-    else:
-        return predicate[1:-2], False
-
-
-def build_predicate_direction(predicate: str, reverse: bool) -> str:
-    """Given a tuple of predicate string and direction, build a string with arrows"""
-    if reverse:
-        return f"<-{predicate}-"
-    else:
-        return f"-{predicate}->"
-
-
-def message_to_list_form(message):
-    """Convert *graph nodes/edges and node/edge bindings to list forms."""
-    if message["results"]:
-        message["results"] = [
-            {
-                "node_bindings": [
-                    {
-                        "qg_id": qg_id,
-                        **binding,
-                    }
-                    for qg_id, binding in result["node_bindings"].items()
-                ],
-                "analyses": [
-                    {
-                        "resource_id": "infores:aragorn",
-                        "edge_bindings": [
-                            {
-                                "qg_id": qg_id,
-                                **binding,
-                            }
-                            for qg_id, binding in analysis["edge_bindings"].items()
-                        ],
-                    }
-                    for analysis in result.get("analyses", [])
-                ],
-            }
-            for result in message.get("results", [])
-        ]
-    if message["knowledge_graph"]["nodes"]:
-        message["knowledge_graph"]["nodes"] = [
-            {
-                "id": node["id"],
-                **node,
-            }
-            for node in message["knowledge_graph"]["nodes"]
-        ]
-    if message["knowledge_graph"]["edges"]:
-        message["knowledge_graph"]["edges"] = [
-            {
-                "id": edge["id"],
-                **edge,
-            }
-            for edge in message["knowledge_graph"]["edges"]
-        ]
-    return message
-
-
-def message_to_dict_form(message):
-    """Convert *graph nodes/edges and node/edge bindings to dict forms."""
-    if message["results"]:
-        if isinstance(message["results"][0]["node_bindings"], list):
-            message["results"] = [
-                {
-                    "node_bindings": {
-                        binding["qg_id"]: [binding]
-                        for binding in result["node_bindings"]
-                    },
-                    "analyses": [
-                        {
-                            "resource_id": "infores:aragorn",
-                            "edge_bindings": {
-                                binding["qg_id"]: [binding]
-                                for binding in analysis["edge_bindings"]
-                            },
-                        }
-                        for analysis in result.get("analyses", [])
-                    ],
-                }
-                for result in message.get("results", [])
-            ]
-        elif not isinstance(
-            list(message["results"][0]["node_bindings"].values())[0], dict
-        ):
-            message["results"] = [
-                {
-                    "node_bindings": {
-                        key: [{"kg_id": el} for el in ensure_list(bindings)]
-                        for key, bindings in result["node_bindings"].items()
-                    },
-                    "analyses": [
-                        {
-                            "resource_id": "infores:aragorn",
-                            "edge_bindings": {
-                                key: [{"kg_id": el} for el in ensure_list(bindings)]
-                                for key, bindings in analysis["edge_bindings"].items()
-                            },
-                        }
-                        for analysis in result.get("analyses", [])
-                    ],
-                }
-                for result in message.get("results", [])
-            ]
-    if message["knowledge_graph"]["nodes"]:
-        message["knowledge_graph"]["nodes"] = {
-            node["id"]: node for node in message["knowledge_graph"]["nodes"]
-        }
-    if message["knowledge_graph"]["edges"]:
-        message["knowledge_graph"]["edges"] = {
-            edge["id"]: edge for edge in message["knowledge_graph"]["edges"]
-        }
-    return message
-
-
-def graph_to_dict_form(graph):
-    """Convert query_graph or knowledge_graph to dict form."""
-    return {
-        "nodes": {node["id"]: node for node in graph["nodes"]},
-        "edges": {edge["id"]: edge for edge in graph["edges"]},
-    }
-
-
-def deduplicate_by(elements: list, fcn: Callable):
-    """De-duplicate list via a function of each element."""
-    return list(dict((fcn(element), element) for element in elements).values())
+    Do not examine kedge source and target ids. There ought to be corresponding
+    knodes.
+    """
+    curies = set()
+    if message.query_graph is not None:
+        for qnode in message.query_graph.nodes.values():
+            if qnode.ids:
+                curies |= set(qnode.ids)
+    if message.knowledge_graph is not None:
+        curies |= set(message.knowledge_graph.nodes.keys())
+    return list(curies)
 
 
 def remove_null_values(obj):
@@ -449,108 +303,3 @@ def add_cors_manually(APP, request, response, cors_options):
             response.headers.add_vary_header("Origin")
 
     return response
-
-
-def get_from_all(dictionaries: list[dict], key, default=None):
-    """
-    Get list of values from dictionaries.
-    If it is not present in any dictionary, return the default value.
-    """
-    values = [d[key] for d in dictionaries if key in d]
-    if len(values) > 0:
-        return values
-    else:
-        return default
-
-
-def merge_listify(values):
-    """
-    Merge values by converting them to lists
-    and concatenating them.
-    """
-    output = []
-    for value in values:
-        if isinstance(value, list):
-            output.extend(value)
-        else:
-            output.append(value)
-    return output
-
-
-def filter_none(values):
-    """Filter out None values from list"""
-    return [v for v in values if v is not None]
-
-
-def all_equal(values: list):
-    """Check that all values in given list are equal"""
-    return all(values[0] == v for v in values)
-
-
-def deduplicate(values: list):
-    """Simple deduplicate that uses python sets"""
-    return list(set(values))
-
-
-def transform_keys(d, f):
-    """Transform keys using a function"""
-    return {f(key): val for key, val in d.items()}
-
-
-def get_message_stats(m):
-    """Get statistics on message size"""
-    stats = {}
-
-    stats["nodes"] = len(m["knowledge_graph"]["nodes"])
-    stats["edges"] = len(m["knowledge_graph"]["edges"])
-
-    stats["avg_node_categories"] = statistics.mean(
-        len(n["categories"]) for n in m["knowledge_graph"]["nodes"].values()
-    )
-
-    stats["avg_kg_attributes"] = statistics.mean(
-        len(n["attributes"]) if n["attributes"] else 0
-        for n in m["knowledge_graph"]["nodes"].values()
-    )
-    stats["avg_kg_attributes"] += statistics.mean(
-        len(e["attributes"]) if e["attributes"] else 0
-        for e in m["knowledge_graph"]["edges"].values()
-    )
-
-    stats["results"] = len(m["results"])
-    stats["avg_result_node_bindings"] = statistics.mean(
-        len(nb_list) for r in m["results"] for nb_list in r["node_bindings"].values()
-    )
-    stats["avg_result_edge_bindings"] = statistics.mean(
-        len(nb_list) for r in m["results"] for nb_list in r["node_bindings"].values()
-    )
-    return stats
-
-
-def get_kp_operations_queries(
-    subject_categories: Union[str, list[str]] = None,
-    predicates: Union[str, list[str]] = None,
-    object_categories: Union[str, list[str]] = None,
-):
-    """Build queries to send to kp registry."""
-    if isinstance(subject_categories, str):
-        subject_categories = [subject_categories]
-    if isinstance(predicates, str):
-        predicates = [predicates]
-    if isinstance(object_categories, str):
-        object_categories = [object_categories]
-    subject_categories = [
-        desc for cat in subject_categories for desc in WBMT.get_descendants(cat)
-    ]
-    predicates = [desc for pred in predicates for desc in WBMT.get_descendants(pred)]
-    inverse_predicates = [
-        desc
-        for pred in predicates
-        if (inverse := WBMT.predicate_inverse(pred))
-        for desc in WBMT.get_descendants(inverse)
-    ]
-    object_categories = [
-        desc for cat in object_categories for desc in WBMT.get_descendants(cat)
-    ]
-
-    return subject_categories, object_categories, predicates, inverse_predicates
