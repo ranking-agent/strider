@@ -53,8 +53,6 @@ class ThrottledServer:
         self,
         id: str,
         url: str,
-        request_qty: int,
-        request_duration: float,
         *args,
         max_batch_size: Optional[int] = None,
         preproc: Callable = anull,
@@ -68,8 +66,6 @@ class ThrottledServer:
         self.request_queue = asyncio.PriorityQueue()
         self.counter = itertools.count()
         self.url = url
-        self.request_qty = request_qty
-        self.request_duration = datetime.timedelta(seconds=request_duration)
         self.max_batch_size = max_batch_size
         self.preproc = preproc
         self.postproc = postproc
@@ -90,18 +86,6 @@ class ThrottledServer:
         self,
     ):
         """Set up a subscriber to process batching."""
-        # Initialize the TAT
-        #
-        # TAT = Theoretical Arrival Time
-        # When the next request should be sent
-        # to adhere to the rate limit.
-        #
-        # This is an implementation of the GCRA algorithm
-        # More information can be found here:
-        # https://dev.to/astagi/rate-limiting-using-python-and-redis-58gk
-        if self.request_qty > 0:
-            interval = self.request_duration / self.request_qty
-            tat = datetime.datetime.utcnow() + interval
 
         while True:
             # Get everything in the stream or wait for something to show up
@@ -221,29 +205,6 @@ class ThrottledServer:
                         self.url,
                         json=merged_request_value,
                     )
-                if response.status_code == 429:
-                    time_to_sleep = 65
-                    self.logger.info(
-                        "[{id}] Too Many Requests. Trying again in {tts} seconds.".format(
-                            id=self.id,
-                            tts=time_to_sleep,
-                        )
-                    )
-                    # re-queue requests
-                    for request_id in request_value_mapping:
-                        await self.request_queue.put(
-                            (
-                                priorities[request_id],
-                                (
-                                    request_id,
-                                    request_value_mapping[request_id],
-                                    response_queues[request_id],
-                                ),
-                            )
-                        )
-                    # try again later
-                    await asyncio.sleep(time_to_sleep)
-                    continue
 
                 response.raise_for_status()
                 response_dict = response.json()
@@ -389,19 +350,6 @@ class ThrottledServer:
             for request_id, response_value in response_values.items():
                 # Write finished value to DB
                 await response_queues[request_id].put(response_value)
-
-            # if request_qty == 0 we don't enforce the rate limit
-            if self.request_qty > 0:
-                time_remaining_seconds = (
-                    tat - datetime.datetime.utcnow()
-                ).total_seconds()
-
-                # Wait for TAT
-                if time_remaining_seconds > 0:
-                    await asyncio.sleep(time_remaining_seconds)
-
-                # Update TAT
-                tat = datetime.datetime.utcnow() + interval
 
     async def __aenter__(self):
         """Set KP info and start processing task."""

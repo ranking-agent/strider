@@ -38,8 +38,6 @@ class KnowledgeProvider:
         self.throttle = ThrottledServer(
             kp_id,
             url=kp["url"],
-            request_qty=1,
-            request_duration=1,
             logger=logger,
             preproc=self.get_processor(self.kp["details"]["preferred_prefixes"]),
             postproc=self.get_processor(self.preferred_prefixes),
