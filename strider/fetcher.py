@@ -67,10 +67,16 @@ class Fetcher:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
             self.logger.info(f"Finished call stack: {(', ').join(call_stack)}")
-            yield QueryGraph.parse_obj({"nodes": dict(), "edges": dict()}), Result.parse_obj({
-                "node_bindings": dict(),
-                "analyses": [],
-            }), AuxiliaryGraphs.parse_obj({})
+            yield QueryGraph.parse_obj(
+                {"nodes": dict(), "edges": dict()}
+            ), Result.parse_obj(
+                {
+                    "node_bindings": dict(),
+                    "analyses": [],
+                }
+            ), AuxiliaryGraphs.parse_obj(
+                {}
+            )
             return
 
         try:
@@ -152,19 +158,21 @@ class Fetcher:
             result_map = defaultdict(list)
             for result in batch_results:
                 # add edge to results and kgraph
-                result_kgraph = KnowledgeGraph.parse_obj({
-                    "nodes": {
-                        binding.id: onehop_kgraph.nodes[binding.id]
-                        for _, bindings in result.node_bindings.items()
-                        for binding in bindings
-                    },
-                    "edges": {
-                        binding.id: onehop_kgraph.edges[binding.id]
-                        for analysis in result.analyses or []
-                        for _, bindings in analysis.edge_bindings.items()
-                        for binding in bindings
-                    },
-                })
+                result_kgraph = KnowledgeGraph.parse_obj(
+                    {
+                        "nodes": {
+                            binding.id: onehop_kgraph.nodes[binding.id]
+                            for _, bindings in result.node_bindings.items()
+                            for binding in bindings
+                        },
+                        "edges": {
+                            binding.id: onehop_kgraph.edges[binding.id]
+                            for analysis in result.analyses or []
+                            for _, bindings in analysis.edge_bindings.items()
+                            for binding in bindings
+                        },
+                    }
+                )
 
                 # collect all auxiliary graph ids from results and edges
                 aux_graphs = [
@@ -178,15 +186,17 @@ class Fetcher:
                     for analysis in result.analyses or []
                     for _, bindings in analysis.edge_bindings.items()
                     for binding in bindings
-                    for attribute in onehop_kgraph.edges[binding.id].attributes
+                    for attribute in onehop_kgraph.edges[binding.id].attributes or []
                     if attribute.attribute_type_id == "biolink:support_graphs"
                     for aux_graph_id in attribute.value
                 ])
 
-                result_auxgraph = AuxiliaryGraphs.parse_obj({
-                    aux_graph_id: onehop_auxgraphs[aux_graph_id]
-                    for aux_graph_id in aux_graphs
-                })
+                result_auxgraph = AuxiliaryGraphs.parse_obj(
+                    {
+                        aux_graph_id: onehop_auxgraphs[aux_graph_id]
+                        for aux_graph_id in aux_graphs
+                    }
+                )
 
                 # pin nodes
                 for qnode_id, bindings in result.node_bindings.items():
@@ -201,9 +211,7 @@ class Fetcher:
                 key_fcn = lambda res: tuple(
                     (
                         qnode_id,
-                        tuple(
-                            binding.id for binding in bindings  # probably only one
-                        ),
+                        tuple(binding.id for binding in bindings),  # probably only one
                     )
                     for qnode_id, bindings in res.node_bindings.items()
                     if qnode_id in qnode_ids
@@ -237,17 +245,19 @@ class Fetcher:
             for result, kgraph, auxgraph in get_results(subresult):
                 # combine one-hop with subquery results
                 # Need to create a new result with all node bindings combined
-                new_subresult = Result.parse_obj({
-                    "node_bindings": {
-                        **subresult.node_bindings,
-                        **result.node_bindings,
-                    },
-                    "analyses": [
-                        *subresult.analyses,
-                        *result.analyses,
-                        # reconsider
-                    ],
-                })
+                new_subresult = Result.parse_obj(
+                    {
+                        "node_bindings": {
+                            **subresult.node_bindings,
+                            **result.node_bindings,
+                        },
+                        "analyses": [
+                            *subresult.analyses,
+                            *result.analyses,
+                            # reconsider
+                        ],
+                    }
+                )
                 new_subkgraph = copy.deepcopy(subkgraph)
                 new_subkgraph.nodes.update(kgraph.nodes)
                 new_subkgraph.edges.update(kgraph.edges)
