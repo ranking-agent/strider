@@ -469,15 +469,6 @@ async def lookup(
 
     async with fetcher:
         async for result_kgraph, result, result_auxgraph in fetcher.lookup(None):
-            # Message parsing also normalizes kgraph edge ids and updates result and aux graph edge ids
-            # result_message = Message.parse_obj(
-            #     {
-            #         "knowledge_graph": result_kgraph_dict,
-            #         "results": [result],
-            #         "auxiliary_graphs": result_auxgraph,
-            #     }
-            # )
-
             # Update the kgraph
             output_kgraph.update(result_kgraph)
 
@@ -486,17 +477,13 @@ async def lookup(
 
             # Update the results
             # hashmap lookup is very quick
-            # sub_result = next(iter(result))
-            # sub_result_hash = hash(sub_result)
             sub_result_hash = hash(result)
             existing_result = output_results.get(result, None)
             if existing_result:
                 # update existing result
-                # existing_result.update(sub_result)
                 existing_result.update(result)
             else:
                 # add new result to hashmap
-                # output_results[sub_result_hash] = sub_result
                 output_results[sub_result_hash] = result
 
     results = Results.parse_obj([])
