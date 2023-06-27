@@ -19,14 +19,15 @@ def satisfies_attribute_constraint(kel: dict, constraint: dict) -> bool:
     try:
         attribute = next(
             attribute
-            for attribute in kel.get("attributes", None) or []
-            if attribute["attribute_type_id"] == constraint["id"]
+            for attribute in kel.attributes or []
+            if attribute.attribute_type_id == constraint.id
         )
     except StopIteration:
         return False
-    return constraint.get("not", False) != operator_map[constraint["operator"]](
-        attribute["value"],
-        constraint["value"],
+    # constraint.negated == constraint.not, but "not" is reserved in Python. Mapped to "negated" in reasoner-pydantic
+    return constraint.negated != operator_map[constraint.operator](
+        attribute.value,
+        constraint.value,
     )
 
 
@@ -55,12 +56,12 @@ def enforce_constraints(message: dict) -> dict:
     node_constraints = [
         node.constraints
         for node in message.query_graph.nodes.values()
-        if "constraints" in node and len(node.constraints)
+        if node.constraints and len(node.constraints)
     ]
     edge_constraints = [
         edge.attribute_contraints
         for edge in message.query_graph.edges.values()
-        if "attribute_constraints" in edge and len(edge.attribute_constraints)
+        if edge.attribute_constraints and len(edge.attribute_constraints)
     ]
     if node_constraints or edge_constraints:
         message.results = HashableSequence(__root__=[

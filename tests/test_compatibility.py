@@ -1,4 +1,4 @@
-import json
+import logging
 import pytest
 from fastapi.responses import JSONResponse, Response
 from reasoner_pydantic.message import Message
@@ -7,15 +7,23 @@ from tests.helpers.context import (
     with_norm_overlay,
     with_response_overlay,
 )
-import tests.helpers.mock_responses as mock_responses
 
-from strider.trapi_throttle.throttle import ThrottledServer
 from strider.config import settings
 
 # Modify settings before importing things
 settings.normalizer_url = "http://normalizer"
 
-from strider.knowledge_provider import KnowledgePortal
+from strider.knowledge_provider import KnowledgeProvider
+
+logger = logging.getLogger(__name__)
+kp = {
+    "url": "http://test",
+    "details": {
+        "preferred_prefixes": {
+            "biolink:Disease": ["MONDO"],
+        },
+    },
+}
 
 
 @pytest.mark.asyncio
@@ -31,7 +39,7 @@ async def test_map_prefixes_small_example():
     Test that prefixes are mapped properly and that already
     mapped prefixes are unchanged.
     """
-    portal = KnowledgePortal()
+    provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
@@ -45,7 +53,7 @@ async def test_map_prefixes_small_example():
 
     msg = Message.parse_obj({"query_graph": query_graph})
 
-    await portal.map_prefixes(
+    await provider.map_prefixes(
         msg,
         preferred_prefixes,
     )
@@ -64,7 +72,7 @@ async def test_unknown_prefix():
     Test that if passed an unknown prefix we
     assume it doesn't need to be changed.
     """
-    portal = KnowledgePortal()
+    provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
@@ -77,7 +85,7 @@ async def test_unknown_prefix():
 
     msg = Message.parse_obj({"query_graph": query_graph})
 
-    await portal.map_prefixes(
+    await provider.map_prefixes(
         msg,
         preferred_prefixes,
     )
@@ -93,7 +101,7 @@ async def test_prefix_not_specified():
     Test that if we get a category with no preferred_prefixes
     we make no changes.
     """
-    portal = KnowledgePortal()
+    provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {}
 
@@ -106,7 +114,7 @@ async def test_prefix_not_specified():
 
     msg = Message.parse_obj({"query_graph": query_graph})
 
-    await portal.map_prefixes(
+    await provider.map_prefixes(
         msg,
         preferred_prefixes,
     )
@@ -129,7 +137,7 @@ async def test_normalizer_no_synonyms_available(caplog):
     to the normalizer that we continue working and add
     a warning to the log
     """
-    portal = KnowledgePortal()
+    provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
@@ -142,7 +150,7 @@ async def test_normalizer_no_synonyms_available(caplog):
 
     msg = Message.parse_obj({"query_graph": query_graph})
 
-    await portal.map_prefixes(
+    await provider.map_prefixes(
         msg,
         preferred_prefixes,
     )
@@ -168,7 +176,7 @@ async def test_normalizer_500(caplog):
     no changes to the query graph and continue on while adding a
     a warning to the log
     """
-    portal = KnowledgePortal()
+    provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
@@ -181,7 +189,7 @@ async def test_normalizer_500(caplog):
 
     msg = Message.parse_obj({"query_graph": query_graph})
 
-    await portal.map_prefixes(
+    await provider.map_prefixes(
         msg,
         preferred_prefixes,
     )
@@ -199,7 +207,7 @@ async def test_normalizer_not_reachable(caplog):
     no changes to the query graph and continue on while adding a
     a warning to the log
     """
-    portal = KnowledgePortal()
+    provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
@@ -212,7 +220,7 @@ async def test_normalizer_not_reachable(caplog):
 
     msg = Message.parse_obj({"query_graph": query_graph})
 
-    await portal.map_prefixes(
+    await provider.map_prefixes(
         msg,
         preferred_prefixes,
     )
@@ -221,41 +229,3 @@ async def test_normalizer_not_reachable(caplog):
     assert msg.dict()["query_graph"]["nodes"]["n0"]["ids"] == ["DOID:9352"]
 
     assert "Request Error contacting Node Normalizer" in caplog.text
-
-
-CTD_PREFIXES = {
-    "biolink:Disease": ["MONDO"],
-    "biolink:ChemicalSubstance": ["CHEBI"],
-}
-
-
-@pytest.mark.asyncio
-@with_response_overlay(
-    "http://ctd/query",
-    JSONResponse(
-        status_code=200,
-        content=mock_responses.kp_response,
-    ),
-)
-async def test_fetch():
-    """
-    Test that the fetch method converts to and from
-    the specified prefixes when contacting a KP
-    """
-    portal = KnowledgePortal()
-    portal.tservers["ctd"] = ThrottledServer(
-        "ctd",
-        url="http://ctd/query",
-        request_qty=1,
-        request_duration=1,
-    )
-
-    qgraph = mock_responses.kp_response["message"]["query_graph"]
-
-    async with portal.tservers["ctd"]:
-        response = await portal.fetch(
-            kp_id="ctd",
-            request={"message": {"query_graph": qgraph}},
-        )
-
-    assert len(response["results"]) == 1
