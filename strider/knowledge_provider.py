@@ -45,7 +45,6 @@ class KnowledgeProvider:
             *kwargs,
         )
         self.normalizer = Normalizer(logger=logger)
-    
 
     def get_processor(self, preferred_prefixes):
         """Get processor."""
@@ -55,7 +54,7 @@ class KnowledgeProvider:
             await self.map_prefixes(request.message, preferred_prefixes)
 
         return processor
-    
+
     async def map_prefixes(
         self,
         message: Message,
@@ -134,20 +133,22 @@ class KnowledgeProvider:
                     "traceback": e.with_traceback(),
                 }
             )
-        
+
         if response is None:
             response = Response.parse_obj({"message": {}})
-    
+
         message = response.message
         if message.query_graph is None:
             message = Message(
-                query_graph=QueryGraph.parse_obj(request["message"]["query_graph"]),
+                query_graph=QueryGraph.parse_obj(request),
                 knowledge_graph=KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}}),
                 results=Results.parse_obj([]),
                 auxiliary_graphs=AuxiliaryGraphs.parse_obj({}),
             )
         if message.knowledge_graph is None:
-            message.knowledge_graph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
+            message.knowledge_graph = KnowledgeGraph.parse_obj(
+                {"nodes": {}, "edges": {}}
+            )
         if message.results is None:
             message.results = Results.parse_obj([])
         if message.auxiliary_graphs is None:
@@ -165,11 +166,13 @@ def add_source(message: Message, kp_id):
         # create copy of kedge
         new_kedge = kedge.copy()
         new_kedge.sources.add(
-            RetrievalSource.parse_obj({
-                "resource_id": "infores:aragorn",
-                "resource_role": "aggregator_knowledge_source",
-                "upstream_resource_ids": [kp_id],
-            })
+            RetrievalSource.parse_obj(
+                {
+                    "resource_id": "infores:aragorn",
+                    "resource_role": "aggregator_knowledge_source",
+                    "upstream_resource_ids": [kp_id],
+                }
+            )
         )
         # update existing kedge
         kedge.update(new_kedge)

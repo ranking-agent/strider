@@ -25,7 +25,7 @@ class Normalizer:
         """Initialize."""
         self.logger = logger
         self._data = dict()
-    
+
     async def get_types(self, curies):
         """Get types for a given curie"""
 
@@ -89,10 +89,7 @@ class Normalizer:
         prefixes: dict[str, list[str]],
     ):
         """Generate CURIE map."""
-        return {
-            curie: self.map_curie(curie, self._data, prefixes)
-            for curie in curies
-        }
+        return {curie: self.map_curie(curie, self._data, prefixes) for curie in curies}
 
     def map_curie(
         self,

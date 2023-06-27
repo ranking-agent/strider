@@ -22,7 +22,13 @@ from reasoner_pydantic import (
 from reasoner_pydantic.utils import HashableSequence, HashableMapping
 import uuid
 
-from .throttle_utils import get_keys_with_value, log_response, get_curies, remove_curies, filter_by_curie_mapping
+from .throttle_utils import (
+    get_keys_with_value,
+    log_response,
+    get_curies,
+    remove_curies,
+    filter_by_curie_mapping,
+)
 from .trapi import get_canonical_qgraphs
 from .utils import elide_curies, log_request, remove_null_values
 from .caching import async_locking_cache
@@ -196,7 +202,9 @@ class ThrottledServer:
                         subrequests=len(request_curie_mapping),
                         curies=" x ".join(
                             str(len(qnode.get("ids") or []))
-                            for qnode in merged_request_value["message"]["query_graph"]["nodes"].values()
+                            for qnode in merged_request_value["message"]["query_graph"][
+                                "nodes"
+                            ].values()
                         ),
                     )
                 )
@@ -227,7 +235,9 @@ class ThrottledServer:
                 # Parse with reasoner_pydantic to validate
                 start_time = datetime.datetime.now()
                 response_body = ReasonerResponse.parse_obj(response_dict)
-                self.logger.info(f"Response parsing took {(datetime.datetime.now() - start_time).total_seconds()} seconds")
+                self.logger.info(
+                    f"Response parsing took {(datetime.datetime.now() - start_time).total_seconds()} seconds"
+                )
                 await self.postproc(response_body)
                 message = response_body.message
 

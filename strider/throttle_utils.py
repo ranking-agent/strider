@@ -101,10 +101,12 @@ def filter_by_curie_mapping(
         for analysis in result.analyses or []
         for aux_graph_id in analysis.support_graphs or []
     ]
-    filtered_msg.auxiliary_graphs = HashableMapping({
-        aux_graph_id: message.auxiliary_graphs[aux_graph_id]
-        for aux_graph_id in edge_aux_graphs.extend(result_aux_graphs)
-    })
+    filtered_msg.auxiliary_graphs = HashableMapping(
+        {
+            aux_graph_id: message.auxiliary_graphs[aux_graph_id]
+            for aux_graph_id in edge_aux_graphs.extend(result_aux_graphs)
+        }
+    )
 
     return filtered_msg
 
