@@ -1,16 +1,14 @@
 """Test Strider."""
 import asyncio
 import json
-from pathlib import Path
 import redis.asyncio
 
 from fastapi.responses import Response
 import httpx
 import pytest
-from reasoner_pydantic import Query, Message, QueryGraph
+from reasoner_pydantic import Response as PydanticResponse
 
 from tests.helpers.context import (
-    with_translator_overlay,
     with_norm_overlay,
     with_response_overlay,
     callback_overlay,
@@ -23,7 +21,6 @@ import tests.helpers.mock_responses as mock_responses
 import strider
 from strider.config import settings
 from strider.server import APP
-from strider.fetcher import Binder
 
 # Switch prefix path before importing server
 settings.normalizer_url = "http://normalizer"
@@ -149,8 +146,8 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
     """Test solving a query graph, in which the predicate is missing."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -198,7 +195,6 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
                 }
             }
         },
-        timeout=60.0,
     )
 
 
@@ -208,8 +204,8 @@ async def test_solve_missing_category(client, monkeypatch, mocker):
     """Test solving the ex1 query graph, in which one of the categories is missing."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -257,7 +253,6 @@ async def test_solve_missing_category(client, monkeypatch, mocker):
                 }
             }
         },
-        timeout=60.0,
     )
 
 
@@ -275,8 +270,8 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -322,7 +317,6 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
                 }
             }
         },
-        timeout=60.0,
     )
 
 
@@ -460,8 +454,8 @@ async def test_solve_not_real_predicate(client, monkeypatch, mocker):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """

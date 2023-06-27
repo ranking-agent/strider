@@ -428,7 +428,7 @@ async def lookup(
 
     qgraph = query_dict["message"]["query_graph"]
 
-    log_level = query_dict["log_level"] or "INFO"
+    log_level = query_dict.get("log_level") or "INFO"
 
     level_number = logging._nameToLevel[log_level]
     # Set up logger
@@ -443,7 +443,7 @@ async def lookup(
     try:
         await fetcher.setup(qgraph, registry)
     except NoAnswersError:
-        logger.info("Returning no results.")
+        logger.warning("Returning no results.")
         return qid, {
             "message": {
                 "query_graph": qgraph,
@@ -452,6 +452,8 @@ async def lookup(
             },
             "logs": list(log_handler.contents()),
         }
+    except Exception as e:
+        raise e
 
     # Result container to make result merging much faster
     output_results = HashableMapping[str, Result]()
@@ -571,6 +573,7 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=600.0)
             ) as client:
+                LOGGER.info(f"[{qid}]: Calling back to {callback}...")
                 callback_response = await client.post(callback, json=query_result)
                 LOGGER.info(
                     f"[{qid}]: Called back to {callback}. Status={callback_response.status_code}"

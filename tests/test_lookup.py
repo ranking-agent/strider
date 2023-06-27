@@ -4,13 +4,14 @@ import json
 from fastapi.responses import Response
 import pytest
 import redis.asyncio
+from reasoner_pydantic import Response as PydanticResponse
 
 from tests.helpers.context import (
     with_response_overlay,
     with_norm_overlay,
 )
 from tests.helpers.logger import setup_logger
-from tests.helpers.utils import query_graph_from_string, validate_message
+from tests.helpers.utils import query_graph_from_string
 from tests.helpers.redisMock import redisMock
 
 from strider.config import settings
@@ -31,8 +32,8 @@ async def test_mixed_canonical(monkeypatch, mocker):
     """Test qedge with mixed canonical and non-canonical predicates."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -81,7 +82,6 @@ async def test_mixed_canonical(monkeypatch, mocker):
                 },
             },
         },
-        timeout=60.0,
     )
 
 
@@ -93,8 +93,8 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
     """Test qedge with the symmetric, non-canonical predicate genetically_interacts_with."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -143,7 +143,6 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                 },
             },
         },
-        timeout=60.0,
     )
 
 
@@ -351,8 +350,8 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
     e0 checks that Gene is added to Protein nodes."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -398,7 +397,6 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
                 },
             },
         },
-        timeout=60.0,
     )
 
 
@@ -411,8 +409,8 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
     e0 checks to make sure that Protein is added to Gene nodes."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -458,7 +456,6 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
                 },
             },
         },
-        timeout=60.0,
     )
 
 
@@ -470,8 +467,8 @@ async def test_node_set(monkeypatch, mocker):
     """Test that is_set is handled correctly."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     query = mocker.patch(
-        "strider.trapi_throttle.throttle.ThrottledServer._query",
-        return_value={"message": {}},
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -521,5 +518,4 @@ async def test_node_set(monkeypatch, mocker):
                 },
             },
         },
-        timeout=60.0,
     )
