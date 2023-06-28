@@ -323,21 +323,21 @@ async def sync_query(
         raise HTTPException(400, "operations must have id 'lookup'")
 
     query_results = {}
-    qid = ""
+    # Generate Query ID
+    qid = str(uuid.uuid4())[:8]
     try:
-        LOGGER.info("Starting sync query")
-        qid, query_results = await asyncio.wait_for(
-            lookup(query_dict), timeout=max_process_time
+        LOGGER.info(f"[{qid}] Starting sync query")
+        query_results = await asyncio.wait_for(
+            lookup(query_dict, qid), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.warning("Sync query cancelled due to timeout.")
-        qid = "Timeout"
+        LOGGER.warning(f"[{qid}] Sync query cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
     except Exception as e:
-        LOGGER.warning(f"Sync query failed unexpectedly: {e}")
+        LOGGER.warning(f"[{qid}] Sync query failed unexpectedly: {e}")
         qid = "Exception"
         query_results = {
             "message": {},
@@ -422,15 +422,9 @@ async def multi_query(
 
 async def lookup(
     query_dict: dict,
-    id: str = None,
+    qid: str = None,
 ) -> dict:
     """Perform lookup operation."""
-    # Generate Query ID
-    qid = str(uuid.uuid4())[:8]
-    if id:
-        # if part of multiquery, add multiquery id
-        qid = f"{id}.{qid}"
-
     qgraph = query_dict["message"]["query_graph"]
 
     log_level = query_dict.get("log_level") or "INFO"
@@ -505,7 +499,7 @@ async def lookup(
     collapse_sets(output_query, logger)
 
     output_query.logs = list(log_handler.contents())
-    return qid, output_query.dict()
+    return output_query.dict()
 
 
 async def async_lookup(
@@ -513,10 +507,11 @@ async def async_lookup(
     query_dict: dict,
 ):
     """Perform lookup and send results to callback url"""
+    qid = str(uuid.uuid4())[:8]
     query_results = {}
     try:
-        qid, query_results = await asyncio.wait_for(
-            lookup(query_dict), timeout=max_process_time
+        query_results = await asyncio.wait_for(
+            lookup(query_dict, qid), timeout=max_process_time
         )
     except asyncio.TimeoutError:
         LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
@@ -543,10 +538,11 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
     "Performs lookup for multiple queries and sends all results to callback url"
 
     async def single_lookup(query_key):
+        qid = f"{multiqid}.{str(uuid.uuid4())[:8]}"
         query_result = {}
         try:
-            qid, query_result = await asyncio.wait_for(
-                lookup(queries[query_key], multiqid), timeout=max_process_time
+            query_result = await asyncio.wait_for(
+                lookup(queries[query_key], qid), timeout=max_process_time
             )
         except asyncio.TimeoutError:
             LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
