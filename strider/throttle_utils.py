@@ -1,7 +1,7 @@
 """Throttle Utility Functions."""
-from reasoner_pydantic import Message, QueryGraph
+from reasoner_pydantic import Message, QueryGraph, AuxiliaryGraphs
 from reasoner_pydantic.kgraph import KnowledgeGraph
-from reasoner_pydantic.utils import HashableSequence, HashableMapping
+from reasoner_pydantic.utils import HashableSequence
 
 
 class BatchingError(Exception):
@@ -85,26 +85,27 @@ def filter_by_curie_mapping(
         },
     )
 
-    edge_aux_graphs = [
+    # Construct result-specific auxiliary graphs
+    filtered_aux_graphs = [
         aux_graph_id
-        for result in filtered_msg.results
+        for result in filtered_msg.results or []
         for analysis in result.analyses or []
         for _, bindings in analysis.edge_bindings.items()
         for binding in bindings
-        for attribute in message.knowledge_graph.edges[binding.id].attributes
+        for attribute in message.knowledge_graph.edges[binding.id].attributes or []
         if attribute.attribute_type_id == "biolink:support_graphs"
         for aux_graph_id in attribute.value
     ]
-    result_aux_graphs = [
+    filtered_aux_graphs.extend([
         aux_graph_id
-        for result in filtered_msg.results
+        for result in filtered_msg.results or []
         for analysis in result.analyses or []
         for aux_graph_id in analysis.support_graphs or []
-    ]
-    filtered_msg.auxiliary_graphs = HashableMapping(
+    ])
+    filtered_msg.auxiliary_graphs = AuxiliaryGraphs.parse_obj(
         {
             aux_graph_id: message.auxiliary_graphs[aux_graph_id]
-            for aux_graph_id in edge_aux_graphs.extend(result_aux_graphs)
+            for aux_graph_id in filtered_aux_graphs
         }
     )
 
