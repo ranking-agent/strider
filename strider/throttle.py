@@ -280,8 +280,8 @@ class ThrottledServer:
                     raise Exception(
                         "[{}] Failed to parse message response: {} with Error: {}".format(
                             self.id,
-                            response.json(),
-                            err,
+                            response_dict,
+                            traceback.format_exc(),
                         )
                     )
             except (
@@ -353,7 +353,6 @@ class ThrottledServer:
                         {
                             "message": f"Something went wrong while querying {self.id}",
                             "error": str(e),
-                            "traceback": e.with_traceback(),
                         }
                     )
 
