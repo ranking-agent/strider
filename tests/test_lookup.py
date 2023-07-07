@@ -82,6 +82,7 @@ async def test_mixed_canonical(monkeypatch, mocker):
                 },
             },
         },
+        True,
     )
 
 
@@ -143,6 +144,7 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                 },
             },
         },
+        True,
     )
 
 
@@ -243,7 +245,7 @@ async def test_disambiguation(monkeypatch):
     }
 
     # Run
-    _, output = await lookup(q)
+    output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
 
@@ -337,7 +339,7 @@ async def test_trivial_unbatching(monkeypatch):
     }
 
     # Run
-    _, output = await lookup(q)
+    output = await lookup(q)
     assert len(output["message"]["results"]) == 1
 
 
@@ -397,6 +399,7 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
                 },
             },
         },
+        True,
     )
 
 
@@ -456,6 +459,7 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
                 },
             },
         },
+        True,
     )
 
 
@@ -518,4 +522,5 @@ async def test_node_set(monkeypatch, mocker):
                 },
             },
         },
+        True,
     )

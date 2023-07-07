@@ -428,6 +428,8 @@ async def lookup(
     qgraph = query_dict["message"]["query_graph"]
 
     log_level = query_dict.get("log_level") or "INFO"
+    # grab information content threshold from message if exists, otherwise grab from environment
+    information_content_threshold = query_dict.get("information_content_threshold") or settings.information_content_threshold
 
     level_number = logging._nameToLevel[log_level]
     # Set up logger
@@ -440,7 +442,7 @@ async def lookup(
 
     logger.info(f"Doing lookup for qgraph: {qgraph}")
     try:
-        await fetcher.setup(qgraph, registry)
+        await fetcher.setup(qgraph, registry, information_content_threshold)
     except NoAnswersError:
         logger.warning("Returning no results.")
         return qid, {

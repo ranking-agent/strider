@@ -12,7 +12,7 @@ from .utils import (
 from .config import settings
 
 
-Entity = namedtuple("Entity", ["categories", "identifiers"])
+Entity = namedtuple("Entity", ["categories", "identifiers", "information_content"])
 
 
 class Normalizer:
@@ -24,7 +24,7 @@ class Normalizer:
     ):
         """Initialize."""
         self.logger = logger
-        self._data = dict()
+        self.curie_map = dict()
 
     async def get_types(self, curies):
         """Get types for a given curie"""
@@ -71,17 +71,18 @@ class Normalizer:
             Entity(
                 entity["type"],
                 [synonym["identifier"] for synonym in entity["equivalent_identifiers"]],
+                entity.get("information_content", 100)
             )
             for entity in response.values()
             if entity
         ]
-        self._data |= {
+        self.curie_map |= {
             curie: entity for entity in entities for curie in entity.identifiers
         }
 
     def __getitem__(self, curie: str):
         """Get preferred curie."""
-        return self._data[curie]
+        return self.curie_map[curie]
 
     def map(
         self,
@@ -89,12 +90,11 @@ class Normalizer:
         prefixes: dict[str, list[str]],
     ):
         """Generate CURIE map."""
-        return {curie: self.map_curie(curie, self._data, prefixes) for curie in curies}
+        return {curie: self.map_curie(curie, prefixes) for curie in curies}
 
     def map_curie(
         self,
         curie: str,
-        data: dict[str, Entity],
         prefixes: dict[str, list[str]],
     ) -> str:
         """Map a single CURIE to the list of preferred equivalent CURIES.
@@ -103,7 +103,7 @@ class Normalizer:
         2. Return all synonymous CURIEs that have that prefix.
         """
         try:
-            categories, identifiers = data[curie]
+            categories, identifiers, _ = self.curie_map[curie]
         except KeyError:
             return [curie]
         # Gather the preferred prefixes for each category, deduplicating while retaining order

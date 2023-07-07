@@ -50,7 +50,7 @@ class Fetcher:
 
     def __init__(self, logger):
         """Initialize."""
-        self.logger = logger
+        self.logger: logging.Logger = logger
         self.normalizer = Normalizer(self.logger)
         self.kps = dict()
 
@@ -127,7 +127,7 @@ class Fetcher:
                 f"[{kp.id}] Need to get results for: {json.dumps(elide_curies(onehop_qgraph))}"
             )
             onehop_response = await kp.solve_onehop(
-                onehop_qgraph,
+                onehop_qgraph, last_hop=len(qgraph["edges"]) == 1,
             )
             await save_kp_onehop(kp.id, onehop_qgraph, onehop_response.dict())
         if onehop_response is None and settings.offline_mode:
@@ -284,6 +284,7 @@ class Fetcher:
         self,
         qgraph: dict,
         registry: Registry,
+        information_content_threshold: int,
     ):
         """Set up."""
 
@@ -326,4 +327,5 @@ class Fetcher:
                 kp_id,
                 kp,
                 self.logger,
+                information_content_threshold=information_content_threshold,
             )

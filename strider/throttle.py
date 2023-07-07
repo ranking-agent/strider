@@ -69,8 +69,7 @@ class ThrottledServer:
         """Initialize."""
         self.id = id
         self.worker: Optional[Task] = None
-        self.request_queue = asyncio.PriorityQueue()
-        self.counter = itertools.count()
+        self.request_queue = asyncio.Queue()
         self.url = url
         self.max_batch_size = max_batch_size
         self.preproc = preproc
@@ -95,12 +94,12 @@ class ThrottledServer:
 
         while True:
             # Get everything in the stream or wait for something to show up
-            priority, (
+            (
                 request_id,
                 payload,
                 response_queue,
-            ) = await self.request_queue.get()
-            priorities = {request_id: priority}
+                last_hop,
+            ), = await self.request_queue.get()
             request_value_mapping = {request_id: payload}
             response_queues = {request_id: response_queue}
             while True:
@@ -110,14 +109,14 @@ class ThrottledServer:
                 ):
                     break
                 try:
-                    priority, (
+                    (
                         request_id,
                         payload,
                         response_queue,
-                    ) = self.request_queue.get_nowait()
+                        last_hop,
+                    ), = self.request_queue.get_nowait()
                 except QueueEmpty:
                     break
-                priorities[request_id] = priority
                 request_value_mapping[request_id] = payload
                 response_queues[request_id] = response_queue
 
@@ -146,11 +145,11 @@ class ThrottledServer:
                 if request_id not in batch_request_ids:
                     await self.request_queue.put(
                         (
-                            priorities[request_id],
                             (
                                 request_id,
                                 request_value_mapping[request_id],
                                 response_queues[request_id],
+                                last_hop,
                             ),
                         )
                     )
@@ -238,7 +237,12 @@ class ThrottledServer:
                 self.logger.info(
                     f"Response parsing took {(datetime.datetime.now() - start_time).total_seconds()} seconds"
                 )
-                await self.postproc(response_body)
+                await self.postproc(response_body, last_hop)
+                new_num_results = len(response_body.message.results or [])
+                if (num_results != new_num_results):
+                    self.logger.info(
+                        f"Postprocessing took out {num_results - new_num_results} results"
+                    )
                 message = response_body.message
 
                 try:
@@ -383,7 +387,7 @@ class ThrottledServer:
     async def _query(
         self,
         query: Query,
-        priority: float = 0,  # lowest goes first
+        last_hop: bool,
     ) -> ReasonerResponse:
         """Queue up a query for batching and return when completed"""
         if self.worker is None:
@@ -405,8 +409,7 @@ class ThrottledServer:
             request_id = str(uuid.uuid1())
             await self.request_queue.put(
                 (
-                    (priority, next(self.counter)),
-                    (request_id, subquery, response_queue),
+                    (request_id, subquery, response_queue, last_hop),
                 )
             )
 
