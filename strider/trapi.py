@@ -4,15 +4,16 @@ import logging
 import typing
 
 import bmt
-from reasoner_pydantic import Message, Result, QNode, Edge
+from reasoner_pydantic import Message, Result, QNode, Edge, Results, KnowledgeGraph
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
-from reasoner_pydantic.utils import HashableSequence
+from reasoner_pydantic.utils import HashableSequence, HashableMapping
 
 from strider.utils import (
     WBMT,
 )
 from strider.normalizer import Normalizer
+from strider.config import settings
 
 
 def apply_curie_map(message: Message, curie_map: dict[str, str]):
@@ -164,6 +165,39 @@ def filter_ancestor_types(categories):
         for idx in range(len(categories))
     ]
     return [category for category, drop in zip(categories, has_descendant) if not drop]
+
+
+def filter_information_content(message: Message, curie_map: dict, logger: logging.Logger = logging.getLogger(), information_content_threshold: int = settings.information_content_threshold) -> None:
+    """Filter all nodes based on information content."""
+    keep_edges = []
+    new_results = Results.parse_obj([])
+    for result in message.results or []:
+        keep = True
+        for node_bindings in result.node_bindings.values():
+            for node_binding in node_bindings:
+                curie = curie_map.get(node_binding.id)
+                if curie is not None and curie.information_content < information_content_threshold:
+                    keep = False
+                    if node_binding.id in message.knowledge_graph.nodes:
+                        # remove nodes from kgraph
+                        message.knowledge_graph.nodes.pop(node_binding.id)
+        if keep:
+            # keep any results that don't have promiscuous nodes
+            new_results.append(result)
+            keep_edges.extend([
+                edge_binding.id
+                for analysis in result.analyses or []
+                for edge_bindings in analysis.edge_bindings.values()
+                for edge_binding in edge_bindings
+            ])
+
+    message.results = new_results
+    message.knowledge_graph = message.knowledge_graph or KnowledgeGraph(nodes={}, edges={})
+    # remove any dangling kgraph edges
+    kept_edges = HashableMapping(__root__={})
+    for edge_id in keep_edges:
+        kept_edges[edge_id] = message.knowledge_graph.edges[edge_id]
+    message.knowledge_graph.edges = kept_edges
 
 
 async def fill_categories_predicates(

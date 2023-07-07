@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     normalizer_url: AnyUrl = "https://nodenormalization-sri.renci.org"
     max_process_time: int = 3400
     kp_timeout: int = 10
+    information_content_threshold: int = 75
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_expiration: int = 1209600  # two weeks

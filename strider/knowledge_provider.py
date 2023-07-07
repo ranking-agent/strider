@@ -21,7 +21,7 @@ from .utils import (
     log_response,
     log_request,
 )
-from .trapi import apply_curie_map
+from .trapi import apply_curie_map, filter_information_content
 from .normalizer import Normalizer
 from .config import settings
 
@@ -29,29 +29,39 @@ from .config import settings
 class KnowledgeProvider:
     """Knowledge provider."""
 
-    def __init__(self, kp_id, kp, logger, *args, **kwargs):
+    def __init__(self, kp_id, kp, logger, information_content_threshold: int = settings.information_content_threshold, *args, **kwargs):
         """Initialize."""
         self.id = kp_id
-        self.kp = kp
         self.logger = logger
-        self.preferred_prefixes = WBMT.entity_prefix_mapping
         self.throttle = ThrottledServer(
             kp_id,
             url=kp["url"],
             logger=logger,
-            preproc=self.get_processor(self.kp["details"]["preferred_prefixes"]),
-            postproc=self.get_processor(self.preferred_prefixes),
+            preproc=self.get_preprocessor(kp["details"]["preferred_prefixes"]),
+            postproc=self.get_postprocessor(WBMT.entity_prefix_mapping),
             *args,
             *kwargs,
         )
         self.normalizer = Normalizer(logger=logger)
+        self.information_content_threshold = information_content_threshold
 
-    def get_processor(self, preferred_prefixes):
-        """Get processor."""
+    def get_preprocessor(self, preferred_prefixes):
+        """Get pre processor."""
 
         async def processor(request):
             """Map message CURIE prefixes."""
             await self.map_prefixes(request.message, preferred_prefixes)
+
+        return processor
+    
+    def get_postprocessor(self, preferred_prefixes):
+        """Get post processor."""
+
+        async def processor(request, last_hop: bool):
+            """Map message CURIE prefixes."""
+            await self.map_prefixes(request.message, preferred_prefixes)
+            if not last_hop:
+                filter_information_content(request.message, self.normalizer.curie_map, self.logger, self.information_content_threshold)
 
         return processor
 
@@ -67,12 +77,12 @@ class KnowledgeProvider:
             curie_map = self.normalizer.map(curies, prefixes)
             apply_curie_map(message, curie_map)
 
-    async def solve_onehop(self, request):
+    async def solve_onehop(self, request, last_hop: bool):
         """Solve one-hop query."""
         request = remove_null_values(request)
         response = None
         try:
-            response = await self.throttle.query({"message": {"query_graph": request}})
+            response = await self.throttle.query({"message": {"query_graph": request}}, last_hop)
         except asyncio.TimeoutError as e:
             self.logger.warning(
                 {

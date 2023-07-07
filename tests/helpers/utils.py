@@ -392,6 +392,7 @@ def normalizer_data_from_string(s):
 
     MONDO:0005737 categories biolink:Disease
     MONDO:0005737 synonyms   DOID:4325 ORPHANET:319218
+    MONDO:0005737 information_content 100
     """
 
     # This usually comes from triple quoted strings
@@ -400,6 +401,7 @@ def normalizer_data_from_string(s):
 
     category_mappings = defaultdict(list)
     synset_mappings = defaultdict(list)
+    information_content = 100
     for line in s.splitlines():
         tokens = line.split(" ")
         curie = tokens[0]
@@ -417,10 +419,12 @@ def normalizer_data_from_string(s):
             # Add to start of list so that we can override
             # the primary CURIE
             synset_mappings[curie] = sorted(line_data + synset_mappings[curie])
+        elif action == "information_content":
+            information_content = int(line_data[0])
         else:
             raise ValueError(f"Invalid line: {line}")
 
-    return {"category_mappings": category_mappings, "synset_mappings": synset_mappings}
+    return {"category_mappings": category_mappings, "synset_mappings": synset_mappings, "information_content": information_content}
 
 
 def plan_template_from_string(s):

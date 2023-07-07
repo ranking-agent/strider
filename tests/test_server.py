@@ -195,6 +195,7 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
                 }
             }
         },
+        True,
     )
 
 
@@ -253,6 +254,7 @@ async def test_solve_missing_category(client, monkeypatch, mocker):
                 }
             }
         },
+        True,
     )
 
 
@@ -317,6 +319,7 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
                 }
             }
         },
+        True,
     )
 
 
