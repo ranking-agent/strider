@@ -95,11 +95,13 @@ class ThrottledServer:
         while True:
             # Get everything in the stream or wait for something to show up
             (
-                request_id,
-                payload,
-                response_queue,
-                last_hop,
-            ), = await self.request_queue.get()
+                (
+                    request_id,
+                    payload,
+                    response_queue,
+                    last_hop,
+                ),
+            ) = await self.request_queue.get()
             request_value_mapping = {request_id: payload}
             response_queues = {request_id: response_queue}
             while True:
@@ -110,11 +112,13 @@ class ThrottledServer:
                     break
                 try:
                     (
-                        request_id,
-                        payload,
-                        response_queue,
-                        last_hop,
-                    ), = self.request_queue.get_nowait()
+                        (
+                            request_id,
+                            payload,
+                            response_queue,
+                            last_hop,
+                        ),
+                    ) = self.request_queue.get_nowait()
                 except QueueEmpty:
                     break
                 request_value_mapping[request_id] = payload
@@ -239,7 +243,7 @@ class ThrottledServer:
                 )
                 await self.postproc(response_body, last_hop)
                 new_num_results = len(response_body.message.results or [])
-                if (num_results != new_num_results):
+                if num_results != new_num_results:
                     self.logger.info(
                         f"Postprocessing took out {num_results - new_num_results} results"
                     )
@@ -408,9 +412,7 @@ class ThrottledServer:
             # Queue query for processing
             request_id = str(uuid.uuid1())
             await self.request_queue.put(
-                (
-                    (request_id, subquery, response_queue, last_hop),
-                )
+                ((request_id, subquery, response_queue, last_hop),)
             )
 
         combined_output = ReasonerResponse.parse_obj(

@@ -127,7 +127,8 @@ class Fetcher:
                 f"[{kp.id}] Need to get results for: {json.dumps(elide_curies(onehop_qgraph))}"
             )
             onehop_response = await kp.solve_onehop(
-                onehop_qgraph, last_hop=len(qgraph["edges"]) == 1,
+                onehop_qgraph,
+                last_hop=len(qgraph["edges"]) == 1,
             )
             await save_kp_onehop(kp.id, onehop_qgraph, onehop_response.dict())
         if onehop_response is None and settings.offline_mode:

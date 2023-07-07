@@ -29,7 +29,15 @@ from .config import settings
 class KnowledgeProvider:
     """Knowledge provider."""
 
-    def __init__(self, kp_id, kp, logger, information_content_threshold: int = settings.information_content_threshold, *args, **kwargs):
+    def __init__(
+        self,
+        kp_id,
+        kp,
+        logger,
+        information_content_threshold: int = settings.information_content_threshold,
+        *args,
+        **kwargs,
+    ):
         """Initialize."""
         self.id = kp_id
         self.logger = logger
@@ -53,7 +61,7 @@ class KnowledgeProvider:
             await self.map_prefixes(request.message, preferred_prefixes)
 
         return processor
-    
+
     def get_postprocessor(self, preferred_prefixes):
         """Get post processor."""
 
@@ -61,7 +69,12 @@ class KnowledgeProvider:
             """Map message CURIE prefixes."""
             await self.map_prefixes(request.message, preferred_prefixes)
             if not last_hop:
-                filter_information_content(request.message, self.normalizer.curie_map, self.logger, self.information_content_threshold)
+                filter_information_content(
+                    request.message,
+                    self.normalizer.curie_map,
+                    self.logger,
+                    self.information_content_threshold,
+                )
 
         return processor
 
@@ -82,7 +95,9 @@ class KnowledgeProvider:
         request = remove_null_values(request)
         response = None
         try:
-            response = await self.throttle.query({"message": {"query_graph": request}}, last_hop)
+            response = await self.throttle.query(
+                {"message": {"query_graph": request}}, last_hop
+            )
         except asyncio.TimeoutError as e:
             self.logger.warning(
                 {

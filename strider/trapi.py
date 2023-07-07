@@ -167,7 +167,12 @@ def filter_ancestor_types(categories):
     return [category for category, drop in zip(categories, has_descendant) if not drop]
 
 
-def filter_information_content(message: Message, curie_map: dict, logger: logging.Logger = logging.getLogger(), information_content_threshold: int = settings.information_content_threshold) -> None:
+def filter_information_content(
+    message: Message,
+    curie_map: dict,
+    logger: logging.Logger = logging.getLogger(),
+    information_content_threshold: int = settings.information_content_threshold,
+) -> None:
     """Filter all nodes based on information content."""
     keep_edges = []
     new_results = Results.parse_obj([])
@@ -176,7 +181,10 @@ def filter_information_content(message: Message, curie_map: dict, logger: loggin
         for node_bindings in result.node_bindings.values():
             for node_binding in node_bindings:
                 curie = curie_map.get(node_binding.id)
-                if curie is not None and curie.information_content < information_content_threshold:
+                if (
+                    curie is not None
+                    and curie.information_content < information_content_threshold
+                ):
                     keep = False
                     if node_binding.id in message.knowledge_graph.nodes:
                         # remove nodes from kgraph
@@ -184,15 +192,19 @@ def filter_information_content(message: Message, curie_map: dict, logger: loggin
         if keep:
             # keep any results that don't have promiscuous nodes
             new_results.append(result)
-            keep_edges.extend([
-                edge_binding.id
-                for analysis in result.analyses or []
-                for edge_bindings in analysis.edge_bindings.values()
-                for edge_binding in edge_bindings
-            ])
+            keep_edges.extend(
+                [
+                    edge_binding.id
+                    for analysis in result.analyses or []
+                    for edge_bindings in analysis.edge_bindings.values()
+                    for edge_binding in edge_bindings
+                ]
+            )
 
     message.results = new_results
-    message.knowledge_graph = message.knowledge_graph or KnowledgeGraph(nodes={}, edges={})
+    message.knowledge_graph = message.knowledge_graph or KnowledgeGraph(
+        nodes={}, edges={}
+    )
     # remove any dangling kgraph edges
     kept_edges = HashableMapping(__root__={})
     for edge_id in keep_edges:
