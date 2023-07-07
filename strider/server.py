@@ -429,7 +429,10 @@ async def lookup(
 
     log_level = query_dict.get("log_level") or "INFO"
     # grab information content threshold from message if exists, otherwise grab from environment
-    information_content_threshold = query_dict.get("information_content_threshold") or settings.information_content_threshold
+    information_content_threshold = (
+        query_dict.get("information_content_threshold")
+        or settings.information_content_threshold
+    )
 
     level_number = logging._nameToLevel[log_level]
     # Set up logger

@@ -96,12 +96,14 @@ def filter_by_curie_mapping(
         if attribute.attribute_type_id == "biolink:support_graphs"
         for aux_graph_id in attribute.value
     ]
-    filtered_aux_graphs.extend([
-        aux_graph_id
-        for result in filtered_msg.results or []
-        for analysis in result.analyses or []
-        for aux_graph_id in analysis.support_graphs or []
-    ])
+    filtered_aux_graphs.extend(
+        [
+            aux_graph_id
+            for result in filtered_msg.results or []
+            for analysis in result.analyses or []
+            for aux_graph_id in analysis.support_graphs or []
+        ]
+    )
     filtered_msg.auxiliary_graphs = AuxiliaryGraphs.parse_obj(
         {
             aux_graph_id: message.auxiliary_graphs[aux_graph_id]

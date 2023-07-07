@@ -424,7 +424,11 @@ def normalizer_data_from_string(s):
         else:
             raise ValueError(f"Invalid line: {line}")
 
-    return {"category_mappings": category_mappings, "synset_mappings": synset_mappings, "information_content": information_content}
+    return {
+        "category_mappings": category_mappings,
+        "synset_mappings": synset_mappings,
+        "information_content": information_content,
+    }
 
 
 def plan_template_from_string(s):

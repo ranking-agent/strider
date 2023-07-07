@@ -6,7 +6,9 @@ from fastapi import APIRouter, FastAPI, Query
 from pydantic.main import BaseModel
 
 
-def norm_router(synset_mappings: dict[str, list], category_mappings: dict[str, list], ic: int = 100):
+def norm_router(
+    synset_mappings: dict[str, list], category_mappings: dict[str, list], ic: int = 100
+):
     """Generate node-normalization router."""
     router = APIRouter()
 
