@@ -215,7 +215,7 @@ class Fetcher:
                             edge_id: onehop_kgraph.edges[edge_id]
                             for edge_id in kgraph_edge_ids
                         },
-                    }                    
+                    }
                 )
 
                 # pin nodes
