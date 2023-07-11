@@ -159,21 +159,6 @@ class Fetcher:
             result_map = defaultdict(list)
             for result in batch_results:
                 # add edge to results and kgraph
-                result_kgraph = KnowledgeGraph.parse_obj(
-                    {
-                        "nodes": {
-                            binding.id: onehop_kgraph.nodes[binding.id]
-                            for _, bindings in result.node_bindings.items()
-                            for binding in bindings
-                        },
-                        "edges": {
-                            binding.id: onehop_kgraph.edges[binding.id]
-                            for analysis in result.analyses or []
-                            for _, bindings in analysis.edge_bindings.items()
-                            for binding in bindings
-                        },
-                    }
-                )
 
                 # collect all auxiliary graph ids from results and edges
                 aux_graphs = [
@@ -200,6 +185,37 @@ class Fetcher:
                         aux_graph_id: onehop_auxgraphs[aux_graph_id]
                         for aux_graph_id in aux_graphs
                     }
+                )
+
+                # get all edge ids from the result
+                kgraph_edge_ids = [
+                    binding.id
+                    for analysis in result.analyses or []
+                    for _, bindings in analysis.edge_bindings.items()
+                    for binding in bindings
+                ]
+
+                # get all edge ids from auxiliary graphs
+                kgraph_edge_ids.extend(
+                    [
+                        edge_id
+                        for aux_graph_id in aux_graphs
+                        for edge_id in onehop_auxgraphs[aux_graph_id].edges or []
+                    ]
+                )
+
+                result_kgraph = KnowledgeGraph.parse_obj(
+                    {
+                        "nodes": {
+                            binding.id: onehop_kgraph.nodes[binding.id]
+                            for _, bindings in result.node_bindings.items()
+                            for binding in bindings
+                        },
+                        "edges": {
+                            edge_id: onehop_kgraph.edges[edge_id]
+                            for edge_id in kgraph_edge_ids
+                        },
+                    }                    
                 )
 
                 # pin nodes
