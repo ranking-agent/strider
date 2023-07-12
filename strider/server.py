@@ -331,13 +331,13 @@ async def sync_query(
             lookup(query_dict, qid), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.warning(f"[{qid}] Sync query cancelled due to timeout.")
+        LOGGER.error(f"[{qid}] Sync query cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
     except Exception as e:
-        LOGGER.warning(f"[{qid}] Sync query failed unexpectedly: {e}")
+        LOGGER.error(f"[{qid}] Sync query failed unexpectedly: {e}")
         qid = "Exception"
         query_results = {
             "message": {},
@@ -519,13 +519,13 @@ async def async_lookup(
             lookup(query_dict, qid), timeout=max_process_time
         )
     except asyncio.TimeoutError:
-        LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
+        LOGGER.error(f"[{qid}]: Process cancelled due to timeout.")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "timeout"},
         }
     except Exception as e:
-        LOGGER.warning(f"[{qid}]: Query failed unexpectedly: {e}")
+        LOGGER.error(f"[{qid}]: Query failed unexpectedly: {e}")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "error"},
@@ -550,13 +550,13 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
                 lookup(queries[query_key], qid), timeout=max_process_time
             )
         except asyncio.TimeoutError:
-            LOGGER.warning(f"[{qid}]: Process cancelled due to timeout.")
+            LOGGER.error(f"[{qid}]: Process cancelled due to timeout.")
             query_result = {
                 "message": {},
                 "status_communication": {"strider_process_status": "timeout"},
             }
         except Exception as e:
-            LOGGER.warning(f"[{qid}]: Query failed unexpectedly: {e}")
+            LOGGER.error(f"[{qid}]: Query failed unexpectedly: {e}")
             query_result = {
                 "message": {},
                 "status_communication": {"strider_process_status": "error"},

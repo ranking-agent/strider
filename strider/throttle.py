@@ -353,7 +353,8 @@ class ThrottledServer:
                     self.logger.warning(
                         {
                             "message": f"Received non-TRAPI compliant response from {self.id}",
-                            "error": str(e),
+                            "error": f"{str(e)[:500]}...",
+                            "request": elide_curies(merged_request_value),
                         }
                     )
                 else:
