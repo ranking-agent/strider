@@ -200,7 +200,7 @@ class Fetcher:
                     [
                         edge_id
                         for aux_graph_id in aux_graphs
-                        for edge_id in onehop_auxgraphs[aux_graph_id].edges or []
+                        for edge_id in result_auxgraph[aux_graph_id].edges or []
                     ]
                 )
 
