@@ -4,7 +4,7 @@ import logging
 import typing
 
 import bmt
-from reasoner_pydantic import Message, Result, QNode, Edge, Results, KnowledgeGraph
+from reasoner_pydantic import Message, Result, QNode, Edge, Results, KnowledgeGraph, AuxiliaryGraphs
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
 from reasoner_pydantic.utils import HashableSequence, HashableMapping
@@ -174,8 +174,9 @@ def filter_information_content(
     information_content_threshold: int = settings.information_content_threshold,
 ) -> None:
     """Filter all nodes based on information content."""
-    keep_edges = []
-    new_results = Results.parse_obj([])
+    kept_knowledge_graph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
+    kept_results = Results.parse_obj([])
+    kept_aux_graphs = AuxiliaryGraphs.parse_obj({})
     for result in message.results or []:
         keep = True
         for node_bindings in result.node_bindings.values():
@@ -191,25 +192,24 @@ def filter_information_content(
                         message.knowledge_graph.nodes.pop(node_binding.id)
         if keep:
             # keep any results that don't have promiscuous nodes
-            new_results.append(result)
-            keep_edges.extend(
-                [
-                    edge_binding.id
-                    for analysis in result.analyses or []
-                    for edge_bindings in analysis.edge_bindings.values()
-                    for edge_binding in edge_bindings
-                ]
-            )
+            kept_results.append(result)
+            for analysis in result.analyses or []:
+                # add support graphs from result
+                for support_graph_id in analysis.support_graphs or []:
+                    kept_aux_graphs[support_graph_id] = message.auxiliary_graphs[support_graph_id]
+                # add edges from result
+                for edge_bindings in analysis.edge_bindings.values():
+                    for edge_binding in edge_bindings:
+                        kept_knowledge_graph.edges[edge_binding.id] = message.knowledge_graph.edges[edge_binding.id]
+                        # add support graphs from edge
+                        for attribute in message.knowledge_graph.edges[edge_binding.id].attributes or []:
+                            if attribute.attribute_type_id == "biolink:support_graphs":
+                                for aux_graph_id in attribute.value:
+                                    kept_aux_graphs[aux_graph_id] = message.auxiliary_graphs[aux_graph_id]
 
-    message.results = new_results
-    message.knowledge_graph = message.knowledge_graph or KnowledgeGraph(
-        nodes={}, edges={}
-    )
-    # remove any dangling kgraph edges
-    kept_edges = HashableMapping(__root__={})
-    for edge_id in keep_edges:
-        kept_edges[edge_id] = message.knowledge_graph.edges[edge_id]
-    message.knowledge_graph.edges = kept_edges
+    message.results = kept_results
+    message.knowledge_graph.edges = kept_knowledge_graph.edges
+    message.auxiliary_graphs = kept_aux_graphs
 
 
 async def fill_categories_predicates(
