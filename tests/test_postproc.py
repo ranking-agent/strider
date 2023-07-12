@@ -76,13 +76,13 @@ async def test_aux_graph_filtering():
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
-    msg = Response.parse_obj(response_with_aux_graphs)
-
-    msg.message.auxiliary_graphs["test"] = {
+    response_with_aux_graphs["message"]["auxiliary_graphs"]["test"] = {
         "edges": [
             "test_edge",
         ],
     }
+
+    msg = Response.parse_obj(response_with_aux_graphs)
 
     assert len(list(msg.message.auxiliary_graphs.keys())) == 3
     assert len(msg.message.results) == 1
