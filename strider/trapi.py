@@ -4,7 +4,15 @@ import logging
 import typing
 
 import bmt
-from reasoner_pydantic import Message, Result, QNode, Edge, Results, KnowledgeGraph, AuxiliaryGraphs
+from reasoner_pydantic import (
+    Message,
+    Result,
+    QNode,
+    Edge,
+    Results,
+    KnowledgeGraph,
+    AuxiliaryGraphs,
+)
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
 from reasoner_pydantic.utils import HashableSequence, HashableMapping
@@ -196,16 +204,24 @@ def filter_information_content(
             for analysis in result.analyses or []:
                 # add support graphs from result
                 for support_graph_id in analysis.support_graphs or []:
-                    kept_aux_graphs[support_graph_id] = message.auxiliary_graphs[support_graph_id]
+                    kept_aux_graphs[support_graph_id] = message.auxiliary_graphs[
+                        support_graph_id
+                    ]
                 # add edges from result
                 for edge_bindings in analysis.edge_bindings.values():
                     for edge_binding in edge_bindings:
-                        kept_knowledge_graph.edges[edge_binding.id] = message.knowledge_graph.edges[edge_binding.id]
+                        kept_knowledge_graph.edges[
+                            edge_binding.id
+                        ] = message.knowledge_graph.edges[edge_binding.id]
                         # add support graphs from edge
-                        for attribute in message.knowledge_graph.edges[edge_binding.id].attributes or []:
+                        for attribute in (
+                            kept_knowledge_graph.edges[edge_binding.id].attributes or []
+                        ):
                             if attribute.attribute_type_id == "biolink:support_graphs":
                                 for aux_graph_id in attribute.value:
-                                    kept_aux_graphs[aux_graph_id] = message.auxiliary_graphs[aux_graph_id]
+                                    kept_aux_graphs[
+                                        aux_graph_id
+                                    ] = message.auxiliary_graphs[aux_graph_id]
 
     message.results = kept_results
     message.knowledge_graph.edges = kept_knowledge_graph.edges
