@@ -12,7 +12,7 @@ from .utils import (
 from .config import settings
 
 
-Entity = namedtuple("Entity", ["categories", "identifiers", "information_content"])
+Entity = namedtuple("Entity", ["categories", "identifiers", "information_content", "preferred_curie"])
 
 
 class Normalizer:
@@ -72,6 +72,7 @@ class Normalizer:
                 entity["type"],
                 [synonym["identifier"] for synonym in entity["equivalent_identifiers"]],
                 entity.get("information_content", 100),
+                entity["id"]["identifier"],
             )
             for entity in response.values()
             if entity
@@ -103,7 +104,7 @@ class Normalizer:
         2. Return all synonymous CURIEs that have that prefix.
         """
         try:
-            categories, identifiers, _ = self.curie_map[curie]
+            categories, identifiers, _, _ = self.curie_map[curie]
         except KeyError:
             return [curie]
         # Gather the preferred prefixes for each category, deduplicating while retaining order

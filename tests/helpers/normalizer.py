@@ -17,6 +17,9 @@ def norm_router(
         if curie not in synset_mappings:
             return None
         return {
+            "id": {
+                "identifier": curie,
+            },
             "equivalent_identifiers": [
                 {"identifier": synonym} for synonym in synset_mappings.get(curie, [])
             ],

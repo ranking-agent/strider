@@ -197,6 +197,11 @@ def filter_message(
                     # Unknown UMLS curies are bound to be low information content
                     curie is None
                     and node_binding.id.startswith("UMLS")
+                ) or (
+                    # UMLS curies where preferred query is still UMLS are bound to be low information content
+                    curie is not None
+                    and node_binding.id.startswith("UMLS")
+                    and curie.preferred_curie.startswith("UMLS")
                 ):
                     keep = False
                     if node_binding.id in message.knowledge_graph.nodes:
