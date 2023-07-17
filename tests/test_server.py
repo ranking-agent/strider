@@ -409,7 +409,6 @@ async def test_mutability_bug(client, monkeypatch):
     QGRAPH = {
         "nodes": {
             "n0": {
-                "ids": None,
                 "categories": ["biolink:ChemicalSubstance"],
                 "is_set": False,
                 "constraints": [],
@@ -425,7 +424,6 @@ async def test_mutability_bug(client, monkeypatch):
             "n0n1": {
                 "subject": "n0",
                 "object": "n1",
-                "knowledge_type": None,
                 "predicates": ["biolink:treats"],
                 "attribute_constraints": [],
                 "qualifier_constraints": [],
