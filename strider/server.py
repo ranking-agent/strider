@@ -504,7 +504,7 @@ async def lookup(
     collapse_sets(output_query, logger)
 
     output_query.logs = list(log_handler.contents())
-    return output_query.dict()
+    return output_query.dict(exclude_none=True)
 
 
 async def async_lookup(
