@@ -175,7 +175,7 @@ def filter_ancestor_types(categories):
     return [category for category, drop in zip(categories, has_descendant) if not drop]
 
 
-def filter_information_content(
+def filter_message(
     message: Message,
     curie_map: dict,
     logger: logging.Logger = logging.getLogger(),
@@ -193,6 +193,10 @@ def filter_information_content(
                 if (
                     curie is not None
                     and curie.information_content < information_content_threshold
+                ) or (
+                    # Unknown UMLS curies are bound to be low information content
+                    curie is None
+                    and node_binding.id.startswith("UMLS")
                 ):
                     keep = False
                     if node_binding.id in message.knowledge_graph.nodes:
