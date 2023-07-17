@@ -21,7 +21,7 @@ from .utils import (
     log_response,
     log_request,
 )
-from .trapi import apply_curie_map, filter_information_content
+from .trapi import apply_curie_map, filter_message
 from .normalizer import Normalizer
 from .config import settings
 
@@ -69,7 +69,7 @@ class KnowledgeProvider:
             """Map message CURIE prefixes."""
             await self.map_prefixes(request.message, preferred_prefixes)
             if not last_hop:
-                filter_information_content(
+                filter_message(
                     request.message,
                     self.normalizer.curie_map,
                     self.logger,
