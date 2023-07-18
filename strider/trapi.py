@@ -220,6 +220,10 @@ def filter_message(
                     kept_aux_graphs[support_graph_id] = message.auxiliary_graphs[
                         support_graph_id
                     ]
+                    for edge_id in message.auxiliary_graphs[support_graph_id].edges:
+                        kept_knowledge_graph.edges[
+                            edge_id
+                        ] = message.knowledge_graph.edges[edge_id]
                 # add edges from result
                 for edge_bindings in analysis.edge_bindings.values():
                     for edge_binding in edge_bindings:
@@ -235,6 +239,12 @@ def filter_message(
                                     kept_aux_graphs[
                                         aux_graph_id
                                     ] = message.auxiliary_graphs[aux_graph_id]
+                                    for edge_id in message.auxiliary_graphs[
+                                        aux_graph_id
+                                    ].edges:
+                                        kept_knowledge_graph.edges[
+                                            edge_id
+                                        ] = message.knowledge_graph.edges[edge_id]
 
     message.results = kept_results
     message.knowledge_graph.edges = kept_knowledge_graph.edges

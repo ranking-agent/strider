@@ -94,3 +94,62 @@ async def test_aux_graph_filtering():
     # test aux graph should be removed
     assert len(list(msg.message.auxiliary_graphs.keys())) == 2
     assert len(msg.message.results) == 1
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+    """
+    MONDO:0005148 categories biolink:Disease
+    MONDO:0005148 synonyms DOID:9352
+    MONDO:0005148 information_content 100
+    MESH:D008687 categories biolink:ChemicalEntity
+    MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
+    MESH:D008687 information_content 100
+""",
+)
+async def test_aux_graph_edges_are_kept():
+    """
+    Test that node with an information content lower than the threshold are removed
+    """
+    provider = KnowledgeProvider("test", kp, logger)
+
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
+
+    extra_edge_3 = {
+        "subject": "MESH:D014867",
+        "object": "MONDO:0005148",
+        "predicate": "biolink:positively_correlates_with",
+        "attributes": [
+            {
+                "value": "infores:kp1",
+                "attribute_type_id": "biolink:knowledge_source",
+            },
+        ],
+        "sources": [
+            {
+                "resource_id": "infores:kp1",
+                "resource_role": "primary_knowledge_source",
+            },
+        ],
+    }
+
+    response_with_aux_graphs["message"]["knowledge_graph"]["edges"][
+        "extra_edge_3"
+    ] = extra_edge_3
+
+    response_with_aux_graphs["message"]["auxiliary_graphs"]["2"]["edges"].append(
+        "extra_edge_3"
+    )
+
+    msg = Response.parse_obj(response_with_aux_graphs)
+
+    assert len(list(msg.message.knowledge_graph.edges.keys())) == 4
+
+    processor = provider.get_postprocessor(preferred_prefixes)
+
+    await processor(msg, False)
+
+    assert len(list(msg.message.auxiliary_graphs.keys())) == 2
+    # extra edge 3 should be kept
+    assert len(list(msg.message.knowledge_graph.edges.keys())) == 4
