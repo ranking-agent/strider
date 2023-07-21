@@ -477,7 +477,7 @@ async def lookup(
             # Update the results
             # hashmap lookup is very quick
             sub_result_hash = hash(result)
-            existing_result = output_results.get(result, None)
+            existing_result = output_results.get(sub_result_hash, None)
             if existing_result:
                 # update existing result
                 existing_result.update(result)
