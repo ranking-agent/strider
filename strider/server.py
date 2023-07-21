@@ -448,7 +448,7 @@ async def lookup(
         await fetcher.setup(qgraph, registry, information_content_threshold)
     except NoAnswersError:
         logger.warning("Returning no results.")
-        return qid, {
+        return {
             "message": {
                 "query_graph": qgraph,
                 "knowledge_graph": {"nodes": {}, "edges": {}},
