@@ -488,6 +488,7 @@ async def lookup(
 
     results = Results.parse_obj([])
     for result in output_results.values():
+        # copy so result analyses don't get combined somehow
         result = copy.deepcopy(result)
         if len(result.analyses) > 1:
             result.combine_analyses_by_resource_id()
