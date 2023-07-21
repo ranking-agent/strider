@@ -7,6 +7,7 @@ Y88bo.      .o888oo oooo d8b oooo   .oooo888   .ooooo.  oooo d8b
 oo     .d8P   888 .  888      888  888   888  888    .o  888
 8""88888P'    "888" d888b    o888o `Y8bod88P" `Y8bod8P' d888b
 """
+import copy
 import datetime
 import os
 import uuid
