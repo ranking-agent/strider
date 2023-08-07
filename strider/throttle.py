@@ -64,6 +64,7 @@ class ThrottledServer:
         preproc: Callable = anull,
         postproc: Callable = anull,
         logger: logging.Logger = None,
+        parameters: dict = {},
         **kwargs,
     ):
         """Initialize."""
@@ -75,6 +76,7 @@ class ThrottledServer:
         self.preproc = preproc
         self.postproc = postproc
         self.use_cache = settings.use_cache
+        self.parameters = parameters
         if logger is None:
             logger = logging.getLogger(__name__)
         self.logger = logger
@@ -211,7 +213,8 @@ class ThrottledServer:
                         ),
                     )
                 )
-                async with httpx.AsyncClient(timeout=settings.kp_timeout) as client:
+                kp_timeout = self.parameters.get("timeout_seconds", settings.kp_timeout)
+                async with httpx.AsyncClient(timeout=kp_timeout) as client:
                     response = await client.post(
                         self.url,
                         json=merged_request_value,

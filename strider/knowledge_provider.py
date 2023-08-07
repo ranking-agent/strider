@@ -34,6 +34,7 @@ class KnowledgeProvider:
         kp_id,
         kp,
         logger,
+        parameters,
         information_content_threshold: int = settings.information_content_threshold,
         *args,
         **kwargs,
@@ -47,6 +48,8 @@ class KnowledgeProvider:
             logger=logger,
             preproc=self.get_preprocessor(kp["details"]["preferred_prefixes"]),
             postproc=self.get_postprocessor(WBMT.entity_prefix_mapping),
+            max_batch_size=1,
+            parameters=parameters,
             *args,
             *kwargs,
         )

@@ -328,8 +328,10 @@ async def sync_query(
     qid = str(uuid.uuid4())[:8]
     try:
         LOGGER.info(f"[{qid}] Starting sync query")
+        # get max timeout
+        timeout = max(max_process_time, query_dict.get("parameters", {}).get("timeout_seconds", 0))
         query_results = await asyncio.wait_for(
-            lookup(query_dict, qid), timeout=max_process_time
+            lookup(query_dict, qid), timeout=timeout
         )
     except asyncio.TimeoutError:
         LOGGER.error(f"[{qid}] Sync query cancelled due to timeout.")
@@ -442,7 +444,9 @@ async def lookup(
     logger.setLevel(level_number)
     logger.addHandler(log_handler)
 
-    fetcher = Fetcher(logger)
+    parameters = query_dict.get("parameters", {})
+
+    fetcher = Fetcher(logger, parameters)
 
     logger.info(f"Doing lookup for qgraph: {qgraph}")
     try:
@@ -518,8 +522,10 @@ async def async_lookup(
     qid = str(uuid.uuid4())[:8]
     query_results = {}
     try:
+        # get max timeout
+        timeout = max(max_process_time, query_dict.get("parameters", {}).get("timeout_seconds", 0))
         query_results = await asyncio.wait_for(
-            lookup(query_dict, qid), timeout=max_process_time
+            lookup(query_dict, qid), timeout=timeout
         )
     except asyncio.TimeoutError:
         LOGGER.error(f"[{qid}]: Process cancelled due to timeout.")
@@ -549,8 +555,10 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
         qid = f"{multiqid}.{str(uuid.uuid4())[:8]}"
         query_result = {}
         try:
+            # get max timeout
+            timeout = max(max_process_time, queries[query_key].get("parameters", {}).get("timeout_seconds", 0))
             query_result = await asyncio.wait_for(
-                lookup(queries[query_key], qid), timeout=max_process_time
+                lookup(queries[query_key], qid), timeout=timeout
             )
         except asyncio.TimeoutError:
             LOGGER.error(f"[{qid}]: Process cancelled due to timeout.")
