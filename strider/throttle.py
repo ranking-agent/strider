@@ -213,7 +213,10 @@ class ThrottledServer:
                         ),
                     )
                 )
-                kp_timeout = self.parameters.get("timeout_seconds", settings.kp_timeout)
+                kp_timeout = self.parameters.get("timeout_seconds")
+                kp_timeout = (
+                    kp_timeout if type(kp_timeout) is int else settings.kp_timeout
+                )
                 async with httpx.AsyncClient(timeout=kp_timeout) as client:
                     response = await client.post(
                         self.url,
