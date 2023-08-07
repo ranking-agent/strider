@@ -23,6 +23,7 @@ from fastapi.openapi.docs import (
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 import httpx
+from pydantic import BaseModel
 from reasoner_pydantic.kgraph import KnowledgeGraph
 from reasoner_pydantic.qgraph import QueryGraph
 from reasoner_pydantic.utils import HashableMapping
@@ -45,6 +46,7 @@ from .caching import (
     save_kp_registry,
     get_registry_lock,
     remove_registry_lock,
+    clear_cache,
 )
 from .fetcher import Fetcher
 from .node_sets import collapse_sets
@@ -623,3 +625,17 @@ async def get_kps():
     registry = await get_kp_registry()
     # print(registry)
     return list(registry.keys())
+
+
+class ClearCacheRequest(BaseModel):
+    pswd: str
+
+
+@APP.post("/clear_cache", status_code=200, include_in_schema=False)
+async def clear_redis_cache(request: ClearCacheRequest) -> dict:
+    """Clear the redis cache."""
+    if request.pswd == settings.redis_password:
+        await clear_cache()
+        return {"status": "success"}
+    else:
+        raise HTTPException(status_code=401, detail="Invalid Password")
