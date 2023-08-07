@@ -48,11 +48,12 @@ class Fetcher:
         a full result can be returned for merging.
     """
 
-    def __init__(self, logger):
+    def __init__(self, logger, parameters):
         """Initialize."""
         self.logger: logging.Logger = logger
         self.normalizer = Normalizer(self.logger)
         self.kps = dict()
+        self.parameters = parameters
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
@@ -344,5 +345,6 @@ class Fetcher:
                 kp_id,
                 kp,
                 self.logger,
+                self.parameters,
                 information_content_threshold=information_content_threshold,
             )
