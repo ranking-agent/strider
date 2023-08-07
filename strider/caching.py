@@ -211,7 +211,5 @@ async def get_post_response(url, request):
 
 async def clear_cache():
     """Clear one-hop redis cache."""
-    client = await aioredis.Redis(
-        connection_pool=onehop_redis_pool
-    )
+    client = await aioredis.Redis(connection_pool=onehop_redis_pool)
     await client.flushdb()
