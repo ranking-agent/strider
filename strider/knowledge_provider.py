@@ -34,7 +34,7 @@ class KnowledgeProvider:
         kp_id,
         kp,
         logger,
-        parameters,
+        parameters: dict = {},
         information_content_threshold: int = settings.information_content_threshold,
         *args,
         **kwargs,
