@@ -207,3 +207,11 @@ async def get_post_response(url, request):
     if response is not None:
         response = json.loads(gzip.decompress(response))
     return response
+
+
+async def clear_cache():
+    """Clear one-hop redis cache."""
+    client = await aioredis.Redis(
+        connection_pool=onehop_redis_pool
+    )
+    await client.flushdb()
