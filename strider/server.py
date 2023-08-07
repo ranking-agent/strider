@@ -342,7 +342,7 @@ async def sync_query(
             "status_communication": {"strider_process_status": "timeout"},
         }
     except Exception as e:
-        LOGGER.error(f"[{qid}] Sync query failed unexpectedly: {e}")
+        LOGGER.error(f"[{qid}] Sync query failed unexpectedly: {traceback.format_exc()}")
         qid = "Exception"
         query_results = {
             "message": {},
