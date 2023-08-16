@@ -116,7 +116,13 @@ class Fetcher:
         # keep track of call stack for each kp plan branch
         call_stack.append(kp.id)
         self.logger.info(f"Current call stack: {(', ').join(call_stack)}")
-        onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
+        onehop_response = None
+        # check if message wants to override the cache
+        override_cache = self.parameters.get("override_cache")
+        override_cache = override_cache if type(override_cache) is bool else False
+        if not override_cache:
+            # get onehop response from cache
+            onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
         if onehop_response is not None:
             self.logger.info(
                 f"[{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
