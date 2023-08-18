@@ -213,7 +213,8 @@ class ThrottledServer:
                         ),
                     )
                 )
-                kp_timeout = self.parameters.get("timeout_seconds")
+                # Use kp timeout given in the message, otherwise use env variable
+                kp_timeout = self.parameters.get("kp_timeout")
                 kp_timeout = (
                     kp_timeout if type(kp_timeout) is int else settings.kp_timeout
                 )
