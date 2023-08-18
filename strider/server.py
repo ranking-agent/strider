@@ -331,7 +331,11 @@ async def sync_query(
         # get max timeout
         timeout_seconds = (query_dict.get("parameters") or {}).get("timeout_seconds")
         # if timeout_seconds, less 10 seconds to account for sending back
-        timeout = timeout_seconds - 10 if type(timeout_seconds) is int else settings.max_process_time
+        timeout = (
+            timeout_seconds - 10
+            if type(timeout_seconds) is int
+            else settings.max_process_time
+        )
         query_results = await asyncio.wait_for(lookup(query_dict, qid), timeout=timeout)
     except asyncio.TimeoutError:
         LOGGER.error(f"[{qid}] Sync query cancelled due to timeout.")
@@ -527,7 +531,11 @@ async def async_lookup(
         # get max timeout
         timeout_seconds = (query_dict.get("parameters") or {}).get("timeout_seconds")
         # if timeout_seconds, less 10 seconds to account for sending back
-        timeout = timeout_seconds - 10 if type(timeout_seconds) is int else settings.max_process_time
+        timeout = (
+            timeout_seconds - 10
+            if type(timeout_seconds) is int
+            else settings.max_process_time
+        )
         query_results = await asyncio.wait_for(lookup(query_dict, qid), timeout=timeout)
     except asyncio.TimeoutError:
         LOGGER.error(f"[{qid}]: Process cancelled due to timeout.")
@@ -562,7 +570,11 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
                 "timeout_seconds"
             )
             # if timeout_seconds, less 10 seconds to account for sending back
-            timeout = timeout_seconds - 10 if type(timeout_seconds) is int else settings.max_process_time
+            timeout = (
+                timeout_seconds - 10
+                if type(timeout_seconds) is int
+                else settings.max_process_time
+            )
             query_result = await asyncio.wait_for(
                 lookup(queries[query_key], qid), timeout=timeout
             )
