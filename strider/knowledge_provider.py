@@ -21,7 +21,7 @@ from .utils import (
     log_response,
     log_request,
 )
-from .trapi import apply_curie_map, filter_message
+from .trapi import apply_curie_map, filter_message, clean_query_id
 from .normalizer import Normalizer
 from .config import settings
 
@@ -67,12 +67,13 @@ class KnowledgeProvider:
     def get_postprocessor(self, preferred_prefixes):
         """Get post processor."""
 
-        async def processor(request, last_hop: bool):
+        async def processor(response, last_hop: bool):
             """Map message CURIE prefixes."""
-            await self.map_prefixes(request.message, preferred_prefixes)
+            await self.map_prefixes(response.message, preferred_prefixes)
+            clean_query_id(response.message, self.normalizer.curie_map, self.id, self.logger)
             if not last_hop:
                 filter_message(
-                    request.message,
+                    response.message,
                     self.normalizer.curie_map,
                     self.logger,
                     self.information_content_threshold,

@@ -251,6 +251,41 @@ def filter_message(
     message.auxiliary_graphs = kept_aux_graphs
 
 
+def clean_query_id(
+    message: Message,
+    curie_map: dict,
+    kp_id: str,
+    logger: logging.Logger = logging.getLogger(),
+):
+    """Remove any errant query_ids from result node_bindings."""
+    for result in message.results or []:
+        for qnode_id, node_bindings in result.node_bindings.items():
+            for node_binding in node_bindings:
+                if node_binding.query_id is not None and node_binding.query_id not in message.query_graph.nodes[qnode_id].ids:
+                    # if query id exists and isn't in qgraph
+                    if node_binding.id in message.query_graph.nodes[qnode_id].ids:
+                        # if kgraph id in qgraph, then remove query id
+                        # this was probably a preferred prefix
+                        logger.debug(f"Removing query_id {node_binding.query_id} because kgraph id is in qgraph.")
+                        node_binding.query_id = None
+                    else:
+                        # both kgraph id and query id not in qgraph,
+                        # need to figure out where query id came from
+                        if node_binding.query_id in curie_map:
+                            # query id is an equivalent identifier that we know about
+                            for eq_id in curie_map[node_binding.query_id].identifiers:
+                                if eq_id in message.query_graph.nodes[qnode_id].ids:
+                                    # found a match
+                                    logger.info(f"Changing query_id from {node_binding.query_id} to {eq_id}.")
+                                    node_binding.query_id = eq_id
+                                    break
+                        else:
+                            # the query id isn't an equivalent identifier of any of the curies we sent
+                            # probably open an issue on that kp's repo
+                            logger.error(f"Got back {node_binding.query_id} query_id from {kp_id} and it doesn't match any query ids.")
+                            node_binding.query_id = None
+
+
 async def fill_categories_predicates(
     qg: QueryGraph,
     logger: logging.Logger = logging.getLogger(),
