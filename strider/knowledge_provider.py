@@ -70,7 +70,9 @@ class KnowledgeProvider:
         async def processor(response, last_hop: bool):
             """Map message CURIE prefixes."""
             await self.map_prefixes(response.message, preferred_prefixes)
-            clean_query_id(response.message, self.normalizer.curie_map, self.id, self.logger)
+            clean_query_id(
+                response.message, self.normalizer.curie_map, self.id, self.logger
+            )
             if not last_hop:
                 filter_message(
                     response.message,
