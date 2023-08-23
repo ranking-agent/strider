@@ -247,7 +247,10 @@ def filter_message(
                                         ] = message.knowledge_graph.edges[edge_id]
 
     message.results = kept_results
-    message.knowledge_graph.edges = kept_knowledge_graph.edges
+    if message.knowledge_graph:
+        message.knowledge_graph.edges = kept_knowledge_graph.edges
+    else:
+        message.knowledge_graph = kept_knowledge_graph
     message.auxiliary_graphs = kept_aux_graphs
 
 
