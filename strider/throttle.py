@@ -314,7 +314,7 @@ class ThrottledServer:
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
+                            "message": f"{self.id} took > {kp_timeout} seconds to respond",
                             "error": str(e),
                             "request": elide_curies(merged_request_value),
                         }
@@ -322,7 +322,7 @@ class ThrottledServer:
                 elif isinstance(e, httpx.ReadTimeout):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
+                            "message": f"{self.id} took > {kp_timeout} seconds to respond",
                             "error": str(e),
                             "request": log_request(e.request),
                         }
@@ -368,7 +368,7 @@ class ThrottledServer:
                     self.logger.warning(
                         {
                             "message": f"Something went wrong while querying {self.id}",
-                            "error": str(e),
+                            "error": traceback.format_exc(),
                         }
                     )
 
