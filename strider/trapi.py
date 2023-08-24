@@ -151,7 +151,12 @@ def fix_kedge(kedge: Edge, curie_map: dict[str, str]):
     kedge.object = curie_map.get(kedge.object, [kedge.object])[0]
 
 
-def fix_results(message: Message, curie_map: dict[str, str], kp_id: str, logger: logging.Logger):
+def fix_results(
+    message: Message,
+    curie_map: dict[str, str],
+    kp_id: str,
+    logger: logging.Logger,
+):
     """Replace curie with preferred, if possible."""
     for result in message.results or []:
         for qnode_id, node_bindings in result.node_bindings.items():
@@ -161,7 +166,9 @@ def fix_results(message: Message, curie_map: dict[str, str], kp_id: str, logger:
                 if node_binding.query_id is None:
                     continue
                 # set node binding query id to preferred prefix
-                query_id = curie_map.get(node_binding.query_id, [node_binding.query_id])[0]
+                query_id = curie_map.get(
+                    node_binding.query_id, [node_binding.query_id]
+                )[0]
                 if node_binding.id == query_id:
                     # remove query_id if equivalent to id
                     logger.info(
