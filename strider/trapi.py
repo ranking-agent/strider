@@ -6,7 +6,6 @@ import typing
 import bmt
 from reasoner_pydantic import (
     Message,
-    Result,
     QNode,
     Edge,
     Results,
@@ -15,7 +14,7 @@ from reasoner_pydantic import (
 )
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
-from reasoner_pydantic.utils import HashableSequence, HashableMapping
+from reasoner_pydantic.utils import HashableSequence
 
 from strider.utils import (
     WBMT,
@@ -24,7 +23,12 @@ from strider.normalizer import Normalizer
 from strider.config import settings
 
 
-def apply_curie_map(message: Message, curie_map: dict[str, str]):
+def apply_curie_map(
+    message: Message,
+    curie_map: dict[str, str],
+    kp_id: str,
+    logger: logging.Logger,
+):
     """Translate all pinned qnodes to preferred prefix."""
     map_qgraph_curies(message.query_graph, curie_map)
     if message.knowledge_graph is not None:
@@ -43,8 +47,7 @@ def apply_curie_map(message: Message, curie_map: dict[str, str]):
             fix_kedge(kedge, curie_map)
 
     if message.results is not None:
-        for r in message.results:
-            fix_result(r, curie_map)
+        fix_results(message, curie_map, kp_id, logger)
 
 
 def map_qgraph_curies(
@@ -148,11 +151,40 @@ def fix_kedge(kedge: Edge, curie_map: dict[str, str]):
     kedge.object = curie_map.get(kedge.object, [kedge.object])[0]
 
 
-def fix_result(result: Result, curie_map: dict[str, str]):
+def fix_results(message: Message, curie_map: dict[str, str], kp_id: str, logger: logging.Logger):
     """Replace curie with preferred, if possible."""
-    for nb_set in result.node_bindings.values():
-        for nb in nb_set:
-            nb.id = curie_map.get(nb.id, [nb.id])[0]
+    for result in message.results or []:
+        for qnode_id, node_bindings in result.node_bindings.items():
+            for node_binding in node_bindings:
+                # set node binding id to preferred prefix
+                node_binding.id = curie_map.get(node_binding.id, [node_binding.id])[0]
+                if node_binding.query_id is None:
+                    continue
+                # set node binding query id to preferred prefix
+                query_id = curie_map.get(node_binding.query_id, [node_binding.query_id])[0]
+                if node_binding.id == query_id:
+                    # remove query_id if equivalent to id
+                    logger.info(
+                        f"Removing query_id {node_binding.query_id} because it is equivalent to {node_binding.id}."
+                    )
+                    node_binding.query_id = None
+                elif query_id not in message.query_graph.nodes[qnode_id].ids:
+                    # if query id isn't in qgraph
+                    if node_binding.id in message.query_graph.nodes[qnode_id].ids:
+                        # if kgraph id in qgraph, then remove query id
+                        # this was probably a preferred prefix
+                        logger.info(
+                            f"Removing query_id {node_binding.query_id} because kgraph id is in qgraph."
+                        )
+                        node_binding.query_id = None
+                    else:
+                        # both kgraph id and query id not in qgraph,
+                        logger.error(
+                            f"Got back {node_binding.query_id} query_id from {kp_id} and it doesn't match any query ids."
+                        )
+                        node_binding.query_id = None
+                else:
+                    node_binding.query_id = query_id
 
 
 def filter_ancestor_types(categories):
@@ -252,51 +284,6 @@ def filter_message(
     else:
         message.knowledge_graph = kept_knowledge_graph
     message.auxiliary_graphs = kept_aux_graphs
-
-
-def clean_query_id(
-    message: Message,
-    curie_map: dict,
-    kp_id: str,
-    logger: logging.Logger = logging.getLogger(),
-):
-    """Remove any errant query_ids from result node_bindings."""
-    for result in message.results or []:
-        for qnode_id, node_bindings in result.node_bindings.items():
-            for node_binding in node_bindings:
-                if (
-                    node_binding.query_id is not None
-                    and node_binding.query_id
-                    not in message.query_graph.nodes[qnode_id].ids
-                ):
-                    # if query id exists and isn't in qgraph
-                    if node_binding.id in message.query_graph.nodes[qnode_id].ids:
-                        # if kgraph id in qgraph, then remove query id
-                        # this was probably a preferred prefix
-                        logger.debug(
-                            f"Removing query_id {node_binding.query_id} because kgraph id is in qgraph."
-                        )
-                        node_binding.query_id = None
-                    else:
-                        # both kgraph id and query id not in qgraph,
-                        # need to figure out where query id came from
-                        if node_binding.query_id in curie_map:
-                            # query id is an equivalent identifier that we know about
-                            for eq_id in curie_map[node_binding.query_id].identifiers:
-                                if eq_id in message.query_graph.nodes[qnode_id].ids:
-                                    # found a match
-                                    logger.info(
-                                        f"Changing query_id from {node_binding.query_id} to {eq_id}."
-                                    )
-                                    node_binding.query_id = eq_id
-                                    break
-                        else:
-                            # the query id isn't an equivalent identifier of any of the curies we sent
-                            # probably open an issue on that kp's repo
-                            logger.error(
-                                f"Got back {node_binding.query_id} query_id from {kp_id} and it doesn't match any query ids."
-                            )
-                            node_binding.query_id = None
 
 
 async def fill_categories_predicates(
