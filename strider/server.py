@@ -544,7 +544,7 @@ async def async_lookup(
             "status_communication": {"strider_process_status": "timeout"},
         }
     except Exception as e:
-        LOGGER.error(f"[{qid}]: Query failed unexpectedly: {e}")
+        LOGGER.error(f"[{qid}]: Query failed unexpectedly: {traceback.format_exc()}")
         query_results = {
             "message": {},
             "status_communication": {"strider_process_status": "error"},
@@ -585,7 +585,9 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
                 "status_communication": {"strider_process_status": "timeout"},
             }
         except Exception as e:
-            LOGGER.error(f"[{qid}]: Query failed unexpectedly: {e}")
+            LOGGER.error(
+                f"[{qid}]: Query failed unexpectedly: {traceback.format_exc()}"
+            )
             query_result = {
                 "message": {},
                 "status_communication": {"strider_process_status": "error"},
