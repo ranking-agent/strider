@@ -21,7 +21,7 @@ from .utils import (
     log_response,
     log_request,
 )
-from .trapi import apply_curie_map, filter_message, clean_query_id
+from .trapi import apply_curie_map, filter_message
 from .normalizer import Normalizer
 from .config import settings
 
@@ -70,9 +70,6 @@ class KnowledgeProvider:
         async def processor(response, last_hop: bool):
             """Map message CURIE prefixes."""
             await self.map_prefixes(response.message, preferred_prefixes)
-            clean_query_id(
-                response.message, self.normalizer.curie_map, self.id, self.logger
-            )
             if not last_hop:
                 filter_message(
                     response.message,
@@ -93,7 +90,7 @@ class KnowledgeProvider:
         if len(curies):
             await self.normalizer.load_curies(*curies)
             curie_map = self.normalizer.map(curies, prefixes)
-            apply_curie_map(message, curie_map)
+            apply_curie_map(message, curie_map, self.id, self.logger)
 
     async def solve_onehop(self, request, last_hop: bool):
         """Solve one-hop query."""
