@@ -232,9 +232,11 @@ class Fetcher:
                 for qnode_id, bindings in result.node_bindings.items():
                     if qnode_id not in populated_subqgraph["nodes"]:
                         continue
-                    populated_subqgraph["nodes"][qnode_id]["ids"] = (
+                    # add curies from result into the qgraph
+                    # need to call set() to remove any duplicates
+                    populated_subqgraph["nodes"][qnode_id]["ids"] = list(set((
                         populated_subqgraph["nodes"][qnode_id].get("ids") or []
-                    ) + [binding.id for binding in bindings]
+                    ) + [binding.id for binding in bindings]))
                 qnode_ids = set(populated_subqgraph["nodes"].keys()) & set(
                     result.node_bindings.keys()
                 )
