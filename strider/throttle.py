@@ -351,8 +351,8 @@ class ThrottledServer:
                     self.logger.warning(
                         {
                             "message": f"Received bad JSON data from {self.id}",
-                            "request": e.request,
-                            "response": e.response.text,
+                            "request": json.dumps(merged_request_value),
+                            "response": response.text,
                             "error": str(e),
                         }
                     )
