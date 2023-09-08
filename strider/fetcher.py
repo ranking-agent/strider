@@ -164,6 +164,9 @@ class Fetcher:
             )
         for batch_results in batch(onehop_results, 1_000_000):
             result_map = defaultdict(list)
+            # copy subqgraph between each batch
+            # before we fill it with result curies
+            populated_subqgraph = copy.deepcopy(subqgraph)
             for result in batch_results:
                 # add edge to results and kgraph
 
@@ -227,12 +230,12 @@ class Fetcher:
 
                 # pin nodes
                 for qnode_id, bindings in result.node_bindings.items():
-                    if qnode_id not in subqgraph["nodes"]:
+                    if qnode_id not in populated_subqgraph["nodes"]:
                         continue
-                    subqgraph["nodes"][qnode_id]["ids"] = (
-                        subqgraph["nodes"][qnode_id].get("ids") or []
+                    populated_subqgraph["nodes"][qnode_id]["ids"] = (
+                        populated_subqgraph["nodes"][qnode_id].get("ids") or []
                     ) + [binding.id for binding in bindings]
-                qnode_ids = set(subqgraph["nodes"].keys()) & set(
+                qnode_ids = set(populated_subqgraph["nodes"].keys()) & set(
                     result.node_bindings.keys()
                 )
                 key_fcn = lambda res: tuple(
@@ -249,7 +252,7 @@ class Fetcher:
 
             generators.append(
                 self.generate_from_result(
-                    copy.deepcopy(subqgraph),
+                    populated_subqgraph,
                     lambda result: result_map[key_fcn(result)],
                     call_stack,
                 )
