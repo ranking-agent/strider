@@ -9,6 +9,7 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 """
 import copy
 import datetime
+import json
 import os
 import uuid
 import logging
@@ -454,7 +455,7 @@ async def lookup(
 
     fetcher = Fetcher(logger, parameters)
 
-    logger.info(f"Doing lookup for qgraph: {qgraph}")
+    logger.info(f"Doing lookup for qgraph: {json.dumps(qgraph)}")
     try:
         await fetcher.setup(qgraph, registry, information_content_threshold)
     except NoAnswersError:
