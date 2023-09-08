@@ -526,10 +526,12 @@ async def lookup(
 
     output_query.logs = list(log_handler.contents())
     lookup_end_time = datetime.datetime.now()
-    logger.info({
-        "total_lookup_time": (lookup_end_time - lookup_start_time).total_seconds(),
-        "total_merging": message_merging_time,
-    })
+    logger.info(
+        {
+            "total_lookup_time": (lookup_end_time - lookup_start_time).total_seconds(),
+            "total_merging": message_merging_time,
+        }
+    )
     return output_query.dict(exclude_none=True)
 
 
