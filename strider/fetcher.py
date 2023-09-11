@@ -166,6 +166,8 @@ class Fetcher:
             result_map = defaultdict(list)
             # copy subqgraph between each batch
             # before we fill it with result curies
+            # this keeps the sub query graph from being modified and passing
+            # extra curies into subsequent batches
             populated_subqgraph = copy.deepcopy(subqgraph)
             for result in batch_results:
                 # add edge to results and kgraph
