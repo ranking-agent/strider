@@ -503,7 +503,7 @@ async def lookup(
                 output_results[sub_result_hash] = result
 
             stop_merging = time.time()
-            message_merging_time += (stop_merging - start_merging)
+            message_merging_time += stop_merging - start_merging
 
     results = Results.parse_obj([])
     for result in output_results.values():
