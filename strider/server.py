@@ -14,6 +14,7 @@ import os
 import uuid
 import logging
 import warnings
+import time
 import traceback
 import asyncio
 
@@ -435,7 +436,7 @@ async def lookup(
     qid: str = None,
 ) -> dict:
     """Perform lookup operation."""
-    lookup_start_time = datetime.datetime.now()
+    lookup_start_time = time.time()
     qgraph = query_dict["message"]["query_graph"]
 
     log_level = query_dict.get("log_level") or "INFO"
@@ -484,7 +485,7 @@ async def lookup(
     async with fetcher:
         async for result_kgraph, result, result_auxgraph in fetcher.lookup(None):
             # Update the kgraph
-            start_merging = datetime.datetime.now()
+            start_merging = time.time()
             output_kgraph.update(result_kgraph)
 
             # Update the aux graphs
@@ -501,8 +502,8 @@ async def lookup(
                 # add new result to hashmap
                 output_results[sub_result_hash] = result
 
-            stop_merging = datetime.datetime.now()
-            message_merging_time += (stop_merging - start_merging).total_seconds()
+            stop_merging = time.time()
+            message_merging_time += (stop_merging - start_merging)
 
     results = Results.parse_obj([])
     for result in output_results.values():
@@ -525,10 +526,10 @@ async def lookup(
     collapse_sets(output_query, logger)
 
     output_query.logs = list(log_handler.contents())
-    lookup_end_time = datetime.datetime.now()
+    lookup_end_time = time.time()
     logger.info(
         {
-            "total_lookup_time": (lookup_end_time - lookup_start_time).total_seconds(),
+            "total_lookup_time": (lookup_end_time - lookup_start_time),
             "total_merging": message_merging_time,
         }
     )
@@ -575,7 +576,7 @@ async def async_lookup(
 
 async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
     "Performs lookup for multiple queries and sends all results to callback url"
-    start_time = datetime.datetime.now()
+    start_time = time.time()
 
     async def single_lookup(query_key):
         qid = f"{multiqid}.{str(uuid.uuid4())[:8]}"
@@ -639,8 +640,8 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
         LOGGER.error(
             f"[{multiqid}] Failed to send 'completed' response back to {callback} with error: {e}"
         )
-    end_time = datetime.datetime.now()
-    LOGGER.info(f"[{multiqid}] took {(end_time - start_time).total_seconds()} seconds")
+    end_time = time.time()
+    LOGGER.info(f"[{multiqid}] took {(end_time - start_time)} seconds")
 
 
 @APP.post("/plan", response_model=dict[str, list[str]], include_in_schema=False)
