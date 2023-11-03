@@ -106,7 +106,7 @@ class Normalizer:
         2. Return all synonymous CURIEs that have that prefix.
         """
         try:
-            categories, identifiers, _, _ = self.curie_map[curie]
+            categories, identifiers, _, preferred_curie = self.curie_map[curie]
         except KeyError:
             return [curie]
         # Gather the preferred prefixes for each category, deduplicating while retaining order
@@ -128,6 +128,10 @@ class Normalizer:
             prefixes = identifiers[0].split(":")[0]
 
         # Find CURIEs beginning with the most-preferred prefix
+        nn_preferred_prefix = preferred_curie.split(":")[0]
+        if nn_preferred_prefix in prefixes:
+            return [preferred_curie]
+        # prefixes aren't necessarily ordered by preference
         for prefix in prefixes:
             curies = [_curie for _curie in identifiers if _curie.startswith(prefix)]
             if curies:
