@@ -4,6 +4,7 @@ from collections.abc import Iterable
 import copy
 import json
 import logging
+import uuid
 
 from strider.constraints import enforce_constraints
 from typing import Callable, List
@@ -61,14 +62,20 @@ class Fetcher:
         self,
         qgraph: Graph = None,
         call_stack: List = [],
+        qid: str = '',
     ):
         """Expand from query graph node."""
+        if qid:
+            qid = qid + "." + str(uuid.uuid4())[:8]
+        else:
+            qid = str(uuid.uuid4())[:8]
         # if this is a leaf node, we're done
         if qgraph is None:
             qgraph = Graph(self.qgraph)
         if not qgraph["edges"]:
-            self.logger.info(f"Finished call stack: {(', ').join(call_stack)}")
-            yield QueryGraph.parse_obj(
+            self.logger.info(f"[{qid}] Finished call stack: {(', ').join(call_stack)}")
+            # gets sent to generate_from_result for final result merge and then yield to server.py
+            yield KnowledgeGraph.parse_obj(
                 {"nodes": dict(), "edges": dict()}
             ), Result.parse_obj(
                 {
@@ -77,13 +84,19 @@ class Fetcher:
                 }
             ), AuxiliaryGraphs.parse_obj(
                 {}
-            )
+            ), qid
+            # doesn't kill generator, just don't continue on with function
             return
 
         try:
             qedge_id, qedge = get_next_qedge(qgraph)
         except StopIteration:
+            self.logger.error("Cannot find qedge with pinned endpoint")
             raise RuntimeError("Cannot find qedge with pinned endpoint")
+        except Exception as e:
+            self.logger.error("Unable to get next qedge")
+    
+        self.logger.info(f"[{qid}] Getting results for {qedge_id}")
 
         qedge = qgraph["edges"][qedge_id]
         onehop = {
@@ -97,7 +110,7 @@ class Fetcher:
 
         generators = [
             self.generate_from_kp(
-                qgraph, onehop, self.kps[kp_id], copy.deepcopy(call_stack)
+                qgraph, onehop, self.kps[kp_id], copy.deepcopy(call_stack), qid,
             )
             for kp_id in self.plan[qedge_id]
         ]
@@ -111,11 +124,12 @@ class Fetcher:
         onehop_qgraph,
         kp: KnowledgeProvider,
         call_stack: List,
+        qid: str,
     ):
         """Generate one-hop results from KP."""
         # keep track of call stack for each kp plan branch
         call_stack.append(kp.id)
-        self.logger.info(f"Current call stack: {(', ').join(call_stack)}")
+        self.logger.info(f"[{qid}] Current call stack: {(', ').join(call_stack)}")
         onehop_response = None
         # check if message wants to override the cache
         override_cache = self.parameters.get("override_cache")
@@ -125,7 +139,7 @@ class Fetcher:
             onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
         if onehop_response is not None:
             self.logger.info(
-                f"[{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
+                f"[{qid}] [{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
             )
             onehop_response = Message.parse_obj(onehop_response, normalize=False)
         if onehop_response is None and not settings.offline_mode:
@@ -160,9 +174,9 @@ class Fetcher:
             subqgraph.remove_orphaned()
         else:
             self.logger.info(
-                f"Ending call stack with no results: {(', ').join(call_stack)}"
+                f"[{qid}] Ending call stack with no results: {(', ').join(call_stack)}"
             )
-        for batch_results in batch(onehop_results, 500):
+        for batch_results in batch(onehop_results, 100):
             result_map = defaultdict(list)
             # copy subqgraph between each batch
             # before we fill it with result curies
@@ -232,6 +246,16 @@ class Fetcher:
 
                 # pin nodes
                 for qnode_id, bindings in result.node_bindings.items():
+                    if onehop_qgraph["nodes"][qnode_id].get("ids"):
+                        # if this hop was already pinned, we don't want to add more curies to it.
+                        # This is mainly for subclasses so they don't get propogated to any subsequent
+                        # hops
+                        # TODO: take the following out
+                        # this is just a hacky fix for KPs that aren't providing query_id when they should be
+                        for binding in bindings:
+                            if binding.id not in onehop_qgraph["nodes"][qnode_id]["ids"]:
+                                binding.query_id = onehop_qgraph["nodes"][qnode_id]["ids"][0]
+                        continue
                     if qnode_id not in populated_subqgraph["nodes"]:
                         continue
                     # add curies from result into the qgraph
@@ -242,26 +266,47 @@ class Fetcher:
                             + [binding.id for binding in bindings]
                         )
                     )
+                        
+                # get intersection of result node ids and new sub qgraph
+                # should be empty on last hop because the qgraph is empty
                 qnode_ids = set(populated_subqgraph["nodes"].keys()) & set(
                     result.node_bindings.keys()
                 )
+                # result key becomes ex. ((n0, (MONDO:0005737,)), (n1, (RXCUI:340169,)))
                 key_fcn = lambda res: tuple(
                     (
                         qnode_id,
-                        tuple(binding.id for binding in bindings),  # probably only one
+                        tuple(binding.dict()["qnode_id"] if "qnode_id" in binding.dict() else binding.query_id if binding.query_id else binding.id for binding in bindings),  # probably only one
                     )
-                    for qnode_id, bindings in res.node_bindings.items()
+                    for qnode_id, bindings in sorted(res.node_bindings.items())
                     if qnode_id in qnode_ids
                 )
                 result_map[key_fcn(result)].append(
                     (result, result_kgraph, result_auxgraph)
                 )
 
+                # check if KP gave subclass without a query id
+                for qnode_id, bindings in result.node_bindings.items():
+                    for binding in bindings:
+                        if onehop_qgraph["nodes"][qnode_id].get("ids"):
+                            binding_dict = binding.dict()
+                            qgraph_curie = binding_dict["query_id"] or binding_dict.get("qnode_id")
+                            if qgraph_curie and qgraph_curie != binding.id:
+                                self.logger.error(f"[{qid}] {qgraph_curie} -> {binding.id}")
+                            if not qgraph_curie and binding.id not in onehop_qgraph["nodes"][qnode_id]["ids"]:
+                                self.logger.error(f"[{qid}] {kp.id} gave back {binding.id} and doesn't match what was sent.")
+                                self.logger.error(f"[{qid}] Sent {json.dumps(onehop_qgraph)}")
+                                self.logger.error(f"[{qid}] Got back {result.json()}")
+                self.logger.error(f"[{qid}] put key {key_fcn(result)} in result map")
+
             generators.append(
                 self.generate_from_result(
                     populated_subqgraph,
+                    key_fcn,
                     lambda result: result_map[key_fcn(result)],
+                    result_map,
                     call_stack,
+                    qid,
                 )
             )
 
@@ -272,14 +317,28 @@ class Fetcher:
     async def generate_from_result(
         self,
         qgraph,
+        key_fcn,
         get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
+        result_map,
         call_stack: List,
+        sub_qid: str,
     ):
-        async for subkgraph, subresult, subauxgraph in self.lookup(
+        # self.logger.error(f"[{qid}] Result map: {result_map.keys()}")
+        async for subkgraph, subresult, subauxgraph, qid in self.lookup(
             qgraph,
             call_stack,
+            sub_qid,
         ):
+            self.logger.error(f"[{qid}] looking for key {key_fcn(subresult)}: {subresult.json()}")
+            result_map_keys = result_map.keys()
+            self.logger.error(f"[{sub_qid}] {result_map_keys}")
+            # final hop yield should be empty result
+            if not key_fcn(subresult) in result_map:
+                self.logger.error(f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult)}")
+                self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
+                raise KeyError("Subresult not found in result map")
             for result, kgraph, auxgraph in get_results(subresult):
+                self.logger.debug(f"[{qid}] new subresult: {subresult.json()}")
                 # combine one-hop with subquery results
                 # Need to create a new result with all node bindings combined
                 new_subresult = Result.parse_obj(
@@ -300,7 +359,8 @@ class Fetcher:
                 new_subkgraph.edges.update(kgraph.edges)
                 new_auxgraph = copy.deepcopy(subauxgraph)
                 new_auxgraph.update(auxgraph)
-                yield new_subkgraph, new_subresult, new_auxgraph
+                self.logger.debug(f"[{qid}] merged subresult: {new_subresult.json()}")
+                yield new_subkgraph, new_subresult, new_auxgraph, qid
 
     async def __aenter__(self):
         """Enter context."""

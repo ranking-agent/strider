@@ -483,7 +483,7 @@ async def lookup(
     message_merging_time = 0
 
     async with fetcher:
-        async for result_kgraph, result, result_auxgraph in fetcher.lookup(None):
+        async for result_kgraph, result, result_auxgraph, sub_qid in fetcher.lookup(None):
             # Update the kgraph
             start_merging = time.time()
             output_kgraph.update(result_kgraph)
