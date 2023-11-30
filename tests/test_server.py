@@ -195,7 +195,7 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
                 }
             }
         },
-        ['infores:kp2'],
+        ["infores:kp2"],
         True,
     )
 
@@ -255,7 +255,7 @@ async def test_solve_missing_category(client, monkeypatch, mocker):
                 }
             }
         },
-        ['infores:kp1'],
+        ["infores:kp1"],
         True,
     )
 
@@ -321,7 +321,7 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
                 }
             }
         },
-        ['infores:kp3'],
+        ["infores:kp3"],
         True,
     )
 
