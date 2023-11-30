@@ -12,14 +12,14 @@ class Settings(BaseSettings):
     biolink_url: AnyUrl = "https://bl-lookup-sri.renci.org"
     normalizer_url: AnyUrl = "https://nodenormalization-sri.renci.org"
     max_process_time: int = 3400
-    kp_timeout: int = 600
+    kp_timeout: int = 10
     information_content_threshold: int = 75
     redis_host: str = "localhost"
     redis_port: int = 6379
     redis_expiration: int = 1209600  # two weeks
     redis_password: str = "supersecretpassword"
 
-    jaeger_enabled: str = "False"
+    jaeger_enabled: str = "True"
     jaeger_host: str = "jaeger"
     jaeger_port: int = 6831
 
