@@ -171,7 +171,7 @@ def fix_results(
                 )[0]
                 if node_binding.id == query_id:
                     # remove query_id if equivalent to id
-                    logger.info(
+                    logger.debug(
                         f"Removing query_id {node_binding.query_id} because it is equivalent to {node_binding.id}."
                     )
                     node_binding.query_id = None
@@ -180,7 +180,7 @@ def fix_results(
                     if node_binding.id in message.query_graph.nodes[qnode_id].ids:
                         # if kgraph id in qgraph, then remove query id
                         # this was probably a preferred prefix
-                        logger.info(
+                        logger.debug(
                             f"Removing query_id {node_binding.query_id} because kgraph id is in qgraph."
                         )
                         node_binding.query_id = None

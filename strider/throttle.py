@@ -102,6 +102,7 @@ class ThrottledServer:
                     request_id,
                     payload,
                     response_queue,
+                    call_stack,
                     last_hop,
                 ),
             ) = await self.request_queue.get()
@@ -119,6 +120,7 @@ class ThrottledServer:
                             request_id,
                             payload,
                             response_queue,
+                            call_stack,
                             last_hop,
                         ),
                     ) = self.request_queue.get_nowait()
@@ -156,6 +158,7 @@ class ThrottledServer:
                                 request_id,
                                 request_value_mapping[request_id],
                                 response_queues[request_id],
+                                call_stack,
                                 last_hop,
                             ),
                         )
@@ -203,8 +206,8 @@ class ThrottledServer:
                 merged_request_value = remove_null_values(merged_request_value)
                 # Make request
                 self.logger.info(
-                    "[{id}] Sending request made of {subrequests} subrequests ({curies} curies)".format(
-                        id=self.id,
+                    "[{callstack}] Sending request made of {subrequests} subrequests ({curies} curies)".format(
+                        callstack=", ".join(call_stack),
                         subrequests=len(request_curie_mapping),
                         curies=" x ".join(
                             str(len(qnode.get("ids") or []))
@@ -233,7 +236,7 @@ class ThrottledServer:
                 num_results = len(results)
                 self.logger.info(
                     "[{}] Received response with {} results in {} seconds".format(
-                        self.id,
+                        (", ").join(call_stack),
                         num_results,
                         response.elapsed.total_seconds(),
                     )
@@ -244,16 +247,12 @@ class ThrottledServer:
                     )
 
                 # Parse with reasoner_pydantic to validate
-                start_time = datetime.datetime.now()
                 response_body = ReasonerResponse.parse_obj(response_dict)
-                self.logger.info(
-                    f"Response parsing took {(datetime.datetime.now() - start_time).total_seconds()} seconds"
-                )
                 await self.postproc(response_body, last_hop)
                 new_num_results = len(response_body.message.results or [])
                 if num_results != new_num_results:
                     self.logger.info(
-                        f"Postprocessing took out {num_results - new_num_results} results"
+                        f"[{(', ').join(call_stack)}] Postprocessing took out {num_results - new_num_results} results"
                     )
                 message = response_body.message
 
@@ -295,7 +294,7 @@ class ThrottledServer:
                     # Raise more descriptive error message of response message parsing
                     raise Exception(
                         "[{}] Failed to parse message response: {} with Error: {}".format(
-                            self.id,
+                            (", ").join(call_stack),
                             response_dict,
                             traceback.format_exc(),
                         )
@@ -400,6 +399,7 @@ class ThrottledServer:
     async def _query(
         self,
         query: Query,
+        call_stack: list,
         last_hop: bool,
     ) -> ReasonerResponse:
         """Queue up a query for batching and return when completed"""
@@ -421,7 +421,7 @@ class ThrottledServer:
             # Queue query for processing
             request_id = str(uuid.uuid1())
             await self.request_queue.put(
-                ((request_id, subquery, response_queue, last_hop),)
+                ((request_id, subquery, response_queue, call_stack, last_hop),)
             )
 
         combined_output = ReasonerResponse.parse_obj(
