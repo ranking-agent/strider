@@ -82,6 +82,7 @@ async def test_mixed_canonical(monkeypatch, mocker):
                 },
             },
         },
+        ["infores:kp1"],
         True,
     )
 
@@ -144,6 +145,7 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                 },
             },
         },
+        ['infores:kp1'],
         True,
     )
 
@@ -399,6 +401,7 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
                 },
             },
         },
+        ['infores:kp2'],
         True,
     )
 
@@ -459,6 +462,7 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
                 },
             },
         },
+        ['infores:kp2'],
         True,
     )
 
@@ -522,5 +526,6 @@ async def test_node_set(monkeypatch, mocker):
                 },
             },
         },
+        ['infores:kp1'],
         True,
     )
