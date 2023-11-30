@@ -73,7 +73,7 @@ class ThrottledServer:
         self.worker: Optional[Task] = None
         self.request_queue = asyncio.Queue()
         self.url = url
-        self.max_batch_size = 1
+        self.max_batch_size = max_batch_size
         self.preproc = preproc
         self.postproc = postproc
         self.use_cache = settings.use_cache

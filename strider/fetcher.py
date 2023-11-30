@@ -181,7 +181,7 @@ class Fetcher:
             self.logger.info(
                 f"[{qid}] Ending call stack with no results: {(', ').join(call_stack)}"
             )
-        for batch_results in batch(onehop_results, 100):
+        for batch_results in batch(onehop_results, 1_000_000):
             result_map = defaultdict(list)
             # copy subqgraph between each batch
             # before we fill it with result curies
