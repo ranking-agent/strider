@@ -566,7 +566,9 @@ async def async_lookup(
             "status_communication": {"strider_process_status": "error"},
         }
     try:
-        LOGGER.info(f"[{qid}] Posting to callback {callback}")
+        msg = query_results.get("message") or {}
+        num_results = len(msg.get("results") or [])
+        LOGGER.info(f"[{qid}] Posting async query response with {num_results} results to {callback}")
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
             res = await client.post(callback, json=query_results)
             LOGGER.info(f"[{qid}] Posted to {callback} with code {res.status_code}")
