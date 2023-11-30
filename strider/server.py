@@ -483,7 +483,9 @@ async def lookup(
     message_merging_time = 0
 
     async with fetcher:
-        async for result_kgraph, result, result_auxgraph, sub_qid in fetcher.lookup(None):
+        async for result_kgraph, result, result_auxgraph, sub_qid in fetcher.lookup(
+            None
+        ):
             # Update the kgraph
             start_merging = time.time()
             output_kgraph.update(result_kgraph)
@@ -568,7 +570,9 @@ async def async_lookup(
     try:
         msg = query_results.get("message") or {}
         num_results = len(msg.get("results") or [])
-        LOGGER.info(f"[{qid}] Posting async query response with {num_results} results to {callback}")
+        LOGGER.info(
+            f"[{qid}] Posting async query response with {num_results} results to {callback}"
+        )
         async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
             res = await client.post(callback, json=query_results)
             LOGGER.info(f"[{qid}] Posted to {callback} with code {res.status_code}")
