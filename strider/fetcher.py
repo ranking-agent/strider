@@ -197,27 +197,35 @@ class Fetcher:
                 for qnode_id, bindings in result.node_bindings.items():
                     for binding in bindings:
                         if onehop_qgraph["nodes"][qnode_id].get("ids"):
-                            binding_dict = binding.dict()
-                            qgraph_curie = binding_dict["query_id"] or binding_dict.get(
-                                "qnode_id"
-                            )
-                            if qgraph_curie and qgraph_curie != binding.id:
+                            if binding.query_id and binding.query_id != binding.id:
                                 self.logger.debug(
-                                    f"[{qid}] {qgraph_curie} -> {binding.id}"
+                                    f"[{qid}] {binding.query_id} -> {binding.id}"
                                 )
-                            if (
-                                not qgraph_curie
-                                and binding.id
+                            elif (
+                                binding.id
                                 not in onehop_qgraph["nodes"][qnode_id]["ids"]
                             ):
                                 # This is most likely an issue with this KP and we should repoort this issue to them
                                 self.logger.error(
-                                    f"[{qid}] {kp.id} gave back {binding.id} and doesn't match what was sent."
+                                    f"[{qid}] {kp.id} gave back {binding.id} with no query_id and doesn't match what was sent."
                                 )
                                 self.logger.error(
                                     f"[{qid}] Sent {json.dumps(onehop_qgraph)}"
                                 )
                                 self.logger.error(f"[{qid}] Got back {result.json()}")
+                                # TODO: take the following out once kps get fixed enough
+                                # this is just a hacky fix for KPs that aren't providing query_id when they should be
+                                binding_dict = binding.dict()
+                                qgraph_curie = binding_dict.get(
+                                    "qnode_id"
+                                )
+                                query_id = qgraph_curie or onehop_qgraph["nodes"][qnode_id][
+                                    "ids"
+                                ][0]
+                                self.logger.error(
+                                    f"[{qid}] Setting {query_id} query id on {binding.id}"
+                                )
+                                binding.query_id = query_id
                 # add edge to results and kgraph
 
                 # collect all auxiliary graph ids from results and edges
@@ -288,28 +296,12 @@ class Fetcher:
                 for qnode_id, bindings in result.node_bindings.items():
                     if qnode_id not in populated_subqgraph["nodes"]:
                         continue
-                    if onehop_qgraph["nodes"][qnode_id].get("ids"):
-                        # if this hop was already pinned, we don't want to add more curies to it.
-                        # This is mainly for subclasses so they don't get propogated to any subsequent
-                        # hops
-                        # TODO: take the following out
-                        # this is just a hacky fix for KPs that aren't providing query_id when they should be
-                        for binding in bindings:
-                            if (
-                                binding.id
-                                not in onehop_qgraph["nodes"][qnode_id]["ids"]
-                            ):
-                                self.logger.debug(
-                                    f"[{qid}] Setting query id on {binding.id}"
-                                )
-                                binding.query_id = onehop_qgraph["nodes"][qnode_id][
-                                    "ids"
-                                ][0]
                     # add curies from result into the qgraph
-                    # need to call set() to remove any duplicates
                     populated_subqgraph["nodes"][qnode_id]["ids"] = list(
+                        # need to call set() to remove any duplicates
                         set(
                             (populated_subqgraph["nodes"][qnode_id].get("ids") or [])
+                            # use query_id (original curie) for any subclass results
                             + [binding.query_id or binding.id for binding in bindings]
                         )
                     )
@@ -332,6 +324,7 @@ class Fetcher:
                             for binding in bindings
                         ),  # probably only one
                     )
+                    # for cyclic queries, the qnode ids can get out of order, so we need to sort the keys
                     for qnode_id, bindings in sorted(res.node_bindings.items())
                     if qnode_id in qnode_ids
                 )
@@ -365,7 +358,6 @@ class Fetcher:
         call_stack: List,
         sub_qid: str,
     ):
-        # self.logger.error(f"[{qid}] Result map: {result_map.keys()}")
         async for subkgraph, subresult, subauxgraph, qid in self.lookup(
             qgraph,
             call_stack,
@@ -374,11 +366,11 @@ class Fetcher:
             self.logger.debug(
                 f"[{qid}] looking for key {key_fcn(subresult)}: {subresult.json()}"
             )
-            # final hop yield should be empty result
             if not key_fcn(subresult) in result_map:
                 self.logger.error(
                     f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult)}"
                 )
+                self.logger.error(f"[{sub_qid}] Result map: {result_map.keys()}")
                 self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
                 raise KeyError("Subresult not found in result map")
             for result, kgraph, auxgraph in get_results(subresult):
