@@ -54,7 +54,10 @@ class Fetcher:
         self.logger: logging.Logger = logger
         self.normalizer = Normalizer(self.logger)
         self.kps = dict()
-        self.parameters = parameters
+        self.parameters = {
+            **parameters,
+            "batch_size": parameters.get("batch_size") or 1_000_000,
+        }
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
 
@@ -181,7 +184,7 @@ class Fetcher:
             self.logger.info(
                 f"[{qid}] Ending call stack with no results: {(', ').join(call_stack)}"
             )
-        for batch_results in batch(onehop_results, 1_000_000):
+        for batch_results in batch(onehop_results, self.parameters["batch_size"]):
             result_map = defaultdict(list)
             # copy subqgraph between each batch
             # before we fill it with result curies
