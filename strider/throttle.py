@@ -27,6 +27,7 @@ from .throttle_utils import (
     get_keys_with_value,
     log_response,
     get_curies,
+    get_max_num_curies,
     remove_curies,
     filter_by_curie_mapping,
 )
@@ -61,7 +62,6 @@ class ThrottledServer:
         id: str,
         url: str,
         *args,
-        max_batch_size: Optional[int] = None,
         preproc: Callable = anull,
         postproc: Callable = anull,
         logger: logging.Logger = None,
@@ -73,7 +73,6 @@ class ThrottledServer:
         self.worker: Optional[Task] = None
         self.request_queue = asyncio.Queue()
         self.url = url
-        self.max_batch_size = max_batch_size
         self.preproc = preproc
         self.postproc = postproc
         self.use_cache = settings.use_cache
@@ -109,10 +108,9 @@ class ThrottledServer:
             request_value_mapping = {request_id: payload}
             response_queues = {request_id: response_queue}
             while True:
-                if (
-                    self.max_batch_size is not None
-                    and len(request_value_mapping) == self.max_batch_size
-                ):
+                # check if we've reached the max batch size
+                max_curies = get_max_num_curies(request_value_mapping.values())
+                if max_curies >= self.parameters["batch_size"]:
                     break
                 try:
                     (
@@ -125,6 +123,23 @@ class ThrottledServer:
                         ),
                     ) = self.request_queue.get_nowait()
                 except QueueEmpty:
+                    break
+                # check if we've hit max batch size with the newly added request
+                max_curies = get_max_num_curies(request_value_mapping.values())
+                if max_curies >= self.parameters["batch_size"]:
+                    # need to put this request back on the queue cause it didn't fit
+                    # within batch size
+                    await self.request_queue.put(
+                        (
+                            (
+                                request_id,
+                                payload,
+                                response_queue,
+                                call_stack,
+                                last_hop,
+                            ),
+                        )
+                    )
                     break
                 request_value_mapping[request_id] = payload
                 response_queues[request_id] = response_queue
