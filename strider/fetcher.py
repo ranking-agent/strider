@@ -219,12 +219,11 @@ class Fetcher:
                                 # TODO: take the following out once kps get fixed enough
                                 # this is just a hacky fix for KPs that aren't providing query_id when they should be
                                 binding_dict = binding.dict()
-                                qgraph_curie = binding_dict.get(
-                                    "qnode_id"
+                                qgraph_curie = binding_dict.get("qnode_id")
+                                query_id = (
+                                    qgraph_curie
+                                    or onehop_qgraph["nodes"][qnode_id]["ids"][0]
                                 )
-                                query_id = qgraph_curie or onehop_qgraph["nodes"][qnode_id][
-                                    "ids"
-                                ][0]
                                 self.logger.error(
                                     f"[{qid}] Setting {query_id} query id on {binding.id}"
                                 )
