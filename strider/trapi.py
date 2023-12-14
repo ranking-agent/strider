@@ -19,6 +19,9 @@ from reasoner_pydantic.utils import HashableSequence
 from strider.utils import (
     WBMT,
 )
+from strider.throttle_utils import (
+    get_curies,
+)
 from strider.normalizer import Normalizer
 from strider.config import settings
 
@@ -221,12 +224,16 @@ def filter_message(
     information_content_threshold: int = settings.information_content_threshold,
 ) -> None:
     """Filter all nodes based on information content."""
+    pinned_nodes = get_curies(message.query_graph)
     kept_knowledge_graph = KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}})
     kept_results = Results.parse_obj([])
     kept_aux_graphs = AuxiliaryGraphs.parse_obj({})
     for result in message.results or []:
         keep = True
-        for node_bindings in result.node_bindings.values():
+        for qnode_id, node_bindings in result.node_bindings.items():
+            if qnode_id in pinned_nodes:
+                # don't filter any pinned nodes
+                continue
             for node_binding in node_bindings:
                 curie = curie_map.get(node_binding.id)
                 if (
@@ -249,6 +256,9 @@ def filter_message(
                     keep = False
                     if node_binding.id in message.knowledge_graph.nodes:
                         # remove nodes from kgraph
+                        logger.debug(
+                            f"Removing {node_binding.id} because it's highly promiscuous"
+                        )
                         message.knowledge_graph.nodes.pop(node_binding.id)
         if keep:
             # keep any results that don't have promiscuous nodes
