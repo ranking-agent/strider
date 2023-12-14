@@ -136,13 +136,9 @@ async def test_aux_graph_edges_are_kept():
 
     response = copy.deepcopy(response_with_aux_graphs)
 
-    response["message"]["knowledge_graph"]["edges"][
-        "extra_edge_2"
-    ] = extra_edge_2
+    response["message"]["knowledge_graph"]["edges"]["extra_edge_2"] = extra_edge_2
 
-    response["message"]["auxiliary_graphs"]["1"]["edges"].append(
-        "extra_edge_2"
-    )
+    response["message"]["auxiliary_graphs"]["1"]["edges"].append("extra_edge_2")
 
     msg = Response.parse_obj(response)
 
