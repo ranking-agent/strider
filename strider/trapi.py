@@ -1,6 +1,7 @@
 """TRAPI utilities."""
 from itertools import product
 import logging
+import traceback
 import typing
 
 import bmt
@@ -261,39 +262,48 @@ def filter_message(
                         )
                         message.knowledge_graph.nodes.pop(node_binding.id)
         if keep:
-            # keep any results that don't have promiscuous nodes
-            kept_results.append(result)
-            for analysis in result.analyses or []:
-                # add support graphs from result
-                for support_graph_id in analysis.support_graphs or []:
-                    kept_aux_graphs[support_graph_id] = message.auxiliary_graphs[
-                        support_graph_id
-                    ]
-                    for edge_id in message.auxiliary_graphs[support_graph_id].edges:
-                        kept_knowledge_graph.edges[
-                            edge_id
-                        ] = message.knowledge_graph.edges[edge_id]
-                # add edges from result
-                for edge_bindings in analysis.edge_bindings.values():
-                    for edge_binding in edge_bindings:
-                        kept_knowledge_graph.edges[
-                            edge_binding.id
-                        ] = message.knowledge_graph.edges[edge_binding.id]
-                        # add support graphs from edge
-                        for attribute in (
-                            kept_knowledge_graph.edges[edge_binding.id].attributes or []
-                        ):
-                            if attribute.attribute_type_id == "biolink:support_graphs":
-                                for aux_graph_id in attribute.value:
-                                    kept_aux_graphs[
-                                        aux_graph_id
-                                    ] = message.auxiliary_graphs[aux_graph_id]
-                                    for edge_id in message.auxiliary_graphs[
-                                        aux_graph_id
-                                    ].edges:
-                                        kept_knowledge_graph.edges[
-                                            edge_id
-                                        ] = message.knowledge_graph.edges[edge_id]
+            try:
+                for analysis in result.analyses or []:
+                    # add support graphs from result
+                    for support_graph_id in analysis.support_graphs or []:
+                        kept_aux_graphs[support_graph_id] = message.auxiliary_graphs[
+                            support_graph_id
+                        ]
+                        for edge_id in message.auxiliary_graphs[support_graph_id].edges:
+                            kept_knowledge_graph.edges[
+                                edge_id
+                            ] = message.knowledge_graph.edges[edge_id]
+                    # add edges from result
+                    for edge_bindings in analysis.edge_bindings.values():
+                        for edge_binding in edge_bindings:
+                            kept_knowledge_graph.edges[
+                                edge_binding.id
+                            ] = message.knowledge_graph.edges[edge_binding.id]
+                            # add support graphs from edge
+                            for attribute in (
+                                kept_knowledge_graph.edges[edge_binding.id].attributes
+                                or []
+                            ):
+                                if (
+                                    attribute.attribute_type_id
+                                    == "biolink:support_graphs"
+                                ):
+                                    for aux_graph_id in attribute.value:
+                                        kept_aux_graphs[
+                                            aux_graph_id
+                                        ] = message.auxiliary_graphs[aux_graph_id]
+                                        for edge_id in message.auxiliary_graphs[
+                                            aux_graph_id
+                                        ].edges:
+                                            kept_knowledge_graph.edges[
+                                                edge_id
+                                            ] = message.knowledge_graph.edges[edge_id]
+                # keep any results that don't have promiscuous nodes
+                # only add result if all the knowledge and aux graph stuff worked out
+                kept_results.append(result)
+            except Exception as e:
+                logger.error(f"Error while filtering message: {str(e)}")
+                logger.debug(traceback.format_exc())
 
     message.results = kept_results
     if message.knowledge_graph:
