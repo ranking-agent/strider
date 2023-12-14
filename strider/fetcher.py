@@ -200,7 +200,14 @@ class Fetcher:
                 for qnode_id, bindings in result.node_bindings.items():
                     for binding in bindings:
                         if onehop_qgraph["nodes"][qnode_id].get("ids"):
-                            if binding.query_id and binding.query_id != binding.id:
+                            if (
+                                binding.query_id
+                                and binding.query_id != binding.id
+                                and
+                                # check that query_id is in fact valid
+                                binding.query_id
+                                in onehop_qgraph["nodes"][qnode_id]["ids"]
+                            ):
                                 self.logger.debug(
                                     f"[{qid}] {binding.query_id} -> {binding.id}"
                                 )
@@ -210,7 +217,7 @@ class Fetcher:
                             ):
                                 # This is most likely an issue with this KP and we should repoort this issue to them
                                 self.logger.error(
-                                    f"[{qid}] {kp.id} gave back {binding.id} with no query_id and doesn't match what was sent."
+                                    f"[{qid}] {kp.id} gave back {binding.id} and doesn't match what was sent."
                                 )
                                 self.logger.error(
                                     f"[{qid}] Sent {json.dumps(onehop_qgraph)}"
@@ -219,7 +226,18 @@ class Fetcher:
                                 # TODO: take the following out once kps get fixed enough
                                 # this is just a hacky fix for KPs that aren't providing query_id when they should be
                                 binding_dict = binding.dict()
-                                qgraph_curie = binding_dict.get("qnode_id")
+                                qgraph_curie = binding_dict.get(
+                                    "qnode_id", binding.query_id
+                                )
+                                if (
+                                    qgraph_curie
+                                    not in onehop_qgraph["nodes"][qnode_id]["ids"]
+                                ):
+                                    self.logger.error(
+                                        f"[{qid}] Open an issue on this KP. {qgraph_curie} as given as a query id but doesn't match what was sent."
+                                    )
+                                    # set to none so the first id of what was sent will be used
+                                    qgraph_curie = None
                                 query_id = (
                                     qgraph_curie
                                     or onehop_qgraph["nodes"][qnode_id]["ids"][0]
@@ -318,11 +336,7 @@ class Fetcher:
                     (
                         qnode_id,
                         tuple(
-                            binding.dict()["qnode_id"]
-                            if "qnode_id" in binding.dict()
-                            else binding.query_id
-                            if binding.query_id
-                            else binding.id
+                            binding.query_id if binding.query_id else binding.id
                             for binding in bindings
                         ),  # probably only one
                     )
@@ -334,7 +348,9 @@ class Fetcher:
                     (result, result_kgraph, result_auxgraph)
                 )
 
-                self.logger.debug(f"[{qid}] put key {key_fcn(result)} in result map")
+                self.logger.debug(
+                    f"[{qid}] {kp.id} put key {key_fcn(result)} in result map"
+                )
 
             generators.append(
                 self.generate_from_result(
@@ -376,7 +392,6 @@ class Fetcher:
                 self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
                 raise KeyError("Subresult not found in result map")
             for result, kgraph, auxgraph in get_results(subresult):
-                self.logger.debug(f"[{qid}] new subresult: {subresult.json()}")
                 # combine one-hop with subquery results
                 # Need to create a new result with all node bindings combined
                 new_subresult = Result.parse_obj(
@@ -397,7 +412,6 @@ class Fetcher:
                 new_subkgraph.edges.update(kgraph.edges)
                 new_auxgraph = copy.deepcopy(subauxgraph)
                 new_auxgraph.update(auxgraph)
-                self.logger.debug(f"[{qid}] merged subresult: {new_subresult.json()}")
                 yield new_subkgraph, new_subresult, new_auxgraph, qid
 
     async def __aenter__(self):
