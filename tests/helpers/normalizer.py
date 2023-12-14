@@ -7,7 +7,7 @@ from pydantic.main import BaseModel
 
 
 def norm_router(
-    synset_mappings: dict[str, list], category_mappings: dict[str, list], ic: int = 100
+    synset_mappings: dict[str, list], category_mappings: dict[str, list], ic: dict[str, list],
 ):
     """Generate node-normalization router."""
     router = APIRouter()
@@ -24,7 +24,7 @@ def norm_router(
                 {"identifier": synonym} for synonym in synset_mappings.get(curie, [])
             ],
             "type": category_mappings.get(curie, []),
-            "information_content": ic,
+            "information_content": ic.get(curie, 100),
         }
 
     @router.get("/get_normalized_nodes")
