@@ -1,3 +1,4 @@
+import copy
 import logging
 import pytest
 from reasoner_pydantic import Response
@@ -66,6 +67,9 @@ async def test_node_filtered():
     MESH:D008687 categories biolink:ChemicalEntity
     MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
     MESH:D008687 information_content 100
+    MESH:D014867 categories biolink:ChemicalEntity
+    MESH:D014867 synonyms PUBCHEM.COMPOUND:4901
+    MESH:D014867 information_content 74
 """,
 )
 async def test_aux_graph_filtering():
@@ -76,23 +80,19 @@ async def test_aux_graph_filtering():
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
-    response_with_aux_graphs["message"]["auxiliary_graphs"]["test"] = {
-        "edges": [
-            "test_edge",
-        ],
-    }
+    response = copy.deepcopy(response_with_aux_graphs)
 
-    msg = Response.parse_obj(response_with_aux_graphs)
+    msg = Response.parse_obj(response)
 
-    assert len(list(msg.message.auxiliary_graphs.keys())) == 3
-    assert len(msg.message.results) == 1
+    assert len(list(msg.message.auxiliary_graphs.keys())) == 1
+    assert len(msg.message.results) == 2
 
     processor = provider.get_postprocessor(preferred_prefixes)
 
     await processor(msg, False)
 
     # test aux graph should be removed
-    assert len(list(msg.message.auxiliary_graphs.keys())) == 2
+    assert len(list(msg.message.auxiliary_graphs.keys())) == 0
     assert len(msg.message.results) == 1
 
 
@@ -116,10 +116,10 @@ async def test_aux_graph_edges_are_kept():
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
 
-    extra_edge_3 = {
-        "subject": "MESH:D014867",
-        "object": "MONDO:0005148",
-        "predicate": "biolink:positively_correlates_with",
+    extra_edge_2 = {
+        "subject": "MONDO:0005148",
+        "object": "MESH:D014867",
+        "predicate": "biolink:subclass_of",
         "attributes": [
             {
                 "value": "infores:kp1",
@@ -134,22 +134,27 @@ async def test_aux_graph_edges_are_kept():
         ],
     }
 
-    response_with_aux_graphs["message"]["knowledge_graph"]["edges"][
-        "extra_edge_3"
-    ] = extra_edge_3
+    response = copy.deepcopy(response_with_aux_graphs)
 
-    response_with_aux_graphs["message"]["auxiliary_graphs"]["2"]["edges"].append(
-        "extra_edge_3"
+    response["message"]["knowledge_graph"]["edges"][
+        "extra_edge_2"
+    ] = extra_edge_2
+
+    response["message"]["auxiliary_graphs"]["1"]["edges"].append(
+        "extra_edge_2"
     )
 
-    msg = Response.parse_obj(response_with_aux_graphs)
+    msg = Response.parse_obj(response)
 
-    assert len(list(msg.message.knowledge_graph.edges.keys())) == 4
+    assert len(list(msg.message.knowledge_graph.edges.keys())) == 3
 
     processor = provider.get_postprocessor(preferred_prefixes)
 
     await processor(msg, False)
 
-    assert len(list(msg.message.auxiliary_graphs.keys())) == 2
-    # extra edge 3 should be kept
-    assert len(list(msg.message.knowledge_graph.edges.keys())) == 4
+    print(msg.message.auxiliary_graphs.json())
+
+    assert len(list(msg.message.auxiliary_graphs.keys())) == 1
+    assert len(msg.message.results) == 2
+    # extra edge should be kept
+    assert len(list(msg.message.knowledge_graph.edges.keys())) == 3

@@ -394,8 +394,8 @@ response_with_aux_graphs = {
     "message": {
         "query_graph": {
             "nodes": {
-                "n0": {"ids": ["MESH:D008687"]},
-                "n1": {"categories": ["biolink:Disease"]},
+                "n0": {"ids": ["MONDO:0005148"]},
+                "n1": {"categories": ["biolink:ChemicalEntity"]},
             },
             "edges": {
                 "n0n1": {
@@ -426,19 +426,13 @@ response_with_aux_graphs = {
             },
             "edges": {
                 "n0n1": {
-                    "subject": "MESH:D008687",
-                    "object": "MONDO:0005148",
+                    "subject": "MONDO:0005148",
+                    "object": "MESH:D008687",
                     "predicate": "biolink:treats",
                     "attributes": [
                         {
                             "value": "infores:kp3",
                             "attribute_type_id": "biolink:knowledge_source",
-                        },
-                        {
-                            "attribute_type_id": "biolink:support_graphs",
-                            "value": [
-                                "2",
-                            ],
                         },
                     ],
                     "sources": [
@@ -449,26 +443,9 @@ response_with_aux_graphs = {
                     ],
                 },
                 "extra_edge_1": {
-                    "subject": "MESH:D014867",
-                    "object": "MONDO:0005148",
-                    "predicate": "biolink:treats",
-                    "attributes": [
-                        {
-                            "value": "infores:kp3",
-                            "attribute_type_id": "biolink:knowledge_source",
-                        },
-                    ],
-                    "sources": [
-                        {
-                            "resource_id": "infores:kp3",
-                            "resource_role": "primary_knowledge_source",
-                        },
-                    ],
-                },
-                "extra_edge_2": {
-                    "subject": "MESH:D014867",
-                    "object": "MONDO:0005148",
-                    "predicate": "biolink:ameliorates",
+                    "subject": "MESH:D008687",
+                    "object": "MESH:D014867",
+                    "predicate": "biolink:subclass_of",
                     "attributes": [
                         {
                             "value": "infores:kp3",
@@ -489,12 +466,38 @@ response_with_aux_graphs = {
                 "node_bindings": {
                     "n0": [
                         {
-                            "id": "MESH:D008687",
+                            "id": "MONDO:0005148",
                         },
                     ],
                     "n1": [
                         {
+                            "id": "MESH:D008687",
+                        },
+                    ],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "kp3",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+            {
+                "node_bindings": {
+                    "n0": [
+                        {
                             "id": "MONDO:0005148",
+                        },
+                    ],
+                    "n1": [
+                        {
+                            "id": "MESH:D014867",
                         },
                     ],
                 },
@@ -519,11 +522,6 @@ response_with_aux_graphs = {
             "1": {
                 "edges": [
                     "extra_edge_1",
-                ],
-            },
-            "2": {
-                "edges": [
-                    "extra_edge_2",
                 ],
             },
         },

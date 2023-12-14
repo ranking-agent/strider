@@ -49,7 +49,7 @@ async def norm_overlay(
             norm_router(
                 synset_mappings=normalizer_data_dict["synset_mappings"],
                 category_mappings=normalizer_data_dict["category_mappings"],
-                ic=normalizer_data_dict.get("information_content", 75),
+                ic=normalizer_data_dict["information_content"],
             )
         )
         await stack.enter_async_context(ASGIAR(app, host=url_to_host(url)))

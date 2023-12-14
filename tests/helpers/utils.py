@@ -401,7 +401,7 @@ def normalizer_data_from_string(s):
 
     category_mappings = defaultdict(list)
     synset_mappings = defaultdict(list)
-    information_content = 100
+    information_content = defaultdict(lambda x: 100)
     for line in s.splitlines():
         tokens = line.split(" ")
         curie = tokens[0]
@@ -420,7 +420,7 @@ def normalizer_data_from_string(s):
             # the primary CURIE
             synset_mappings[curie] = sorted(line_data + synset_mappings[curie])
         elif action == "information_content":
-            information_content = int(line_data[0])
+            information_content[curie] = int(line_data[0])
         else:
             raise ValueError(f"Invalid line: {line}")
 
