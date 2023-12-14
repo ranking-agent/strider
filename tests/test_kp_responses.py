@@ -152,8 +152,8 @@ async def test_kp_500(client, monkeypatch):
     output = response.json()
 
     # Check that we stored the error
-    assert "Response Error contacting infores:kp0" in output["logs"][3]["message"]
-    assert "Internal server error" in output["logs"][3]["response"]["data"]
+    assert any("Response Error contacting infores:kp0" in log["message"] for log in output["logs"])
+    assert any("Internal server error" in log.get("response", {}).get("data", "") for log in output["logs"])
     # Ensure we have results from the other KPs
     assert len(output["message"]["knowledge_graph"]["nodes"]) > 0
     assert len(output["message"]["knowledge_graph"]["edges"]) > 0
