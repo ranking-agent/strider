@@ -273,7 +273,7 @@ async def generate_from_strider(
             ) and (target_node_curie not in sent_curies) # handle last hop where we actually ask for target node
         ):
             # add results for next hop
-            results.add(result)
+            results.append(result)
         elif (
             len(onehop_qgraph["edges"]) > 1 and any(
                 target_node_curie in [node_binding.id for node_binding in node_bindings]
