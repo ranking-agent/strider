@@ -484,6 +484,71 @@ async def generate_from_result(
             new_auxgraph.update(auxgraph)
             yield new_subkgraph, new_subresult, new_auxgraph, qid
 
+async def combine_results(query_graph, message):
+    # output should have only one result, with node bindings from original query_graph
+    output_result = {
+        "node_bindings": {},
+        "analyses": []
+    }
+    for qid, qnode in query_graph["nodes"]:
+        output_result["node_bindings"][qid] = qnode["ids"]
+    # we can use the aux graphs and kg from the original message as the base
+    output_kg = message["knowledge_graph"]
+    output_aux = message["auxiliary_graph"]
+    qedge_id = next(iter(query_graph["edges"].keys()))
+    for result in message["results"]:
+        for analysis in result["analyses"]:
+            # create a new auxgraph for each analysis of each result (there should only be one analysis per result)
+            aux_graph = {"edges":[]}
+            aux_graph_id = str(uuid.uuid4())
+            for edge_binding in analysis["edge_bindings"].values():
+                for e in edge_binding:
+                    # use edge bindings to creat the aux graph
+                    aux_graph["edges"].append(e["id"])
+            output_aux[aux_graph_id] = aux_graph
+            # create a new kedge for this path and add the aux graph as a support graph
+            edge_id = str(uuid.uuid4())
+            output_kg["edges"][edge_id] = {
+                "subject": "PUBCHEM.COMPOUND:5291",
+                "object": "MONDO:0004979",
+                "predicate": "biolink:related_to",
+                "sources": [
+                    {
+                        "resource_id": "infores:boromir",
+                        "resource_role": "primary_knowledge_source"
+                    }
+                ],
+                "attributes": [
+                    {
+                        "attribute_type_id": "biolink:support_graphs",
+                        "value": [aux_graph_id]
+                    }
+                ]
+            }
+            # create a new analysis with the new edge as the edge binding
+            ana = {
+                "resource_id": "infores:boromir",
+                "edge_bindings": {
+                    "e0": [
+                        {
+                            "id": edge_id
+                        }
+                ]
+                },
+                "support_graphs": analysis["support_graphs"],
+                "score": analysis["score"]
+            }
+            output_result["analyses"].append(ana)
+
+    output = {
+        "message": {
+            "query_graph": query_graph,
+            "knoweldge_graph": output_kg,
+            "results": [output_result],
+            "auxiliary_graphs": output_aux
+        }
+    }
+    return output
 
 async def main():
     unsolved_qgraph = Graph(copy.deepcopy(message["message"]["query_graph"]))
@@ -560,15 +625,18 @@ async def main():
         )
     )
 
+    with open("penultimate_response.json", "w") as f:
+        json.dump(output_query.dict(exclude_none=True), f, indent=2)
+
+
     # combine results
-    # merged_output_query = combine_results(
-    #     target_node_id,
-    #     message["message"]["query_graph"],
-    #     output_query,
-    # )
+    merged_output_query = combine_results(
+        message["message"]["query_graph"],
+        output_query.message.dict(),
+    )
 
     with open("final_response.json", "w") as f:
-        json.dump(output_query.dict(exclude_none=True), f, indent=2)
+        json.dump(merged_output_query.dict(exclude_none=True), f, indent=2)
 
 
 if __name__ == "__main__":
