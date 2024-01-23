@@ -18,6 +18,8 @@ import json
 import logging
 from reasoner_pydantic import (
     KnowledgeGraph,
+    Node,
+    QNode,
     Message,
     AuxiliaryGraphs,
     Result,
@@ -25,6 +27,7 @@ from reasoner_pydantic import (
     Response,
     Query,
     QueryGraph,
+    Workflow,
 )
 from reasoner_pydantic.utils import HashableMapping
 from typing import Callable, List
@@ -251,6 +254,8 @@ async def generate_from_strider(
 
     # convert to pydantic to do result parsing
     onehop_response = Response.parse_obj(lookup_response).message
+    with open("normalized_lookup.json", "w") as f:
+        json.dump(onehop_response.dict(), f, indent=2)
     onehop_kgraph = onehop_response.knowledge_graph
     onehop_results = onehop_response.results
     onehop_auxgraphs = onehop_response.auxiliary_graphs
@@ -311,19 +316,28 @@ async def generate_from_strider(
             )
         
     # put target back in and add to all result node bindings
-    lookup_response["message"]["knowledge_graph"]["nodes"][target_node_curie] = message["message"]["knowledge_graph"]["nodes"][target_node_curie]
-    lookup_response["message"]["query_graph"]["nodes"][target_node_id] = message["message"]["query_graph"]["nodes"][target_node_id]
+    onehop_kgraph.nodes[target_node_curie] = Node.parse_obj(message["message"]["knowledge_graph"]["nodes"][target_node_curie])
+    onehop_response.query_graph.nodes[target_node_id] = QNode.parse_obj(message["message"]["query_graph"]["nodes"][target_node_id])
     for result in results:
         result.node_bindings[target_node_id] = [{"id": target_node_curie}]
     # results was a pydantic object, now just turn it back into a dict for Aragorn
-    lookup_response["message"]["results"] = results.dict()
-    lookup_response["workflow"] = [
-        {"id": "overlay_connect_knodes"},
-        {"id": "score"},
-        {"id": "sort_results_score", "parameters": {"ascending_or_descending": "descending"}},
-        {"id": "filter_results_top_n", "parameters": {"max_results": num_results}},
-        {"id": "filter_kgraph_orphans"},
-    ]
+    lookup_response = Query(
+        message=Message(
+            query_graph=onehop_response.query_graph,
+            knowledge_graph=onehop_kgraph,
+            results=results,
+            auxiliary_graphs=onehop_auxgraphs,
+        ),
+        workflow=Workflow.parse_obj([
+            {"id": "overlay_connect_knodes"},
+            {"id": "score"},
+            {"id": "sort_results_score", "parameters": {"ascending_or_descending": "descending"}},
+            {"id": "filter_results_top_n", "parameters": {"max_results": num_results}},
+            {"id": "filter_kgraph_orphans"},
+        ]),
+    ).dict()
+    with open("lookup_response_temp.json", "w") as f:
+        json.dump(lookup_response, f, indent=2)
     logging.info(f"Sending {len(lookup_response['message']['results'])} results for scoring and filtering.")
     async with httpx.AsyncClient(timeout=300) as client:
         ranked_response = await client.post(
