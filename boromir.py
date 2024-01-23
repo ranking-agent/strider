@@ -484,19 +484,19 @@ async def generate_from_result(
             new_auxgraph.update(auxgraph)
             yield new_subkgraph, new_subresult, new_auxgraph, qid
 
-async def combine_results(query_graph, message):
+def combine_results(query_graph, m):
     # output should have only one result, with node bindings from original query_graph
     output_result = {
         "node_bindings": {},
         "analyses": []
     }
-    for qid, qnode in query_graph["nodes"]:
+    for qid, qnode in query_graph["nodes"].items():
         output_result["node_bindings"][qid] = qnode["ids"]
     # we can use the aux graphs and kg from the original message as the base
-    output_kg = message["knowledge_graph"]
-    output_aux = message["auxiliary_graph"]
+    output_kg = m["knowledge_graph"]
+    output_aux = m["auxiliary_graphs"]
     qedge_id = next(iter(query_graph["edges"].keys()))
-    for result in message["results"]:
+    for result in m["results"]:
         for analysis in result["analyses"]:
             # create a new auxgraph for each analysis of each result (there should only be one analysis per result)
             aux_graph = {"edges":[]}
@@ -543,7 +543,7 @@ async def combine_results(query_graph, message):
     output = {
         "message": {
             "query_graph": query_graph,
-            "knoweldge_graph": output_kg,
+            "knowledge_graph": output_kg,
             "results": [output_result],
             "auxiliary_graphs": output_aux
         }
@@ -636,7 +636,7 @@ async def main():
     )
 
     with open("final_response.json", "w") as f:
-        json.dump(merged_output_query.dict(exclude_none=True), f, indent=2)
+        json.dump(merged_output_query, f, indent=2)
 
 
 if __name__ == "__main__":
