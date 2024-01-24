@@ -319,7 +319,7 @@ async def generate_from_strider(
     onehop_kgraph.nodes[target_node_curie] = Node.parse_obj(message["message"]["knowledge_graph"]["nodes"][target_node_curie])
     onehop_response.query_graph.nodes[target_node_id] = QNode.parse_obj(message["message"]["query_graph"]["nodes"][target_node_id])
     for result in results:
-        result.node_bindings[target_node_id] = [{"id": target_node_curie}]
+        result.node_bindings[target_node_id] = result.node_bindings.get(target_node_id, [{"id": target_node_curie}])
     # results was a pydantic object, now just turn it back into a dict for Aragorn
     lookup_response = Query(
         message=Message(
