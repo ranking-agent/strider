@@ -491,7 +491,7 @@ def combine_results(query_graph, m):
         "analyses": []
     }
     for qid, qnode in query_graph["nodes"].items():
-        output_result["node_bindings"][qid] = qnode["ids"]
+        output_result["node_bindings"][qid] = [{"id": qnode["ids"][0]}]
     # we can use the aux graphs and kg from the original message as the base
     output_kg = m["knowledge_graph"]
     output_aux = m["auxiliary_graphs"]
