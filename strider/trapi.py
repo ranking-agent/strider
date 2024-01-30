@@ -28,7 +28,7 @@ from strider.normalizer import Normalizer
 from strider.config import settings
 
 blocklist = []
-with open("./blocklist.json", "r") as f:
+with open("../blocklist.json", "r") as f:
     blocklist = json.load(f)
 
 
