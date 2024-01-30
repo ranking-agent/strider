@@ -1,4 +1,5 @@
 """Test node set handling."""
+
 import logging
 
 from reasoner_pydantic import (

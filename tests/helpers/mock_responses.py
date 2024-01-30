@@ -597,7 +597,7 @@ blocked_response = {
                     "categories": [
                         "biolink:SmallMolecule",
                     ],
-                }
+                },
             },
             "edges": {
                 "e0": {
@@ -676,7 +676,7 @@ blocked_response = {
                         },
                     }
                 ],
-            }
+            },
         ],
     },
 }

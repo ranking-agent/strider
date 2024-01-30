@@ -1,4 +1,5 @@
 """Mock Redis."""
+
 import fakeredis.aioredis as fakeredis
 import gzip
 import json

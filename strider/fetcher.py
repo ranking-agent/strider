@@ -1,4 +1,5 @@
 """Fetcher 2.0."""
+
 from collections import defaultdict
 from collections.abc import Iterable
 import copy

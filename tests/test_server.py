@@ -1,4 +1,5 @@
 """Test Strider."""
+
 import asyncio
 import json
 import redis.asyncio

@@ -1,4 +1,5 @@
 """Constraint handling."""
+
 import operator
 import re
 from reasoner_pydantic import KnowledgeGraph, HashableSequence

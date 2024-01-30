@@ -1,4 +1,5 @@
 """Test constraints."""
+
 from reasoner_pydantic import Message, AttributeConstraint, Node
 from strider.constraints import satisfies_attribute_constraint, enforce_constraints
 

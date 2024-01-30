@@ -1,4 +1,5 @@
 """Node sets."""
+
 from collections import defaultdict
 from datetime import datetime
 from reasoner_pydantic import Message

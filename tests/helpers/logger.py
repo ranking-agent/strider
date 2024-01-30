@@ -1,4 +1,5 @@
 """Logging setup."""
+
 import logging
 
 

@@ -1,4 +1,5 @@
 """Test weird kp responses."""
+
 import httpx
 import json
 import pytest

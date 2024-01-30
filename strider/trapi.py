@@ -1,4 +1,5 @@
 """TRAPI utilities."""
+
 from itertools import product
 import json
 import logging
@@ -228,7 +229,7 @@ def filter_message(
     curie_map: dict,
     logger: logging.Logger = logging.getLogger(),
     information_content_threshold: int = settings.information_content_threshold,
-    last_hop: bool = False
+    last_hop: bool = False,
 ) -> None:
     """Filter all nodes based on information content."""
     pinned_nodes = get_curies(message.query_graph)
@@ -265,14 +266,9 @@ def filter_message(
                     or (
                         # Nodes that appear in the blocklist shouldn't be shown
                         curie is not None
-                        and any(
-                            n in curie.identifiers for n in blocklist
-                        )
+                        and any(n in curie.identifiers for n in blocklist)
                     )
-                    or (
-                        curie is None
-                        and node_binding.id in blocklist
-                    )
+                    or (curie is None and node_binding.id in blocklist)
                 ):
                     keep = False
                     if node_binding.id in message.knowledge_graph.nodes:
@@ -290,15 +286,15 @@ def filter_message(
                             support_graph_id
                         ]
                         for edge_id in message.auxiliary_graphs[support_graph_id].edges:
-                            kept_knowledge_graph.edges[
-                                edge_id
-                            ] = message.knowledge_graph.edges[edge_id]
+                            kept_knowledge_graph.edges[edge_id] = (
+                                message.knowledge_graph.edges[edge_id]
+                            )
                     # add edges from result
                     for edge_bindings in analysis.edge_bindings.values():
                         for edge_binding in edge_bindings:
-                            kept_knowledge_graph.edges[
-                                edge_binding.id
-                            ] = message.knowledge_graph.edges[edge_binding.id]
+                            kept_knowledge_graph.edges[edge_binding.id] = (
+                                message.knowledge_graph.edges[edge_binding.id]
+                            )
                             # add support graphs from edge
                             for attribute in (
                                 kept_knowledge_graph.edges[edge_binding.id].attributes
@@ -309,15 +305,15 @@ def filter_message(
                                     == "biolink:support_graphs"
                                 ):
                                     for aux_graph_id in attribute.value:
-                                        kept_aux_graphs[
-                                            aux_graph_id
-                                        ] = message.auxiliary_graphs[aux_graph_id]
+                                        kept_aux_graphs[aux_graph_id] = (
+                                            message.auxiliary_graphs[aux_graph_id]
+                                        )
                                         for edge_id in message.auxiliary_graphs[
                                             aux_graph_id
                                         ].edges:
-                                            kept_knowledge_graph.edges[
-                                                edge_id
-                                            ] = message.knowledge_graph.edges[edge_id]
+                                            kept_knowledge_graph.edges[edge_id] = (
+                                                message.knowledge_graph.edges[edge_id]
+                                            )
                 # keep any results that don't have promiscuous nodes
                 # only add result if all the knowledge and aux graph stuff worked out
                 kept_results.append(result)

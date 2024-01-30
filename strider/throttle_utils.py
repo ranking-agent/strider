@@ -1,4 +1,5 @@
 """Throttle Utility Functions."""
+
 from collections import defaultdict
 from reasoner_pydantic import Message, QueryGraph, AuxiliaryGraphs
 from reasoner_pydantic.kgraph import KnowledgeGraph

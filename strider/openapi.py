@@ -1,4 +1,5 @@
 """TRAPI FastAPI wrapper."""
+
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI
