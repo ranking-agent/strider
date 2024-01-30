@@ -1,4 +1,5 @@
 """Node Normalizer Utilities."""
+
 from collections import namedtuple
 import logging
 

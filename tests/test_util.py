@@ -1,4 +1,5 @@
 """Test utilities."""
+
 from strider.utils import remove_null_values
 from strider.trapi import filter_ancestor_types
 

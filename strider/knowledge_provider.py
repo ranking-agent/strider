@@ -75,7 +75,7 @@ class KnowledgeProvider:
                 self.normalizer.curie_map,
                 self.logger,
                 self.information_content_threshold,
-                last_hop
+                last_hop,
             )
 
         return processor

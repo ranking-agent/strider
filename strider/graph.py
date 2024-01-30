@@ -1,4 +1,5 @@
 """Graph - a dict with extra methods."""
+
 import json
 
 

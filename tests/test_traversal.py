@@ -1,4 +1,5 @@
 """Test traversal."""
+
 import pytest
 
 from strider.traversal import NoAnswersError, get_traversals

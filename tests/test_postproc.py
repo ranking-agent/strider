@@ -6,7 +6,11 @@ from reasoner_pydantic import Response
 from tests.helpers.context import (
     with_norm_overlay,
 )
-from tests.helpers.mock_responses import kp_response, response_with_aux_graphs, blocked_response
+from tests.helpers.mock_responses import (
+    kp_response,
+    response_with_aux_graphs,
+    blocked_response,
+)
 
 from strider.config import settings
 
@@ -95,6 +99,7 @@ async def test_aux_graph_filtering():
     assert len(list(msg.message.auxiliary_graphs.keys())) == 0
     assert len(msg.message.results) == 1
 
+
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 @with_norm_overlay(
@@ -127,6 +132,7 @@ async def test_blocklist():
     assert "MESH:D000588" not in msg.message.knowledge_graph.nodes
     assert "MESH:D014867" not in msg.message.knowledge_graph.nodes
     assert len(msg.message.results) == 0
+
 
 @pytest.mark.asyncio
 @with_norm_overlay(

@@ -1,4 +1,5 @@
 """Test Strider."""
+
 import json
 
 from fastapi.responses import Response

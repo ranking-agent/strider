@@ -1,4 +1,5 @@
 """Query planner."""
+
 from collections import defaultdict, namedtuple
 import copy
 from itertools import chain

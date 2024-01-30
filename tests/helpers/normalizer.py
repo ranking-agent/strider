@@ -1,4 +1,5 @@
 """LOTR node normalizer."""
+
 import csv
 from typing import List
 

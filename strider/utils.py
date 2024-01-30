@@ -1,4 +1,5 @@
 """General utilities."""
+
 import copy
 import json
 from json.decoder import JSONDecodeError
