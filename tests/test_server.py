@@ -78,7 +78,7 @@ async def test_duplicate_results(client, monkeypatch):
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:ChemicalSubstance ))
         n1(( categories[] biolink:DiseaseOrPhenotypicFeature ))
-        n0-- biolink:treats -->n1
+        n0-- biolink:related_to -->n1
         """
     )
 
