@@ -266,7 +266,7 @@ def filter_message(
                     or (
                         # Nodes that appear in the blocklist shouldn't be shown
                         curie is not None
-                        and any(n in curie.identifiers for n in blocklist)
+                        and any(n in blocklist for n in curie.identifiers)
                     )
                     or (curie is None and node_binding.id in blocklist)
                 ):
