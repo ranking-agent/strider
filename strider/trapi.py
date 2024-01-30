@@ -1,5 +1,6 @@
 """TRAPI utilities."""
 from itertools import product
+import json
 import logging
 import traceback
 import typing
@@ -25,6 +26,10 @@ from strider.throttle_utils import (
 )
 from strider.normalizer import Normalizer
 from strider.config import settings
+
+blocklist = []
+with open("./blocklist.json", "r") as f:
+    blocklist = json.load(f)
 
 
 def apply_curie_map(
@@ -223,6 +228,7 @@ def filter_message(
     curie_map: dict,
     logger: logging.Logger = logging.getLogger(),
     information_content_threshold: int = settings.information_content_threshold,
+    last_hop: bool = False
 ) -> None:
     """Filter all nodes based on information content."""
     pinned_nodes = get_curies(message.query_graph)
@@ -241,17 +247,29 @@ def filter_message(
                     (
                         curie is not None
                         and curie.information_content < information_content_threshold
+                        and not last_hop
                     )
                     or (
                         # Unknown UMLS curies are bound to be low information content
                         curie is None
                         and node_binding.id.startswith("UMLS")
+                        and not last_hop
                     )
                     or (
                         # UMLS curies where preferred query is still UMLS are bound to be low information content
                         curie is not None
                         and node_binding.id.startswith("UMLS")
                         and curie.preferred_curie.startswith("UMLS")
+                        and not last_hop
+                    )
+                    or (
+                        # Nodes that appear in the blocklist shouldn't be shown
+                        curie is not None
+                        and curie.preferred_curie in blocklist
+                    )
+                    or (
+                        curie is None
+                        and node_binding.id in blocklist
                     )
                 ):
                     keep = False
