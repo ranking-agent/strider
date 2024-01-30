@@ -73,6 +73,19 @@ kp_response = {
 
 duplicate_result_response = {
     "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["CHEBI:6801"]},
+                "n1": {"categories": ["biolink:Disease"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "predicate": "biolink:related_to",
+                    "object": "n1",
+                },
+            },
+        },
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
@@ -133,6 +146,19 @@ duplicate_result_response = {
 
 duplicate_result_response_2 = {
     "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["CHEBI:6801"]},
+                "n1": {"categories": ["biolink:Disease"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "predicate": "biolink:related_to",
+                    "object": "n1",
+                },
+            },
+        },
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
@@ -193,6 +219,19 @@ duplicate_result_response_2 = {
 
 duplicate_result_response_different_predicate = {
     "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["CHEBI:6801"]},
+                "n1": {"categories": ["biolink:Disease"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "predicate": "biolink:related_to",
+                    "object": "n1",
+                },
+            },
+        },
         "knowledge_graph": {
             "nodes": {
                 "CHEBI:6801": {
