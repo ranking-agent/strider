@@ -70,13 +70,13 @@ class KnowledgeProvider:
         async def processor(response, last_hop: bool):
             """Map message CURIE prefixes."""
             await self.map_prefixes(response.message, preferred_prefixes)
-            if not last_hop:
-                filter_message(
-                    response.message,
-                    self.normalizer.curie_map,
-                    self.logger,
-                    self.information_content_threshold,
-                )
+            filter_message(
+                response.message,
+                self.normalizer.curie_map,
+                self.logger,
+                self.information_content_threshold,
+                last_hop
+            )
 
         return processor
 
