@@ -566,3 +566,117 @@ response_with_aux_graphs = {
         },
     },
 }
+
+blocked_response = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n1": {"ids": ["MONDO:0005148"]},
+                "n0": {"categories": ["biolink:SmallMolecule"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicates": ["biolink:treats"],
+                }
+            },
+        },
+        "knowledge_graph": {
+            "nodes": {
+                "MESH:D000588": {
+                    "categories": ["biolink:SmallMolecule"],
+                },
+                "MONDO:0005148": {
+                    "categories": [
+                        "biolink:Disease",
+                    ],
+                    "name": "type 2 diabetes mellitus",
+                },
+                "MESH:D014867": {
+                    "categories": [
+                        "biolink:SmallMolecule",
+                    ],
+                }
+            },
+            "edges": {
+                "e0": {
+                    "subject": "MESH:D000588",
+                    "object": "MONDO:0005148",
+                    "predicate": "biolink:treats",
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp0",
+                            "resource_role": "primary_knowledge_source",
+                        }
+                    ],
+                },
+                "e1": {
+                    "subject": "MONDO:0005148",
+                    "object": "MESH:D008687",
+                    "predicate": "biolink:treats",
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp0",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                },
+            },
+        },
+        "results": [
+            {
+                "node_bindings": {
+                    "n0": [
+                        {
+                            "id": "MESH:D000588",
+                        },
+                    ],
+                    "n1": [
+                        {
+                            "id": "MONDO:0005148",
+                        },
+                    ],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "kp0",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "e0",
+                                },
+                            ],
+                        },
+                    }
+                ],
+            },
+            {
+                "node_bindings": {
+                    "n0": [
+                        {
+                            "id": "MESH:D014867",
+                        },
+                    ],
+                    "n1": [
+                        {
+                            "id": "MONDO:0005148",
+                        },
+                    ],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "kp0",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "e1",
+                                },
+                            ],
+                        },
+                    }
+                ],
+            }
+        ],
+    },
+}
