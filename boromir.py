@@ -30,6 +30,7 @@ from reasoner_pydantic import (
     Workflow,
 )
 from reasoner_pydantic.utils import HashableMapping
+import time
 from typing import Callable, List
 import uuid
 
@@ -53,9 +54,13 @@ message = {
         "query_graph": {
             "nodes": {
                 "n0": {
-                    "ids":["PUBCHEM.COMPOUND:5291"],
-                    "name": "imatinib"
+                    "ids":["NCBIGene:3815"],
+                    "name": "kit"
                 },
+                # "n0": {
+                #     "ids": ["PUBCHEM.COMPOUND:5291"],
+                #     "name": "imatinib",
+                # },
                 "n1": {
                     "ids":["MONDO:0004979"],
                     "categories":["biolink:DiseaseOrPhenotypicFeature"],
@@ -164,6 +169,12 @@ def build_result(result, onehop_kgraph, onehop_auxgraphs):
     return result_auxgraph, result_kgraph
 
 
+def validate_kgraph(kgraph):
+    for edge in kgraph["edges"].values():
+        assert edge["subject"] in kgraph["nodes"]
+        assert edge["object"] in kgraph["nodes"]
+
+
 async def lookup(
     qgraph: Graph = None,
     target_node_id: str = None,
@@ -248,21 +259,30 @@ async def generate_from_strider(
             json={"message": {"query_graph": onehop_qgraph}},
         )
         lookup_response.raise_for_status()
+        now = time.time()
         lookup_response = lookup_response.json()
         with open("lookup_response.json", "w") as f:
             json.dump(lookup_response, f, indent=2)
+        # logging.info(f"to json and dump took {time.time() - now}")
 
     # convert to pydantic to do result parsing
+    validate_kgraph(lookup_response["message"]["knowledge_graph"])
+    now = time.time()
     onehop_response = Response.parse_obj(lookup_response).message
+    # logging.info(f"Pydantic parsing took {time.time() - now}")
+    now = time.time()
     with open("normalized_lookup.json", "w") as f:
         json.dump(onehop_response.dict(), f, indent=2)
+    # logging.info(f"Saving normalized json took {time.time() - now}")
     onehop_kgraph = onehop_response.knowledge_graph
+    validate_kgraph(onehop_kgraph.dict())
     onehop_results = onehop_response.results
     onehop_auxgraphs = onehop_response.auxiliary_graphs
     logging.info(f"Got back {len(onehop_results)} results")
-    # print("Adding target to lookup response")
+    # logging.info("Adding target to lookup response")
     sent_curies = get_curies(onehop_response)
     # take out any direct target relations
+    now = time.time()
     results = Results.parse_obj([])
     for result in onehop_results:
         if not (
@@ -314,8 +334,10 @@ async def generate_from_strider(
                     qid,
                 )
             )
-        
+
+    # logging.info(f"Parsed the results in {time.time() - now}")
     # put target back in and add to all result node bindings
+    now = time.time()
     onehop_kgraph.nodes[target_node_curie] = Node.parse_obj(message["message"]["knowledge_graph"]["nodes"][target_node_curie])
     onehop_response.query_graph.nodes[target_node_id] = QNode.parse_obj(message["message"]["query_graph"]["nodes"][target_node_id])
     for result in results:
@@ -336,8 +358,13 @@ async def generate_from_strider(
             {"id": "filter_kgraph_orphans"},
         ]),
     ).dict()
+    validate_kgraph(lookup_response["message"]["knowledge_graph"])
+    logging.info(f"Num knodes: {len(lookup_response['message']['knowledge_graph']['nodes'].keys())}")
+    # logging.info(f"Got response ready for Ranker in {time.time() - now}")
+    now = time.time()
     with open("lookup_response_temp.json", "w") as f:
         json.dump(lookup_response, f, indent=2)
+    # logging.info(f"Saved lookup response temp in {time.time() - now}")
     logging.info(f"Sending {len(lookup_response['message']['results'])} results for scoring and filtering.")
     async with httpx.AsyncClient(timeout=300) as client:
         ranked_response = await client.post(
@@ -349,9 +376,13 @@ async def generate_from_strider(
         with open("ranked_response.json", "w") as f:
             json.dump(ranked_response, f, indent=2)
 
+    validate_kgraph(ranked_response["message"]["knowledge_graph"])
     logging.info(f"Sending along {len(ranked_response['message']['results'])} results")
     # back into pydantic for result parsing
+    now = time.time()
     onehop_response = Response.parse_obj(ranked_response).message
+    # logging.info(f"Ranker response parsing took {time.time() - now}")
+    now = time.time()
     onehop_kgraph = onehop_response.knowledge_graph
     onehop_results = onehop_response.results
     onehop_auxgraphs = onehop_response.auxiliary_graphs
@@ -416,10 +447,11 @@ async def generate_from_strider(
             (result, result_kgraph, result_auxgraph)
         )
 
-        # print(
+        # logging.info(
         #     f"[{qid}] put key {key_fcn(result)} in result map"
         # )
 
+    # logging.info(f"Result parsing took {time.time() - now}")
     generators.append(
         generate_from_result(
             populated_subqgraph,
@@ -451,7 +483,7 @@ async def generate_from_result(
         target_node_curie,
         sub_qid,
     ):
-        # print(
+        # logging.info(
         #     f"[{qid}] looking for key {key_fcn(subresult)}: {subresult.json()}"
         # )
         if not key_fcn(subresult) in result_map:
