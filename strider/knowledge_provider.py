@@ -11,6 +11,7 @@ from reasoner_pydantic import (
     AuxiliaryGraphs,
     RetrievalSource,
 )
+import traceback
 
 from .throttle import ThrottledServer
 from .utils import (
@@ -159,7 +160,7 @@ class KnowledgeProvider:
                 {
                     "message": f"Knowledge_Provider: Something went wrong while querying {self.id}",
                     "error": str(e),
-                    "traceback": e.with_traceback(),
+                    "traceback": traceback.format_exc(),
                 }
             )
 

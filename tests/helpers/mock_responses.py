@@ -1,3 +1,5 @@
+"""Mock KP responses."""
+
 kp_response = {
     "message": {
         "query_graph": {
@@ -676,6 +678,118 @@ blocked_response = {
                         },
                     }
                 ],
+            },
+        ],
+    },
+}
+
+response_with_pinned_node_subclasses = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["MONDO:0005011"]},
+                "n1": {"categories": ["biolink:NamedThing"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "object": "n1",
+                    "predicates": ["biolink:related_to"],
+                }
+            },
+        },
+        "knowledge_graph": {
+            "nodes": {
+                "PUBCHEM.COMPOUND:2723601": {
+                    "categories": ["biolink:SmallMolecule"],
+                    "name": "Thioguanine",
+                },
+                "MONDO:0005011": {
+                    "categories": [
+                        "biolink:Disease",
+                    ],
+                    "name": "Crohns",
+                },
+                "UMLS:C0156146": {
+                    "categories": [
+                        "biolink:Disease",
+                    ],
+                    "name": "Crohn's disease of small intestine"
+                },
+                "MONDO:0021074": {
+                    "name": "precancerous condition",
+                    "categories": [
+                        "biolink:BiologicalEntity",
+                        "biolink:NamedThing",
+                        "biolink:ThingWithTaxon",
+                        "biolink:Disease",
+                        "biolink:DiseaseOrPhenotypicFeature"
+                    ]
+                },
+            },
+            "edges": {
+                "e0": {
+                    "predicate": "biolink:subclass_of",
+                    "sources": [
+                        {
+                        "resource_id": "infores:kp1",
+                        "resource_role": "primary_knowledge_source",
+                        "upstream_resource_ids": None,
+                        },
+                        {
+                        "resource_id": "infores:kp1",
+                        "resource_role": "aggregator_knowledge_source",
+                        "upstream_resource_ids": ["infores:kp1"]
+                        }
+                    ],
+                    "subject": "UMLS:C0156146",
+                    "attributes": [],
+                    "object": "MONDO:0021074"
+                },
+                "e1": {
+                    "predicate": "biolink:subclass_of",
+                    "sources": [
+                        {
+                        "resource_id": "infores:kp1",
+                        "resource_role": "primary_knowledge_source",
+                        "upstream_resource_ids": None
+                        },
+                        {
+                        "resource_id": "infores:kp1",
+                        "resource_role": "aggregator_knowledge_source",
+                        "upstream_resource_ids": ["infores:kp1"]
+                        }
+                    ],
+                    "subject": "UMLS:C0156146",
+                    "attributes": [],
+                    "object": "MONDO:0005011"
+                },
+            },
+        },
+        "results": [
+            {
+                "analyses": [
+                    {
+                        "edge_bindings": { "hop1": [{ "id": "e0" }] },
+                        "resource_id": "infores:kp1"
+                    }
+                ],
+                "node_bindings": {
+                    "n1": [{ "id": "MONDO:0021074" }],
+                    "n0": [{ "id": "UMLS:C0156146", "query_id": "MONDO:0005011" }]
+                }
+            },
+            {
+                "analyses": [
+                    {
+                        "edge_bindings": { "hop1": [{ "id": "e1" }] },
+                        "resource_id": "infores:kp1"
+                    }
+                ],
+                "node_bindings": {
+                    "n1": [{ "id": "UMLS:C0156146" }],
+                    "n0": [{ "id": "MONDO:0005011" }]
+                }
             },
         ],
     },

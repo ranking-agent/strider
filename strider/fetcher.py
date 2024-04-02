@@ -5,6 +5,7 @@ from collections.abc import Iterable
 import copy
 import json
 import logging
+import traceback
 import uuid
 
 from strider.constraints import enforce_constraints
@@ -309,8 +310,10 @@ class Fetcher:
                     )
                 except Exception as e:
                     self.logger.error(
-                        f"Something went wrong making the sub-result kgraph: {e}"
+                        f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
                     )
+                    # with open("bad_kp_response.json", "w") as f:
+                    #     json.dump(onehop_response.dict(), f)
                     raise Exception(e)
 
                 # pin nodes
