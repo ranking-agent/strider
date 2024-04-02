@@ -74,7 +74,7 @@ class Normalizer:
             Entity(
                 entity["type"],
                 [synonym["identifier"] for synonym in entity["equivalent_identifiers"]],
-                entity.get("information_content", 100),
+                entity.get("information_content", 101),
                 entity["id"]["identifier"],
             )
             for entity in response.values()

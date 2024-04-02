@@ -239,10 +239,10 @@ def filter_message(
     for result in message.results or []:
         keep = True
         for qnode_id, node_bindings in result.node_bindings.items():
-            if qnode_id in pinned_nodes:
-                # don't filter any pinned nodes
-                continue
             for node_binding in node_bindings:
+                if qnode_id in pinned_nodes and node_binding.id in pinned_nodes[qnode_id]:
+                    # don't filter any pinned original nodes
+                    continue
                 curie = curie_map.get(node_binding.id)
                 if (
                     (
@@ -259,6 +259,9 @@ def filter_message(
                     or (
                         # UMLS curies where preferred query is still UMLS are bound to be low information content
                         curie is not None
+                        # curies without information content will default get 101. So we need to check if it's lower than threshold or the default,
+                        # meaning no information content. i.e. We want to keep any UMLS that actually has information content above the threshold
+                        and (curie.information_content < information_content_threshold or curie.information_content == 101)
                         and node_binding.id.startswith("UMLS")
                         and curie.preferred_curie.startswith("UMLS")
                         and not last_hop
@@ -274,7 +277,7 @@ def filter_message(
                     if node_binding.id in message.knowledge_graph.nodes:
                         # remove nodes from kgraph
                         logger.debug(
-                            f"Removing {node_binding.id} because it's highly promiscuous"
+                            f"Removing {node_binding.id} because it's highly promiscuous. IC is {curie.information_content if curie else 'Unknown'}. "
                         )
                         message.knowledge_graph.nodes.pop(node_binding.id)
         if keep:
@@ -382,3 +385,18 @@ async def fill_categories_predicates(
                 node["categories"] = filter_ancestor_types(categories)
             elif "categories" not in node:
                 node["categories"] = []
+
+
+def validate_message(message, logger):
+    valid = True
+    for edge_id, edge in message["knowledge_graph"]["edges"].items():
+        try:
+            # print(f"Checking {edge_id}")
+            assert edge["subject"] in message["knowledge_graph"]["nodes"]
+            assert edge["object"] in message["knowledge_graph"]["nodes"]
+        except AssertionError as e:
+            valid = False
+            logger.error(f"Edge {edge_id} has issues!")
+    if not valid:
+        with open(f"invalid_message.json", "w") as f:
+            json.dump(message, f)
