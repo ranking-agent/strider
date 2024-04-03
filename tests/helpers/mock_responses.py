@@ -714,7 +714,7 @@ response_with_pinned_node_subclasses = {
                     "categories": [
                         "biolink:Disease",
                     ],
-                    "name": "Crohn's disease of small intestine"
+                    "name": "Crohn's disease of small intestine",
                 },
                 "MONDO:0021074": {
                     "name": "precancerous condition",
@@ -723,8 +723,8 @@ response_with_pinned_node_subclasses = {
                         "biolink:NamedThing",
                         "biolink:ThingWithTaxon",
                         "biolink:Disease",
-                        "biolink:DiseaseOrPhenotypicFeature"
-                    ]
+                        "biolink:DiseaseOrPhenotypicFeature",
+                    ],
                 },
             },
             "edges": {
@@ -732,37 +732,37 @@ response_with_pinned_node_subclasses = {
                     "predicate": "biolink:subclass_of",
                     "sources": [
                         {
-                        "resource_id": "infores:kp1",
-                        "resource_role": "primary_knowledge_source",
-                        "upstream_resource_ids": None,
+                            "resource_id": "infores:kp1",
+                            "resource_role": "primary_knowledge_source",
+                            "upstream_resource_ids": None,
                         },
                         {
-                        "resource_id": "infores:kp1",
-                        "resource_role": "aggregator_knowledge_source",
-                        "upstream_resource_ids": ["infores:kp1"]
-                        }
+                            "resource_id": "infores:kp1",
+                            "resource_role": "aggregator_knowledge_source",
+                            "upstream_resource_ids": ["infores:kp1"],
+                        },
                     ],
                     "subject": "UMLS:C0156146",
                     "attributes": [],
-                    "object": "MONDO:0021074"
+                    "object": "MONDO:0021074",
                 },
                 "e1": {
                     "predicate": "biolink:subclass_of",
                     "sources": [
                         {
-                        "resource_id": "infores:kp1",
-                        "resource_role": "primary_knowledge_source",
-                        "upstream_resource_ids": None
+                            "resource_id": "infores:kp1",
+                            "resource_role": "primary_knowledge_source",
+                            "upstream_resource_ids": None,
                         },
                         {
-                        "resource_id": "infores:kp1",
-                        "resource_role": "aggregator_knowledge_source",
-                        "upstream_resource_ids": ["infores:kp1"]
-                        }
+                            "resource_id": "infores:kp1",
+                            "resource_role": "aggregator_knowledge_source",
+                            "upstream_resource_ids": ["infores:kp1"],
+                        },
                     ],
                     "subject": "UMLS:C0156146",
                     "attributes": [],
-                    "object": "MONDO:0005011"
+                    "object": "MONDO:0005011",
                 },
             },
         },
@@ -770,26 +770,26 @@ response_with_pinned_node_subclasses = {
             {
                 "analyses": [
                     {
-                        "edge_bindings": { "hop1": [{ "id": "e0" }] },
-                        "resource_id": "infores:kp1"
+                        "edge_bindings": {"hop1": [{"id": "e0"}]},
+                        "resource_id": "infores:kp1",
                     }
                 ],
                 "node_bindings": {
-                    "n1": [{ "id": "MONDO:0021074" }],
-                    "n0": [{ "id": "UMLS:C0156146", "query_id": "MONDO:0005011" }]
-                }
+                    "n1": [{"id": "MONDO:0021074"}],
+                    "n0": [{"id": "UMLS:C0156146", "query_id": "MONDO:0005011"}],
+                },
             },
             {
                 "analyses": [
                     {
-                        "edge_bindings": { "hop1": [{ "id": "e1" }] },
-                        "resource_id": "infores:kp1"
+                        "edge_bindings": {"hop1": [{"id": "e1"}]},
+                        "resource_id": "infores:kp1",
                     }
                 ],
                 "node_bindings": {
-                    "n1": [{ "id": "UMLS:C0156146" }],
-                    "n0": [{ "id": "MONDO:0005011" }]
-                }
+                    "n1": [{"id": "UMLS:C0156146"}],
+                    "n0": [{"id": "MONDO:0005011"}],
+                },
             },
         ],
     },

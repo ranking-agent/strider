@@ -76,4 +76,6 @@ async def test_fetcher_bad_response(client, monkeypatch):
         ):
             num_responses += 1
     # we shouldn't remove any results
-    assert num_responses == len(mock_responses.response_with_pinned_node_subclasses["message"]["results"])
+    assert num_responses == len(
+        mock_responses.response_with_pinned_node_subclasses["message"]["results"]
+    )

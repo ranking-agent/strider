@@ -279,9 +279,11 @@ class ThrottledServer:
                         response_values[request_id] = ReasonerResponse(
                             message=Message()
                         )
-                        response_values[request_id].message.query_graph = (
-                            request_value_mapping[request_id].message.query_graph.copy()
-                        )
+                        response_values[
+                            request_id
+                        ].message.query_graph = request_value_mapping[
+                            request_id
+                        ].message.query_graph.copy()
                         response_values[request_id].message.knowledge_graph = (
                             message.knowledge_graph
                             or KnowledgeGraph(nodes={}, edges={})
