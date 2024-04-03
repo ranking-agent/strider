@@ -240,8 +240,11 @@ def filter_message(
         keep = True
         for qnode_id, node_bindings in result.node_bindings.items():
             for node_binding in node_bindings:
-                if qnode_id in pinned_nodes and node_binding.id in pinned_nodes[qnode_id]:
-                    # don't filter any pinned original nodes
+                if (
+                    qnode_id in pinned_nodes
+                    and node_binding.id in pinned_nodes[qnode_id]
+                ):
+                    # don't filter any pinned original nodes (excluding subclasses with query id)
                     continue
                 curie = curie_map.get(node_binding.id)
                 if (
@@ -261,7 +264,10 @@ def filter_message(
                         curie is not None
                         # curies without information content will default get 101. So we need to check if it's lower than threshold or the default,
                         # meaning no information content. i.e. We want to keep any UMLS that actually has information content above the threshold
-                        and (curie.information_content < information_content_threshold or curie.information_content == 101)
+                        and (
+                            curie.information_content < information_content_threshold
+                            or curie.information_content == 101
+                        )
                         and node_binding.id.startswith("UMLS")
                         and curie.preferred_curie.startswith("UMLS")
                         and not last_hop
@@ -289,15 +295,15 @@ def filter_message(
                             support_graph_id
                         ]
                         for edge_id in message.auxiliary_graphs[support_graph_id].edges:
-                            kept_knowledge_graph.edges[edge_id] = (
-                                message.knowledge_graph.edges[edge_id]
-                            )
+                            kept_knowledge_graph.edges[
+                                edge_id
+                            ] = message.knowledge_graph.edges[edge_id]
                     # add edges from result
                     for edge_bindings in analysis.edge_bindings.values():
                         for edge_binding in edge_bindings:
-                            kept_knowledge_graph.edges[edge_binding.id] = (
-                                message.knowledge_graph.edges[edge_binding.id]
-                            )
+                            kept_knowledge_graph.edges[
+                                edge_binding.id
+                            ] = message.knowledge_graph.edges[edge_binding.id]
                             # add support graphs from edge
                             for attribute in (
                                 kept_knowledge_graph.edges[edge_binding.id].attributes
@@ -308,15 +314,15 @@ def filter_message(
                                     == "biolink:support_graphs"
                                 ):
                                     for aux_graph_id in attribute.value:
-                                        kept_aux_graphs[aux_graph_id] = (
-                                            message.auxiliary_graphs[aux_graph_id]
-                                        )
+                                        kept_aux_graphs[
+                                            aux_graph_id
+                                        ] = message.auxiliary_graphs[aux_graph_id]
                                         for edge_id in message.auxiliary_graphs[
                                             aux_graph_id
                                         ].edges:
-                                            kept_knowledge_graph.edges[edge_id] = (
-                                                message.knowledge_graph.edges[edge_id]
-                                            )
+                                            kept_knowledge_graph.edges[
+                                                edge_id
+                                            ] = message.knowledge_graph.edges[edge_id]
                 # keep any results that don't have promiscuous nodes
                 # only add result if all the knowledge and aux graph stuff worked out
                 kept_results.append(result)
