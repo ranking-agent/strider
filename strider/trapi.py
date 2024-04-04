@@ -295,15 +295,15 @@ def filter_message(
                             support_graph_id
                         ]
                         for edge_id in message.auxiliary_graphs[support_graph_id].edges:
-                            kept_knowledge_graph.edges[
-                                edge_id
-                            ] = message.knowledge_graph.edges[edge_id]
+                            kept_knowledge_graph.edges[edge_id] = (
+                                message.knowledge_graph.edges[edge_id]
+                            )
                     # add edges from result
                     for edge_bindings in analysis.edge_bindings.values():
                         for edge_binding in edge_bindings:
-                            kept_knowledge_graph.edges[
-                                edge_binding.id
-                            ] = message.knowledge_graph.edges[edge_binding.id]
+                            kept_knowledge_graph.edges[edge_binding.id] = (
+                                message.knowledge_graph.edges[edge_binding.id]
+                            )
                             # add support graphs from edge
                             for attribute in (
                                 kept_knowledge_graph.edges[edge_binding.id].attributes
@@ -314,15 +314,15 @@ def filter_message(
                                     == "biolink:support_graphs"
                                 ):
                                     for aux_graph_id in attribute.value:
-                                        kept_aux_graphs[
-                                            aux_graph_id
-                                        ] = message.auxiliary_graphs[aux_graph_id]
+                                        kept_aux_graphs[aux_graph_id] = (
+                                            message.auxiliary_graphs[aux_graph_id]
+                                        )
                                         for edge_id in message.auxiliary_graphs[
                                             aux_graph_id
                                         ].edges:
-                                            kept_knowledge_graph.edges[
-                                                edge_id
-                                            ] = message.knowledge_graph.edges[edge_id]
+                                            kept_knowledge_graph.edges[edge_id] = (
+                                                message.knowledge_graph.edges[edge_id]
+                                            )
                 # keep any results that don't have promiscuous nodes
                 # only add result if all the knowledge and aux graph stuff worked out
                 kept_results.append(result)
