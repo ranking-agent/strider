@@ -51,11 +51,12 @@ class Fetcher:
         a full result can be returned for merging.
     """
 
-    def __init__(self, logger, parameters):
+    def __init__(self, logger, bypass_cache, parameters):
         """Initialize."""
         self.logger: logging.Logger = logger
         self.normalizer = Normalizer(self.logger)
         self.kps = dict()
+        self.bypass_cache = bypass_cache
         self.parameters = {
             **parameters,
             "batch_size": parameters.get("batch_size") or 1_000_000,
@@ -141,9 +142,9 @@ class Fetcher:
         self.logger.info(f"[{qid}] Current call stack: {(', ').join(call_stack)}")
         onehop_response = None
         # check if message wants to override the cache
-        override_cache = self.parameters.get("override_cache")
-        override_cache = override_cache if type(override_cache) is bool else False
-        if not override_cache:
+        overwrite_cache = self.parameters.get("overwrite_cache")
+        overwrite_cache = overwrite_cache if type(overwrite_cache) is bool else False
+        if not self.bypass_cache and not overwrite_cache:
             # get onehop response from cache
             onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
         if onehop_response is not None:
@@ -161,7 +162,8 @@ class Fetcher:
                 call_stack,
                 last_hop=len(qgraph["edges"]) == 1,
             )
-            await save_kp_onehop(kp.id, onehop_qgraph, onehop_response.dict())
+            if not self.bypass_cache:
+                await save_kp_onehop(kp.id, onehop_qgraph, onehop_response.dict())
         if onehop_response is None and settings.offline_mode:
             self.logger.info(
                 f"[{kp.id}] Didn't get anything back from cache in offline mode."
