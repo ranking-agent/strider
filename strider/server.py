@@ -454,9 +454,10 @@ async def lookup(
     logger.setLevel(level_number)
     logger.addHandler(log_handler)
 
+    bypass_cache = query_dict.get("bypass_cache", False)
     parameters = query_dict.get("parameters") or {}
 
-    fetcher = Fetcher(logger, parameters)
+    fetcher = Fetcher(logger, bypass_cache, parameters)
 
     logger.info(f"Doing lookup for qgraph: {json.dumps(qgraph)}")
     try:
