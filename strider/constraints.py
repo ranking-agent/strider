@@ -2,7 +2,7 @@
 
 import operator
 import re
-from reasoner_pydantic import KnowledgeGraph, HashableSequence
+from reasoner_pydantic import KnowledgeGraph, HashableSequence, Message
 
 operator_map = {
     "==": operator.eq,
@@ -51,7 +51,7 @@ def result_satisfies_constraints(result: dict, kgraph: dict, qgraph: dict) -> bo
     return True
 
 
-def enforce_constraints(message: dict) -> dict:
+def enforce_constraints(message: Message) -> Message:
     """Enforce qgraph constraints from qgraph on results/kgraph."""
     # check if any constraints exist before filtering all results and kgraph
     node_constraints = [
