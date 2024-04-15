@@ -83,6 +83,7 @@ async def test_mixed_canonical(monkeypatch, mocker):
                 },
             },
         },
+        False,
         ["infores:kp1"],
         True,
     )
@@ -146,6 +147,7 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                 },
             },
         },
+        False,
         ["infores:kp1"],
         True,
     )
@@ -438,6 +440,7 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
                 },
             },
         },
+        False,
         ["infores:kp2"],
         True,
     )
@@ -499,6 +502,7 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
                 },
             },
         },
+        False,
         ["infores:kp2"],
         True,
     )
@@ -563,6 +567,73 @@ async def test_node_set(monkeypatch, mocker):
                 },
             },
         },
+        False,
+        ["infores:kp1"],
+        True,
+    )
+
+
+@pytest.mark.asyncio
+@with_norm_overlay(
+    settings.normalizer_url,
+)
+async def test_bypass_cache_is_sent_along_to_kps(monkeypatch, mocker):
+    """Test that is_set is handled correctly."""
+    monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    query = mocker.patch(
+        "strider.throttle.ThrottledServer._query",
+        return_value=PydanticResponse.parse_obj({"message": {}}),
+    )
+    QGRAPH = query_graph_from_string(
+        """
+        n0(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:Disease ))
+        n0-- biolink:treats -->n1
+        """
+    )
+    QGRAPH["nodes"]["n1"]["set_interpretation"] = "ALL"
+
+    # Create query
+    q = {
+        "message": {"query_graph": QGRAPH},
+        "bypass_cache": True,
+        "log_level": "WARNING",
+    }
+
+    # Run
+    await lookup(q)
+
+    query.assert_called_with(
+        {
+            "message": {
+                "query_graph": {
+                    "nodes": {
+                        "n0": {
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:ChemicalSubstance"],
+                            "set_interpretation": "BATCH",
+                            "constraints": [],
+                        },
+                        "n1": {
+                            "categories": ["biolink:Disease"],
+                            "set_interpretation": "ALL",
+                            "constraints": [],
+                        },
+                    },
+                    "edges": {
+                        "n0n1": {
+                            "subject": "n0",
+                            "object": "n1",
+                            "predicates": ["biolink:treats"],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
+                        },
+                    },
+                },
+            },
+        },
+        True,
         ["infores:kp1"],
         True,
     )
