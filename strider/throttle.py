@@ -441,7 +441,16 @@ class ThrottledServer:
             # Queue query for processing
             request_id = str(uuid.uuid1())
             await self.request_queue.put(
-                ((request_id, subquery, response_queue, bypass_cache, call_stack, last_hop),)
+                (
+                    (
+                        request_id,
+                        subquery,
+                        response_queue,
+                        bypass_cache,
+                        call_stack,
+                        last_hop,
+                    ),
+                )
             )
 
         combined_output = ReasonerResponse.parse_obj(

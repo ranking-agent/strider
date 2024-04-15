@@ -93,7 +93,9 @@ class KnowledgeProvider:
             curie_map = self.normalizer.map(curies, prefixes)
             apply_curie_map(message, curie_map, self.id, self.logger)
 
-    async def solve_onehop(self, request, bypass_cache: bool, call_stack: list, last_hop: bool):
+    async def solve_onehop(
+        self, request, bypass_cache: bool, call_stack: list, last_hop: bool
+    ):
         """Solve one-hop query."""
         request = remove_null_values(request)
         response = None
