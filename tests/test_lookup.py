@@ -62,12 +62,12 @@ async def test_mixed_canonical(monkeypatch, mocker):
                         "n0": {
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:ChemicalSubstance"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -125,12 +125,12 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                         "n0": {
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:ChemicalSubstance"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -178,8 +178,9 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                     },
                     "knowledge_graph": {
                         "nodes": {
-                            "CHEBI:XXX": {},
+                            "CHEBI:XXX": {"categories": ["biolink:NamedThing"], "attributes": []},
                             "MONDO:0005148": {
+                                "categories": ["biolink:NamedThing"],
                                 "attributes": [
                                     {
                                         "attribute_type_id": "test_constraint",
@@ -199,6 +200,7 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                                         "resource_role": "primary_knowledge_source",
                                     },
                                 ],
+                                "attributes": [],
                             },
                         },
                     },
@@ -209,15 +211,16 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                                     {
                                         "id": "CHEBI:XXX",
                                         "qnode_id": "CHEBI:6801",
+                                        "attributes": [],
                                     }
                                 ],
-                                "n1": [{"id": "MONDO:0005148"}],
+                                "n1": [{"id": "MONDO:0005148", "attributes": [],}],
                             },
                             "analyses": [
                                 {
                                     "resource_id": "infores:kp1",
                                     "edge_bindings": {
-                                        "n0n1": [{"id": "n0n1"}],
+                                        "n0n1": [{"id": "n0n1", "attributes": [],}],
                                     },
                                 }
                             ],
@@ -279,8 +282,9 @@ async def test_disambiguation(monkeypatch):
                     },
                     "knowledge_graph": {
                         "nodes": {
-                            "CHEBI:XXX": {},
+                            "CHEBI:XXX": {"categories": ["biolink:NamedThing"], "attributes": []},
                             "MONDO:0005148": {
+                                "categories": ["biolink:NamedThing"],
                                 "attributes": [
                                     {
                                         "attribute_type_id": "test_constraint",
@@ -300,20 +304,21 @@ async def test_disambiguation(monkeypatch):
                                         "resource_role": "primary_knowledge_source",
                                     },
                                 ],
+                                "attributes": [],
                             },
                         },
                     },
                     "results": [
                         {
                             "node_bindings": {
-                                "n0": [{"id": "CHEBI:XXX"}],
-                                "n1": [{"id": "MONDO:0005148"}],
+                                "n0": [{"id": "CHEBI:XXX", "attributes": [],}],
+                                "n1": [{"id": "MONDO:0005148", "attributes": [],}],
                             },
                             "analyses": [
                                 {
                                     "resource_id": "infores:kp1",
                                     "edge_bindings": {
-                                        "n0n1": [{"id": "n0n1"}],
+                                        "n0n1": [{"id": "n0n1", "attributes": [],}],
                                     },
                                 }
                             ],
@@ -381,12 +386,12 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
                         "n0": {
                             "ids": ["MONDO:0008114"],
                             "categories": ["biolink:Disease"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Protein", "biolink:Gene"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -441,13 +446,13 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
                     "nodes": {
                         "n0": {
                             "categories": ["biolink:Gene", "biolink:Protein"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "ids": ["MONDO:0008114"],
                             "categories": ["biolink:Disease"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -487,7 +492,7 @@ async def test_node_set(monkeypatch, mocker):
         n0-- biolink:treats -->n1
         """
     )
-    QGRAPH["nodes"]["n1"]["is_set"] = True
+    QGRAPH["nodes"]["n1"]["set_interpretation"] = "ALL"
 
     # Create query
     q = {
@@ -506,12 +511,12 @@ async def test_node_set(monkeypatch, mocker):
                         "n0": {
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:ChemicalSubstance"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
-                            "is_set": True,
+                            "set_interpretation": "ALL",
                             "constraints": [],
                         },
                     },

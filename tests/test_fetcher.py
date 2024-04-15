@@ -65,7 +65,7 @@ async def test_fetcher_bad_response(client, monkeypatch):
         """
     )
 
-    fetcher = Fetcher(logger, {})
+    fetcher = Fetcher(logger, False, {})
     await fetcher.setup(QGRAPH, {}, 75)
 
     num_responses = 0
