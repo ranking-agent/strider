@@ -159,6 +159,7 @@ class Fetcher:
             )
             onehop_response = await kp.solve_onehop(
                 onehop_qgraph,
+                self.bypass_cache,
                 call_stack,
                 last_hop=len(qgraph["edges"]) == 1,
             )
