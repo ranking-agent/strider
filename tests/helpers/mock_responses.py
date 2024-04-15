@@ -20,12 +20,14 @@ kp_response = {
                 "MESH:D008687": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -39,6 +41,7 @@ kp_response = {
                             "resource_role": "primary_knowledge_source",
                         }
                     ],
+                    "attributes": [],
                 },
             },
         },
@@ -48,11 +51,13 @@ kp_response = {
                     "n0": [
                         {
                             "id": "MESH:D008687",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -63,6 +68,7 @@ kp_response = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -93,12 +99,14 @@ duplicate_result_response = {
                 "CHEBI:6801": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -112,6 +120,7 @@ duplicate_result_response = {
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
+                    "attributes": [],
                 },
             },
         },
@@ -121,11 +130,13 @@ duplicate_result_response = {
                     "n0": [
                         {
                             "id": "CHEBI:6801",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -136,6 +147,7 @@ duplicate_result_response = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -166,12 +178,14 @@ duplicate_result_response_2 = {
                 "CHEBI:6801": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:DiseaseOrPhenotypicFeature",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -185,6 +199,7 @@ duplicate_result_response_2 = {
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
+                    "attributes": [],
                 },
             },
         },
@@ -194,11 +209,13 @@ duplicate_result_response_2 = {
                     "n0": [
                         {
                             "id": "CHEBI:6801",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -209,6 +226,7 @@ duplicate_result_response_2 = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -239,12 +257,14 @@ duplicate_result_response_different_predicate = {
                 "CHEBI:6801": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -258,6 +278,7 @@ duplicate_result_response_different_predicate = {
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
+                    "attributes": [],
                 },
             },
         },
@@ -267,11 +288,13 @@ duplicate_result_response_different_predicate = {
                     "n0": [
                         {
                             "id": "CHEBI:6801",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -282,6 +305,7 @@ duplicate_result_response_different_predicate = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -299,12 +323,14 @@ loop_response_1 = {
                 "CHEBI:6801": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -318,6 +344,7 @@ loop_response_1 = {
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
+                    "attributes": [],
                 },
             },
         },
@@ -327,11 +354,13 @@ loop_response_1 = {
                     "n0": [
                         {
                             "id": "CHEBI:6801",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -342,6 +371,7 @@ loop_response_1 = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -372,12 +402,14 @@ response_with_attributes = {
                 "MESH:D008687": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -406,11 +438,13 @@ response_with_attributes = {
                     "n0": [
                         {
                             "id": "MESH:D008687",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -421,6 +455,7 @@ response_with_attributes = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -451,18 +486,21 @@ response_with_aux_graphs = {
                 "MESH:D008687": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Metformin",
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
                 "MESH:D014867": {
                     "categories": [
                         "biolink:ChemicalEntity",
                     ],
                     "name": "Water",
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -508,11 +546,13 @@ response_with_aux_graphs = {
                     "n0": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MESH:D008687",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -523,6 +563,7 @@ response_with_aux_graphs = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -534,11 +575,13 @@ response_with_aux_graphs = {
                     "n0": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MESH:D014867",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -549,6 +592,7 @@ response_with_aux_graphs = {
                             "n0n1": [
                                 {
                                     "id": "n0n1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -564,6 +608,7 @@ response_with_aux_graphs = {
                 "edges": [
                     "extra_edge_1",
                 ],
+                "attributes": []
             },
         },
     },
@@ -588,17 +633,20 @@ blocked_response = {
             "nodes": {
                 "MESH:D000588": {
                     "categories": ["biolink:SmallMolecule"],
+                    "attributes": [],
                 },
                 "MONDO:0005148": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "type 2 diabetes mellitus",
+                    "attributes": [],
                 },
                 "MESH:D014867": {
                     "categories": [
                         "biolink:SmallMolecule",
                     ],
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -612,6 +660,7 @@ blocked_response = {
                             "resource_role": "primary_knowledge_source",
                         }
                     ],
+                    "attributes": [],
                 },
                 "e1": {
                     "subject": "MONDO:0005148",
@@ -623,6 +672,7 @@ blocked_response = {
                             "resource_role": "primary_knowledge_source",
                         },
                     ],
+                    "attributes": [],
                 },
             },
         },
@@ -632,11 +682,13 @@ blocked_response = {
                     "n0": [
                         {
                             "id": "MESH:D000588",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -647,6 +699,7 @@ blocked_response = {
                             "n0n1": [
                                 {
                                     "id": "e0",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -658,11 +711,13 @@ blocked_response = {
                     "n0": [
                         {
                             "id": "MESH:D014867",
+                            "attributes": [],
                         },
                     ],
                     "n1": [
                         {
                             "id": "MONDO:0005148",
+                            "attributes": [],
                         },
                     ],
                 },
@@ -673,6 +728,7 @@ blocked_response = {
                             "n0n1": [
                                 {
                                     "id": "e1",
+                                    "attributes": [],
                                 },
                             ],
                         },
@@ -703,18 +759,21 @@ response_with_pinned_node_subclasses = {
                 "PUBCHEM.COMPOUND:2723601": {
                     "categories": ["biolink:SmallMolecule"],
                     "name": "Thioguanine",
+                    "attributes": [],
                 },
                 "MONDO:0005011": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "Crohns",
+                    "attributes": [],
                 },
                 "UMLS:C0156146": {
                     "categories": [
                         "biolink:Disease",
                     ],
                     "name": "Crohn's disease of small intestine",
+                    "attributes": [],
                 },
                 "MONDO:0021074": {
                     "name": "precancerous condition",
@@ -725,6 +784,7 @@ response_with_pinned_node_subclasses = {
                         "biolink:Disease",
                         "biolink:DiseaseOrPhenotypicFeature",
                     ],
+                    "attributes": [],
                 },
             },
             "edges": {
@@ -770,25 +830,25 @@ response_with_pinned_node_subclasses = {
             {
                 "analyses": [
                     {
-                        "edge_bindings": {"hop1": [{"id": "e0"}]},
+                        "edge_bindings": {"hop1": [{"id": "e0", "attributes": [],}]},
                         "resource_id": "infores:kp1",
                     }
                 ],
                 "node_bindings": {
-                    "n1": [{"id": "MONDO:0021074"}],
-                    "n0": [{"id": "UMLS:C0156146", "query_id": "MONDO:0005011"}],
+                    "n1": [{"id": "MONDO:0021074", "attributes": [],}],
+                    "n0": [{"id": "UMLS:C0156146", "query_id": "MONDO:0005011", "attributes": [],}],
                 },
             },
             {
                 "analyses": [
                     {
-                        "edge_bindings": {"hop1": [{"id": "e1"}]},
+                        "edge_bindings": {"hop1": [{"id": "e1", "attributes": [],}]},
                         "resource_id": "infores:kp1",
                     }
                 ],
                 "node_bindings": {
-                    "n1": [{"id": "UMLS:C0156146"}],
-                    "n0": [{"id": "MONDO:0005011"}],
+                    "n1": [{"id": "UMLS:C0156146", "attributes": [],}],
+                    "n0": [{"id": "MONDO:0005011", "attributes": [],}],
                 },
             },
         ],

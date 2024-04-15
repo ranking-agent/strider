@@ -16,7 +16,7 @@ LOGGER = logging.getLogger(__name__)
 def test_node_sets():
     """Test collapsing one edge of a two-hop query."""
     qgraph = {
-        "nodes": {"n0": {}, "n1": {"is_set": True}},
+        "nodes": {"n0": {"categories": ["biolink:NamedThing"]}, "n1": {"categories": ["biolink:NamedThing"], "set_interpretation": "ALL"}},
         "edges": {
             "e01": {
                 "subject": "n0",
@@ -27,42 +27,42 @@ def test_node_sets():
     results = [
         {
             "node_bindings": {
-                "n0": [{"id": "a0"}],
-                "n1": [{"id": "b0"}],
+                "n0": [{"id": "a0", "attributes": []}],
+                "n1": [{"id": "b0", "attributes": []}],
             },
             "analyses": [
                 {
                     "resource_id": "infores:aragorn",
                     "edge_bindings": {
-                        "e01": [{"id": "c0"}],
+                        "e01": [{"id": "c0", "attributes": []}],
                     },
                 }
             ],
         },
         {
             "node_bindings": {
-                "n0": [{"id": "a1"}],
-                "n1": [{"id": "b0"}],
+                "n0": [{"id": "a1", "attributes": []}],
+                "n1": [{"id": "b0", "attributes": []}],
             },
             "analyses": [
                 {
                     "resource_id": "infores:aragorn",
                     "edge_bindings": {
-                        "e01": [{"id": "c1"}],
+                        "e01": [{"id": "c1", "attributes": []}],
                     },
                 }
             ],
         },
         {
             "node_bindings": {
-                "n0": [{"id": "a0"}],
-                "n1": [{"id": "b1"}],
+                "n0": [{"id": "a0", "attributes": []}],
+                "n1": [{"id": "b1", "attributes": []}],
             },
             "analyses": [
                 {
                     "resource_id": "infores:aragorn",
                     "edge_bindings": {
-                        "e01": [{"id": "c2"}],
+                        "e01": [{"id": "c2", "attributes": []}],
                     },
                 }
             ],

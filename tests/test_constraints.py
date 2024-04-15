@@ -8,6 +8,7 @@ def test_equal():
     """Test satisfies_attribute_constraint() with operator "=="."""
     qnode = Node.parse_obj(
         {
+            "categories": ["biolink:NamedThing"],
             "attributes": [
                 {
                     "attribute_type_id": "test",
@@ -50,6 +51,7 @@ def test_gt():
     """Test satisfies_constraint() with opertor ">"."""
     qnode = Node.parse_obj(
         {
+            "categories": ["biolink:NamedThing"],
             "attributes": [
                 {
                     "attribute_type_id": "test",
@@ -92,6 +94,7 @@ def test_match():
     """Test satisfies_constraint() with opertor "matches"."""
     qnode = Node.parse_obj(
         {
+            "categories": ["biolink:NamedThing"],
             "attributes": [
                 {
                     "attribute_type_id": "test",
@@ -151,6 +154,7 @@ def test_enforce_constraints():
             "query_graph": {
                 "nodes": {
                     "n0": {
+                        "categories": ["biolink:NamedThing"],
                         "constraints": [
                             {
                                 "name": "test",
@@ -166,6 +170,7 @@ def test_enforce_constraints():
             "knowledge_graph": {
                 "nodes": {
                     "a": {
+                        "categories": ["biolink:NamedThing"],
                         "attributes": [
                             {
                                 "attribute_type_id": "test",
@@ -174,6 +179,7 @@ def test_enforce_constraints():
                         ],
                     },
                     "b": {
+                        "categories": ["biolink:NamedThing"],
                         "attributes": [
                             {
                                 "attribute_type_id": "test",
@@ -188,7 +194,7 @@ def test_enforce_constraints():
                 {
                     "node_bindings": {
                         "n0": [
-                            {"id": "a"},
+                            {"id": "a", "attributes": []},
                         ],
                     },
                     "analyses": [],
@@ -196,7 +202,7 @@ def test_enforce_constraints():
                 {
                     "node_bindings": {
                         "n0": [
-                            {"id": "b"},
+                            {"id": "b", "attributes": []},
                         ],
                     },
                     "analyses": [],

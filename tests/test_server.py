@@ -175,12 +175,12 @@ async def test_solve_missing_predicate(client, monkeypatch, mocker):
                         "n0": {
                             "ids": ["HP:001"],
                             "categories": ["biolink:Gene"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Gene", "biolink:Protein"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -235,12 +235,12 @@ async def test_solve_missing_category(client, monkeypatch, mocker):
                         "n0": {
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:NamedThing"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -301,12 +301,12 @@ async def test_normalizer_different_category(client, monkeypatch, mocker):
                         "n0": {
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:Vitamin"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
-                            "is_set": False,
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
@@ -414,13 +414,13 @@ async def test_mutability_bug(client, monkeypatch):
         "nodes": {
             "n0": {
                 "categories": ["biolink:ChemicalSubstance"],
-                "is_set": False,
+                "set_interpretation": "BATCH",
                 "constraints": [],
             },
             "n1": {
                 "ids": ["MONDO:0005148"],
                 "categories": ["biolink:Disease"],
-                "is_set": False,
+                "set_interpretation": "BATCH",
                 "constraints": [],
             },
         },
