@@ -325,6 +325,9 @@ async def sync_query(
         return query_dict
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
+    
+    if (query_dict.get("set_interpretation", None) or "BATCH") == "MANY":
+        raise HTTPException(422, "set_interpretation MANY not supported.")
 
     query_results = {}
     # Generate Query ID
@@ -388,6 +391,9 @@ async def async_query(
         return query_dict
     if not workflow[0]["id"] == "lookup":
         raise HTTPException(400, "operations must have id 'lookup'")
+    
+    if (query_dict.get("set_interpretation", None) or "BATCH") == "MANY":
+        raise HTTPException(422, "set_interpretation MANY not supported.")
 
     LOGGER.info(f"Doing async lookup for {callback}")
     background_tasks.add_task(async_lookup, callback, query_dict)
