@@ -592,7 +592,6 @@ async def test_bypass_cache_is_sent_along_to_kps(monkeypatch, mocker):
         n0-- biolink:treats -->n1
         """
     )
-    QGRAPH["nodes"]["n1"]["set_interpretation"] = "ALL"
 
     # Create query
     q = {
@@ -617,7 +616,7 @@ async def test_bypass_cache_is_sent_along_to_kps(monkeypatch, mocker):
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
-                            "set_interpretation": "ALL",
+                            "set_interpretation": "BATCH",
                             "constraints": [],
                         },
                     },
