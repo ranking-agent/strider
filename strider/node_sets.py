@@ -6,13 +6,13 @@ from reasoner_pydantic import Message
 
 
 def collapse_sets(query: dict, logger) -> None:
-    """Collase results according to is_set qnode notations."""
+    """Collase results according to set_interpretation qnode notations."""
     # just deserializing the query_graph is very fast
     qgraph = query.message.query_graph.dict()
     unique_qnodes = {
         qnode_id
         for qnode_id, qnode in qgraph["nodes"].items()
-        if not qnode.get("is_set", False)
+        if (qnode.get("set_interpretation", None) or "BATCH") == "BATCH"
     }
     if len(unique_qnodes) == len(query.message.query_graph.nodes):
         # no set nodes
@@ -61,12 +61,12 @@ def collapse_sets(query: dict, logger) -> None:
                 ] |= {binding["id"] for binding in analysis["edge_bindings"][qedge_id]}
     for result in result_buckets.values():
         result["node_bindings"] = {
-            qnode_id: [{"id": binding} for binding in bindings]
+            qnode_id: [{"id": binding, "attributes": []} for binding in bindings]
             for qnode_id, bindings in result["node_bindings"].items()
         }
         for analysis in result.get("analyses", []):
             analysis["edge_bindings"] = {
-                qedge_id: [{"id": binding} for binding in bindings]
+                qedge_id: [{"id": binding, "attributes": []} for binding in bindings]
                 for qedge_id, bindings in analysis["edge_bindings"].items()
             }
     message["results"] = list(result_buckets.values())
