@@ -460,7 +460,7 @@ async def lookup(
     logger.setLevel(level_number)
     logger.addHandler(log_handler)
 
-    bypass_cache = query_dict.get("bypass_cache", False)
+    bypass_cache = query_dict.get("bypass_cache") or False
     parameters = query_dict.get("parameters") or {}
 
     fetcher = Fetcher(logger, bypass_cache, parameters)
