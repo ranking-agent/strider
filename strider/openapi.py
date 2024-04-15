@@ -77,7 +77,7 @@ class TRAPI(FastAPI):
             "infores": "infores:strider",
         }
         openapi_schema["info"]["x-trapi"] = {
-            "version": "1.4.0",
+            "version": "1.5.0",
             "externalDocs": {
                 "description": "The values for version are restricted according to the regex in this external JSON schema. See schema and examples at url",
                 "url": "https://github.com/NCATSTranslator/translator_extensions/blob/production/x-trapi/",
