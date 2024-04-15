@@ -102,6 +102,7 @@ class ThrottledServer:
                     request_id,
                     payload,
                     response_queue,
+                    bypass_cache,
                     call_stack,
                     last_hop,
                 ),
@@ -119,6 +120,7 @@ class ThrottledServer:
                             request_id,
                             payload,
                             response_queue,
+                            bypass_cache,
                             call_stack,
                             last_hop,
                         ),
@@ -136,6 +138,7 @@ class ThrottledServer:
                                 request_id,
                                 payload,
                                 response_queue,
+                                bypass_cache,
                                 call_stack,
                                 last_hop,
                             ),
@@ -174,6 +177,7 @@ class ThrottledServer:
                                 request_id,
                                 request_value_mapping[request_id],
                                 response_queues[request_id],
+                                bypass_cache,
                                 call_stack,
                                 last_hop,
                             ),
@@ -219,6 +223,7 @@ class ThrottledServer:
                 # TODO rewrite this whole function to use pydantic model
                 merged_request_value = merged_request_value.dict()
                 merged_request_value["submitter"] = "infores:aragorn"
+                merged_request_value["bypass_cache"] = bypass_cache
                 merged_request_value = remove_null_values(merged_request_value)
                 # Make request
                 self.logger.info(
@@ -413,6 +418,7 @@ class ThrottledServer:
     async def _query(
         self,
         query: Query,
+        bypass_cache: bool,
         call_stack: list,
         last_hop: bool,
     ) -> ReasonerResponse:
@@ -435,7 +441,7 @@ class ThrottledServer:
             # Queue query for processing
             request_id = str(uuid.uuid1())
             await self.request_queue.put(
-                ((request_id, subquery, response_queue, call_stack, last_hop),)
+                ((request_id, subquery, response_queue, bypass_cache, call_stack, last_hop),)
             )
 
         combined_output = ReasonerResponse.parse_obj(
