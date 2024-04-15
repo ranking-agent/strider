@@ -16,7 +16,10 @@ LOGGER = logging.getLogger(__name__)
 def test_node_sets():
     """Test collapsing one edge of a two-hop query."""
     qgraph = {
-        "nodes": {"n0": {"categories": ["biolink:NamedThing"]}, "n1": {"categories": ["biolink:NamedThing"], "set_interpretation": "ALL"}},
+        "nodes": {
+            "n0": {"categories": ["biolink:NamedThing"]},
+            "n1": {"categories": ["biolink:NamedThing"], "set_interpretation": "ALL"},
+        },
         "edges": {
             "e01": {
                 "subject": "n0",

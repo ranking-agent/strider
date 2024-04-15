@@ -608,7 +608,7 @@ response_with_aux_graphs = {
                 "edges": [
                     "extra_edge_1",
                 ],
-                "attributes": []
+                "attributes": [],
             },
         },
     },
@@ -830,25 +830,60 @@ response_with_pinned_node_subclasses = {
             {
                 "analyses": [
                     {
-                        "edge_bindings": {"hop1": [{"id": "e0", "attributes": [],}]},
+                        "edge_bindings": {
+                            "hop1": [
+                                {
+                                    "id": "e0",
+                                    "attributes": [],
+                                }
+                            ]
+                        },
                         "resource_id": "infores:kp1",
                     }
                 ],
                 "node_bindings": {
-                    "n1": [{"id": "MONDO:0021074", "attributes": [],}],
-                    "n0": [{"id": "UMLS:C0156146", "query_id": "MONDO:0005011", "attributes": [],}],
+                    "n1": [
+                        {
+                            "id": "MONDO:0021074",
+                            "attributes": [],
+                        }
+                    ],
+                    "n0": [
+                        {
+                            "id": "UMLS:C0156146",
+                            "query_id": "MONDO:0005011",
+                            "attributes": [],
+                        }
+                    ],
                 },
             },
             {
                 "analyses": [
                     {
-                        "edge_bindings": {"hop1": [{"id": "e1", "attributes": [],}]},
+                        "edge_bindings": {
+                            "hop1": [
+                                {
+                                    "id": "e1",
+                                    "attributes": [],
+                                }
+                            ]
+                        },
                         "resource_id": "infores:kp1",
                     }
                 ],
                 "node_bindings": {
-                    "n1": [{"id": "UMLS:C0156146", "attributes": [],}],
-                    "n0": [{"id": "MONDO:0005011", "attributes": [],}],
+                    "n1": [
+                        {
+                            "id": "UMLS:C0156146",
+                            "attributes": [],
+                        }
+                    ],
+                    "n0": [
+                        {
+                            "id": "MONDO:0005011",
+                            "attributes": [],
+                        }
+                    ],
                 },
             },
         ],

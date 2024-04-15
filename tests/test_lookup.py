@@ -178,7 +178,10 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                     },
                     "knowledge_graph": {
                         "nodes": {
-                            "CHEBI:XXX": {"categories": ["biolink:NamedThing"], "attributes": []},
+                            "CHEBI:XXX": {
+                                "categories": ["biolink:NamedThing"],
+                                "attributes": [],
+                            },
                             "MONDO:0005148": {
                                 "categories": ["biolink:NamedThing"],
                                 "attributes": [
@@ -214,13 +217,23 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
                                         "attributes": [],
                                     }
                                 ],
-                                "n1": [{"id": "MONDO:0005148", "attributes": [],}],
+                                "n1": [
+                                    {
+                                        "id": "MONDO:0005148",
+                                        "attributes": [],
+                                    }
+                                ],
                             },
                             "analyses": [
                                 {
                                     "resource_id": "infores:kp1",
                                     "edge_bindings": {
-                                        "n0n1": [{"id": "n0n1", "attributes": [],}],
+                                        "n0n1": [
+                                            {
+                                                "id": "n0n1",
+                                                "attributes": [],
+                                            }
+                                        ],
                                     },
                                 }
                             ],
@@ -282,7 +295,10 @@ async def test_disambiguation(monkeypatch):
                     },
                     "knowledge_graph": {
                         "nodes": {
-                            "CHEBI:XXX": {"categories": ["biolink:NamedThing"], "attributes": []},
+                            "CHEBI:XXX": {
+                                "categories": ["biolink:NamedThing"],
+                                "attributes": [],
+                            },
                             "MONDO:0005148": {
                                 "categories": ["biolink:NamedThing"],
                                 "attributes": [
@@ -311,14 +327,29 @@ async def test_disambiguation(monkeypatch):
                     "results": [
                         {
                             "node_bindings": {
-                                "n0": [{"id": "CHEBI:XXX", "attributes": [],}],
-                                "n1": [{"id": "MONDO:0005148", "attributes": [],}],
+                                "n0": [
+                                    {
+                                        "id": "CHEBI:XXX",
+                                        "attributes": [],
+                                    }
+                                ],
+                                "n1": [
+                                    {
+                                        "id": "MONDO:0005148",
+                                        "attributes": [],
+                                    }
+                                ],
                             },
                             "analyses": [
                                 {
                                     "resource_id": "infores:kp1",
                                     "edge_bindings": {
-                                        "n0n1": [{"id": "n0n1", "attributes": [],}],
+                                        "n0n1": [
+                                            {
+                                                "id": "n0n1",
+                                                "attributes": [],
+                                            }
+                                        ],
                                     },
                                 }
                             ],
