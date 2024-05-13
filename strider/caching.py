@@ -126,87 +126,119 @@ def async_locking_cache(fcn, maxsize=32):
 
 async def get_kp_onehop(kp_id, onehop):
     """Get onehop from cache if saved."""
-    client = await aioredis.Redis(
-        connection_pool=onehop_redis_pool,
-    )
-    response = await client.get(f"{kp_id}:{json.dumps(onehop)}")
-    await client.close()
-    if response is not None:
-        response = json.loads(gzip.decompress(response))
+    try:
+        client = await aioredis.Redis(
+            connection_pool=onehop_redis_pool,
+        )
+        response = await client.get(f"{kp_id}:{json.dumps(onehop)}")
+        await client.close()
+        if response is not None:
+            response = json.loads(gzip.decompress(response))
+    except Exception:
+        # failed to get kp onehop
+        response = None
     return response
 
 
 async def save_kp_onehop(kp_id, onehop, response):
     """Cache a kp onehop."""
-    client = await aioredis.Redis(
-        connection_pool=onehop_redis_pool,
-    )
-    key = f"{kp_id}:{json.dumps(onehop)}"
-    await client.setex(
-        key, settings.redis_expiration, gzip.compress(json.dumps(response).encode())
-    )
-    await client.close()
+    try:
+        client = await aioredis.Redis(
+            connection_pool=onehop_redis_pool,
+        )
+        key = f"{kp_id}:{json.dumps(onehop)}"
+        await client.setex(
+            key, settings.redis_expiration, gzip.compress(json.dumps(response).encode())
+        )
+        await client.close()
+    except Exception:
+        # failed to save kp onehop
+        pass
 
 
 async def save_kp_registry(kps):
     """Cache a registry of all kps."""
-    client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    await client.set("kps", gzip.compress(json.dumps(kps).encode()))
-    await client.close()
+    try:
+        client = await aioredis.Redis(connection_pool=kp_redis_pool)
+        await client.set("kps", gzip.compress(json.dumps(kps).encode()))
+        await client.close()
+    except Exception:
+        # failed to save kp registry
+        pass
 
 
 async def get_kp_registry():
     """Get the registry of kps from cache."""
-    client = await aioredis.Redis(
-        connection_pool=kp_redis_pool,
-    )
-    response = await client.get("kps")
-    await client.close()
-    if response is not None:
-        response = json.loads(gzip.decompress(response))
+    try:
+        client = await aioredis.Redis(
+            connection_pool=kp_redis_pool,
+        )
+        response = await client.get("kps")
+        await client.close()
+        if response is not None:
+            response = json.loads(gzip.decompress(response))
+    except Exception:
+        # failed to get kp registry
+        response = None
     return response
 
 
 async def get_registry_lock():
     """Lock registry lookup so only one worker will retrieve."""
-    client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    locked = await client.get("locked")
-    if locked is None:
-        await client.setex("locked", 360, 1)
+    try:
+        client = await aioredis.Redis(connection_pool=kp_redis_pool)
+        locked = await client.get("locked")
+        if locked is None:
+            await client.setex("locked", 360, 1)
+            await client.close()
+            return True
         await client.close()
-        return True
-    await client.close()
+    except Exception:
+        # failed to retrieve registry lock
+        pass
     return False
 
 
 async def remove_registry_lock():
     """Remove lock from registry."""
-    client = await aioredis.Redis(connection_pool=kp_redis_pool)
-    await client.delete("locked")
-    await client.close()
+    try:
+        client = await aioredis.Redis(connection_pool=kp_redis_pool)
+        await client.delete("locked")
+        await client.close()
+    except Exception:
+        # failed to remove registry lock
+        pass
 
 
 async def save_post_request(url, request, response):
     """Save response from post request in cache."""
-    client = await aioredis.Redis(
-        connection_pool=post_request_redis_pool,
-    )
-    key = f'{{"{url}":{json.dumps(request)}}}'
-    await client.setex(
-        key, settings.redis_expiration, gzip.compress(json.dumps(response).encode())
-    )
-    await client.close()
+    try:
+        client = await aioredis.Redis(
+            connection_pool=post_request_redis_pool,
+        )
+        key = f'{{"{url}":{json.dumps(request)}}}'
+        await client.setex(
+            key, settings.redis_expiration, gzip.compress(json.dumps(response).encode())
+        )
+        await client.close()
+    except Exception:
+        # failed to save post request
+        pass
 
 
 async def get_post_response(url, request):
     """Get post response from cache."""
-    client = await aioredis.Redis(
-        connection_pool=post_request_redis_pool,
-    )
-    response = await client.get(f'{{"{url}":{json.dumps(request)}}}')
-    await client.close()
-    if response is not None:
-        response = json.loads(gzip.decompress(response))
+    try:
+        client = await aioredis.Redis(
+            connection_pool=post_request_redis_pool,
+        )
+        response = await client.get(f'{{"{url}":{json.dumps(request)}}}')
+        await client.close()
+        if response is not None:
+            response = json.loads(gzip.decompress(response))
+    except Exception:
+        # failed to get post response
+        response = None
     return response
 
 

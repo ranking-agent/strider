@@ -7,6 +7,8 @@ import logging
 import math
 from typing import Generator, Union
 
+from kp_registry import Registry
+
 from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
@@ -227,9 +229,9 @@ async def generate_plan(
     plan = dict()
     registry = await get_kp_registry()
     if registry is None:
-        msg = f"Failed to get kp registry."
-        logger.info(msg)
-        raise NoAnswersError(msg)
+        logger.warning("Unable to get kp registry from cache. Retrieving in real time...")
+        kp_registry = Registry()
+        registry = await kp_registry.retrieve_kps()
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
         provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
