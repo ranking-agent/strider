@@ -229,7 +229,9 @@ async def generate_plan(
     plan = dict()
     registry = await get_kp_registry()
     if registry is None:
-        logger.warning("Unable to get kp registry from cache. Retrieving in real time...")
+        logger.warning(
+            "Unable to get kp registry from cache. Retrieving in real time..."
+        )
         kp_registry = Registry()
         registry = await kp_registry.retrieve_kps()
     for qedge_id in qgraph["edges"]:
