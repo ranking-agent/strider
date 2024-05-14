@@ -62,6 +62,7 @@ from .logger import QueryLogger
 setup_logging()
 LOGGER = logging.getLogger(__name__)
 registry = Registry()
+backup_kps = {}
 
 DESCRIPTION = """
 <img src="/static/favicon.svg" width="200px">
@@ -186,7 +187,7 @@ if settings.jaeger_enabled == "True":
 
 
 @APP.on_event("startup")
-async def print_config():
+async def get_kp_registry():
     if not settings.offline_mode:
         await reload_kp_registry()
 
@@ -210,12 +211,17 @@ async def custom_swagger_ui_html(req: Request) -> HTMLResponse:
 
 async def reload_kp_registry():
     """Reload the kp registry and store in cache."""
-    if await get_registry_lock():
-        LOGGER.info("getting registry of kps")
-        kps = await registry.retrieve_kps()
-        await save_kp_registry(kps)
-        LOGGER.info("kp registry refreshed.")
-        await remove_registry_lock()
+    global backup_kps
+    try:
+        if await get_registry_lock():
+            LOGGER.info("getting registry of kps")
+            kps = await registry.retrieve_kps()
+            await save_kp_registry(kps)
+            LOGGER.info("kp registry refreshed.")
+            await remove_registry_lock()
+    except Exception:
+        # failed to even get lock status, so need to fall back to in-memory registry
+        backup_kps = await registry.retrieve_kps()
 
 
 @APP.post("/refresh", status_code=status.HTTP_202_ACCEPTED, include_in_schema=False)
@@ -443,6 +449,7 @@ async def lookup(
     qid: str = None,
 ) -> dict:
     """Perform lookup operation."""
+    global backup_kps
     lookup_start_time = time.time()
     qgraph = query_dict["message"]["query_graph"]
 
@@ -467,7 +474,7 @@ async def lookup(
 
     logger.info(f"Doing lookup for qgraph: {json.dumps(qgraph)}")
     try:
-        await fetcher.setup(qgraph, registry, information_content_threshold)
+        await fetcher.setup(qgraph, backup_kps, information_content_threshold)
     except NoAnswersError:
         logger.warning("Returning no results.")
         return {

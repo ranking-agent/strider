@@ -436,7 +436,7 @@ class Fetcher:
     async def setup(
         self,
         qgraph: dict,
-        registry: Registry,
+        backup_kps: dict,
         information_content_threshold: int,
     ):
         """Set up."""
@@ -457,8 +457,8 @@ class Fetcher:
         # Generate traversal plan
         self.plan, kps = await generate_plan(
             self.qgraph,
+            backup_kps=backup_kps,
             logger=self.logger,
-            registry=registry,
         )
         self.logger.info(f"Generated query plan: {self.plan}")
 
