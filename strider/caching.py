@@ -185,17 +185,13 @@ async def get_kp_registry():
 
 async def get_registry_lock():
     """Lock registry lookup so only one worker will retrieve."""
-    try:
-        client = await aioredis.Redis(connection_pool=kp_redis_pool)
-        locked = await client.get("locked")
-        if locked is None:
-            await client.setex("locked", 360, 1)
-            await client.close()
-            return True
+    client = await aioredis.Redis(connection_pool=kp_redis_pool)
+    locked = await client.get("locked")
+    if locked is None:
+        await client.setex("locked", 360, 1)
         await client.close()
-    except Exception:
-        # failed to retrieve registry lock
-        pass
+        return True
+    await client.close()
     return False
 
 

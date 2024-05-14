@@ -7,8 +7,6 @@ import logging
 import math
 from typing import Generator, Union
 
-from kp_registry import Registry
-
 from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
@@ -216,8 +214,8 @@ def get_kp_operations_queries(
 
 async def generate_plan(
     qgraph: dict,
+    backup_kps=dict,
     logger: logging.Logger = None,
-    registry=None,
 ) -> tuple[dict[str, list[str]], dict[str, dict]]:
     """Generate traversal plan."""
     # check that qgraph is traversable
@@ -230,10 +228,9 @@ async def generate_plan(
     registry = await get_kp_registry()
     if registry is None:
         logger.warning(
-            "Unable to get kp registry from cache. Retrieving in real time..."
+            "Unable to get kp registry from cache. Falling back to in-memory registry..."
         )
-        kp_registry = Registry()
-        registry = await kp_registry.retrieve_kps()
+        registry = backup_kps
     for qedge_id in qgraph["edges"]:
         qedge = qgraph["edges"][qedge_id]
         provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
