@@ -39,6 +39,7 @@ packaging==24.1
 protobuf==3.20.3
 pydantic==1.10.17
 Pygments==2.18.0
+pyinstrument==4.6.2
 python-dotenv==1.0.1
 python-multipart==0.0.9
 PyYAML==6.0.1
