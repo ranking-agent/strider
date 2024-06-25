@@ -16,3 +16,4 @@ opentelemetry-sdk==1.16.0
 opentelemetry-instrumentation-fastapi==0.37b0
 opentelemetry-exporter-jaeger==1.16.0
 opentelemetry-instrumentation-httpx==0.37b0
+pyinstrument==4.6.2
