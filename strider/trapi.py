@@ -239,15 +239,32 @@ def filter_message(
     for result in message.results or []:
         keep = True
         for qnode_id, node_bindings in result.node_bindings.items():
+            # just specifying the type
             for node_binding in node_bindings:
+                node_binding: NodeBinding
                 if (
                     qnode_id in pinned_nodes
                     and node_binding.id in pinned_nodes[qnode_id]
                 ):
                     # don't filter any pinned original nodes (excluding subclasses with query id)
                     continue
-                curie = curie_map.get(node_binding.id)
+                curie: Entity = curie_map.get(node_binding.id)
+                query_id = (
+                    node_binding.query_id if node_binding.query_id is not None else ""
+                )
                 if (
+                    qnode_id in pinned_nodes
+                    and (node_binding.id not in pinned_nodes[qnode_id])
+                    and (query_id not in pinned_nodes[qnode_id])
+                ):
+                    keep = False
+                    if node_binding.id in message.knowledge_graph.nodes:
+                        # remove nodes from kgraph
+                        logger.debug(
+                            f"Removing {node_binding.id} because it's not what was asked for. Open an issue for this kp."
+                        )
+                        message.knowledge_graph.nodes.pop(node_binding.id)
+                elif (
                     (
                         curie is not None
                         and curie.information_content < information_content_threshold
