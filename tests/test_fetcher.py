@@ -3,17 +3,14 @@
 import httpx
 import json
 import pytest
+from pytest_httpx import HTTPXMock
 import redis.asyncio
 
 from fastapi.responses import Response
 
-from tests.helpers.context import (
-    with_norm_overlay,
-    with_response_overlay,
-)
 from tests.helpers.redisMock import redisMock
 from tests.helpers.logger import setup_logger
-from tests.helpers.utils import query_graph_from_string
+from tests.helpers.utils import query_graph_from_string, get_normalizer_response
 import tests.helpers.mock_responses as mock_responses
 
 from strider.fetcher import Fetcher
@@ -34,28 +31,20 @@ async def client():
 logger = setup_logger()
 
 
+normalizer_data = """
+UMLS:C0156146 categories biolink:Disease
+UMLS:C0156146 information_content 78
+MONDO:0021074 categories biolink:Disease
+MONDO:0021074 information_content 95
+"""
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-    """
-    UMLS:C0156146 categories biolink:Disease
-    UMLS:C0156146 information_content 78
-    MONDO:0021074 categories biolink:Disease
-    MONDO:0021074 information_content 95
-    """,
-)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps(mock_responses.response_with_pinned_node_subclasses),
-    ),
-)
-async def test_fetcher_bad_response(client, monkeypatch):
+async def test_fetcher_bad_response(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test when a KP returns null query graph.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://normalizer/get_normalized_nodes", json=get_normalizer_response(normalizer_data))
+    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.response_with_pinned_node_subclasses)
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:Disease ))

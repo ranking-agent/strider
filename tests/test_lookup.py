@@ -4,16 +4,14 @@ import json
 
 from fastapi.responses import Response
 import pytest
+from pytest_httpx import HTTPXMock
 import redis.asyncio
 from reasoner_pydantic import Response as PydanticResponse
 
-from tests.helpers.context import (
-    with_response_overlay,
-    with_norm_overlay,
-)
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string
 from tests.helpers.redisMock import redisMock
+import tests.helpers.mock_responses as mock_responses
 
 from strider.config import settings
 from strider.server import lookup
@@ -26,9 +24,6 @@ setup_logger()
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
 async def test_mixed_canonical(monkeypatch, mocker):
     """Test qedge with mixed canonical and non-canonical predicates."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
@@ -90,9 +85,6 @@ async def test_mixed_canonical(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
 async def test_symmetric_noncanonical(monkeypatch, mocker):
     """Test qedge with the symmetric, non-canonical predicate genetically_interacts_with."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
@@ -154,103 +146,12 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
-# Add attributes to kp1 response
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps(
-            {
-                "message": {
-                    "query_graph": {
-                        "nodes": {
-                            "n0": {"ids": ["CHEBI:6801"]},
-                            "n1": {"categories": ["biolink:Disease"]},
-                        },
-                        "edges": {
-                            "n0n1": {
-                                "subject": "n0",
-                                "predicate": "biolink:treats",
-                                "object": "n1",
-                            },
-                        },
-                    },
-                    "knowledge_graph": {
-                        "nodes": {
-                            "CHEBI:XXX": {
-                                "categories": ["biolink:NamedThing"],
-                                "attributes": [],
-                            },
-                            "MONDO:0005148": {
-                                "categories": ["biolink:NamedThing"],
-                                "attributes": [
-                                    {
-                                        "attribute_type_id": "test_constraint",
-                                        "value": "foo",
-                                    },
-                                ],
-                            },
-                        },
-                        "edges": {
-                            "n0n1": {
-                                "subject": "CHEBI:XXX",
-                                "predicate": "biolink:treats",
-                                "object": "MONDO:0005148",
-                                "sources": [
-                                    {
-                                        "resource_id": "kp1",
-                                        "resource_role": "primary_knowledge_source",
-                                    },
-                                ],
-                                "attributes": [],
-                            },
-                        },
-                    },
-                    "results": [
-                        {
-                            "node_bindings": {
-                                "n0": [
-                                    {
-                                        "id": "CHEBI:XXX",
-                                        "qnode_id": "CHEBI:6801",
-                                        "attributes": [],
-                                    }
-                                ],
-                                "n1": [
-                                    {
-                                        "id": "MONDO:0005148",
-                                        "attributes": [],
-                                    }
-                                ],
-                            },
-                            "analyses": [
-                                {
-                                    "resource_id": "infores:kp1",
-                                    "edge_bindings": {
-                                        "n0n1": [
-                                            {
-                                                "id": "n0n1",
-                                                "attributes": [],
-                                            }
-                                        ],
-                                    },
-                                }
-                            ],
-                        },
-                    ],
-                }
-            }
-        ),
-    ),
-)
-async def test_disambiguation(monkeypatch):
+async def test_disambiguation(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test disambiguating batch results with qnode_id.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.disambiguation_response)
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -262,109 +163,19 @@ async def test_disambiguation(monkeypatch):
     # Create query
     q = {
         "message": {"query_graph": QGRAPH},
-        "log_level": "ERROR",
     }
 
     # Run
     output = await lookup(q)
+    print(output)
     assert len(output["message"]["results"]) == 1
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
-# Add attributes to ctd response
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps(
-            {
-                "message": {
-                    "query_graph": {
-                        "nodes": {
-                            "n0": {"ids": ["CHEBI:6801"]},
-                            "n1": {"categories": ["biolink:Disease"]},
-                        },
-                        "edges": {
-                            "n0n1": {
-                                "subject": "n0",
-                                "predicate": "biolink:treats",
-                                "object": "n1",
-                            },
-                        },
-                    },
-                    "knowledge_graph": {
-                        "nodes": {
-                            "CHEBI:XXX": {
-                                "categories": ["biolink:NamedThing"],
-                                "attributes": [],
-                            },
-                            "MONDO:0005148": {
-                                "categories": ["biolink:NamedThing"],
-                                "attributes": [
-                                    {
-                                        "attribute_type_id": "test_constraint",
-                                        "value": "foo",
-                                    },
-                                ],
-                            },
-                        },
-                        "edges": {
-                            "n0n1": {
-                                "subject": "CHEBI:XXX",
-                                "predicate": "biolink:treats",
-                                "object": "MONDO:0005148",
-                                "sources": [
-                                    {
-                                        "resource_id": "kp1",
-                                        "resource_role": "primary_knowledge_source",
-                                    },
-                                ],
-                                "attributes": [],
-                            },
-                        },
-                    },
-                    "results": [
-                        {
-                            "node_bindings": {
-                                "n0": [
-                                    {
-                                        "id": "CHEBI:XXX",
-                                        "attributes": [],
-                                    }
-                                ],
-                                "n1": [
-                                    {
-                                        "id": "MONDO:0005148",
-                                        "attributes": [],
-                                    }
-                                ],
-                            },
-                            "analyses": [
-                                {
-                                    "resource_id": "infores:kp1",
-                                    "edge_bindings": {
-                                        "n0n1": [
-                                            {
-                                                "id": "n0n1",
-                                                "attributes": [],
-                                            }
-                                        ],
-                                    },
-                                }
-                            ],
-                        },
-                    ],
-                }
-            }
-        ),
-    ),
-)
-async def test_trivial_unbatching(monkeypatch):
+async def test_trivial_unbatching(monkeypatch, httpx_mock: HTTPXMock):
     """Test trivial unbatching with batch size one."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.unbatching_response)
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -376,7 +187,7 @@ async def test_trivial_unbatching(monkeypatch):
     # Create query
     q = {
         "message": {"query_graph": QGRAPH},
-        "log_level": "ERROR",
+        "log_level": "DEBUG",
     }
 
     # Run
@@ -385,9 +196,6 @@ async def test_trivial_unbatching(monkeypatch):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
 async def test_protein_gene_conflation(monkeypatch, mocker):
     """Test conflation of biolink:Gene and biolink:Protein categories.
     e0 checks that Gene is added to Protein nodes."""
@@ -447,9 +255,6 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
 async def test_gene_protein_conflation(monkeypatch, mocker):
     """Test conflation of biolink:Gene and biolink:Protein categories.
     e0 checks to make sure that Protein is added to Gene nodes."""
@@ -509,9 +314,6 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
 async def test_node_set(monkeypatch, mocker):
     """Test that is_set is handled correctly."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
@@ -574,9 +376,6 @@ async def test_node_set(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-)
 async def test_bypass_cache_is_sent_along_to_kps(monkeypatch, mocker):
     """Test that is_set is handled correctly."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)

@@ -1,16 +1,15 @@
 import copy
 import logging
 import pytest
+from pytest_httpx import HTTPXMock
 from reasoner_pydantic import Response
 
-from tests.helpers.context import (
-    with_norm_overlay,
-)
 from tests.helpers.mock_responses import (
     kp_response,
     response_with_aux_graphs,
     blocked_response,
 )
+from tests.helpers.utils import get_normalizer_response
 
 from strider.config import settings
 
@@ -31,18 +30,18 @@ kp = {
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-    """
-    MONDO:0005148 categories biolink:Disease
-    MONDO:0005148 synonyms DOID:9352
-    MONDO:0005148 information_content 2
-""",
-)
-async def test_node_filtered():
+async def test_node_filtered(httpx_mock: HTTPXMock):
     """
     Test that node with an information content lower than the threshold are removed
     """
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes",
+        json=get_normalizer_response("""
+            MONDO:0005148 categories biolink:Disease
+            MONDO:0005148 synonyms DOID:9352
+            MONDO:0005148 information_content 2
+        """)
+    )
     provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
@@ -62,24 +61,24 @@ async def test_node_filtered():
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-    """
-    MONDO:0005148 categories biolink:Disease
-    MONDO:0005148 synonyms DOID:9352
-    MONDO:0005148 information_content 100
-    MESH:D008687 categories biolink:ChemicalEntity
-    MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
-    MESH:D008687 information_content 100
-    MESH:D014867 categories biolink:ChemicalEntity
-    MESH:D014867 synonyms PUBCHEM.COMPOUND:4901
-    MESH:D014867 information_content 74
-""",
-)
-async def test_aux_graph_filtering():
+async def test_aux_graph_filtering(httpx_mock: HTTPXMock):
     """
     Test that node with an information content lower than the threshold are removed
     """
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes",
+        json=get_normalizer_response("""
+            MONDO:0005148 categories biolink:Disease
+            MONDO:0005148 synonyms DOID:9352
+            MONDO:0005148 information_content 100
+            MESH:D008687 categories biolink:ChemicalEntity
+            MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
+            MESH:D008687 information_content 100
+            MESH:D014867 categories biolink:ChemicalEntity
+            MESH:D014867 synonyms PUBCHEM.COMPOUND:4901
+            MESH:D014867 information_content 74
+        """)
+    )
     provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
@@ -101,19 +100,17 @@ async def test_aux_graph_filtering():
 
 
 @pytest.mark.asyncio
-@pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-    """
-    MESH:D014867 categories biolink:SmallMolecule
-    MESH:D014867 synonyms MESH:D000838
-""",
-)
-async def test_blocklist():
+async def test_blocklist(httpx_mock: HTTPXMock):
     """
     Test that nodes in the blocklist are not taken in as results
     """
-
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes",
+        json=get_normalizer_response("""
+            MESH:D014867 categories biolink:SmallMolecule
+            MESH:D014867 synonyms MESH:D000838
+        """)
+    )
     provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
@@ -135,21 +132,21 @@ async def test_blocklist():
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(
-    settings.normalizer_url,
-    """
-    MONDO:0005148 categories biolink:Disease
-    MONDO:0005148 synonyms DOID:9352
-    MONDO:0005148 information_content 100
-    MESH:D008687 categories biolink:ChemicalEntity
-    MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
-    MESH:D008687 information_content 100
-""",
-)
-async def test_aux_graph_edges_are_kept():
+async def test_aux_graph_edges_are_kept(httpx_mock: HTTPXMock):
     """
     Test that node with an information content lower than the threshold are removed
     """
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes",
+        json=get_normalizer_response("""
+            MONDO:0005148 categories biolink:Disease
+            MONDO:0005148 synonyms DOID:9352
+            MONDO:0005148 information_content 100
+            MESH:D008687 categories biolink:ChemicalEntity
+            MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
+            MESH:D008687 information_content 100
+        """)
+    )
     provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
