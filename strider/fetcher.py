@@ -376,7 +376,6 @@ class Fetcher:
             self.logger.error(f"[{kp.id}] Generator timed out after {kp.timeout}")
         except Exception as e:
             self.logger.error(f"Generator timed out with {e}")
-        
 
     async def generate_from_result(
         self,

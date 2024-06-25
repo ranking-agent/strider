@@ -37,14 +37,21 @@ UMLS:C0156146 information_content 78
 MONDO:0021074 categories biolink:Disease
 MONDO:0021074 information_content 95
 """
+
+
 @pytest.mark.asyncio
 async def test_fetcher_bad_response(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test when a KP returns null query graph.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://normalizer/get_normalized_nodes", json=get_normalizer_response(normalizer_data))
-    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.response_with_pinned_node_subclasses)
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes",
+        json=get_normalizer_response(normalizer_data),
+    )
+    httpx_mock.add_response(
+        url="http://kp1/query", json=mock_responses.response_with_pinned_node_subclasses
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:Disease ))

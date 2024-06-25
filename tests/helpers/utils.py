@@ -435,7 +435,7 @@ def get_normalizer_response(s):
             "type": category_mappings.get(curie, []),
             "information_content": information_content.get(curie, 100),
         }
-    
+
     return response
 
 

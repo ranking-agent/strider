@@ -110,7 +110,9 @@ async def test_normalizer_no_synonyms_available(httpx_mock: HTTPXMock):
     to the normalizer that we continue working and add
     a warning to the log
     """
-    httpx_mock.add_response(url="http://normalizer/get_normalized_nodes", status_code=404)
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes", status_code=404
+    )
     provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}
@@ -140,7 +142,9 @@ async def test_normalizer_500(httpx_mock: HTTPXMock):
     no changes to the query graph and continue on while adding a
     a warning to the log
     """
-    httpx_mock.add_response(url="http://normalizer/get_normalized_nodes", status_code=500)
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes", status_code=500
+    )
     provider = KnowledgeProvider("test", kp, logger)
 
     preferred_prefixes = {"biolink:Disease": ["MONDO"]}

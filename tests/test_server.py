@@ -10,9 +10,9 @@ import httpx
 import pytest
 from pytest_httpx import HTTPXMock
 from reasoner_pydantic import (
-  Response as PydanticResponse,
-  Query,
-  AsyncQuery,
+    Response as PydanticResponse,
+    Query,
+    AsyncQuery,
 )
 
 from tests.helpers.logger import setup_logger
@@ -52,8 +52,12 @@ async def test_duplicate_results(monkeypatch, httpx_mock: HTTPXMock):
     get the same nodes back with slightly different categories.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp0/query", json=mock_responses.duplicate_result_response)
-    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.duplicate_result_response_2)
+    httpx_mock.add_response(
+        url="http://kp0/query", json=mock_responses.duplicate_result_response
+    )
+    httpx_mock.add_response(
+        url="http://kp1/query", json=mock_responses.duplicate_result_response_2
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -80,8 +84,13 @@ async def test_merge_results_different_predicates(monkeypatch, httpx_mock: HTTPX
     then the results are not merged together
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp0/query", json=mock_responses.duplicate_result_response)
-    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.duplicate_result_response_different_predicate)
+    httpx_mock.add_response(
+        url="http://kp0/query", json=mock_responses.duplicate_result_response
+    )
+    httpx_mock.add_response(
+        url="http://kp1/query",
+        json=mock_responses.duplicate_result_response_different_predicate,
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -227,7 +236,9 @@ async def test_solve_missing_category(monkeypatch, mocker):
 
 
 @pytest.mark.asyncio
-async def test_normalizer_different_category(monkeypatch, mocker, httpx_mock: HTTPXMock):
+async def test_normalizer_different_category(
+    monkeypatch, mocker, httpx_mock: HTTPXMock
+):
     """
     Test solving a query graph where the category provided doesn't match
     the one in the node normalizer.
@@ -235,9 +246,11 @@ async def test_normalizer_different_category(monkeypatch, mocker, httpx_mock: HT
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response("""
+        json=get_normalizer_response(
+            """
             CHEBI:6801 categories biolink:Vitamin
-        """)
+        """
+        ),
     )
     query = mocker.patch(
         "strider.throttle.ThrottledServer._query",
@@ -303,9 +316,11 @@ async def test_solve_loop(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response("""
+        json=get_normalizer_response(
+            """
             MONDO:0008114 categories biolink:Disease
-        """)
+        """
+        ),
     )
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     QGRAPH = query_graph_from_string(
@@ -405,10 +420,12 @@ async def test_solve_not_real_predicate(monkeypatch, mocker, httpx_mock: HTTPXMo
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response("""
+        json=get_normalizer_response(
+            """
             CHEBI:6801 categories biolink:ChemicalSubstance
             MONDO:0005148 categories biolink:Disease
-        """)
+        """
+        ),
     )
     query = mocker.patch(
         "strider.throttle.ThrottledServer._query",
@@ -444,10 +461,12 @@ async def test_exception_response(monkeypatch):
     _Message = strider.fetcher.Message
     strider.fetcher.Message = None
 
-    q = Query.parse_obj({
-        "message": {"query_graph": qgraph},
-        "log_level": "DEBUG",
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": qgraph},
+            "log_level": "DEBUG",
+        }
+    )
     response = await sync_query(q)
 
     # Put fetcher back together
@@ -472,10 +491,12 @@ async def test_normalizer_unavailable(monkeypatch):
     )
 
     # Create query
-    q = Query.parse_obj({
-        "message": {"query_graph": QGRAPH},
-        "log_level": "WARNING",
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": QGRAPH},
+            "log_level": "WARNING",
+        }
+    )
 
     # Run
     response = await sync_query(q)
@@ -504,14 +525,16 @@ async def test_workflow(monkeypatch, httpx_mock: HTTPXMock):
     )
 
     # Create query
-    q = Query.parse_obj({
-        "message": {"query_graph": QGRAPH},
-        "workflow": [
-            {
-                "id": "lookup",
-            },
-        ],
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": QGRAPH},
+            "workflow": [
+                {
+                    "id": "lookup",
+                },
+            ],
+        }
+    )
 
     # Run
     response = await sync_query(q)
@@ -528,7 +551,8 @@ async def test_multiple_identifiers(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response("""
+        json=get_normalizer_response(
+            """
             UMLS:C0032961 categories biolink:PhenotypicFeature
             UMLS:C0032961 synonyms NCIT:C25742 NCIT:C92933
             NCIT:C25742 categories biolink:PhenotypicFeature
@@ -537,7 +561,8 @@ async def test_multiple_identifiers(monkeypatch, httpx_mock: HTTPXMock):
             NCIT:C92933 synonyms NCIT:C25742 NCIT:C92933
             CHEBI:2904 categories biolink:ChemicalSubstance
             CHEBI:30146 categories biolink:ChemicalSubstance
-        """)
+        """
+        ),
     )
     QGRAPH = query_graph_from_string(
         """
@@ -564,11 +589,15 @@ async def test_provenance(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response("""
+        json=get_normalizer_response(
+            """
             MONDO:0005148 categories biolink:Vitamin
-        """)
+        """
+        ),
     )
-    httpx_mock.add_response(url="http://kp3/query", json=mock_responses.response_with_attributes)
+    httpx_mock.add_response(
+        url="http://kp3/query", json=mock_responses.response_with_attributes
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -611,7 +640,9 @@ async def test_async_query(monkeypatch, httpx_mock: HTTPXMock):
     )
 
     # Run
-    await async_lookup(callback_url, {"callback": callback_url, "message": {"query_graph": QGRAPH}})
+    await async_lookup(
+        callback_url, {"callback": callback_url, "message": {"query_graph": QGRAPH}}
+    )
     requests = httpx_mock.get_requests()
     # this might be finicky. But we expect the last request to be the final response to the callback url
     assert requests[-1].url == callback_url
@@ -638,8 +669,12 @@ async def test_different_callbacks_multiquery():
     )
 
     q_error = {
-        "query1": AsyncQuery.parse_obj({"callback": "http://test1/", "message": {"query_graph": QGRAPH1}}),
-        "query2": AsyncQuery.parse_obj({"callback": "http://test2/", "message": {"query_graph": QGRAPH2}}),
+        "query1": AsyncQuery.parse_obj(
+            {"callback": "http://test1/", "message": {"query_graph": QGRAPH1}}
+        ),
+        "query2": AsyncQuery.parse_obj(
+            {"callback": "http://test2/", "message": {"query_graph": QGRAPH2}}
+        ),
     }
     with pytest.raises(HTTPException):
         await multi_query(None, q_error)
