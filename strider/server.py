@@ -93,7 +93,6 @@ openapi_args = dict(
         "lookup",
         "filter_results_top_n",
     ],
-    root_path=os.environ.get("ROOT_PATH", "/"),
 )
 if settings.openapi_server_url:
     openapi_args["servers"] = [
