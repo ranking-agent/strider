@@ -384,7 +384,7 @@ def kps_from_string(s):
     return kps
 
 
-def normalizer_data_from_string(s):
+def get_normalizer_response(s):
     """
     Parse data for node normalizer from string. Useful for tests.
 
@@ -402,6 +402,7 @@ def normalizer_data_from_string(s):
     category_mappings = defaultdict(list)
     synset_mappings = defaultdict(list)
     information_content = defaultdict(lambda x: 100)
+    response = {}
     for line in s.splitlines():
         tokens = line.split(" ")
         curie = tokens[0]
@@ -424,11 +425,18 @@ def normalizer_data_from_string(s):
         else:
             raise ValueError(f"Invalid line: {line}")
 
-    return {
-        "category_mappings": category_mappings,
-        "synset_mappings": synset_mappings,
-        "information_content": information_content,
-    }
+        response[curie] = {
+            "id": {
+                "identifier": curie,
+            },
+            "equivalent_identifiers": [
+                {"identifier": synonym} for synonym in synset_mappings.get(curie, [])
+            ],
+            "type": category_mappings.get(curie, []),
+            "information_content": information_content.get(curie, 100),
+        }
+    
+    return response
 
 
 def plan_template_from_string(s):

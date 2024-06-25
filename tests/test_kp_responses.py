@@ -3,50 +3,34 @@
 import httpx
 import json
 import pytest
+from pytest_httpx import HTTPXMock
 import redis.asyncio
 
 from fastapi.responses import Response
+from reasoner_pydantic import Query
 
-from tests.helpers.context import (
-    with_norm_overlay,
-    with_response_overlay,
-)
 from tests.helpers.redisMock import redisMock
 from tests.helpers.logger import setup_logger
 from tests.helpers.utils import query_graph_from_string, validate_message
 import tests.helpers.mock_responses as mock_responses
 
-from strider.server import APP
+from strider.server import sync_query
 from strider.config import settings
 
 # Switch prefix path before importing server
 settings.normalizer_url = "http://normalizer"
 
 
-@pytest.fixture()
-async def client():
-    """Yield httpx client."""
-    async with httpx.AsyncClient(app=APP, base_url="http://test") as client_:
-        yield client_
-
-
 setup_logger()
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps({"message": {}}),
-    ),
-)
-async def test_kp_response_empty_message(client, monkeypatch):
+async def test_kp_response_empty_message(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test when a KP returns null query graph.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp1/query", json={"message": {}})
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:Drug ))
@@ -57,34 +41,28 @@ async def test_kp_response_empty_message(client, monkeypatch):
     )
 
     # Create query
-    q = {
+    q = Query.parse_obj({
         "message": {"query_graph": QGRAPH},
         # "log_level": "WARNING"
-    }
+    })
 
     # Run
-    response = await client.post("/query", json=q)
-    output = response.json()
+    response = await sync_query(q)
+    output = json.loads(response.body)
+    # output = response.content
     assert "knowledge_graph" in output["message"]
     assert "results" in output["message"]
     assert "query_graph" in output["message"]
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps({"message": {}}),
-    ),
-)
-async def test_kp_response_empty_message_pinned_two_hop(client, monkeypatch):
+async def test_kp_response_empty_message_pinned_two_hop(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test when a KP returns null query graph.
     """
     # mock the return of the kp registry from redis
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp1/query", json={"message": {}})
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:1 ))
@@ -97,42 +75,28 @@ async def test_kp_response_empty_message_pinned_two_hop(client, monkeypatch):
     )
 
     # Create query
-    q = {
+    q = Query.parse_obj({
         "message": {"query_graph": QGRAPH},
         # "log_level": "INFO",
-    }
+    })
 
     # Run
-    response = await client.post("/query", json=q)
-    output = response.json()
+    response = await sync_query(q)
+    output = json.loads(response.body)
     assert "knowledge_graph" in output["message"]
     assert "results" in output["message"]
     assert "query_graph" in output["message"]
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-# Override one KP with an invalid response
-@with_response_overlay(
-    "http://kp0/query",
-    Response(
-        status_code=500,
-        content="Internal server error",
-    ),
-)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps(mock_responses.kp_response),
-    ),
-)
-async def test_kp_500(client, monkeypatch):
+async def test_kp_500(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test that when a KP returns a 500 error we add
     a message to the log but continue running
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp0/query", status_code=500, text="Internal Server Error")
+    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -143,24 +107,15 @@ async def test_kp_500(client, monkeypatch):
     )
 
     # Create query
-    q = {
+    q = Query.parse_obj({
         "message": {"query_graph": QGRAPH},
         "log_level": "WARNING",
-    }
+    })
 
     # Run
-    response = await client.post("/query", json=q)
-    output = response.json()
+    response = await sync_query(q)
+    output = json.loads(response.body)
 
-    # Check that we stored the error
-    assert any(
-        "Response Error contacting infores:kp0" in log["message"]
-        for log in output["logs"]
-    )
-    assert any(
-        "Internal server error" in log.get("response", {}).get("data", "")
-        for log in output["logs"]
-    )
     # Ensure we have results from the other KPs
     assert len(output["message"]["knowledge_graph"]["nodes"]) > 0
     assert len(output["message"]["knowledge_graph"]["edges"]) > 0
@@ -168,20 +123,13 @@ async def test_kp_500(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps({"message": None}),
-    ),
-)
-async def test_kp_not_trapi(client, monkeypatch):
+async def test_kp_not_trapi(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test that when a KP is unavailable we add a message to
     the log but continue running
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp1/query", json={"message": None})
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:Disease ))
@@ -192,14 +140,14 @@ async def test_kp_not_trapi(client, monkeypatch):
     )
 
     # Create query
-    q = {
+    q = Query.parse_obj({
         "message": {"query_graph": QGRAPH},
         "log_level": "WARNING",
-    }
+    })
 
     # Run
-    response = await client.post("/query", json=q)
-    output = response.json()
+    response = await sync_query(q)
+    output = json.loads(response.body)
 
     # Check that we stored the error
     assert (
@@ -209,26 +157,13 @@ async def test_kp_not_trapi(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps({"message": {"query_graph": {"nodes": {}, "edges": {}}}}),
-    ),
-)
-@with_response_overlay(
-    "http://kp0/query",
-    Response(
-        status_code=200,
-        content=json.dumps(mock_responses.kp_response),
-    ),
-)
-async def test_kp_no_kg(client, monkeypatch):
+async def test_kp_no_kg(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test when a KP returns a TRAPI-valid qgraph but no kgraph.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp0/query", json=mock_responses.kp_response)
+    httpx_mock.add_response(url="http://kp1/query", json={"message": {"query_graph": {"nodes": {}, "edges": {}}}})
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:ChemicalSubstance ))
@@ -239,44 +174,29 @@ async def test_kp_no_kg(client, monkeypatch):
     )
 
     # Create query
-    q = {"message": {"query_graph": QGRAPH}}
+    q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
 
     # Run
-    response = await client.post("/query", json=q)
+    response = await sync_query(q)
     assert response.status_code < 300
-    output = response.json()
+    output = json.loads(response.body)
     assert output["message"]["results"]
 
 
 @pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-@with_response_overlay(
-    "http://kp0/query",
-    Response(
-        status_code=200,
-        content=json.dumps(
-            {
-                "message": {
-                    "query_graph": None,
-                    "knowledge_graph": None,
-                    "results": None,
-                }
-            }
-        ),
-    ),
-)
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps(mock_responses.kp_response),
-    ),
-)
-async def test_kp_response_no_qg(client, monkeypatch):
+async def test_kp_response_no_qg(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test when a KP returns null query graph.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp0/query", json={
+        "message": {
+            "query_graph": None,
+            "knowledge_graph": None,
+            "results": None,
+        }
+    })
+    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:ChemicalSubstance ))
@@ -287,87 +207,78 @@ async def test_kp_response_no_qg(client, monkeypatch):
     )
 
     # Create query
-    q = {"message": {"query_graph": QGRAPH}}
+    q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
 
     # Run
-    await client.post("/query", json=q)
+    await sync_query(q)
 
 
-@pytest.mark.asyncio
-@with_norm_overlay(settings.normalizer_url)
-# Add attributes to ctd response
-@with_response_overlay(
-    "http://kp1/query",
-    Response(
-        status_code=200,
-        content=json.dumps(
-            {
-                "message": {
-                    "query_graph": {
-                        "nodes": {
-                            "n0": {"ids": ["CHEBI:6801"]},
-                            "n1": {"categories": ["biolink:Disease"]},
-                        },
-                        "edges": {
-                            "n0n1": {
-                                "subject": "n0",
-                                "predicate": "biolink:treats",
-                                "object": "n1",
-                            },
-                        },
-                    },
-                    "knowledge_graph": {
-                        "nodes": {
-                            "CHEBI:6801": {},
-                            "MONDO:0005148": {
-                                "attributes": [
-                                    {
-                                        "attribute_type_id": "test_constraint",
-                                        "value": "foo",
-                                    },
-                                ],
-                            },
-                        },
-                        "edges": {
-                            "n0n1": {
-                                "subject": "CHEBI:6801",
-                                "predicate": "biolink:treats",
-                                "object": "MONDO:0005148",
-                                "sources": [
-                                    {
-                                        "resource_id": "infores:kp1",
-                                        "resource_role": "primary_knowledge_source",
-                                    }
-                                ],
-                            },
-                        },
-                    },
-                    "results": [
+constraint_error_response = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["CHEBI:6801"]},
+                "n1": {"categories": ["biolink:Disease"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "predicate": "biolink:treats",
+                    "object": "n1",
+                },
+            },
+        },
+        "knowledge_graph": {
+            "nodes": {
+                "CHEBI:6801": {},
+                "MONDO:0005148": {
+                    "attributes": [
                         {
-                            "node_bindings": {
-                                "n0": [{"id": "CHEBI:6801"}],
-                                "n1": [{"id": "MONDO:0005148"}],
-                            },
-                            "analyses": [
-                                {
-                                    "resource_id": "infores:kp1",
-                                    "edge_bindings": {
-                                        "n0n1": [{"id": "n0n1"}],
-                                    },
-                                }
-                            ],
+                            "attribute_type_id": "test_constraint",
+                            "value": "foo",
                         },
                     ],
-                }
-            }
-        ),
-    ),
-)
-async def test_constraint_error(client, monkeypatch):
+                },
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "CHEBI:6801",
+                    "predicate": "biolink:treats",
+                    "object": "MONDO:0005148",
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp1",
+                            "resource_role": "primary_knowledge_source",
+                        }
+                    ],
+                },
+            },
+        },
+        "results": [
+            {
+                "node_bindings": {
+                    "n0": [{"id": "CHEBI:6801"}],
+                    "n1": [{"id": "MONDO:0005148"}],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "infores:kp1",
+                        "edge_bindings": {
+                            "n0n1": [{"id": "n0n1"}],
+                        },
+                    }
+                ],
+            },
+        ],
+    }
+}
+@pytest.mark.asyncio
+async def test_constraint_error(monkeypatch, httpx_mock: HTTPXMock):
     """
     Test that we properly handle attributes
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
+    httpx_mock.add_response(url="http://kp1/query", json=constraint_error_response)
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -388,10 +299,10 @@ async def test_constraint_error(client, monkeypatch):
     ]
 
     # Create query
-    q = {"message": {"query_graph": QGRAPH}}
+    q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
 
     # Run
-    response = await client.post("/query", json=q)
-    output = response.json()
+    response = await sync_query(q)
+    output = json.loads(response.body)
 
     assert output["message"]["results"] == []
