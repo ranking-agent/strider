@@ -1,5 +1,5 @@
 # Use RENCI python base image
-FROM renciorg/renci-python-image:v0.0.1
+FROM renciorg/renci-python-image:v3.12.4
 
 # Add image info
 LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
