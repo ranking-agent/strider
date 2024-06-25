@@ -1,12 +1,10 @@
-from pathlib import Path
 import tempfile
-import time
-import uuid
 
 from fastapi.staticfiles import StaticFiles
-import yappi
-
+from pyinstrument import Profiler
+from pyinstrument.renderers.speedscope import SpeedscopeRenderer
 from .server import APP
+from .config import settings
 
 
 class DownloadStaticFiles(StaticFiles):
@@ -31,33 +29,16 @@ captured_profiles = []
 # to files
 @APP.middleware("http")
 async def profiler_middleware(request, call_next):
-    # Run the request
-    with yappi.run():
+    if settings.profiler:
+        # Run the request
+        profiler = Profiler(async_mode="enabled")
+        profiler.start()
         call_result = await call_next(request)
-
-    # Generate ID for this request
-    request_id = str(uuid.uuid1())
-
-    # Save profile
-    stats = yappi.get_func_stats()
-    stats.save(f"{PROFILE_DIRECTORY}/{request_id}.prof", type="pstat")
-
-    download_link = (
-        f"{request.url.scheme}://{request.url.netloc}/profiles/{request_id}.prof"
-    )
-
-    # Save profile meta-info
-    captured_profiles.append(
-        {
-            "id": request_id,
-            "timestamp": time.time(),
-            "path": request.url.path,
-            "download_link": download_link,
-        }
-    )
-
-    # Continue
-    return call_result
+        profiler.stop()
+        profiler.open_in_browser()
+        with open("profiles/profile.speedscope.json", "w") as f:
+            f.write(profiler.output(renderer=SpeedscopeRenderer()))
+        return call_result
 
 
 # Serve prof files under /profiles/
