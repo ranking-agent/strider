@@ -36,7 +36,7 @@ def test(extra_args):
     """
     command = """\
     docker build -t strider-testing -f Dockerfile.test .
-    docker run -it strider-testing\
+    docker run --rm -it strider-testing\
     """
     run_command(command + extra_args)
 
@@ -102,7 +102,7 @@ def lock(extra_args):
     """
     for src, locked in REQUIREMENTS_FILES.items():
         command = f"""\
-        docker run -v $(pwd):/app python:3.9 \
+        docker run --rm -v $(pwd):/app python:3.12 \
             /bin/bash -c "
                 # Install lockfile first so that we get the
                 # currently installed versions of dependencies
@@ -123,7 +123,7 @@ def verify_locked(extra_args):
     for src, locked in REQUIREMENTS_FILES.items():
         dependencies = get_command_output(
             f"""\
-        docker run -v $(pwd):/app python:3.9 \
+        docker run --rm -v $(pwd):/app python:3.12 \
             /bin/bash -c "
                 pip install -qqq -r /app/{locked} &&
                 pip install -qqq -r /app/{src}    &&
@@ -133,7 +133,7 @@ def verify_locked(extra_args):
         )
         lock_dependencies = get_command_output(
             f"""\
-        docker run -v $(pwd):/app python:3.9 \
+        docker run -v $(pwd):/app python:3.12 \
             /bin/bash -c "
                 pip install -qqq -r /app/{locked} &&
                 pip freeze
@@ -151,7 +151,7 @@ def upgrade(extra_args):
     """
     for src, locked in REQUIREMENTS_FILES.items():
         command = f"""\
-        docker run -v $(pwd):/app python:3.9 \
+        docker run --rm -v $(pwd):/app python:3.12 \
             /bin/bash -c "
                 # Install dependencies, getting latest version
                 pip install -r /app/{src} &&
