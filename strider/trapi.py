@@ -14,6 +14,7 @@ from reasoner_pydantic import (
     Results,
     KnowledgeGraph,
     AuxiliaryGraphs,
+    NodeBinding,
 )
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
@@ -25,7 +26,7 @@ from strider.utils import (
 from strider.throttle_utils import (
     get_curies,
 )
-from strider.normalizer import Normalizer
+from strider.normalizer import Normalizer, Entity
 from strider.config import settings
 
 blocklist = []
@@ -61,10 +62,10 @@ def apply_curie_map(
 
 
 def map_qgraph_curies(
-    qgraph: QueryGraph,
-    curie_map: dict[str, str],
+    qgraph: typing.Union[QueryGraph, None],
+    curie_map: typing.Union[dict[str, str], dict[str, list[str]]],
     primary: bool = False,
-) -> QueryGraph:
+) -> None:
     """Replace curies with preferred, if possible."""
     if qgraph is None:
         return None
@@ -135,11 +136,10 @@ def get_canonical_qedge(
 
 def map_qnode_curies(
     qnode: QNode,
-    curie_map: dict[str, str],
+    curie_map: typing.Union[dict[str, str], dict[str, list[str]]],
     primary: bool = False,
-) -> QNode:
+) -> None:
     """Replace curie with preferred, if possible."""
-
     if not qnode.ids:
         return
 
