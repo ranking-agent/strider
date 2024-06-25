@@ -41,6 +41,9 @@ class KnowledgeProvider:
         **kwargs,
     ):
         """Initialize."""
+        # Use kp timeout given in the message, otherwise use env variable
+        kp_timeout = parameters.get("kp_timeout")
+        self.timeout = kp_timeout if type(kp_timeout) is int else settings.kp_timeout
         self.id = kp_id
         self.logger = logger
         self.throttle = ThrottledServer(
@@ -50,6 +53,7 @@ class KnowledgeProvider:
             preproc=self.get_preprocessor(kp["details"]["preferred_prefixes"]),
             postproc=self.get_postprocessor(WBMT.entity_prefix_mapping),
             parameters=parameters,
+            kp_timeout=self.timeout,
             *args,
             *kwargs,
         )
@@ -109,7 +113,7 @@ class KnowledgeProvider:
         except asyncio.TimeoutError as e:
             self.logger.warning(
                 {
-                    "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
+                    "message": f"{self.id} took > {self.timeout} seconds to respond",
                     "error": str(e),
                     "request": elide_curies(request),
                 }
@@ -117,7 +121,7 @@ class KnowledgeProvider:
         except httpx.ReadTimeout as e:
             self.logger.warning(
                 {
-                    "message": f"{self.id} took > {settings.kp_timeout} seconds to respond",
+                    "message": f"{self.id} took > {self.timeout} seconds to respond",
                     "error": str(e),
                     "request": log_request(e.request),
                 }
