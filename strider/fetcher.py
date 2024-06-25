@@ -12,6 +12,7 @@ from strider.constraints import enforce_constraints
 from typing import Callable, List
 
 import aiostream
+import asyncio
 from kp_registry import Registry
 from reasoner_pydantic import (
     Message,
@@ -59,7 +60,7 @@ class Fetcher:
         self.bypass_cache = bypass_cache
         self.parameters = {
             **parameters,
-            "batch_size": parameters.get("batch_size") or 1_000_000,
+            "batch_size": parameters.get("batch_size") or 100,
         }
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
@@ -355,10 +356,6 @@ class Fetcher:
                     (result, result_kgraph, result_auxgraph)
                 )
 
-                self.logger.debug(
-                    f"[{qid}] {kp.id} put key {key_fcn(result)} in result map"
-                )
-
             generators.append(
                 self.generate_from_result(
                     populated_subqgraph,
@@ -370,9 +367,16 @@ class Fetcher:
                 )
             )
 
-        async with aiostream.stream.merge(*generators).stream() as streamer:
-            async for result in streamer:
-                yield result
+        try:
+            async with aiostream.stream.merge(*generators).stream() as streamer:
+                async with asyncio.timeout(kp.timeout):
+                    async for result in streamer:
+                        yield result
+        except TimeoutError:
+            self.logger.error(f"[{kp.id}] Generator timed out after {kp.timeout}")
+        except Exception as e:
+            self.logger.error(f"Generator timed out with {e}")
+        
 
     async def generate_from_result(
         self,
