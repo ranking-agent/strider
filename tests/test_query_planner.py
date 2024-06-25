@@ -194,9 +194,11 @@ async def test_unbound_unconnected_node(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response("""
+        json=get_normalizer_response(
+            """
             MONDO:0005148 categories biolink:Disease
-        """)
+        """
+        ),
     )
     qg = query_graph_from_string(
         """

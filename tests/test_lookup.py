@@ -151,7 +151,9 @@ async def test_disambiguation(monkeypatch, httpx_mock: HTTPXMock):
     Test disambiguating batch results with qnode_id.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.disambiguation_response)
+    httpx_mock.add_response(
+        url="http://kp1/query", json=mock_responses.disambiguation_response
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
@@ -175,7 +177,9 @@ async def test_disambiguation(monkeypatch, httpx_mock: HTTPXMock):
 async def test_trivial_unbatching(monkeypatch, httpx_mock: HTTPXMock):
     """Test trivial unbatching with batch size one."""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp1/query", json=mock_responses.unbatching_response)
+    httpx_mock.add_response(
+        url="http://kp1/query", json=mock_responses.unbatching_response
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))

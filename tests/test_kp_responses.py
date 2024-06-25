@@ -41,10 +41,12 @@ async def test_kp_response_empty_message(monkeypatch, httpx_mock: HTTPXMock):
     )
 
     # Create query
-    q = Query.parse_obj({
-        "message": {"query_graph": QGRAPH},
-        # "log_level": "WARNING"
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": QGRAPH},
+            # "log_level": "WARNING"
+        }
+    )
 
     # Run
     response = await sync_query(q)
@@ -56,7 +58,9 @@ async def test_kp_response_empty_message(monkeypatch, httpx_mock: HTTPXMock):
 
 
 @pytest.mark.asyncio
-async def test_kp_response_empty_message_pinned_two_hop(monkeypatch, httpx_mock: HTTPXMock):
+async def test_kp_response_empty_message_pinned_two_hop(
+    monkeypatch, httpx_mock: HTTPXMock
+):
     """
     Test when a KP returns null query graph.
     """
@@ -75,10 +79,12 @@ async def test_kp_response_empty_message_pinned_two_hop(monkeypatch, httpx_mock:
     )
 
     # Create query
-    q = Query.parse_obj({
-        "message": {"query_graph": QGRAPH},
-        # "log_level": "INFO",
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": QGRAPH},
+            # "log_level": "INFO",
+        }
+    )
 
     # Run
     response = await sync_query(q)
@@ -95,7 +101,9 @@ async def test_kp_500(monkeypatch, httpx_mock: HTTPXMock):
     a message to the log but continue running
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp0/query", status_code=500, text="Internal Server Error")
+    httpx_mock.add_response(
+        url="http://kp0/query", status_code=500, text="Internal Server Error"
+    )
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     QGRAPH = query_graph_from_string(
         """
@@ -107,10 +115,12 @@ async def test_kp_500(monkeypatch, httpx_mock: HTTPXMock):
     )
 
     # Create query
-    q = Query.parse_obj({
-        "message": {"query_graph": QGRAPH},
-        "log_level": "WARNING",
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": QGRAPH},
+            "log_level": "WARNING",
+        }
+    )
 
     # Run
     response = await sync_query(q)
@@ -140,10 +150,12 @@ async def test_kp_not_trapi(monkeypatch, httpx_mock: HTTPXMock):
     )
 
     # Create query
-    q = Query.parse_obj({
-        "message": {"query_graph": QGRAPH},
-        "log_level": "WARNING",
-    })
+    q = Query.parse_obj(
+        {
+            "message": {"query_graph": QGRAPH},
+            "log_level": "WARNING",
+        }
+    )
 
     # Run
     response = await sync_query(q)
@@ -163,7 +175,10 @@ async def test_kp_no_kg(monkeypatch, httpx_mock: HTTPXMock):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp0/query", json=mock_responses.kp_response)
-    httpx_mock.add_response(url="http://kp1/query", json={"message": {"query_graph": {"nodes": {}, "edges": {}}}})
+    httpx_mock.add_response(
+        url="http://kp1/query",
+        json={"message": {"query_graph": {"nodes": {}, "edges": {}}}},
+    )
     QGRAPH = query_graph_from_string(
         """
         n0(( categories[] biolink:ChemicalSubstance ))
@@ -189,13 +204,16 @@ async def test_kp_response_no_qg(monkeypatch, httpx_mock: HTTPXMock):
     Test when a KP returns null query graph.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp0/query", json={
-        "message": {
-            "query_graph": None,
-            "knowledge_graph": None,
-            "results": None,
-        }
-    })
+    httpx_mock.add_response(
+        url="http://kp0/query",
+        json={
+            "message": {
+                "query_graph": None,
+                "knowledge_graph": None,
+                "results": None,
+            }
+        },
+    )
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     QGRAPH = query_graph_from_string(
         """
@@ -272,6 +290,8 @@ constraint_error_response = {
         ],
     }
 }
+
+
 @pytest.mark.asyncio
 async def test_constraint_error(monkeypatch, httpx_mock: HTTPXMock):
     """
