@@ -369,9 +369,9 @@ class Fetcher:
 
         try:
             async with aiostream.stream.merge(*generators).stream() as streamer:
-                async with asyncio.timeout(kp.timeout):
-                    async for result in streamer:
-                        yield result
+                # async with asyncio.timeout(kp.timeout):
+                async for result in streamer:
+                    yield result
         except TimeoutError:
             self.logger.error(f"[{kp.id}] Generator timed out after {kp.timeout}")
         except Exception as e:
