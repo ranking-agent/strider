@@ -889,3 +889,165 @@ response_with_pinned_node_subclasses = {
         ],
     },
 }
+
+disambiguation_response = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["CHEBI:6801"]},
+                "n1": {"categories": ["biolink:Disease"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "predicate": "biolink:treats",
+                    "object": "n1",
+                },
+            },
+        },
+        "knowledge_graph": {
+            "nodes": {
+                "CHEBI:XXX": {
+                    "categories": ["biolink:NamedThing"],
+                    "attributes": [],
+                },
+                "MONDO:0005148": {
+                    "categories": ["biolink:NamedThing"],
+                    "attributes": [
+                        {
+                            "attribute_type_id": "test_constraint",
+                            "value": "foo",
+                        },
+                    ],
+                },
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "CHEBI:XXX",
+                    "predicate": "biolink:treats",
+                    "object": "MONDO:0005148",
+                    "sources": [
+                        {
+                            "resource_id": "kp1",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                    "attributes": [],
+                },
+            },
+        },
+        "results": [
+            {
+                "node_bindings": {
+                    "n0": [
+                        {
+                            "id": "CHEBI:XXX",
+                            "query_id": "CHEBI:6801",
+                            "attributes": [],
+                        }
+                    ],
+                    "n1": [
+                        {
+                            "id": "MONDO:0005148",
+                            "attributes": [],
+                        }
+                    ],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "infores:kp1",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                    "attributes": [],
+                                }
+                            ],
+                        },
+                    }
+                ],
+            },
+        ],
+    }
+}
+
+unbatching_response = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["CHEBI:6801"]},
+                "n1": {"categories": ["biolink:Disease"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n0",
+                    "predicate": "biolink:treats",
+                    "object": "n1",
+                },
+            },
+        },
+        "knowledge_graph": {
+            "nodes": {
+                "CHEBI:XXX": {
+                    "categories": ["biolink:NamedThing"],
+                    "attributes": [],
+                },
+                "MONDO:0005148": {
+                    "categories": ["biolink:NamedThing"],
+                    "attributes": [
+                        {
+                            "attribute_type_id": "test_constraint",
+                            "value": "foo",
+                        },
+                    ],
+                },
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "CHEBI:XXX",
+                    "predicate": "biolink:treats",
+                    "object": "MONDO:0005148",
+                    "sources": [
+                        {
+                            "resource_id": "kp1",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                    "attributes": [],
+                },
+            },
+        },
+        "results": [
+            {
+                "node_bindings": {
+                    "n0": [
+                        {
+                            "id": "CHEBI:XXX",
+                            "query_id": "CHEBI:6801",
+                            "attributes": [],
+                        }
+                    ],
+                    "n1": [
+                        {
+                            "id": "MONDO:0005148",
+                            "attributes": [],
+                        }
+                    ],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "infores:kp1",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                    "attributes": [],
+                                }
+                            ],
+                        },
+                    }
+                ],
+            },
+        ],
+    }
+}

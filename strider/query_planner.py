@@ -214,7 +214,7 @@ def get_kp_operations_queries(
 
 async def generate_plan(
     qgraph: dict,
-    backup_kps=dict,
+    backup_kps: dict,
     logger: logging.Logger = None,
 ) -> tuple[dict[str, list[str]], dict[str, dict]]:
     """Generate traversal plan."""

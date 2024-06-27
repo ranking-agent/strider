@@ -14,6 +14,7 @@ from reasoner_pydantic import (
     Results,
     KnowledgeGraph,
     AuxiliaryGraphs,
+    NodeBinding,
 )
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
@@ -25,7 +26,7 @@ from strider.utils import (
 from strider.throttle_utils import (
     get_curies,
 )
-from strider.normalizer import Normalizer
+from strider.normalizer import Normalizer, Entity
 from strider.config import settings
 
 blocklist = []
@@ -61,10 +62,10 @@ def apply_curie_map(
 
 
 def map_qgraph_curies(
-    qgraph: QueryGraph,
-    curie_map: dict[str, str],
+    qgraph: typing.Union[QueryGraph, None],
+    curie_map: typing.Union[dict[str, str], dict[str, list[str]]],
     primary: bool = False,
-) -> QueryGraph:
+) -> None:
     """Replace curies with preferred, if possible."""
     if qgraph is None:
         return None
@@ -135,11 +136,10 @@ def get_canonical_qedge(
 
 def map_qnode_curies(
     qnode: QNode,
-    curie_map: dict[str, str],
+    curie_map: typing.Union[dict[str, str], dict[str, list[str]]],
     primary: bool = False,
-) -> QNode:
+) -> None:
     """Replace curie with preferred, if possible."""
-
     if not qnode.ids:
         return
 
@@ -239,15 +239,32 @@ def filter_message(
     for result in message.results or []:
         keep = True
         for qnode_id, node_bindings in result.node_bindings.items():
+            # just specifying the type
             for node_binding in node_bindings:
+                node_binding: NodeBinding
                 if (
                     qnode_id in pinned_nodes
                     and node_binding.id in pinned_nodes[qnode_id]
                 ):
                     # don't filter any pinned original nodes (excluding subclasses with query id)
                     continue
-                curie = curie_map.get(node_binding.id)
+                curie: Entity = curie_map.get(node_binding.id)
+                query_id = (
+                    node_binding.query_id if node_binding.query_id is not None else ""
+                )
                 if (
+                    qnode_id in pinned_nodes
+                    and (node_binding.id not in pinned_nodes[qnode_id])
+                    and (query_id not in pinned_nodes[qnode_id])
+                ):
+                    keep = False
+                    if node_binding.id in message.knowledge_graph.nodes:
+                        # remove nodes from kgraph
+                        logger.debug(
+                            f"Removing {node_binding.id} because it's not what was asked for. Open an issue for this kp."
+                        )
+                        message.knowledge_graph.nodes.pop(node_binding.id)
+                elif (
                     (
                         curie is not None
                         and curie.information_content < information_content_threshold

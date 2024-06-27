@@ -67,6 +67,7 @@ class ThrottledServer:
         postproc: Callable = anull,
         logger: logging.Logger = None,
         parameters: dict = {},
+        kp_timeout: int = 10,
         **kwargs,
     ):
         """Initialize."""
@@ -78,6 +79,7 @@ class ThrottledServer:
         self.postproc = postproc
         self.use_cache = settings.use_cache
         self.parameters = parameters
+        self.kp_timeout = kp_timeout
         if logger is None:
             logger = logging.getLogger(__name__)
         self.logger = logger
@@ -238,12 +240,7 @@ class ThrottledServer:
                         ),
                     )
                 )
-                # Use kp timeout given in the message, otherwise use env variable
-                kp_timeout = self.parameters.get("kp_timeout")
-                kp_timeout = (
-                    kp_timeout if type(kp_timeout) is int else settings.kp_timeout
-                )
-                async with httpx.AsyncClient(timeout=kp_timeout) as client:
+                async with httpx.AsyncClient(timeout=self.kp_timeout) as client:
                     response = await client.post(
                         self.url,
                         json=merged_request_value,
@@ -333,7 +330,7 @@ class ThrottledServer:
                 if isinstance(e, asyncio.TimeoutError):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took > {kp_timeout} seconds to respond",
+                            "message": f"{self.id} took > {self.kp_timeout} seconds to respond",
                             "error": str(e),
                             "request": elide_curies(merged_request_value),
                         }
@@ -341,7 +338,7 @@ class ThrottledServer:
                 elif isinstance(e, httpx.ReadTimeout):
                     self.logger.warning(
                         {
-                            "message": f"{self.id} took > {kp_timeout} seconds to respond",
+                            "message": f"{self.id} took > {self.kp_timeout} seconds to respond",
                             "error": str(e),
                             "request": log_request(e.request),
                         }
