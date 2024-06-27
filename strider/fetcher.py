@@ -60,7 +60,7 @@ class Fetcher:
         self.bypass_cache = bypass_cache
         self.parameters = {
             **parameters,
-            "batch_size": parameters.get("batch_size") or 100,
+            "batch_size": parameters.get("batch_size") or 1_000_000,
         }
 
         self.preferred_prefixes = WBMT.entity_prefix_mapping
