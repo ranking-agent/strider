@@ -5,7 +5,7 @@ import copy
 from itertools import chain
 import logging
 import math
-from typing import Generator, Union
+from typing import Generator, Union, Dict
 
 from strider.caching import get_kp_registry
 from strider.config import settings
@@ -212,6 +212,11 @@ def get_kp_operations_queries(
     return subject_categories, object_categories, predicates, inverse_predicates
 
 
+def is_mcq_node(qnode: Dict[str, dict]) -> bool:
+    """Determin if query graph node is a set for MCQ (MultiCurieQuery)."""
+    return "member_ids" in qnode and "set_interpretation" in qnode and qnode["set_interpretation"] == "MANY"
+
+
 async def generate_plan(
     qgraph: dict,
     backup_kps: dict,
@@ -232,37 +237,82 @@ async def generate_plan(
         )
         registry = backup_kps
     for qedge_id in qgraph["edges"]:
+        inverse_kps = dict()
         qedge = qgraph["edges"][qedge_id]
         provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
             "provided_by", {}
         )
-        (
-            subject_categories,
-            object_categories,
-            predicates,
-            inverse_predicates,
-        ) = get_kp_operations_queries(
-            qgraph["nodes"][qedge["subject"]]["categories"],
-            qedge["predicates"],
-            qgraph["nodes"][qedge["object"]]["categories"],
-        )
-        direct_kps = search(
-            registry,
-            subject_categories,
-            predicates,
-            object_categories,
-            settings.openapi_server_maturity,
-        )
-        if inverse_predicates:
-            inverse_kps = search(
-                registry,
-                object_categories,
-                inverse_predicates,
+        if is_mcq_node(qgraph["nodes"][qedge["subject"]]) or is_mcq_node(qgraph["nodes"][qedge["object"]]):
+            # TODO: update from hard-coded MCQ KPs
+            direct_kps = {
+                "infores:answer-coalesce": {
+                    "url": "https://answercoalesce.renci.org/query",
+                    "title": "Answer Coalescer",
+                    "infores": "infores:answer-coalesce",
+                    "maturity": "development",
+                    "operations": [],
+                    "details": {
+                        "preferred_prefixes": {}
+                    },
+                },
+                "infores:genetics-data-provider": {
+                    "url": "https://translator.broadinstitute.org/genetics_provider/trapi/v1.5/query",
+                    "title": "Genetics KP",
+                    "infores": "infores:genetics-data-provider",
+                    "maturity": "development",
+                    "operations": [],
+                    "details": {
+                        "preferred_prefixes": {}
+                    }
+                },
+                "infores:cohd": {
+                    "url": "https://cohd.io/api/query",
+                    "title": "COHD KP",
+                    "infores": "infores:cohd",
+                    "maturity": "development",
+                    "operations": [],
+                    "details": {
+                        "preferred_prefixes": {}
+                    }
+                },
+                "infores:semsemian": {
+                    "url": "http://mcq-trapi-beta.monarchinitiative.org/query",
+                    "title": "Semsemian Monarch KP",
+                    "infores": "infores:semsemian",
+                    "maturity": "development",
+                    "operations": [],
+                    "details": {
+                        "preferred_prefixes": {}
+                    }
+                }
+            }
+        else:
+            # normal lookup edge
+            (
                 subject_categories,
+                object_categories,
+                predicates,
+                inverse_predicates,
+            ) = get_kp_operations_queries(
+                qgraph["nodes"][qedge["subject"]]["categories"],
+                qedge["predicates"],
+                qgraph["nodes"][qedge["object"]]["categories"],
+            )
+            direct_kps = search(
+                registry,
+                subject_categories,
+                predicates,
+                object_categories,
                 settings.openapi_server_maturity,
             )
-        else:
-            inverse_kps = dict()
+            if inverse_predicates:
+                inverse_kps = search(
+                    registry,
+                    object_categories,
+                    inverse_predicates,
+                    subject_categories,
+                    settings.openapi_server_maturity,
+                )
         kp_results = {
             kpid: details
             for kpid, details in chain(*(direct_kps.items(), inverse_kps.items()))

@@ -29,7 +29,7 @@ from .trapi import (
     map_qgraph_curies,
     fill_categories_predicates,
 )
-from .query_planner import generate_plan, get_next_qedge
+from .query_planner import generate_plan, get_next_qedge, is_mcq_node
 from .config import settings
 from .utils import (
     WBMT,
@@ -248,37 +248,43 @@ class Fetcher:
                     ]
                 )
 
-                kgraph_node_ids = set(
-                    binding.id
-                    for _, bindings in result.node_bindings.items()
-                    for binding in bindings
-                )
+                is_mcq = False
+                for node in onehop_qgraph["nodes"].values():
+                    is_mcq = is_mcq or is_mcq_node(node)
+                self.logger.info(f"Is MCQ: {is_mcq}")
 
-                for aux_graph_id in aux_graphs:
-                    for edge_id in result_auxgraph[aux_graph_id].edges or []:
-                        kgraph_node_ids.add(onehop_kgraph.edges[edge_id].subject)
-                        kgraph_node_ids.add(onehop_kgraph.edges[edge_id].object)
+                if is_mcq:
+                    kgraph_node_ids = set(
+                        binding.id
+                        for _, bindings in result.node_bindings.items()
+                        for binding in bindings
+                    )
 
-                try:
-                    result_kgraph = KnowledgeGraph.parse_obj(
-                        {
-                            "nodes": {
-                                node_id: onehop_kgraph.nodes[node_id]
-                                for node_id in kgraph_node_ids
-                            },
-                            "edges": {
-                                edge_id: onehop_kgraph.edges[edge_id]
-                                for edge_id in kgraph_edge_ids
-                            },
-                        }
-                    )
-                except Exception as e:
-                    self.logger.error(
-                        f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
-                    )
-                    # with open("bad_kp_response.json", "w") as f:
-                    #     json.dump(onehop_response.dict(), f)
-                    raise Exception(e)
+                    for aux_graph_id in aux_graphs:
+                        for edge_id in result_auxgraph[aux_graph_id].edges or []:
+                            kgraph_node_ids.add(onehop_kgraph.edges[edge_id].subject)
+                            kgraph_node_ids.add(onehop_kgraph.edges[edge_id].object)
+
+                    try:
+                        result_kgraph = KnowledgeGraph.parse_obj(
+                            {
+                                "nodes": {
+                                    node_id: onehop_kgraph.nodes[node_id]
+                                    for node_id in kgraph_node_ids
+                                },
+                                "edges": {
+                                    edge_id: onehop_kgraph.edges[edge_id]
+                                    for edge_id in kgraph_edge_ids
+                                },
+                            }
+                        )
+                    except Exception as e:
+                        self.logger.error(
+                            f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
+                        )
+                        # with open("bad_kp_response.json", "w") as f:
+                        #     json.dump(onehop_response.dict(), f)
+                        raise Exception(e)
 
                 # pin nodes
                 for qnode_id, bindings in result.node_bindings.items():
