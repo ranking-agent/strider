@@ -22,7 +22,7 @@ from .utils import (
     log_response,
     log_request,
 )
-from .trapi import apply_curie_map, filter_message
+from .trapi import apply_curie_map, filter_message, convert_subclasses_to_aux_graphs
 from .normalizer import Normalizer
 from .config import settings
 
@@ -81,6 +81,11 @@ class KnowledgeProvider:
                 self.logger,
                 self.information_content_threshold,
                 last_hop,
+            )
+            convert_subclasses_to_aux_graphs(
+                response.message,
+                self.id,
+                self.logger,
             )
 
         return processor
