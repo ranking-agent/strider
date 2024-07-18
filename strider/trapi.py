@@ -1,5 +1,5 @@
 """TRAPI utilities."""
-
+import copy
 from itertools import product
 import json
 import logging
@@ -14,11 +14,14 @@ from reasoner_pydantic import (
     Results,
     KnowledgeGraph,
     AuxiliaryGraphs,
+    AuxiliaryGraph,
     NodeBinding,
+    Attribute,
 )
 from reasoner_pydantic.qgraph import QEdge, QueryGraph
 from reasoner_pydantic.shared import BiolinkPredicate
 from reasoner_pydantic.utils import HashableSequence
+import uuid
 
 from strider.utils import (
     WBMT,
@@ -260,7 +263,7 @@ def filter_message(
                     keep = False
                     if node_binding.id in message.knowledge_graph.nodes:
                         # remove nodes from kgraph
-                        logger.debug(
+                        logger.warning(
                             f"Removing {node_binding.id} because it's not what was asked for. Open an issue for this kp."
                         )
                         message.knowledge_graph.nodes.pop(node_binding.id)
@@ -408,6 +411,80 @@ async def fill_categories_predicates(
                 node["categories"] = filter_ancestor_types(categories)
             elif "categories" not in node:
                 node["categories"] = []
+
+
+def convert_subclasses_to_aux_graphs(
+    message: Message,
+    kp_id: str,
+    logger: logging.Logger = logging.getLogger(),
+):
+    """Take any subclass results and move them to aux graphs."""
+    for result in message.results:
+        for node_binding in result.node_bindings.values():
+            for node in node_binding:
+                if node.query_id is not None:
+                    # move query_id to id
+                    subclass = node.id
+                    node.id = node.query_id
+                    node.query_id = None
+
+                    primary_edge_id = str(uuid.uuid4())[:8]
+                    aux_edge_id = str(uuid.uuid4())[:8]
+                    subclass_edge_id = str(uuid.uuid4())[:8]
+                    original_edge_id = None
+                    original_edge = None
+
+                    # get original edge
+                    for analysis in result.analyses:
+                        for edge_bindings in analysis.edge_bindings.values():
+                            for edge_binding in edge_bindings:
+                                original_edge_id = edge_binding.id
+                                original_edge = message.knowledge_graph.edges[original_edge_id]
+                                # set result edge binding as one with superclass
+                                edge_binding.id = primary_edge_id
+                    
+                    # create subclass edge in knowledge graph
+                    message.knowledge_graph.edges[subclass_edge_id] = Edge.parse_obj({
+                        "subject": subclass,
+                        "object": node.id,
+                        "predicate": "biolink:subclass_of",
+                        "attributes": [],
+                        "sources": [
+                            {
+                                "resource_id": kp_id,
+                                "resource_role": "primary_knowledge_source"
+                            },
+                        ]
+                    })
+
+                    # create primary edge with support graph
+                    message.knowledge_graph.edges[primary_edge_id] = copy.deepcopy(
+                        original_edge
+                    )
+                    if original_edge.subject == subclass:
+                        message.knowledge_graph.edges[primary_edge_id].subject = node.id
+                    else:
+                        message.knowledge_graph.edges[primary_edge_id].object = node.id
+                    
+                    had_support_graphs = False
+                    for attribute in message.knowledge_graph.edges[primary_edge_id].attributes:
+                        if attribute.attribute_type_id == "biolink:support_graphs":
+                            had_support_graphs = True
+                            attribute.value.append(aux_edge_id)
+                    if not had_support_graphs:
+                        message.knowledge_graph.edges[primary_edge_id].attributes.add(Attribute.parse_obj({
+                            "attribute_type_id": "biolink:support_graphs",
+                            "value": [aux_edge_id]
+                        }))
+
+                    # create aux graph
+                    message.auxiliary_graphs[aux_edge_id] = AuxiliaryGraph.parse_obj({
+                        "edges": [
+                            original_edge_id,
+                            subclass_edge_id,
+                        ],
+                        "attributes": [],
+                    })
 
 
 def validate_message(message, logger):

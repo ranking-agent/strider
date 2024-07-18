@@ -210,7 +210,7 @@ class ThrottledServer:
                 for node_id, node_curies in curie_mapping.items():
                     node = merged_request_value.message.query_graph.nodes[node_id]
                     if node.ids is None:
-                        node.ids = node_curies.copy()
+                        node.ids = copy.deepcopy(node_curies)
                     else:
                         node.ids.extend(node_curies)
             # TODO replace qnode.ids with a HashableSet so that this can be safely removed

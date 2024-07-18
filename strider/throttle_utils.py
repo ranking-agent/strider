@@ -1,5 +1,5 @@
 """Throttle Utility Functions."""
-
+import copy
 from collections import defaultdict
 from reasoner_pydantic import Message, QueryGraph, AuxiliaryGraphs
 from reasoner_pydantic.kgraph import KnowledgeGraph
@@ -20,7 +20,7 @@ def get_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
     return them as a mapping of node_id -> curie_list
     """
     return {
-        node_id: curies
+        node_id: copy.deepcopy(curies)
         for node_id, node in qgraph.nodes.items()
         if (curies := node.ids or None) is not None
     }
@@ -56,7 +56,10 @@ def result_contains_node_bindings(result, bindings: dict[str, list[str]]):
     may use the optional `qnode_id` field to indicate the associated superclass.
     """
     for qg_id, kg_ids in bindings.items():
-        if not any(nb.id in kg_ids for nb in result.node_bindings[qg_id]):
+        if not any(
+            nb.id in kg_ids or nb.query_id in kg_ids
+            for nb in result.node_bindings[qg_id]
+        ):
             return False
     return True
 

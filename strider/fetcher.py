@@ -202,56 +202,6 @@ class Fetcher:
                 if qnode_id in populated_subqgraph["nodes"]:
                     populated_subqgraph["nodes"][qnode_id]["ids"] = []
             for result in batch_results:
-                # check if KP gave subclass without a query id
-                for qnode_id, bindings in result.node_bindings.items():
-                    for binding in bindings:
-                        if onehop_qgraph["nodes"][qnode_id].get("ids"):
-                            if (
-                                binding.query_id
-                                and binding.query_id != binding.id
-                                and
-                                # check that query_id is in fact valid
-                                binding.query_id
-                                in onehop_qgraph["nodes"][qnode_id]["ids"]
-                            ):
-                                self.logger.debug(
-                                    f"[{qid}] {binding.query_id} -> {binding.id}"
-                                )
-                            elif (
-                                binding.id
-                                not in onehop_qgraph["nodes"][qnode_id]["ids"]
-                            ):
-                                # This is most likely an issue with this KP and we should repoort this issue to them
-                                self.logger.error(
-                                    f"[{qid}] {kp.id} gave back {binding.id} and doesn't match what was sent."
-                                )
-                                self.logger.error(
-                                    f"[{qid}] Sent {json.dumps(onehop_qgraph)}"
-                                )
-                                self.logger.error(f"[{qid}] Got back {result.json()}")
-                                # TODO: take the following out once kps get fixed enough
-                                # this is just a hacky fix for KPs that aren't providing query_id when they should be
-                                binding_dict = binding.dict()
-                                qgraph_curie = binding_dict.get(
-                                    "qnode_id", binding.query_id
-                                )
-                                if (
-                                    qgraph_curie
-                                    not in onehop_qgraph["nodes"][qnode_id]["ids"]
-                                ):
-                                    self.logger.error(
-                                        f"[{qid}] Open an issue on this KP. {qgraph_curie} as given as a query id but doesn't match what was sent."
-                                    )
-                                    # set to none so the first id of what was sent will be used
-                                    qgraph_curie = None
-                                query_id = (
-                                    qgraph_curie
-                                    or onehop_qgraph["nodes"][qnode_id]["ids"][0]
-                                )
-                                self.logger.error(
-                                    f"[{qid}] Setting {query_id} query id on {binding.id}"
-                                )
-                                binding.query_id = query_id
                 # add edge to results and kgraph
 
                 # collect all auxiliary graph ids from results and edges
@@ -298,13 +248,23 @@ class Fetcher:
                     ]
                 )
 
+                kgraph_node_ids = set(
+                    binding.id
+                    for _, bindings in result.node_bindings.items()
+                    for binding in bindings
+                )
+
+                for aux_graph_id in aux_graphs:
+                    for edge_id in result_auxgraph[aux_graph_id].edges or []:
+                        kgraph_node_ids.add(onehop_kgraph.edges[edge_id].subject)
+                        kgraph_node_ids.add(onehop_kgraph.edges[edge_id].object)
+                       
                 try:
                     result_kgraph = KnowledgeGraph.parse_obj(
                         {
                             "nodes": {
-                                binding.id: onehop_kgraph.nodes[binding.id]
-                                for _, bindings in result.node_bindings.items()
-                                for binding in bindings
+                                node_id: onehop_kgraph.nodes[node_id]
+                                for node_id in kgraph_node_ids
                             },
                             "edges": {
                                 edge_id: onehop_kgraph.edges[edge_id]
@@ -367,15 +327,9 @@ class Fetcher:
                 )
             )
 
-        try:
-            async with aiostream.stream.merge(*generators).stream() as streamer:
-                # async with asyncio.timeout(kp.timeout):
-                async for result in streamer:
-                    yield result
-        except TimeoutError:
-            self.logger.error(f"[{kp.id}] Generator timed out after {kp.timeout}")
-        except Exception as e:
-            self.logger.error(f"Generator timed out with {e}")
+        async with aiostream.stream.merge(*generators).stream() as streamer:
+            async for result in streamer:
+                yield result
 
     async def generate_from_result(
         self,

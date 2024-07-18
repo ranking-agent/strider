@@ -907,6 +907,11 @@ disambiguation_response = {
         },
         "knowledge_graph": {
             "nodes": {
+                "CHEBI:6801": {
+                    "categories": ["biolink:NamedThing"],
+                    "name": "metformin",
+                    "attributes": [],
+                },
                 "CHEBI:XXX": {
                     "categories": ["biolink:NamedThing"],
                     "attributes": [],
@@ -988,6 +993,11 @@ unbatching_response = {
         },
         "knowledge_graph": {
             "nodes": {
+                "CHEBI:6801": {
+                    "categories": ["biolink:NamedThing"],
+                    "name": "metformin",
+                    "attributes": [],
+                },
                 "CHEBI:XXX": {
                     "categories": ["biolink:NamedThing"],
                     "attributes": [],
