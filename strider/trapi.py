@@ -1,4 +1,5 @@
 """TRAPI utilities."""
+
 import copy
 from itertools import product
 import json
@@ -439,23 +440,27 @@ def convert_subclasses_to_aux_graphs(
                         for edge_bindings in analysis.edge_bindings.values():
                             for edge_binding in edge_bindings:
                                 original_edge_id = edge_binding.id
-                                original_edge = message.knowledge_graph.edges[original_edge_id]
+                                original_edge = message.knowledge_graph.edges[
+                                    original_edge_id
+                                ]
                                 # set result edge binding as one with superclass
                                 edge_binding.id = primary_edge_id
-                    
+
                     # create subclass edge in knowledge graph
-                    message.knowledge_graph.edges[subclass_edge_id] = Edge.parse_obj({
-                        "subject": subclass,
-                        "object": node.id,
-                        "predicate": "biolink:subclass_of",
-                        "attributes": [],
-                        "sources": [
-                            {
-                                "resource_id": kp_id,
-                                "resource_role": "primary_knowledge_source"
-                            },
-                        ]
-                    })
+                    message.knowledge_graph.edges[subclass_edge_id] = Edge.parse_obj(
+                        {
+                            "subject": subclass,
+                            "object": node.id,
+                            "predicate": "biolink:subclass_of",
+                            "attributes": [],
+                            "sources": [
+                                {
+                                    "resource_id": kp_id,
+                                    "resource_role": "primary_knowledge_source",
+                                },
+                            ],
+                        }
+                    )
 
                     # create primary edge with support graph
                     message.knowledge_graph.edges[primary_edge_id] = copy.deepcopy(
@@ -465,26 +470,34 @@ def convert_subclasses_to_aux_graphs(
                         message.knowledge_graph.edges[primary_edge_id].subject = node.id
                     else:
                         message.knowledge_graph.edges[primary_edge_id].object = node.id
-                    
+
                     had_support_graphs = False
-                    for attribute in message.knowledge_graph.edges[primary_edge_id].attributes:
+                    for attribute in message.knowledge_graph.edges[
+                        primary_edge_id
+                    ].attributes:
                         if attribute.attribute_type_id == "biolink:support_graphs":
                             had_support_graphs = True
                             attribute.value.append(aux_edge_id)
                     if not had_support_graphs:
-                        message.knowledge_graph.edges[primary_edge_id].attributes.add(Attribute.parse_obj({
-                            "attribute_type_id": "biolink:support_graphs",
-                            "value": [aux_edge_id]
-                        }))
+                        message.knowledge_graph.edges[primary_edge_id].attributes.add(
+                            Attribute.parse_obj(
+                                {
+                                    "attribute_type_id": "biolink:support_graphs",
+                                    "value": [aux_edge_id],
+                                }
+                            )
+                        )
 
                     # create aux graph
-                    message.auxiliary_graphs[aux_edge_id] = AuxiliaryGraph.parse_obj({
-                        "edges": [
-                            original_edge_id,
-                            subclass_edge_id,
-                        ],
-                        "attributes": [],
-                    })
+                    message.auxiliary_graphs[aux_edge_id] = AuxiliaryGraph.parse_obj(
+                        {
+                            "edges": [
+                                original_edge_id,
+                                subclass_edge_id,
+                            ],
+                            "attributes": [],
+                        }
+                    )
 
 
 def validate_message(message, logger):
