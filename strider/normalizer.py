@@ -35,7 +35,11 @@ class Normalizer:
         try:
             results = await post_json(
                 f"{settings.normalizer_url}/get_normalized_nodes",
-                {"curies": curies},
+                {
+                    "curies": curies,
+                    "conflate": True,
+                    "drug_chemical_conflate": True,
+                },
                 self.logger,
                 "Node Normalizer",
             )
@@ -61,7 +65,11 @@ class Normalizer:
         try:
             response = await post_json(
                 f"{settings.normalizer_url}/get_normalized_nodes",
-                {"curies": curies},
+                {
+                    "curies": curies,
+                    "conflate": True,
+                    "drug_chemical_conflate": True,
+                },
                 self.logger,
                 "Node Normalizer",
             )
