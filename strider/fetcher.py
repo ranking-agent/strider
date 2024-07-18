@@ -258,7 +258,7 @@ class Fetcher:
                     for edge_id in result_auxgraph[aux_graph_id].edges or []:
                         kgraph_node_ids.add(onehop_kgraph.edges[edge_id].subject)
                         kgraph_node_ids.add(onehop_kgraph.edges[edge_id].object)
-                       
+
                 try:
                     result_kgraph = KnowledgeGraph.parse_obj(
                         {
