@@ -7,7 +7,7 @@ httpx==0.27.0
 pyyaml==6.0.1
 uvicorn[standard]==0.29.0
 fastapi==0.111.0
-reasoner-pydantic==5.0.2
+reasoner-pydantic==5.0.4
 redis==4.3.4
 orjson==3.10.3
 gunicorn==22.0.0

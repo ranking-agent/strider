@@ -43,7 +43,7 @@ pyinstrument==4.6.2
 python-dotenv==1.0.1
 python-multipart==0.0.9
 PyYAML==6.0.1
-reasoner-pydantic==5.0.2
+reasoner-pydantic==5.0.4
 redis==4.3.4
 rich==13.7.1
 setuptools==70.0.0
