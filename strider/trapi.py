@@ -475,7 +475,10 @@ def convert_subclasses_to_aux_graphs(
                     for attribute in message.knowledge_graph.edges[
                         primary_edge_id
                     ].attributes:
-                        if attribute.attribute_type_id == "biolink:support_graphs":
+                        if (
+                            attribute.attribute_type_id == "biolink:support_graphs"
+                            and attribute.attribute_source == "infores:aragorn"
+                        ):
                             had_support_graphs = True
                             attribute.value.append(aux_edge_id)
                     if not had_support_graphs:
@@ -484,6 +487,7 @@ def convert_subclasses_to_aux_graphs(
                                 {
                                     "attribute_type_id": "biolink:support_graphs",
                                     "value": [aux_edge_id],
+                                    "attribute_source": "infores:aragorn",
                                 }
                             )
                         )
