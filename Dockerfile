@@ -1,5 +1,5 @@
 # Use RENCI python base image
-FROM ghcr.io/translatorsri/renci-python-image:v3.12.4
+FROM ghcr.io/translatorsri/renci-python-image:3.12.4
 
 # Add image info
 LABEL org.opencontainers.image.source https://github.com/ranking-agent/strider
