@@ -87,23 +87,6 @@ def filter_by_curie_mapping(
         ]
     )
 
-    # Construct result-specific knowledge graph
-    filtered_msg.knowledge_graph = KnowledgeGraph(
-        nodes={
-            binding.id: message.knowledge_graph.nodes[binding.id]
-            for result in filtered_msg.results
-            for _, bindings in result.node_bindings.items()
-            for binding in bindings
-        },
-        edges={
-            binding.id: message.knowledge_graph.edges[binding.id]
-            for result in filtered_msg.results
-            for analysis in result.analyses
-            for _, bindings in analysis.edge_bindings.items()
-            for binding in bindings
-        },
-    )
-
     # Construct result-specific auxiliary graphs
     filtered_aux_graphs = [
         aux_graph_id
@@ -128,6 +111,48 @@ def filter_by_curie_mapping(
             aux_graph_id: message.auxiliary_graphs[aux_graph_id]
             for aux_graph_id in filtered_aux_graphs
         }
+    )
+
+    # get all edge ids from the result
+    kgraph_edge_ids = [
+        binding.id
+        for result in filtered_msg.results
+        for analysis in result.analyses or []
+        for _, bindings in analysis.edge_bindings.items()
+        for binding in bindings
+    ]
+
+    # get all edge ids from auxiliary graphs
+    kgraph_edge_ids.extend(
+        [
+            edge_id
+            for aux_graph_id in filtered_aux_graphs
+            for edge_id in message.auxiliary_graphs[aux_graph_id].edges or []
+        ]
+    )
+
+    kgraph_node_ids = set(
+        binding.id
+        for result in filtered_msg.results
+        for _, bindings in result.node_bindings.items()
+        for binding in bindings
+    )
+
+    for aux_graph_id in filtered_aux_graphs:
+        for edge_id in message.auxiliary_graphs[aux_graph_id].edges or []:
+            kgraph_node_ids.add(message.knowledge_graph.edges[edge_id].subject)
+            kgraph_node_ids.add(message.knowledge_graph.edges[edge_id].object)
+
+    # Construct result-specific knowledge graph
+    filtered_msg.knowledge_graph = KnowledgeGraph(
+        nodes={
+            node_id: message.knowledge_graph.nodes[node_id]
+            for node_id in kgraph_node_ids
+        },
+        edges={
+            edge_id: message.knowledge_graph.edges[edge_id]
+            for edge_id in kgraph_edge_ids
+        },
     )
 
     return filtered_msg
