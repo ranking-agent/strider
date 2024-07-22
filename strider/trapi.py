@@ -497,13 +497,13 @@ def convert_subclasses_to_aux_graphs(
                                 }
                             )
                         )
-                    
+
                     message.knowledge_graph.edges[primary_edge_id].attributes.add(
                         Attribute.parse_obj(
                             {
                                 "attribute_type_id": "biolink:knowledge_level",
                                 "value": "logical_entailment",
-                                "attribute_source": "infores:aragorn"
+                                "attribute_source": "infores:aragorn",
                             }
                         )
                     )
