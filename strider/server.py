@@ -371,7 +371,7 @@ async def sync_query(
     return JSONResponse(query_results)
 
 
-@APP.post("/asyncquery", response_model=ReasonerResponse)
+@APP.post("/asyncquery")
 async def async_query(
     background_tasks: BackgroundTasks,
     query: AsyncQuery = Body(..., example=AEXAMPLE),
@@ -406,7 +406,7 @@ async def async_query(
     return
 
 
-@APP.post("/multiquery", response_model=dict[str, ReasonerResponse])
+@APP.post("/multiquery")
 async def multi_query(
     background_tasks: BackgroundTasks,
     multiquery: dict[str, AsyncQuery] = Body(..., example=MEXAMPLE),
