@@ -257,7 +257,9 @@ def remove_null_values(obj):
         return {
             key: remove_null_values(value)
             for key, value in obj.items()
-            if value is not None
+            # TODO: also handle empty lists
+            # need to take this out when automats get fixed
+            if value is not None and value != []
         }
     elif isinstance(obj, list):
         return [remove_null_values(el) for el in obj]
