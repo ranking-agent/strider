@@ -452,7 +452,13 @@ def convert_subclasses_to_aux_graphs(
                             "subject": subclass,
                             "object": node.id,
                             "predicate": "biolink:subclass_of",
-                            "attributes": [],
+                            "attributes": [
+                                {
+                                    "attribute_type_id": "biolink:knowledge_level",
+                                    "value": "not_provided",
+                                    "attribute_source": "infores:aragorn",
+                                },
+                            ],
                             "sources": [
                                 {
                                     "resource_id": kp_id,
@@ -491,6 +497,16 @@ def convert_subclasses_to_aux_graphs(
                                 }
                             )
                         )
+                    
+                    message.knowledge_graph.edges[primary_edge_id].attributes.add(
+                        Attribute.parse_obj(
+                            {
+                                "attribute_type_id": "biolink:knowledge_level",
+                                "value": "logical_entailment",
+                                "attribute_source": "infores:aragorn"
+                            }
+                        )
+                    )
 
                     # create aux graph
                     message.auxiliary_graphs[aux_edge_id] = AuxiliaryGraph.parse_obj(
