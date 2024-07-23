@@ -483,6 +483,7 @@ def convert_subclasses_to_aux_graphs(
                         message.knowledge_graph.edges[primary_edge_id].object = node.id
 
                     had_support_graphs = False
+                    had_knowledge_level = False
                     for attribute in message.knowledge_graph.edges[
                         primary_edge_id
                     ].attributes:
@@ -492,6 +493,12 @@ def convert_subclasses_to_aux_graphs(
                         ):
                             had_support_graphs = True
                             attribute.value.append(aux_edge_id)
+                        if (
+                            attribute.attribute_type_id == "biolink:knowledge_level"
+                        ):
+                            had_knowledge_level = True
+                            attribute.value = "logical_entailment"
+                            attribute.attribute_source = "infores:aragorn"
                     if not had_support_graphs:
                         message.knowledge_graph.edges[primary_edge_id].attributes.add(
                             Attribute.parse_obj(
@@ -503,15 +510,16 @@ def convert_subclasses_to_aux_graphs(
                             )
                         )
 
-                    message.knowledge_graph.edges[primary_edge_id].attributes.add(
-                        Attribute.parse_obj(
-                            {
-                                "attribute_type_id": "biolink:knowledge_level",
-                                "value": "logical_entailment",
-                                "attribute_source": "infores:aragorn",
-                            }
+                    if not had_knowledge_level:
+                        message.knowledge_graph.edges[primary_edge_id].attributes.add(
+                            Attribute.parse_obj(
+                                {
+                                    "attribute_type_id": "biolink:knowledge_level",
+                                    "value": "logical_entailment",
+                                    "attribute_source": "infores:aragorn",
+                                }
+                            )
                         )
-                    )
 
                     # create aux graph
                     message.auxiliary_graphs[aux_edge_id] = AuxiliaryGraph.parse_obj(
