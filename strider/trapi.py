@@ -458,6 +458,11 @@ def convert_subclasses_to_aux_graphs(
                                     "value": "not_provided",
                                     "attribute_source": "infores:aragorn",
                                 },
+                                {
+                                    "attribute_type_id": "biolink:agent_type",
+                                    "value": "automated_agent",
+                                    "attribute_source": "infores:aragorn",
+                                },
                             ],
                             "sources": [
                                 {
