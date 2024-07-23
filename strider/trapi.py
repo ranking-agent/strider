@@ -493,9 +493,7 @@ def convert_subclasses_to_aux_graphs(
                         ):
                             had_support_graphs = True
                             attribute.value.append(aux_edge_id)
-                        if (
-                            attribute.attribute_type_id == "biolink:knowledge_level"
-                        ):
+                        if attribute.attribute_type_id == "biolink:knowledge_level":
                             had_knowledge_level = True
                             attribute.value = "logical_entailment"
                             attribute.attribute_source = "infores:aragorn"
