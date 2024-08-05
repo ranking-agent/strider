@@ -15,7 +15,6 @@ services:
     environment:
       REDIS_HOST: ${REDIS_HOST:-redis}
   redis:
-    image: redis/redis-stack-server:latest
     container_name: redis
     build:
       context: redis

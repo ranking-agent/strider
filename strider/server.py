@@ -186,7 +186,7 @@ if settings.jaeger_enabled == "True":
 
 
 @APP.on_event("startup")
-async def get_kp_registry():
+async def refresh_kp_registry():
     if not settings.offline_mode:
         await reload_kp_registry()
 
