@@ -1,6 +1,7 @@
 """Node Normalizer Utilities."""
 
 from collections import namedtuple
+import httpx
 import logging
 
 from reasoner_pydantic import Message
@@ -155,3 +156,26 @@ class Normalizer:
             ),
         )
         return [curie]
+    
+    async def get_mcq_uuid(self, curies: list[str]) -> str:
+        """Get the MCQ uuid from NN."""
+        response = {}
+        try:
+            async with httpx.AsyncClient(verify=False, timeout=10.0) as client:
+                self.logger.debug("Sending request to NN for MCQ setid.")
+                res = await client.get(
+                    f"{settings.normalizer_url}/get_setid",
+                    params={
+                        "curie": curies,
+                        "conflation": [
+                            "GeneProtein",
+                            "DrugChemical",
+                        ],
+                    }
+                )
+                res.raise_for_status()
+                response = res.json()
+        except Exception as e:
+            self.logger.error(e)
+        
+        return response.get("setid", "")

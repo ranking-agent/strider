@@ -13,10 +13,8 @@ from typing import Callable, List
 
 import aiostream
 import asyncio
-from kp_registry import Registry
 from reasoner_pydantic import (
     Message,
-    QueryGraph,
     KnowledgeGraph,
     AuxiliaryGraphs,
     Result,
@@ -101,7 +99,7 @@ class Fetcher:
             self.logger.error("Cannot find qedge with pinned endpoint")
             raise RuntimeError("Cannot find qedge with pinned endpoint")
         except Exception as e:
-            self.logger.error("Unable to get next qedge")
+            self.logger.error(f"Unable to get next qedge: {e}")
 
         self.logger.info(f"[{qid}] Getting results for {qedge_id}")
 
@@ -141,6 +139,10 @@ class Fetcher:
         # keep track of call stack for each kp plan branch
         call_stack.append(kp.id)
         self.logger.info(f"[{qid}] Current call stack: {(', ').join(call_stack)}")
+        is_mcq = False
+        for node in onehop_qgraph["nodes"].values():
+            node_is_mcq = is_mcq_node(node)
+            is_mcq = is_mcq or node_is_mcq
         onehop_response = None
         # check if message wants to override the cache
         overwrite_cache = self.parameters.get("overwrite_cache")
@@ -190,8 +192,14 @@ class Fetcher:
             self.logger.info(
                 f"[{qid}] Ending call stack with no results: {(', ').join(call_stack)}"
             )
+            return
+        
+        result_map = defaultdict(list)
         for batch_results in batch(onehop_results, self.parameters["batch_size"]):
-            result_map = defaultdict(list)
+            if is_mcq:
+                # only take the top 100 results
+                batch_results = batch_results[:100]
+
             # copy subqgraph between each batch
             # before we fill it with result curies
             # this keeps the sub query graph from being modified and passing
@@ -248,29 +256,28 @@ class Fetcher:
                     ]
                 )
 
-                is_mcq = False
-                for node in onehop_qgraph["nodes"].values():
-                    is_mcq = is_mcq or is_mcq_node(node)
-                self.logger.info(f"Is MCQ: {is_mcq}")
-
-                if is_mcq:
-                    kgraph_node_ids = set(
-                        binding.id
-                        for _, bindings in result.node_bindings.items()
-                        for binding in bindings
-                    )
-
-                    for aux_graph_id in aux_graphs:
-                        for edge_id in result_auxgraph[aux_graph_id].edges or []:
-                            kgraph_node_ids.add(onehop_kgraph.edges[edge_id].subject)
-                            kgraph_node_ids.add(onehop_kgraph.edges[edge_id].object)
-
-                    try:
+                try:
+                    if is_mcq:
+                        with open("mcq_response.json", "w") as f:
+                            json.dump(onehop_response.dict(), f, indent=2)
+                        # do some knowledge graph collection
+                        node_ids = [
+                            onehop_kgraph.edges[edge_id].subject
+                            for edge_id in kgraph_edge_ids
+                            if onehop_kgraph.edges[edge_id].subject in onehop_kgraph.nodes
+                        ]
+                        node_ids.extend(
+                            [
+                                onehop_kgraph.edges[edge_id].object
+                                for edge_id in kgraph_edge_ids
+                                if onehop_kgraph.edges[edge_id].object in onehop_kgraph.nodes
+                            ]
+                        )
                         result_kgraph = KnowledgeGraph.parse_obj(
                             {
                                 "nodes": {
                                     node_id: onehop_kgraph.nodes[node_id]
-                                    for node_id in kgraph_node_ids
+                                    for node_id in node_ids
                                 },
                                 "edges": {
                                     edge_id: onehop_kgraph.edges[edge_id]
@@ -278,55 +285,142 @@ class Fetcher:
                                 },
                             }
                         )
-                    except Exception as e:
-                        self.logger.error(
-                            f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
+
+                    else:
+                        # do some knowledge graph collection
+                        node_ids = [
+                            onehop_kgraph.edges[edge_id].subject
+                            for edge_id in kgraph_edge_ids
+                            if onehop_kgraph.edges[edge_id].subject in onehop_kgraph.nodes
+                        ]
+                        node_ids.extend(
+                            [
+                                onehop_kgraph.edges[edge_id].object
+                                for edge_id in kgraph_edge_ids
+                                if onehop_kgraph.edges[edge_id].object in onehop_kgraph.nodes
+                            ]
                         )
-                        # with open("bad_kp_response.json", "w") as f:
-                        #     json.dump(onehop_response.dict(), f)
-                        raise Exception(e)
+                        result_kgraph = KnowledgeGraph.parse_obj(
+                            {
+                                "nodes": {
+                                    node_id: onehop_kgraph.nodes[node_id]
+                                    for node_id in node_ids
+                                },
+                                "edges": {
+                                    edge_id: onehop_kgraph.edges[edge_id]
+                                    for edge_id in kgraph_edge_ids
+                                },
+                            }
+                        )
+                except Exception as e:
+                    self.logger.error(
+                        f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
+                    )
+                    # with open("bad_kp_response.json", "w") as f:
+                    #     json.dump(onehop_response.dict(), f)
+                    raise Exception(e)
 
                 # pin nodes
                 for qnode_id, bindings in result.node_bindings.items():
                     if qnode_id not in populated_subqgraph["nodes"]:
                         continue
                     # add curies from result into the qgraph
-                    populated_subqgraph["nodes"][qnode_id]["ids"] = list(
-                        # need to call set() to remove any duplicates
-                        set(
-                            (populated_subqgraph["nodes"][qnode_id].get("ids") or [])
-                            # use query_id (original curie) for any subclass results
-                            + [binding.query_id or binding.id for binding in bindings]
+                    if is_mcq:
+                        # TODO: this doesn't support cyclic graphs
+                        populated_subqgraph["nodes"][qnode_id]["member_ids"] = list(
+                            # need to call set() to remove any duplicates
+                            set(
+                                (populated_subqgraph["nodes"][qnode_id].get("member_ids") or [])
+                                # use query_id (original curie) for any subclass results
+                                + [binding.query_id or binding.id for binding in bindings]
+                            )
                         )
-                    )
-
+                    else:
+                        populated_subqgraph["nodes"][qnode_id]["ids"] = list(
+                            # need to call set() to remove any duplicates
+                            set(
+                                (populated_subqgraph["nodes"][qnode_id].get("ids") or [])
+                                # use query_id (original curie) for any subclass results
+                                + [binding.query_id or binding.id for binding in bindings]
+                            )
+                        )
+                
                 # get intersection of result node ids and new sub qgraph
                 # should be empty on last hop because the qgraph is empty
                 qnode_ids = set(populated_subqgraph["nodes"].keys()) & set(
                     result.node_bindings.keys()
                 )
+
                 # result key becomes ex. ((n0, (MONDO:0005737,)), (n1, (RXCUI:340169,)))
-                key_fcn = lambda res: tuple(
-                    (
-                        qnode_id,
-                        tuple(
-                            binding.query_id if binding.query_id else binding.id
-                            for binding in bindings
-                        ),  # probably only one
-                    )
+                def result_key_fcn(res, kgraph, auxgraph):
+                    result_key = []
                     # for cyclic queries, the qnode ids can get out of order, so we need to sort the keys
-                    for qnode_id, bindings in sorted(res.node_bindings.items())
-                    if qnode_id in qnode_ids
-                )
-                result_map[key_fcn(result)].append(
+                    for qnode_id, bindings in sorted(res.node_bindings.items()):
+                        if qnode_id not in qnode_ids:
+                            continue
+                        if is_mcq_node(onehop_qgraph["nodes"][qnode_id]):
+                            # is mcq node, the binding is going to point to the standard uuid, so we need to look
+                            # into the kgraph and auxgraphs to find its origin
+                            try:
+                                self.logger.info(f"Looking for result map keys for qnode {qnode_id}")
+                                curie_list = (populated_subqgraph["nodes"][qnode_id].get("ids") or []) + (populated_subqgraph["nodes"][qnode_id].get("member_ids") or [])
+                                self.logger.info(f"Original curie list: {curie_list}")
+                                for analysis in res.analyses:
+                                    for edge_bindings in analysis.edge_bindings.values():
+                                        for edge_binding in edge_bindings:
+                                            kgraph_edge = edge_binding.id
+                                            if kgraph_edge not in kgraph.edges:
+                                                self.logger.error(f"MCQ edge {kgraph_edge} not in kgraph")
+                                            else:
+                                                for attribute in kgraph.edges[kgraph_edge].attributes:
+                                                    if attribute.attribute_type_id == "biolink:support_graphs":
+                                                        for auxgraph_id in attribute.value:
+                                                            for edge_id in auxgraph[auxgraph_id].edges:
+                                                                nested_kgraph_edge = kgraph.edges[edge_id]
+                                                                if nested_kgraph_edge.predicate != "biolink:member_of":
+                                                                    # we assume that the node not referenced in the qgraph is what we want
+                                                                    if nested_kgraph_edge.subject in curie_list:
+                                                                        curie_key = nested_kgraph_edge.subject
+                                                                    else:
+                                                                        curie_key = nested_kgraph_edge.object
+                                                                    self.logger.info(f"Adding curie to result map: {curie_key}")
+                                                                    result_key.append(
+                                                                        (
+                                                                            qnode_id,
+                                                                            (
+                                                                                curie_key,
+                                                                            )
+                                                                        )
+                                                                    )
+                            except Exception as e:
+                                self.logger.error(f"Failed to create result map key: {e}")
+                        else:
+                            result_key.append(
+                                (
+                                    qnode_id,
+                                    tuple(
+                                        binding.query_id if binding.query_id else binding.id
+                                        for binding in bindings
+                                    ),  # probably only one
+                                )
+                            )
+                    return tuple(result_key)
+
+                result_map[result_key_fcn(result, result_kgraph, result_auxgraph)].append(
                     (result, result_kgraph, result_auxgraph)
                 )
+            
+            for node in populated_subqgraph["nodes"].values():
+                node_is_mcq = is_mcq_node(node)
+                if node_is_mcq:
+                    # get MCQ uuid from NN
+                    node["ids"] = [await kp.get_mcq_uuid(node["member_ids"])]
+                    self.logger.warning(node["ids"])
 
             generators.append(
                 self.generate_from_result(
                     populated_subqgraph,
-                    key_fcn,
-                    lambda result: result_map[key_fcn(result)],
+                    result_key_fcn,
                     result_map,
                     call_stack,
                     qid,
@@ -341,7 +435,6 @@ class Fetcher:
         self,
         qgraph,
         key_fcn,
-        get_results: Callable[[dict], Iterable[tuple[dict, dict]]],
         result_map,
         call_stack: List,
         sub_qid: str,
@@ -352,16 +445,16 @@ class Fetcher:
             sub_qid,
         ):
             self.logger.debug(
-                f"[{qid}] looking for key {key_fcn(subresult)}: {subresult.json()}"
+                f"[{qid}] looking for key {key_fcn(subresult, subkgraph, subauxgraph)}: {subresult.json()}"
             )
-            if not key_fcn(subresult) in result_map:
+            if not key_fcn(subresult, subkgraph, subauxgraph) in result_map:
                 self.logger.error(
-                    f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult)}"
+                    f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult, subkgraph, subauxgraph)}"
                 )
                 self.logger.error(f"[{sub_qid}] Result map: {result_map.keys()}")
                 self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
                 raise KeyError("Subresult not found in result map")
-            for result, kgraph, auxgraph in get_results(subresult):
+            for result, kgraph, auxgraph in result_map[key_fcn(subresult, subkgraph, subauxgraph)]:
                 # combine one-hop with subquery results
                 # Need to create a new result with all node bindings combined
                 new_subresult = Result.parse_obj(
@@ -411,6 +504,14 @@ class Fetcher:
             await self.normalizer.load_curies(*curies)
             curie_map = self.normalizer.map(curies, self.preferred_prefixes)
             map_qgraph_curies(message.query_graph, curie_map, primary=True)
+
+        # convert any MCQ ids to normalized NN uuid
+        for node in message.query_graph.nodes.values():
+            node_dict = node.dict()
+            node_is_mcq = is_mcq_node(node_dict)
+            if node_is_mcq:
+                # get MCQ uuid from NN
+                node.ids = [await self.normalizer.get_mcq_uuid(node_dict["member_ids"])]
 
         self.qgraph = message.query_graph.dict()
 
