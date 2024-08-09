@@ -27,6 +27,18 @@ def get_curies(qgraph: QueryGraph) -> dict[str, list[str]]:
     }
 
 
+def get_member_ids(qgraph: QueryGraph) -> dict[str, list[str]]:
+    """
+    Pull curies from query graph and
+    return them as a mapping of node_id -> curie_list
+    """
+    return {
+        node_id: copy.deepcopy(member_ids)
+        for node_id, node in qgraph.nodes.items()
+        if (member_ids := node.member_ids or None) is not None
+    }
+
+
 def get_max_num_curies(requests: list) -> int:
     """
     Given a collection of requests, find the maximum curie length of all query graph nodes
@@ -34,8 +46,11 @@ def get_max_num_curies(requests: list) -> int:
     total_curies = defaultdict(int)
     for request_payload in requests:
         num_curies = get_curies(request_payload.message.query_graph)
+        num_member_ids = get_member_ids(request_payload.message.query_graph)
         for qnode_id, curies in num_curies.items():
             total_curies[qnode_id] += len(curies)
+        for qnode_id, member_ids in num_member_ids.items():
+            total_curies[qnode_id] += len(member_ids)
     # get the max value in dict of curies
     return max(total_curies.values())
 

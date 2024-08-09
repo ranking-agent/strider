@@ -214,7 +214,7 @@ def get_kp_operations_queries(
 
 def is_mcq_node(qnode: Dict[str, dict]) -> bool:
     """Determin if query graph node is a set for MCQ (MultiCurieQuery)."""
-    return "member_ids" in qnode and "set_interpretation" in qnode and qnode["set_interpretation"] == "MANY"
+    return "set_interpretation" in qnode and qnode["set_interpretation"] == "MANY"
 
 
 async def generate_plan(
@@ -380,7 +380,10 @@ def get_next_qedge(qgraph):
     """Get next qedge to solve."""
     qgraph = copy.deepcopy(qgraph)
     for qnode in qgraph["nodes"].values():
-        if qnode.get("ids") is not None:
+        if qnode.get("set_interpretation") == "MANY" and len(qnode.get("member_ids") or []) > 0:
+            # MCQ
+            qnode["ids"] = len(qnode["member_ids"])
+        elif qnode.get("ids") is not None:
             qnode["ids"] = len(qnode["ids"])
         else:
             qnode["ids"] = N
