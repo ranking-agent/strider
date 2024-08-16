@@ -371,7 +371,10 @@ def get_next_qedge(qgraph):
     """Get next qedge to solve."""
     qgraph = copy.deepcopy(qgraph)
     for qnode in qgraph["nodes"].values():
-        if is_mcq_node(qnode):
+        if (
+            qnode.get("set_interpretation") == "MANY"
+            and len(qnode.get("member_ids") or []) > 0
+        ):
             # MCQ
             qnode["ids"] = len(qnode["member_ids"])
         elif qnode.get("ids") is not None:
