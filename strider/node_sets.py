@@ -2,19 +2,19 @@
 
 from collections import defaultdict
 from datetime import datetime
-from reasoner_pydantic import Message
+from reasoner_pydantic import Message, Query
 
 
-def collapse_sets(query: dict, logger) -> None:
+def collapse_sets(query: Query, logger) -> None:
     """Collase results according to set_interpretation qnode notations."""
     # just deserializing the query_graph is very fast
     qgraph = query.message.query_graph.dict()
-    unique_qnodes = {
+    set_qnodes = {
         qnode_id
         for qnode_id, qnode in qgraph["nodes"].items()
-        if (qnode.get("set_interpretation", None) or "BATCH") == "BATCH"
+        if (qnode.get("set_interpretation", None) or "ALL") == "ALL"
     }
-    if len(unique_qnodes) == len(query.message.query_graph.nodes):
+    if len(set_qnodes) == 0:
         # no set nodes
         return
     logger.info("Collapsing sets. This might take a while...")
@@ -22,7 +22,7 @@ def collapse_sets(query: dict, logger) -> None:
     unique_qedges = {
         qedge_id
         for qedge_id, qedge in message["query_graph"]["edges"].items()
-        if (qedge["subject"] in unique_qnodes and qedge["object"] in unique_qnodes)
+        if (qedge["subject"] in set_qnodes and qedge["object"] in set_qnodes)
     }
     result_buckets = defaultdict(
         lambda: {
@@ -34,7 +34,7 @@ def collapse_sets(query: dict, logger) -> None:
         bucket_key = tuple(
             [
                 binding["id"]
-                for qnode_id in unique_qnodes
+                for qnode_id in set_qnodes
                 for binding in result["node_bindings"][qnode_id]
             ]
             + [
