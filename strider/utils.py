@@ -126,6 +126,10 @@ def elide_curies(payload):
         for qnode in payload["message"]["query_graph"]["nodes"].values():
             if (num_curies := len(qnode.get("ids", None) or [])) > 10:
                 qnode["ids"] = f"**{num_curies} CURIEs not shown for brevity**"
+    if "query_graph" in payload:  # TRAPI message
+        for qnode in payload["query_graph"]["nodes"].values():
+            if (num_curies := len(qnode.get("ids", None) or [])) > 10:
+                qnode["ids"] = f"**{num_curies} CURIEs not shown for brevity**"
     return payload
 
 
