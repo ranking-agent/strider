@@ -60,9 +60,10 @@ async def test_fetcher_bad_response(monkeypatch, httpx_mock: HTTPXMock):
         n1(( category biolink:NamedThing ))
         """
     )
+    message = {"query_graph": QGRAPH}
 
     fetcher = Fetcher(logger, False, {})
-    await fetcher.setup(QGRAPH, {}, 75)
+    await fetcher.setup(message, {}, 75)
 
     num_responses = 0
 

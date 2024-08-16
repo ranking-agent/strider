@@ -2,6 +2,7 @@ import logging
 import pytest
 from pytest_httpx import HTTPXMock
 import redis.asyncio
+from reasoner_pydantic import QueryGraph
 
 from tests.helpers.utils import (
     query_graph_from_string,
@@ -39,6 +40,7 @@ async def test_not_enough_kps(monkeypatch):
         n0-- biolink:related_to -->n1
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     with pytest.raises(NoAnswersError, match=r"cannot reach"):
         plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
@@ -60,6 +62,7 @@ async def test_plan_reverse_edge(monkeypatch):
         n1-- biolink:treats -->n0
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
     assert plan == {"n1n0": ["infores:kp1"]}
@@ -84,6 +87,7 @@ async def test_plan_loop(monkeypatch):
         n2-- biolink:treats -->n1
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, _ = await generate_plan(qg, {})
 
@@ -109,6 +113,7 @@ async def test_plan_reuse_pinned(monkeypatch):
         n0-- biolink:related_to -->n3
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
 
@@ -135,6 +140,7 @@ async def test_plan_double_loop(monkeypatch):
         n4-- biolink:related_to -->n2
         """
     )
+    qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {})
 
 
@@ -156,6 +162,7 @@ async def test_valid_two_pinned_nodes(monkeypatch):
         n2(( categories[] biolink:Disease ))
         """
     )
+    qg = QueryGraph.parse_obj(qg)
     await prepare_query_graph(qg)
 
     plan, kps = await generate_plan(qg, {})
@@ -180,26 +187,19 @@ async def test_fork(monkeypatch):
         n0-- biolink:has_phenotype -->n2
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
 
 
 @pytest.mark.asyncio
-async def test_unbound_unconnected_node(monkeypatch, httpx_mock: HTTPXMock):
+async def test_unbound_unconnected_node(monkeypatch):
     """
     Test Pinned -> Unbound + Unbound
     This should be invalid because there is no path
     to the unbound node
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(
-        url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
-            MONDO:0005148 categories biolink:Disease
-        """
-        ),
-    )
     qg = query_graph_from_string(
         """
         n0(( ids[] MONDO:0005148 ))
@@ -208,7 +208,9 @@ async def test_unbound_unconnected_node(monkeypatch, httpx_mock: HTTPXMock):
         n2(( categories[] biolink:PhenotypicFeature ))
         """
     )
+    qg = QueryGraph.parse_obj(qg)
     await prepare_query_graph(qg)
+    print(qg)
 
     with pytest.raises(NoAnswersError, match=r"cannot reach"):
         plan, kps = await generate_plan(qg, {})
@@ -234,6 +236,7 @@ async def test_valid_two_disconnected_components(monkeypatch):
         n2-- biolink:treated_by -->n3
         """
     )
+    qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {})
     assert plan == {"n0n1": ["infores:kp1"], "n2n3": ["infores:kp1"]}
 
@@ -263,6 +266,7 @@ async def test_bad_norm(monkeypatch):
             }
         },
     }
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
     assert plan == {"e01": ["infores:kp1"]}
@@ -282,6 +286,7 @@ async def test_double_sided(monkeypatch):
         n0-- biolink:treated_by -->n1
         """
     )
+    qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n0n1": ["infores:kp1"]}
     assert "infores:kp1" in kps
@@ -376,6 +381,7 @@ async def test_predicate_fanout(monkeypatch):
             }
         },
     }
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"ab": ["infores:kp2"]}
@@ -397,6 +403,7 @@ async def test_inverse_predicate(monkeypatch):
         n0-- biolink:treated_by -->n1
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n0n1": ["infores:kp1"]}
@@ -417,6 +424,7 @@ async def test_symmetric_predicate(monkeypatch):
         n1-- biolink:correlated_with -->n0
         """
     )
+    qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n1n0": ["infores:kp1"]}
     assert "infores:kp1" in kps
@@ -439,6 +447,7 @@ async def test_subpredicate(monkeypatch):
             }
         },
     }
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"ab": ["infores:kp1"]}
@@ -460,6 +469,7 @@ async def test_solve_double_subclass(monkeypatch):
         n0-- biolink:ameliorates -->n1
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n0n1": ["infores:kp1"]}
@@ -482,6 +492,7 @@ async def test_pinned_to_pinned(monkeypatch):
         n0-- biolink:related_to -->n1
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n0n1": ["infores:kp3"]}
@@ -501,6 +512,7 @@ async def test_self_edge(monkeypatch):
         n0-- biolink:related_to -->n0
         """
     )
+    qg = QueryGraph.parse_obj(qg)
 
     # await prepare_query_graph(qg)
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
