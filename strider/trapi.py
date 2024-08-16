@@ -373,45 +373,45 @@ async def fill_categories_predicates(
         normalizer = Normalizer(logger)
 
     # Fill in missing predicates with most general term
-    for edge in qg["edges"].values():
-        if ("predicates" not in edge) or (edge["predicates"] is None):
-            edge["predicates"] = ["biolink:related_to"]
+    for edge in qg.edges.values():
+        if edge.predicates is None:
+            edge.predicates = ["biolink:related_to"]
 
     # Fill in missing categories with most general term
-    for node in qg["nodes"].values():
-        if ("categories" not in node) or (node["categories"] is None):
-            node["categories"] = ["biolink:NamedThing"]
+    for node in qg.nodes.values():
+        if node.categories is None:
+            node.categories = ["biolink:NamedThing"]
 
     # Use node normalizer to add
     # a category to nodes with a curie
-    for node in qg["nodes"].values():
-        node_id = node.get("ids", None)
+    for node in qg.nodes.values():
+        node_id = node.ids
         if not node_id:
             if (
-                "biolink:Gene" in node["categories"]
-                and "biolink:Protein" not in node["categories"]
+                "biolink:Gene" in node.categories
+                and "biolink:Protein" not in node.categories
             ):
-                node["categories"].append("biolink:Protein")
+                node.categories.append("biolink:Protein")
             if (
-                "biolink:Protein" in node["categories"]
-                and "biolink:Gene" not in node["categories"]
+                "biolink:Protein" in node.categories
+                and "biolink:Gene" not in node.categories
             ):
-                node["categories"].append("biolink:Gene")
+                node.categories.append("biolink:Gene")
         else:
             if not isinstance(node_id, list):
                 node_id = [node_id]
 
             # Get full list of categorys
-            categories = await normalizer.get_types(node_id)
+            categories = await normalizer.get_types(list(node_id))
 
             # Remove duplicates
             categories = list(set(categories))
 
             if categories:
                 # Filter categorys that are ancestors of other categorys we were given
-                node["categories"] = filter_ancestor_types(categories)
-            elif "categories" not in node:
-                node["categories"] = []
+                node.categories = filter_ancestor_types(categories)
+            elif node.categories is None:
+                node.categories = []
 
 
 def convert_subclasses_to_aux_graphs(

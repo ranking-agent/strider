@@ -20,7 +20,7 @@ from reasoner_pydantic import (
     Result,
 )
 
-from .graph import Graph
+from .graph import remove_orphaned
 from .normalizer import Normalizer
 from .knowledge_provider import KnowledgeProvider
 from .trapi import (
@@ -65,7 +65,7 @@ class Fetcher:
 
     async def lookup(
         self,
-        qgraph: Graph = None,
+        message: Message = None,
         call_stack: List = [],
         qid: str = "",
     ):
@@ -75,9 +75,9 @@ class Fetcher:
         else:
             qid = str(uuid.uuid4())[:8]
         # if this is a leaf node, we're done
-        if qgraph is None:
-            qgraph = Graph(self.qgraph)
-        if not qgraph["edges"]:
+        if message is None:
+            message = self.message
+        if not message.query_graph.edges:
             self.logger.info(f"[{qid}] Finished call stack: {(', ').join(call_stack)}")
             # gets sent to generate_from_result for final result merge and then yield to server.py
             yield KnowledgeGraph.parse_obj(
@@ -94,7 +94,7 @@ class Fetcher:
             return
 
         try:
-            qedge_id, qedge = get_next_qedge(qgraph)
+            qedge_id, qedge = get_next_qedge(message.query_graph.dict())
         except StopIteration:
             self.logger.error("Cannot find qedge with pinned endpoint")
             raise RuntimeError("Cannot find qedge with pinned endpoint")
@@ -103,19 +103,23 @@ class Fetcher:
 
         self.logger.info(f"[{qid}] Getting results for {qedge_id}")
 
-        qedge = qgraph["edges"][qedge_id]
-        onehop = {
-            "nodes": {
-                key: value
-                for key, value in qgraph["nodes"].items()
-                if key in (qedge["subject"], qedge["object"])
-            },
-            "edges": {qedge_id: qedge},
-        }
+        qedge = message.query_graph.edges[qedge_id]
+        onehop = Message.parse_obj({
+            "query_graph": {
+                "nodes": {
+                    key: value
+                    for key, value in message.query_graph.nodes.items()
+                    if key in (qedge.subject, qedge.object)
+                },
+                "edges": {qedge_id: qedge},
+            }
+        })
+        onehop.knowledge_graph = message.knowledge_graph
+        onehop.auxiliary_graphs = message.auxiliary_graphs
 
         generators = [
             self.generate_from_kp(
-                qgraph,
+                message,
                 onehop,
                 self.kps[kp_id],
                 copy.deepcopy(call_stack),
@@ -129,8 +133,8 @@ class Fetcher:
 
     async def generate_from_kp(
         self,
-        qgraph: Graph,
-        onehop_qgraph: Graph,
+        message: Message,
+        onehop_message: Message,
         kp: KnowledgeProvider,
         call_stack: List,
         qid: str,
@@ -140,7 +144,7 @@ class Fetcher:
         call_stack.append(kp.id)
         self.logger.info(f"[{qid}] Current call stack: {(', ').join(call_stack)}")
         is_mcq = False
-        for node in onehop_qgraph["nodes"].values():
+        for node in onehop_message.query_graph.nodes.values():
             node_is_mcq = is_mcq_node(node)
             is_mcq = is_mcq or node_is_mcq
         onehop_response = None
@@ -149,7 +153,7 @@ class Fetcher:
         overwrite_cache = overwrite_cache if type(overwrite_cache) is bool else False
         if not self.bypass_cache and not overwrite_cache:
             # get onehop response from cache
-            onehop_response = await get_kp_onehop(kp.id, onehop_qgraph)
+            onehop_response = await get_kp_onehop(kp.id, onehop_message.dict())
         if onehop_response is not None:
             self.logger.info(
                 f"[{qid}] [{kp.id}]: Got onehop with {len(onehop_response['results'])} results from cache"
@@ -158,16 +162,16 @@ class Fetcher:
         if onehop_response is None and not settings.offline_mode:
             # onehop not in cache, have to go get response
             self.logger.info(
-                f"[{kp.id}] Need to get results for: {json.dumps(elide_curies(onehop_qgraph))}"
+                f"[{kp.id}] Need to get results for: {json.dumps(elide_curies(onehop_message.dict()))}"
             )
             onehop_response = await kp.solve_onehop(
-                onehop_qgraph,
+                onehop_message,
                 self.bypass_cache,
                 call_stack,
-                last_hop=len(qgraph["edges"]) == 1,
+                last_hop=len(message.query_graph.edges) == 1,
             )
             if not self.bypass_cache:
-                await save_kp_onehop(kp.id, onehop_qgraph, onehop_response.dict())
+                await save_kp_onehop(kp.id, onehop_message.dict(), onehop_response.dict())
         if onehop_response is None and settings.offline_mode:
             self.logger.info(
                 f"[{kp.id}] Didn't get anything back from cache in offline mode."
@@ -179,15 +183,15 @@ class Fetcher:
             onehop_kgraph = onehop_response.knowledge_graph
             onehop_results = onehop_response.results
             onehop_auxgraphs = onehop_response.auxiliary_graphs
-            qedge_id = next(iter(onehop_qgraph["edges"].keys()))
+            qedge_id = next(iter(onehop_message.query_graph.edges.keys()))
         generators = []
 
         if onehop_results:
-            subqgraph = copy.deepcopy(qgraph)
+            subqgraph = copy.deepcopy(message)
             # remove edge
-            subqgraph["edges"].pop(qedge_id)
+            subqgraph.query_graph.edges.pop(qedge_id)
             # remove orphaned nodes
-            subqgraph.remove_orphaned()
+            remove_orphaned(subqgraph)
         else:
             self.logger.info(
                 f"[{qid}] Ending call stack with no results: {(', ').join(call_stack)}"
@@ -206,9 +210,9 @@ class Fetcher:
             # extra curies into subsequent batches
             populated_subqgraph = copy.deepcopy(subqgraph)
             # clear out any existing bindings to only use the new ones we get back
-            for qnode_id in onehop_qgraph["nodes"].keys():
-                if qnode_id in populated_subqgraph["nodes"]:
-                    populated_subqgraph["nodes"][qnode_id]["ids"] = []
+            for qnode_id in onehop_message.query_graph.nodes.keys():
+                if qnode_id in populated_subqgraph.query_graph.nodes:
+                    populated_subqgraph.query_graph.nodes[qnode_id].ids = []
             for result in batch_results:
                 # add edge to results and kgraph
 
@@ -322,24 +326,24 @@ class Fetcher:
 
                 # pin nodes
                 for qnode_id, bindings in result.node_bindings.items():
-                    if qnode_id not in populated_subqgraph["nodes"]:
+                    if qnode_id not in populated_subqgraph.query_graph.nodes:
                         continue
                     # add curies from result into the qgraph
                     if is_mcq:
                         # TODO: this doesn't support cyclic graphs
-                        populated_subqgraph["nodes"][qnode_id]["member_ids"] = list(
+                        populated_subqgraph.query_graph.nodes[qnode_id].member_ids = list(
                             # need to call set() to remove any duplicates
                             set(
-                                (populated_subqgraph["nodes"][qnode_id].get("member_ids") or [])
+                                (populated_subqgraph.query_graph.nodes[qnode_id].member_ids or [])
                                 # use query_id (original curie) for any subclass results
                                 + [binding.query_id or binding.id for binding in bindings]
                             )
                         )
                     else:
-                        populated_subqgraph["nodes"][qnode_id]["ids"] = list(
+                        populated_subqgraph.query_graph.nodes[qnode_id].ids = list(
                             # need to call set() to remove any duplicates
                             set(
-                                (populated_subqgraph["nodes"][qnode_id].get("ids") or [])
+                                (populated_subqgraph.query_graph.nodes[qnode_id].ids or [])
                                 # use query_id (original curie) for any subclass results
                                 + [binding.query_id or binding.id for binding in bindings]
                             )
@@ -347,7 +351,7 @@ class Fetcher:
                 
                 # get intersection of result node ids and new sub qgraph
                 # should be empty on last hop because the qgraph is empty
-                qnode_ids = set(populated_subqgraph["nodes"].keys()) & set(
+                qnode_ids = set(populated_subqgraph.query_graph.nodes.keys()) & set(
                     result.node_bindings.keys()
                 )
 
@@ -491,36 +495,26 @@ class Fetcher:
     # pylint: disable=arguments-differ
     async def setup(
         self,
-        qgraph: dict,
+        message: dict,
         backup_kps: dict,
         information_content_threshold: int,
     ):
         """Set up."""
 
         # Update qgraph identifiers
-        message = Message.parse_obj({"query_graph": qgraph})
-        curies = get_curies(message)
+        self.message = Message.parse_obj(message)
+        curies = get_curies(self.message)
         if len(curies):
             await self.normalizer.load_curies(*curies)
             curie_map = self.normalizer.map(curies, self.preferred_prefixes)
-            map_qgraph_curies(message.query_graph, curie_map, primary=True)
-
-        # convert any MCQ ids to normalized NN uuid
-        for node in message.query_graph.nodes.values():
-            node_dict = node.dict()
-            node_is_mcq = is_mcq_node(node_dict)
-            if node_is_mcq:
-                # get MCQ uuid from NN
-                node.ids = [await self.normalizer.get_mcq_uuid(node_dict["member_ids"])]
-
-        self.qgraph = message.query_graph.dict()
+            map_qgraph_curies(self.message.query_graph, curie_map, primary=True)
 
         # Fill in missing categories and predicates using normalizer
-        await fill_categories_predicates(self.qgraph, self.logger)
+        await fill_categories_predicates(self.message.query_graph, self.logger)
 
         # Generate traversal plan
         self.plan, kps = await generate_plan(
-            self.qgraph,
+            self.message.query_graph,
             backup_kps=backup_kps,
             logger=self.logger,
         )
