@@ -268,65 +268,33 @@ class Fetcher:
                 )
 
                 try:
-                    if is_mcq:
-                        with open("mcq_response.json", "w") as f:
-                            json.dump(onehop_response.dict(), f, indent=2)
-                        # do some knowledge graph collection
-                        node_ids = [
-                            onehop_kgraph.edges[edge_id].subject
+                    # do some knowledge graph collection
+                    node_ids = [
+                        onehop_kgraph.edges[edge_id].subject
+                        for edge_id in kgraph_edge_ids
+                        if onehop_kgraph.edges[edge_id].subject
+                        in onehop_kgraph.nodes
+                    ]
+                    node_ids.extend(
+                        [
+                            onehop_kgraph.edges[edge_id].object
                             for edge_id in kgraph_edge_ids
-                            if onehop_kgraph.edges[edge_id].subject
+                            if onehop_kgraph.edges[edge_id].object
                             in onehop_kgraph.nodes
                         ]
-                        node_ids.extend(
-                            [
-                                onehop_kgraph.edges[edge_id].object
+                    )
+                    result_kgraph = KnowledgeGraph.parse_obj(
+                        {
+                            "nodes": {
+                                node_id: onehop_kgraph.nodes[node_id]
+                                for node_id in node_ids
+                            },
+                            "edges": {
+                                edge_id: onehop_kgraph.edges[edge_id]
                                 for edge_id in kgraph_edge_ids
-                                if onehop_kgraph.edges[edge_id].object
-                                in onehop_kgraph.nodes
-                            ]
-                        )
-                        result_kgraph = KnowledgeGraph.parse_obj(
-                            {
-                                "nodes": {
-                                    node_id: onehop_kgraph.nodes[node_id]
-                                    for node_id in node_ids
-                                },
-                                "edges": {
-                                    edge_id: onehop_kgraph.edges[edge_id]
-                                    for edge_id in kgraph_edge_ids
-                                },
-                            }
-                        )
-
-                    else:
-                        # do some knowledge graph collection
-                        node_ids = [
-                            onehop_kgraph.edges[edge_id].subject
-                            for edge_id in kgraph_edge_ids
-                            if onehop_kgraph.edges[edge_id].subject
-                            in onehop_kgraph.nodes
-                        ]
-                        node_ids.extend(
-                            [
-                                onehop_kgraph.edges[edge_id].object
-                                for edge_id in kgraph_edge_ids
-                                if onehop_kgraph.edges[edge_id].object
-                                in onehop_kgraph.nodes
-                            ]
-                        )
-                        result_kgraph = KnowledgeGraph.parse_obj(
-                            {
-                                "nodes": {
-                                    node_id: onehop_kgraph.nodes[node_id]
-                                    for node_id in node_ids
-                                },
-                                "edges": {
-                                    edge_id: onehop_kgraph.edges[edge_id]
-                                    for edge_id in kgraph_edge_ids
-                                },
-                            }
-                        )
+                            },
+                        }
+                    )
                 except Exception as e:
                     self.logger.error(
                         f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
@@ -503,7 +471,7 @@ class Fetcher:
                     self.logger.error(
                         f"[{qid}] subresult from lookup: {subresult.json()}"
                     )
-                    # raise KeyError("Subresult not found in result map")
+                    raise KeyError("Subresult not found in result map")
                 for result, kgraph, auxgraph in result_map[result_key]:
                     # result above is previous/current hop
                     # for result, kgraph, auxgraph in result_map[key_fcn(subresult, subkgraph, subauxgraph)]:
@@ -528,8 +496,6 @@ class Fetcher:
                         mcq_edge_ids = get_mcq_edge_ids(
                             subresult, subkgraph, subauxgraph
                         )
-                        self.logger.info(f"Next Hop Result: {subresult.dict()}")
-                        self.logger.info(f"Previous Hop Result: {result.dict()}")
                         member_of_edge_id = None
                         mcq_node_id = None
                         mcq_node_curie = None
@@ -542,11 +508,8 @@ class Fetcher:
                             previous_hop_node_curie = next(
                                 iter(result.node_bindings[mcq_node_id])
                             ).id
-                            # self.logger.info(f"MCQ Node id: {mcq_node_curie}")
-                            # self.logger.info(f"MCQ member id: {previous_hop_node_curie}")
                             for mcq_edge_id in mcq_edge_ids:
                                 mcq_edge = subkgraph.edges[mcq_edge_id]
-                                # self.logger.info(f"MCQ Edge: {mcq_edge.dict()}")
                                 if mcq_edge.predicate == "biolink:member_of":
                                     if (
                                         mcq_edge.subject == mcq_node_curie
@@ -557,7 +520,6 @@ class Fetcher:
                                     ):
                                         if member_of_edge_id is not None:
                                             raise ValueError("Got two member of edges!")
-                                        # self.logger.info(f"MCQ edge id: {mcq_edge_id}")
                                         member_of_edge_id = mcq_edge_id
 
                             for result_analysis in result.analyses:
