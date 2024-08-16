@@ -18,6 +18,8 @@ from reasoner_pydantic import (
     KnowledgeGraph,
     AuxiliaryGraphs,
     Result,
+    Node,
+    EdgeBinding,
 )
 
 from .graph import remove_orphaned
@@ -27,7 +29,8 @@ from .trapi import (
     map_qgraph_curies,
     fill_categories_predicates,
 )
-from .query_planner import generate_plan, get_next_qedge, is_mcq_node
+from .query_planner import generate_plan, get_next_qedge
+from .mcq import is_mcq_node, get_mcq_edge_ids
 from .config import settings
 from .utils import (
     WBMT,
@@ -320,8 +323,6 @@ class Fetcher:
                     self.logger.error(
                         f"Something went wrong making the sub-result kgraph: {traceback.format_exc()}"
                     )
-                    # with open("bad_kp_response.json", "w") as f:
-                    #     json.dump(onehop_response.dict(), f)
                     raise Exception(e)
 
                 # pin nodes
@@ -357,49 +358,38 @@ class Fetcher:
 
                 # result key becomes ex. ((n0, (MONDO:0005737,)), (n1, (RXCUI:340169,)))
                 def result_key_fcn(res, kgraph, auxgraph):
-                    result_key = []
+                    result_keys = []
                     # for cyclic queries, the qnode ids can get out of order, so we need to sort the keys
                     for qnode_id, bindings in sorted(res.node_bindings.items()):
                         if qnode_id not in qnode_ids:
                             continue
-                        if is_mcq_node(onehop_qgraph["nodes"][qnode_id]):
+                        if is_mcq_node(onehop_message.query_graph.nodes[qnode_id]):
                             # is mcq node, the binding is going to point to the standard uuid, so we need to look
                             # into the kgraph and auxgraphs to find its origin
                             try:
-                                self.logger.info(f"Looking for result map keys for qnode {qnode_id}")
-                                curie_list = (populated_subqgraph["nodes"][qnode_id].get("ids") or []) + (populated_subqgraph["nodes"][qnode_id].get("member_ids") or [])
-                                self.logger.info(f"Original curie list: {curie_list}")
-                                for analysis in res.analyses:
-                                    for edge_bindings in analysis.edge_bindings.values():
-                                        for edge_binding in edge_bindings:
-                                            kgraph_edge = edge_binding.id
-                                            if kgraph_edge not in kgraph.edges:
-                                                self.logger.error(f"MCQ edge {kgraph_edge} not in kgraph")
-                                            else:
-                                                for attribute in kgraph.edges[kgraph_edge].attributes:
-                                                    if attribute.attribute_type_id == "biolink:support_graphs":
-                                                        for auxgraph_id in attribute.value:
-                                                            for edge_id in auxgraph[auxgraph_id].edges:
-                                                                nested_kgraph_edge = kgraph.edges[edge_id]
-                                                                if nested_kgraph_edge.predicate != "biolink:member_of":
-                                                                    # we assume that the node not referenced in the qgraph is what we want
-                                                                    if nested_kgraph_edge.subject in curie_list:
-                                                                        curie_key = nested_kgraph_edge.subject
-                                                                    else:
-                                                                        curie_key = nested_kgraph_edge.object
-                                                                    self.logger.info(f"Adding curie to result map: {curie_key}")
-                                                                    result_key.append(
-                                                                        (
-                                                                            qnode_id,
-                                                                            (
-                                                                                curie_key,
-                                                                            )
-                                                                        )
-                                                                    )
+                                curie_list = (populated_subqgraph.query_graph.nodes[qnode_id].ids or []) + (populated_subqgraph.query_graph.nodes[qnode_id].member_ids or [])
+                                mcq_edge_ids = get_mcq_edge_ids(res, kgraph, auxgraph)
+                                for mcq_edge_id in mcq_edge_ids:
+                                    mcq_edge = kgraph.edges[mcq_edge_id]
+                                    if mcq_edge.predicate != "biolink:member_of":
+                                        # we assume that the node not referenced in the qgraph is what we want
+                                        if mcq_edge.subject in curie_list:
+                                            curie_key = mcq_edge.subject
+                                        else:
+                                            curie_key = mcq_edge.object
+                                        result_keys.append(
+                                            (
+                                                qnode_id,
+                                                (
+                                                    curie_key,
+                                                )
+                                            )
+                                        )
+                                
                             except Exception as e:
                                 self.logger.error(f"Failed to create result map key: {e}")
                         else:
-                            result_key.append(
+                            result_keys.append(
                                 (
                                     qnode_id,
                                     tuple(
@@ -408,24 +398,39 @@ class Fetcher:
                                     ),  # probably only one
                                 )
                             )
-                    return tuple(result_key)
+                    return tuple(result_keys)
 
-                result_map[result_key_fcn(result, result_kgraph, result_auxgraph)].append(
-                    (result, result_kgraph, result_auxgraph)
-                )
-            
-            for node in populated_subqgraph["nodes"].values():
+                result_keys = result_key_fcn(result, result_kgraph, result_auxgraph)
+                if len(result_keys) == 0:
+                    result_map[()].append(
+                        (result, result_kgraph, result_auxgraph)
+                    )
+                else:
+                    for result_key in result_keys:
+                        result_map[result_key].append(
+                            (result, result_kgraph, result_auxgraph)
+                        )
+
+            for node in populated_subqgraph.query_graph.nodes.values():
                 node_is_mcq = is_mcq_node(node)
                 if node_is_mcq:
                     # get MCQ uuid from NN
-                    node["ids"] = [await kp.get_mcq_uuid(node["member_ids"])]
-                    self.logger.warning(node["ids"])
+                    mcq_node_id = await kp.get_mcq_uuid(node.member_ids)
+                    node.ids = [mcq_node_id]
+                    node_dict = node.dict()
+                    populated_subqgraph.knowledge_graph.nodes[mcq_node_id] = Node.parse_obj({
+                        "categories": node_dict["categories"],
+                        "is_set": True,
+                        "name": "MCQ_Set",
+                        "attributes": [],
+                    })
 
             generators.append(
                 self.generate_from_result(
                     populated_subqgraph,
                     result_key_fcn,
                     result_map,
+                    is_mcq,
                     call_stack,
                     qid,
                 )
@@ -437,49 +442,109 @@ class Fetcher:
 
     async def generate_from_result(
         self,
-        qgraph,
+        submessage,
         key_fcn,
         result_map,
+        is_mcq: bool,
         call_stack: List,
         sub_qid: str,
     ):
         async for subkgraph, subresult, subauxgraph, qid in self.lookup(
-            qgraph,
+            submessage,
             call_stack,
             sub_qid,
         ):
+            # subresult above is next hop
             self.logger.debug(
                 f"[{qid}] looking for key {key_fcn(subresult, subkgraph, subauxgraph)}: {subresult.json()}"
             )
-            if not key_fcn(subresult, subkgraph, subauxgraph) in result_map:
-                self.logger.error(
-                    f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult, subkgraph, subauxgraph)}"
-                )
-                self.logger.error(f"[{sub_qid}] Result map: {result_map.keys()}")
-                self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
-                raise KeyError("Subresult not found in result map")
-            for result, kgraph, auxgraph in result_map[key_fcn(subresult, subkgraph, subauxgraph)]:
-                # combine one-hop with subquery results
-                # Need to create a new result with all node bindings combined
-                new_subresult = Result.parse_obj(
-                    {
-                        "node_bindings": {
-                            **subresult.node_bindings,
-                            **result.node_bindings,
-                        },
-                        "analyses": [
-                            *subresult.analyses,
-                            *result.analyses,
-                            # reconsider
-                        ],
-                    }
-                )
-                new_subkgraph = copy.deepcopy(subkgraph)
-                new_subkgraph.nodes.update(kgraph.nodes)
-                new_subkgraph.edges.update(kgraph.edges)
-                new_auxgraph = copy.deepcopy(subauxgraph)
-                new_auxgraph.update(auxgraph)
-                yield new_subkgraph, new_subresult, new_auxgraph, qid
+            result_keys = key_fcn(subresult, subkgraph, subauxgraph)
+            if len(result_keys) == 0:
+                result_keys = [()]
+            for result_key in result_keys:
+                if result_key not in result_map:
+                    self.logger.error(
+                        f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult, subkgraph, subauxgraph)}"
+                    )
+                    self.logger.error(f"[{sub_qid}] Result map: {result_map.keys()}")
+                    self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
+                    # raise KeyError("Subresult not found in result map")
+                for result, kgraph, auxgraph in result_map[result_key]:
+                    # result above is previous/current hop
+                    # for result, kgraph, auxgraph in result_map[key_fcn(subresult, subkgraph, subauxgraph)]:
+                    # combine one-hop with subquery results
+                    # Need to create a new result with all node bindings combined
+                    if not is_mcq:
+                        new_subresult = Result.parse_obj(
+                            {
+                                "node_bindings": {
+                                    **subresult.node_bindings,
+                                    **result.node_bindings,
+                                },
+                                "analyses": [
+                                    *subresult.analyses,
+                                    *result.analyses,
+                                    # reconsider
+                                ],
+                            }
+                        )
+                        
+                    else:
+                        mcq_edge_ids = get_mcq_edge_ids(subresult, subkgraph, subauxgraph)
+                        self.logger.info(f"Next Hop Result: {subresult.dict()}")
+                        self.logger.info(f"Previous Hop Result: {result.dict()}")
+                        member_of_edge_id = None
+                        mcq_node_id = None
+                        mcq_node_curie = None
+                        for node_id, node_binding in subresult.node_bindings.items():
+                            node_binding_curie = next(iter(node_binding)).id
+                            if node_binding_curie.startswith("uuid"):
+                                mcq_node_id = node_id
+                                mcq_node_curie = node_binding_curie
+                        if mcq_node_id is not None:
+                            previous_hop_node_curie = next(iter(result.node_bindings[mcq_node_id])).id
+                            # self.logger.info(f"MCQ Node id: {mcq_node_curie}")
+                            # self.logger.info(f"MCQ member id: {previous_hop_node_curie}")
+                            for mcq_edge_id in mcq_edge_ids:
+                                mcq_edge = subkgraph.edges[mcq_edge_id]
+                                # self.logger.info(f"MCQ Edge: {mcq_edge.dict()}")
+                                if mcq_edge.predicate == "biolink:member_of":
+                                    if (
+                                        mcq_edge.subject == mcq_node_curie and
+                                        mcq_edge.object == previous_hop_node_curie
+                                    ) or (
+                                        mcq_edge.subject == previous_hop_node_curie and
+                                        mcq_edge.object == mcq_node_curie
+                                    ):
+                                        if member_of_edge_id is not None:
+                                            raise ValueError("Got two member of edges!")
+                                        # self.logger.info(f"MCQ edge id: {mcq_edge_id}")
+                                        member_of_edge_id = mcq_edge_id
+
+                            for result_analysis in result.analyses:
+                                edge_binding = next(iter(result_analysis.edge_bindings.values()))
+                                edge_binding.add(EdgeBinding.parse_obj({
+                                    "id": member_of_edge_id,
+                                    "attributes": [],
+                                }))
+                        # handle mcq merging
+                        new_subresult = Result.parse_obj({
+                            "node_bindings": {
+                                **subresult.node_bindings,
+                                **result.node_bindings,
+                            },
+                            "analyses": [
+                                *result.analyses,
+                                *subresult.analyses,
+                            ],
+                        })
+
+                    new_subkgraph = copy.deepcopy(subkgraph)
+                    new_subkgraph.nodes.update(kgraph.nodes)
+                    new_subkgraph.edges.update(kgraph.edges)
+                    new_auxgraph = copy.deepcopy(subauxgraph)
+                    new_auxgraph.update(auxgraph)
+                    yield new_subkgraph, new_subresult, new_auxgraph, qid
 
     async def __aenter__(self):
         """Enter context."""

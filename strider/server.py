@@ -450,7 +450,7 @@ async def lookup(
     """Perform lookup operation."""
     global backup_kps
     lookup_start_time = time.time()
-    qgraph = query_dict["message"]["query_graph"]
+    message = query_dict.get("message", {})
 
     log_level = query_dict.get("log_level") or "INFO"
     # grab information content threshold from message if exists, otherwise grab from environment
