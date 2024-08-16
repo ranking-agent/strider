@@ -3,6 +3,7 @@
 from collections import namedtuple
 import httpx
 import logging
+import uuid
 
 from reasoner_pydantic import Message
 
@@ -176,6 +177,6 @@ class Normalizer:
                 res.raise_for_status()
                 response = res.json()
         except Exception as e:
-            self.logger.error(e)
+            self.logger.error(f"Normalizer MCQ setid failed with: {e}")
         
-        return response.get("setid", "")
+        return response.get("setid", f"uuid:unknown-{str(uuid.uuid4())}")
