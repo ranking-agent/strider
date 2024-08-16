@@ -471,17 +471,13 @@ async def lookup(
 
     fetcher = Fetcher(logger, bypass_cache, parameters)
 
-    logger.info(f"Doing lookup for qgraph: {json.dumps(qgraph)}")
+    logger.info(f"Doing lookup for message: {json.dumps(message)}")
     try:
-        await fetcher.setup(qgraph, backup_kps, information_content_threshold)
-    except NoAnswersError:
-        logger.warning("Returning no results.")
+        await fetcher.setup(message, backup_kps, information_content_threshold)
+    except NoAnswersError as e:
+        logger.warning(f"Returning no results. {e}")
         return {
-            "message": {
-                "query_graph": qgraph,
-                "knowledge_graph": {"nodes": {}, "edges": {}},
-                "results": [],
-            },
+            "message": message,
             "logs": list(log_handler.contents()),
         }
     except Exception as e:
@@ -490,9 +486,9 @@ async def lookup(
     # Result container to make result merging much faster
     output_results = HashableMapping[str, Result]()
 
-    output_kgraph = KnowledgeGraph.parse_obj(query_dict["message"].get("knowledge_graph"))
+    output_kgraph = KnowledgeGraph.parse_obj(message.get("knowledge_graph") or {"nodes": {}, "edges": {}})
 
-    output_auxgraphs = AuxiliaryGraphs.parse_obj(query_dict["message"].get("auxiliary_graphs") or {})
+    output_auxgraphs = AuxiliaryGraphs.parse_obj(message.get("auxiliary_graphs") or {})
 
     message_merging_time = 0
 
@@ -531,11 +527,14 @@ async def lookup(
 
     output_query = Query(
         message=Message(
-            query_graph=QueryGraph.parse_obj(qgraph),
+            query_graph=fetcher.message.query_graph,
             knowledge_graph=output_kgraph,
             results=results,
             auxiliary_graphs=output_auxgraphs,
-        )
+        ),
+        log_level=log_level,
+        workflow=query_dict.get("workflow"),
+        bypass_cache=bypass_cache,
     )
 
     # Collapse sets
