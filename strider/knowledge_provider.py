@@ -111,11 +111,11 @@ class KnowledgeProvider:
         self, request, bypass_cache: bool, call_stack: list, last_hop: bool
     ):
         """Solve one-hop query."""
-        request = remove_null_values(request)
+        request = remove_null_values(request.dict())
         response = None
         try:
             response = await self.throttle.query(
-                {"message": {"query_graph": request}},
+                {"message": request},
                 bypass_cache,
                 call_stack,
                 last_hop,
@@ -187,7 +187,7 @@ class KnowledgeProvider:
         message = response.message
         if message.query_graph is None:
             message = Message(
-                query_graph=QueryGraph.parse_obj(request),
+                query_graph=QueryGraph.parse_obj(request["query_graph"]),
                 knowledge_graph=KnowledgeGraph.parse_obj({"nodes": {}, "edges": {}}),
                 results=Results.parse_obj([]),
                 auxiliary_graphs=AuxiliaryGraphs.parse_obj({}),

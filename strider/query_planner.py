@@ -5,12 +5,14 @@ import copy
 from itertools import chain
 import logging
 import math
+from reasoner_pydantic import QueryGraph
 from typing import Generator, Union, Dict
 
 from strider.caching import get_kp_registry
 from strider.config import settings
 from strider.traversal import get_traversals, NoAnswersError
 from strider.utils import WBMT
+from strider.mcq import is_mcq_node
 
 LOGGER = logging.getLogger(__name__)
 
@@ -212,19 +214,14 @@ def get_kp_operations_queries(
     return subject_categories, object_categories, predicates, inverse_predicates
 
 
-def is_mcq_node(qnode: Dict[str, dict]) -> bool:
-    """Determin if query graph node is a set for MCQ (MultiCurieQuery)."""
-    return "set_interpretation" in qnode and qnode["set_interpretation"] == "MANY"
-
-
 async def generate_plan(
-    qgraph: dict,
+    qgraph: QueryGraph,
     backup_kps: dict,
     logger: logging.Logger = None,
 ) -> tuple[dict[str, list[str]], dict[str, dict]]:
     """Generate traversal plan."""
     # check that qgraph is traversable
-    get_traversals(qgraph)
+    get_traversals(qgraph.dict())
 
     if logger is None:
         logger = logging.getLogger(__name__)
@@ -236,13 +233,13 @@ async def generate_plan(
             "Unable to get kp registry from cache. Falling back to in-memory registry..."
         )
         registry = backup_kps
-    for qedge_id in qgraph["edges"]:
+    for qedge_id in qgraph.edges:
         inverse_kps = dict()
-        qedge = qgraph["edges"][qedge_id]
-        provided_by = {"allowlist": None, "denylist": None} | qedge.pop(
+        qedge = qgraph.edges[qedge_id]
+        provided_by = {"allowlist": None, "denylist": None} | qedge.dict().pop(
             "provided_by", {}
         )
-        if is_mcq_node(qgraph["nodes"][qedge["subject"]]) or is_mcq_node(qgraph["nodes"][qedge["object"]]):
+        if is_mcq_node(qgraph.nodes[qedge.subject]) or is_mcq_node(qgraph.nodes[qedge.object]):
             # TODO: update from hard-coded MCQ KPs
             direct_kps = {
                 "infores:answer-coalesce": {
@@ -276,7 +273,7 @@ async def generate_plan(
                     }
                 },
                 "infores:semsemian": {
-                    "url": "http://mcq-trapi-beta.monarchinitiative.org/query",
+                    "url": "http://mcq-trapi.monarchinitiative.org/1.5/query",
                     "title": "Semsemian Monarch KP",
                     "infores": "infores:semsemian",
                     "maturity": "development",
@@ -294,9 +291,9 @@ async def generate_plan(
                 predicates,
                 inverse_predicates,
             ) = get_kp_operations_queries(
-                qgraph["nodes"][qedge["subject"]]["categories"],
-                qedge["predicates"],
-                qgraph["nodes"][qedge["object"]]["categories"],
+                qgraph.nodes[qedge.subject].categories,
+                qedge.predicates,
+                qgraph.nodes[qedge.object].categories,
             )
             direct_kps = search(
                 registry,
@@ -330,8 +327,8 @@ async def generate_plan(
             raise NoAnswersError(msg)
         for kp in kp_results.values():
             for op in kp["operations"]:
-                op["subject"] = (qedge["subject"], op.pop("subject_category"))
-                op["object"] = (qedge["object"], op.pop("object_category"))
+                op["subject"] = (qedge.subject, op.pop("subject_category"))
+                op["object"] = (qedge.object, op.pop("object_category"))
         plan[qedge_id] = list(kp_results.keys())
         kps.update(kp_results)
     return plan, kps

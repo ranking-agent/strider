@@ -32,7 +32,7 @@ from .throttle_utils import (
     remove_curies,
     filter_by_curie_mapping,
 )
-from .trapi import get_canonical_qgraphs
+from .trapi import get_canonical_qgraphs, validate_message
 from .utils import elide_curies, log_request, remove_null_values
 from .caching import async_locking_cache
 from .config import settings
@@ -266,7 +266,9 @@ class ThrottledServer:
 
                 # Parse with reasoner_pydantic to validate
                 response_body = ReasonerResponse.parse_obj(response_dict)
+                # validate_message(response_body.message.dict(), self.logger)
                 await self.postproc(response_body, last_hop)
+                # validate_message(response_body.message.dict(), self.logger)
                 new_num_results = len(response_body.message.results or [])
                 if num_results != new_num_results:
                     self.logger.info(
@@ -433,7 +435,7 @@ class ThrottledServer:
         qgraphs = get_canonical_qgraphs(query.message.query_graph)
 
         for qgraph in qgraphs:
-            subquery = Query(message=Message(query_graph=qgraph))
+            subquery = Query(message=Message(query_graph=qgraph, knowledge_graph=query.message.knowledge_graph, auxiliary_graphs=query.message.auxiliary_graphs))
 
             # Queue query for processing
             request_id = str(uuid.uuid1())
