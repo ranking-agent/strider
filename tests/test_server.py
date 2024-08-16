@@ -149,14 +149,14 @@ async def test_solve_missing_predicate(monkeypatch, mocker):
                             "ids": ["HP:001"],
                             "categories": ["biolink:Gene"],
                             "set_interpretation": "BATCH",
-                            # "member_ids": [],
-                            # "constraints": [],
+                            "member_ids": [],
+                            "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Gene", "biolink:Protein"],
                             "set_interpretation": "BATCH",
-                            # "member_ids": [],
-                            # "constraints": [],
+                            "member_ids": [],
+                            "constraints": [],
                         },
                     },
                     "edges": {
@@ -164,8 +164,8 @@ async def test_solve_missing_predicate(monkeypatch, mocker):
                             "subject": "n0",
                             "object": "n1",
                             "predicates": ["biolink:related_to"],
-                            # "attribute_constraints": [],
-                            # "qualifier_constraints": [],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
                         }
                     },
                 }
@@ -211,14 +211,14 @@ async def test_solve_missing_category(monkeypatch, mocker):
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:NamedThing"],
                             "set_interpretation": "BATCH",
-                            # "member_ids": [],
-                            # "constraints": [],
+                            "member_ids": [],
+                            "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
                             "set_interpretation": "BATCH",
-                            # "member_ids": [],
-                            # "constraints": [],
+                            "member_ids": [],
+                            "constraints": [],
                         },
                     },
                     "edges": {
@@ -226,8 +226,8 @@ async def test_solve_missing_category(monkeypatch, mocker):
                             "subject": "n0",
                             "object": "n1",
                             "predicates": ["biolink:treats"],
-                            # "attribute_constraints": [],
-                            # "qualifier_constraints": [],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
                         }
                     },
                 }
@@ -284,14 +284,14 @@ async def test_normalizer_different_category(
                             "ids": ["CHEBI:6801"],
                             "categories": ["biolink:Vitamin"],
                             "set_interpretation": "BATCH",
-                            # "member_ids": [],
-                            # "constraints": [],
+                            "member_ids": [],
+                            "constraints": [],
                         },
                         "n1": {
                             "categories": ["biolink:Disease"],
                             "set_interpretation": "BATCH",
-                            # "member_ids": [],
-                            # "constraints": [],
+                            "member_ids": [],
+                            "constraints": [],
                         },
                     },
                     "edges": {
@@ -299,8 +299,8 @@ async def test_normalizer_different_category(
                             "subject": "n0",
                             "object": "n1",
                             "predicates": ["biolink:treats"],
-                            # "attribute_constraints": [],
-                            # "qualifier_constraints": [],
+                            "attribute_constraints": [],
+                            "qualifier_constraints": [],
                         }
                     },
                 }
