@@ -272,8 +272,7 @@ class Fetcher:
                     node_ids = [
                         onehop_kgraph.edges[edge_id].subject
                         for edge_id in kgraph_edge_ids
-                        if onehop_kgraph.edges[edge_id].subject
-                        in onehop_kgraph.nodes
+                        if onehop_kgraph.edges[edge_id].subject in onehop_kgraph.nodes
                     ]
                     node_ids.extend(
                         [
