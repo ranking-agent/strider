@@ -435,7 +435,13 @@ class ThrottledServer:
         qgraphs = get_canonical_qgraphs(query.message.query_graph)
 
         for qgraph in qgraphs:
-            subquery = Query(message=Message(query_graph=qgraph, knowledge_graph=query.message.knowledge_graph, auxiliary_graphs=query.message.auxiliary_graphs))
+            subquery = Query(
+                message=Message(
+                    query_graph=qgraph,
+                    knowledge_graph=query.message.knowledge_graph,
+                    auxiliary_graphs=query.message.auxiliary_graphs,
+                )
+            )
 
             # Queue query for processing
             request_id = str(uuid.uuid1())

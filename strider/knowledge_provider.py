@@ -101,7 +101,7 @@ class KnowledgeProvider:
             await self.normalizer.load_curies(*curies)
             curie_map = self.normalizer.map(curies, prefixes)
             apply_curie_map(message, curie_map, self.id, self.logger)
-    
+
     async def get_mcq_uuid(self, curies: list[str]) -> str:
         """Given a list of curies, get the MCQ uuid from NN."""
         uuid = await self.normalizer.get_mcq_uuid(curies)

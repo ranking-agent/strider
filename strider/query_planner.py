@@ -239,7 +239,9 @@ async def generate_plan(
         provided_by = {"allowlist": None, "denylist": None} | qedge.dict().pop(
             "provided_by", {}
         )
-        if is_mcq_node(qgraph.nodes[qedge.subject]) or is_mcq_node(qgraph.nodes[qedge.object]):
+        if is_mcq_node(qgraph.nodes[qedge.subject]) or is_mcq_node(
+            qgraph.nodes[qedge.object]
+        ):
             # TODO: update from hard-coded MCQ KPs
             direct_kps = {
                 "infores:answer-coalesce": {
@@ -248,9 +250,7 @@ async def generate_plan(
                     "infores": "infores:answer-coalesce",
                     "maturity": "development",
                     "operations": [],
-                    "details": {
-                        "preferred_prefixes": {}
-                    },
+                    "details": {"preferred_prefixes": {}},
                 },
                 "infores:genetics-data-provider": {
                     "url": "https://translator.broadinstitute.org/genetics_provider/trapi/v1.5/query",
@@ -258,9 +258,7 @@ async def generate_plan(
                     "infores": "infores:genetics-data-provider",
                     "maturity": "development",
                     "operations": [],
-                    "details": {
-                        "preferred_prefixes": {}
-                    }
+                    "details": {"preferred_prefixes": {}},
                 },
                 "infores:cohd": {
                     "url": "https://cohd.io/api/query",
@@ -268,9 +266,7 @@ async def generate_plan(
                     "infores": "infores:cohd",
                     "maturity": "development",
                     "operations": [],
-                    "details": {
-                        "preferred_prefixes": {}
-                    }
+                    "details": {"preferred_prefixes": {}},
                 },
                 "infores:semsemian": {
                     "url": "http://mcq-trapi.monarchinitiative.org/1.5/query",
@@ -278,10 +274,8 @@ async def generate_plan(
                     "infores": "infores:semsemian",
                     "maturity": "development",
                     "operations": [],
-                    "details": {
-                        "preferred_prefixes": {}
-                    }
-                }
+                    "details": {"preferred_prefixes": {}},
+                },
             }
         else:
             # normal lookup edge
@@ -377,7 +371,7 @@ def get_next_qedge(qgraph):
     """Get next qedge to solve."""
     qgraph = copy.deepcopy(qgraph)
     for qnode in qgraph["nodes"].values():
-        if qnode.get("set_interpretation") == "MANY" and len(qnode.get("member_ids") or []) > 0:
+        if is_mcq_node(qnode):
             # MCQ
             qnode["ids"] = len(qnode["member_ids"])
         elif qnode.get("ids") is not None:

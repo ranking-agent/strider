@@ -486,7 +486,9 @@ async def lookup(
     # Result container to make result merging much faster
     output_results = HashableMapping[str, Result]()
 
-    output_kgraph = KnowledgeGraph.parse_obj(message.get("knowledge_graph") or {"nodes": {}, "edges": {}})
+    output_kgraph = KnowledgeGraph.parse_obj(
+        message.get("knowledge_graph") or {"nodes": {}, "edges": {}}
+    )
 
     output_auxgraphs = AuxiliaryGraphs.parse_obj(message.get("auxiliary_graphs") or {})
 

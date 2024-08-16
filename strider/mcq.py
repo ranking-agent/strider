@@ -1,4 +1,5 @@
 """Utility functions for MCQ queries."""
+
 from typing import List
 from reasoner_pydantic import (
     QNode,
@@ -14,7 +15,9 @@ def is_mcq_node(qnode: QNode) -> bool:
     return qnode.set_interpretation == "MANY"
 
 
-def get_mcq_edge_ids(result: Result, kgraph: KnowledgeGraph, auxgraph: AuxiliaryGraphs) -> List[Edge]:
+def get_mcq_edge_ids(
+    result: Result, kgraph: KnowledgeGraph, auxgraph: AuxiliaryGraphs
+) -> List[Edge]:
     mcq_edge_ids = []
     for analysis in result.analyses:
         for edge_bindings in analysis.edge_bindings.values():

@@ -157,7 +157,7 @@ class Normalizer:
             ),
         )
         return [curie]
-    
+
     async def get_mcq_uuid(self, curies: list[str]) -> str:
         """Get the MCQ uuid from NN."""
         response = {}
@@ -172,11 +172,11 @@ class Normalizer:
                             "GeneProtein",
                             "DrugChemical",
                         ],
-                    }
+                    },
                 )
                 res.raise_for_status()
                 response = res.json()
         except Exception as e:
             self.logger.error(f"Normalizer MCQ setid failed with: {e}")
-        
+
         return response.get("setid", f"uuid:unknown-{str(uuid.uuid4())}")
