@@ -637,6 +637,7 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
                 LOGGER.info(
                     f"[{qid}]: Called back to {callback}. Status={callback_response.status_code}"
                 )
+                callback_response.raise_for_status()
         except Exception as e:
             LOGGER.error(f"[{qid}]: Callback to {callback} failed with: {e}")
         return query_result
