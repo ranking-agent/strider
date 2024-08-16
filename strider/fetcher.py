@@ -107,16 +107,18 @@ class Fetcher:
         self.logger.info(f"[{qid}] Getting results for {qedge_id}")
 
         qedge = message.query_graph.edges[qedge_id]
-        onehop = Message.parse_obj({
-            "query_graph": {
-                "nodes": {
-                    key: value
-                    for key, value in message.query_graph.nodes.items()
-                    if key in (qedge.subject, qedge.object)
-                },
-                "edges": {qedge_id: qedge},
+        onehop = Message.parse_obj(
+            {
+                "query_graph": {
+                    "nodes": {
+                        key: value
+                        for key, value in message.query_graph.nodes.items()
+                        if key in (qedge.subject, qedge.object)
+                    },
+                    "edges": {qedge_id: qedge},
+                }
             }
-        })
+        )
         onehop.knowledge_graph = message.knowledge_graph
         onehop.auxiliary_graphs = message.auxiliary_graphs
 
@@ -174,7 +176,9 @@ class Fetcher:
                 last_hop=len(message.query_graph.edges) == 1,
             )
             if not self.bypass_cache:
-                await save_kp_onehop(kp.id, onehop_message.dict(), onehop_response.dict())
+                await save_kp_onehop(
+                    kp.id, onehop_message.dict(), onehop_response.dict()
+                )
         if onehop_response is None and settings.offline_mode:
             self.logger.info(
                 f"[{kp.id}] Didn't get anything back from cache in offline mode."
@@ -200,7 +204,7 @@ class Fetcher:
                 f"[{qid}] Ending call stack with no results: {(', ').join(call_stack)}"
             )
             return
-        
+
         result_map = defaultdict(list)
         for batch_results in batch(onehop_results, self.parameters["batch_size"]):
             if is_mcq:
@@ -271,13 +275,15 @@ class Fetcher:
                         node_ids = [
                             onehop_kgraph.edges[edge_id].subject
                             for edge_id in kgraph_edge_ids
-                            if onehop_kgraph.edges[edge_id].subject in onehop_kgraph.nodes
+                            if onehop_kgraph.edges[edge_id].subject
+                            in onehop_kgraph.nodes
                         ]
                         node_ids.extend(
                             [
                                 onehop_kgraph.edges[edge_id].object
                                 for edge_id in kgraph_edge_ids
-                                if onehop_kgraph.edges[edge_id].object in onehop_kgraph.nodes
+                                if onehop_kgraph.edges[edge_id].object
+                                in onehop_kgraph.nodes
                             ]
                         )
                         result_kgraph = KnowledgeGraph.parse_obj(
@@ -298,13 +304,15 @@ class Fetcher:
                         node_ids = [
                             onehop_kgraph.edges[edge_id].subject
                             for edge_id in kgraph_edge_ids
-                            if onehop_kgraph.edges[edge_id].subject in onehop_kgraph.nodes
+                            if onehop_kgraph.edges[edge_id].subject
+                            in onehop_kgraph.nodes
                         ]
                         node_ids.extend(
                             [
                                 onehop_kgraph.edges[edge_id].object
                                 for edge_id in kgraph_edge_ids
-                                if onehop_kgraph.edges[edge_id].object in onehop_kgraph.nodes
+                                if onehop_kgraph.edges[edge_id].object
+                                in onehop_kgraph.nodes
                             ]
                         )
                         result_kgraph = KnowledgeGraph.parse_obj(
@@ -332,24 +340,40 @@ class Fetcher:
                     # add curies from result into the qgraph
                     if is_mcq:
                         # TODO: this doesn't support cyclic graphs
-                        populated_subqgraph.query_graph.nodes[qnode_id].member_ids = list(
-                            # need to call set() to remove any duplicates
-                            set(
-                                (populated_subqgraph.query_graph.nodes[qnode_id].member_ids or [])
-                                # use query_id (original curie) for any subclass results
-                                + [binding.query_id or binding.id for binding in bindings]
+                        populated_subqgraph.query_graph.nodes[qnode_id].member_ids = (
+                            list(
+                                # need to call set() to remove any duplicates
+                                set(
+                                    (
+                                        populated_subqgraph.query_graph.nodes[
+                                            qnode_id
+                                        ].member_ids
+                                        or []
+                                    )
+                                    # use query_id (original curie) for any subclass results
+                                    + [
+                                        binding.query_id or binding.id
+                                        for binding in bindings
+                                    ]
+                                )
                             )
                         )
                     else:
                         populated_subqgraph.query_graph.nodes[qnode_id].ids = list(
                             # need to call set() to remove any duplicates
                             set(
-                                (populated_subqgraph.query_graph.nodes[qnode_id].ids or [])
+                                (
+                                    populated_subqgraph.query_graph.nodes[qnode_id].ids
+                                    or []
+                                )
                                 # use query_id (original curie) for any subclass results
-                                + [binding.query_id or binding.id for binding in bindings]
+                                + [
+                                    binding.query_id or binding.id
+                                    for binding in bindings
+                                ]
                             )
                         )
-                
+
                 # get intersection of result node ids and new sub qgraph
                 # should be empty on last hop because the qgraph is empty
                 qnode_ids = set(populated_subqgraph.query_graph.nodes.keys()) & set(
@@ -367,7 +391,15 @@ class Fetcher:
                             # is mcq node, the binding is going to point to the standard uuid, so we need to look
                             # into the kgraph and auxgraphs to find its origin
                             try:
-                                curie_list = (populated_subqgraph.query_graph.nodes[qnode_id].ids or []) + (populated_subqgraph.query_graph.nodes[qnode_id].member_ids or [])
+                                curie_list = (
+                                    populated_subqgraph.query_graph.nodes[qnode_id].ids
+                                    or []
+                                ) + (
+                                    populated_subqgraph.query_graph.nodes[
+                                        qnode_id
+                                    ].member_ids
+                                    or []
+                                )
                                 mcq_edge_ids = get_mcq_edge_ids(res, kgraph, auxgraph)
                                 for mcq_edge_id in mcq_edge_ids:
                                     mcq_edge = kgraph.edges[mcq_edge_id]
@@ -377,23 +409,22 @@ class Fetcher:
                                             curie_key = mcq_edge.subject
                                         else:
                                             curie_key = mcq_edge.object
-                                        result_keys.append(
-                                            (
-                                                qnode_id,
-                                                (
-                                                    curie_key,
-                                                )
-                                            )
-                                        )
-                                
+                                        result_keys.append((qnode_id, (curie_key,)))
+
                             except Exception as e:
-                                self.logger.error(f"Failed to create result map key: {e}")
+                                self.logger.error(
+                                    f"Failed to create result map key: {e}"
+                                )
                         else:
                             result_keys.append(
                                 (
                                     qnode_id,
                                     tuple(
-                                        binding.query_id if binding.query_id else binding.id
+                                        (
+                                            binding.query_id
+                                            if binding.query_id
+                                            else binding.id
+                                        )
                                         for binding in bindings
                                     ),  # probably only one
                                 )
@@ -402,9 +433,7 @@ class Fetcher:
 
                 result_keys = result_key_fcn(result, result_kgraph, result_auxgraph)
                 if len(result_keys) == 0:
-                    result_map[()].append(
-                        (result, result_kgraph, result_auxgraph)
-                    )
+                    result_map[()].append((result, result_kgraph, result_auxgraph))
                 else:
                     for result_key in result_keys:
                         result_map[result_key].append(
@@ -418,12 +447,16 @@ class Fetcher:
                     mcq_node_id = await kp.get_mcq_uuid(node.member_ids)
                     node.ids = [mcq_node_id]
                     node_dict = node.dict()
-                    populated_subqgraph.knowledge_graph.nodes[mcq_node_id] = Node.parse_obj({
-                        "categories": node_dict["categories"],
-                        "is_set": True,
-                        "name": "MCQ_Set",
-                        "attributes": [],
-                    })
+                    populated_subqgraph.knowledge_graph.nodes[mcq_node_id] = (
+                        Node.parse_obj(
+                            {
+                                "categories": node_dict["categories"],
+                                "is_set": True,
+                                "name": "MCQ_Set",
+                                "attributes": [],
+                            }
+                        )
+                    )
 
             generators.append(
                 self.generate_from_result(
@@ -467,7 +500,9 @@ class Fetcher:
                         f"[{qid}] Couldn't find subresult in result map: {key_fcn(subresult, subkgraph, subauxgraph)}"
                     )
                     self.logger.error(f"[{sub_qid}] Result map: {result_map.keys()}")
-                    self.logger.error(f"[{qid}] subresult from lookup: {subresult.json()}")
+                    self.logger.error(
+                        f"[{qid}] subresult from lookup: {subresult.json()}"
+                    )
                     # raise KeyError("Subresult not found in result map")
                 for result, kgraph, auxgraph in result_map[result_key]:
                     # result above is previous/current hop
@@ -488,9 +523,11 @@ class Fetcher:
                                 ],
                             }
                         )
-                        
+
                     else:
-                        mcq_edge_ids = get_mcq_edge_ids(subresult, subkgraph, subauxgraph)
+                        mcq_edge_ids = get_mcq_edge_ids(
+                            subresult, subkgraph, subauxgraph
+                        )
                         self.logger.info(f"Next Hop Result: {subresult.dict()}")
                         self.logger.info(f"Previous Hop Result: {result.dict()}")
                         member_of_edge_id = None
@@ -502,7 +539,9 @@ class Fetcher:
                                 mcq_node_id = node_id
                                 mcq_node_curie = node_binding_curie
                         if mcq_node_id is not None:
-                            previous_hop_node_curie = next(iter(result.node_bindings[mcq_node_id])).id
+                            previous_hop_node_curie = next(
+                                iter(result.node_bindings[mcq_node_id])
+                            ).id
                             # self.logger.info(f"MCQ Node id: {mcq_node_curie}")
                             # self.logger.info(f"MCQ member id: {previous_hop_node_curie}")
                             for mcq_edge_id in mcq_edge_ids:
@@ -510,11 +549,11 @@ class Fetcher:
                                 # self.logger.info(f"MCQ Edge: {mcq_edge.dict()}")
                                 if mcq_edge.predicate == "biolink:member_of":
                                     if (
-                                        mcq_edge.subject == mcq_node_curie and
-                                        mcq_edge.object == previous_hop_node_curie
+                                        mcq_edge.subject == mcq_node_curie
+                                        and mcq_edge.object == previous_hop_node_curie
                                     ) or (
-                                        mcq_edge.subject == previous_hop_node_curie and
-                                        mcq_edge.object == mcq_node_curie
+                                        mcq_edge.subject == previous_hop_node_curie
+                                        and mcq_edge.object == mcq_node_curie
                                     ):
                                         if member_of_edge_id is not None:
                                             raise ValueError("Got two member of edges!")
@@ -522,22 +561,30 @@ class Fetcher:
                                         member_of_edge_id = mcq_edge_id
 
                             for result_analysis in result.analyses:
-                                edge_binding = next(iter(result_analysis.edge_bindings.values()))
-                                edge_binding.add(EdgeBinding.parse_obj({
-                                    "id": member_of_edge_id,
-                                    "attributes": [],
-                                }))
+                                edge_binding = next(
+                                    iter(result_analysis.edge_bindings.values())
+                                )
+                                edge_binding.add(
+                                    EdgeBinding.parse_obj(
+                                        {
+                                            "id": member_of_edge_id,
+                                            "attributes": [],
+                                        }
+                                    )
+                                )
                         # handle mcq merging
-                        new_subresult = Result.parse_obj({
-                            "node_bindings": {
-                                **subresult.node_bindings,
-                                **result.node_bindings,
-                            },
-                            "analyses": [
-                                *result.analyses,
-                                *subresult.analyses,
-                            ],
-                        })
+                        new_subresult = Result.parse_obj(
+                            {
+                                "node_bindings": {
+                                    **subresult.node_bindings,
+                                    **result.node_bindings,
+                                },
+                                "analyses": [
+                                    *result.analyses,
+                                    *subresult.analyses,
+                                ],
+                            }
+                        )
 
                     new_subkgraph = copy.deepcopy(subkgraph)
                     new_subkgraph.nodes.update(kgraph.nodes)
