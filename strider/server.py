@@ -635,6 +635,8 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
                 timeout=httpx.Timeout(timeout=600.0)
             ) as client:
                 LOGGER.info(f"[{qid}]: Calling back to {callback}...")
+                query_result["parameters"] = queries[query_key].get("parameters") or {}
+                query_result["parameters"]["multiquery_uid"] = query_key
                 callback_response = await client.post(callback, json=query_result)
                 LOGGER.info(
                     f"[{qid}]: Called back to {callback}. Status={callback_response.status_code}"
