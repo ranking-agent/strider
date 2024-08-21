@@ -29,7 +29,9 @@ class Settings(BaseSettings):
 
     # MCQ KP URLS
     mcq_answer_coalescer: AnyUrl = "https://answercoalesce.renci.org/query"
-    mcq_genetics: AnyUrl = "https://translator.broadinstitute.org/genetics_provider/trapi/v1.5/query"
+    mcq_genetics: AnyUrl = (
+        "https://translator.broadinstitute.org/genetics_provider/trapi/v1.5/query"
+    )
     mcq_cohd: AnyUrl = "https://cohd.io/api/query"
     mcq_semsemian: AnyUrl = "http://mcq-trapi.monarchinitiative.org/1.5/query"
 
