@@ -245,7 +245,7 @@ async def generate_plan(
             # TODO: update from hard-coded MCQ KPs
             direct_kps = {
                 "infores:answer-coalesce": {
-                    "url": "https://answercoalesce.renci.org/query",
+                    "url": settings.mcq_answer_coalescer,
                     "title": "Answer Coalescer",
                     "infores": "infores:answer-coalesce",
                     "maturity": "development",
@@ -253,7 +253,7 @@ async def generate_plan(
                     "details": {"preferred_prefixes": {}},
                 },
                 "infores:genetics-data-provider": {
-                    "url": "https://translator.broadinstitute.org/genetics_provider/trapi/v1.5/query",
+                    "url": settings.mcq_genetics,
                     "title": "Genetics KP",
                     "infores": "infores:genetics-data-provider",
                     "maturity": "development",
@@ -261,7 +261,7 @@ async def generate_plan(
                     "details": {"preferred_prefixes": {}},
                 },
                 "infores:cohd": {
-                    "url": "https://cohd.io/api/query",
+                    "url": settings.mcq_cohd,
                     "title": "COHD KP",
                     "infores": "infores:cohd",
                     "maturity": "development",
@@ -269,7 +269,7 @@ async def generate_plan(
                     "details": {"preferred_prefixes": {}},
                 },
                 "infores:semsemian": {
-                    "url": "http://mcq-trapi.monarchinitiative.org/1.5/query",
+                    "url": settings.mcq_semsemian,
                     "title": "Semsemian Monarch KP",
                     "infores": "infores:semsemian",
                     "maturity": "development",
