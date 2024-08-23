@@ -155,7 +155,7 @@ if settings.jaeger_enabled == "True":
     from opentelemetry import trace
     from opentelemetry.exporter.jaeger.thrift import JaegerExporter
     from opentelemetry.sdk.resources import (
-        SERVICE_NAME as telemetery_service_name_key,
+        SERVICE_NAME,
         Resource,
     )
     from opentelemetry.sdk.trace import TracerProvider
@@ -168,19 +168,17 @@ if settings.jaeger_enabled == "True":
     logging.captureWarnings(capture=True)
     warnings.filterwarnings("ignore", category=ResourceWarning)
     service_name = os.environ.get("OTEL_SERVICE_NAME", "STRIDER")
-    trace.set_tracer_provider(
-        TracerProvider(
-            resource=Resource.create({telemetery_service_name_key: service_name})
-        )
-    )
     jaeger_exporter = JaegerExporter(
         agent_host_name=settings.jaeger_host,
         agent_port=int(settings.jaeger_port),
     )
-    trace.get_tracer_provider().add_span_processor(BatchSpanProcessor(jaeger_exporter))
-    tracer = trace.get_tracer(__name__)
+    resource = Resource(attributes={SERVICE_NAME: service_name})
+    provider = TracerProvider(resource=resource)
+    processor = BatchSpanProcessor(jaeger_exporter)
+    provider.add_span_processor(processor)
+    trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(
-        APP, tracer_provider=trace, excluded_urls="docs,openapi.json"
+        APP, tracer_provider=provider, excluded_urls="docs,openapi.json"
     )
     HTTPXClientInstrumentor().instrument()
 
