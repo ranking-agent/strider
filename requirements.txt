@@ -12,8 +12,8 @@ redis==5.0.6
 orjson==3.10.3
 gunicorn==22.0.0
 kp-registry==4.0.1
-opentelemetry-sdk==1.16.0
-opentelemetry-instrumentation-fastapi==0.37b0
-opentelemetry-exporter-jaeger==1.16.0
-opentelemetry-instrumentation-httpx==0.37b0
+opentelemetry-sdk==1.26.0
+opentelemetry-instrumentation-fastapi==0.47b0
+opentelemetry-exporter-jaeger==1.21.0
+opentelemetry-instrumentation-httpx==0.47b0
 pyinstrument==4.6.2
