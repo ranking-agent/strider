@@ -586,9 +586,13 @@ async def async_lookup(
         LOGGER.info(
             f"[{qid}] Posting async query response with {num_results} results to {callback}"
         )
-        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
-            res = await client.post(callback, json=query_results)
-            LOGGER.info(f"[{qid}] Posted to {callback} with code {res.status_code}")
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
+                res = await client.post(callback, json=query_results)
+                res.raise_for_status()
+                LOGGER.info(f"[{qid}] Posted to {callback} with code {res.status_code}")
+        except Exception as e:
+            LOGGER.error(f"[{qid}]: Callback to {callback} failed with: {e}")
     except Exception as e:
         LOGGER.error(e)
 
