@@ -587,7 +587,9 @@ async def async_lookup(
             f"[{qid}] Posting async query response with {num_results} results to {callback}"
         )
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(timeout=600.0)) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=600.0)
+            ) as client:
                 res = await client.post(callback, json=query_results)
                 res.raise_for_status()
                 LOGGER.info(f"[{qid}] Posted to {callback} with code {res.status_code}")
