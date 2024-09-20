@@ -669,11 +669,11 @@ async def multi_lookup(multiqid, callback, queries: dict, query_keys: list):
 @APP.post("/plan", response_model=dict[str, list[str]], include_in_schema=False)
 async def generate_traversal_plan(
     query: Query,
-) -> list[list[str]]:
+):
     """Generate plans for traversing knowledge providers."""
-    query_graph = query.message.query_graph.dict()
+    query_graph = query.message.query_graph
 
-    plan, _ = await generate_plan(query_graph)
+    plan, _ = await generate_plan(query_graph, backup_kps, LOGGER)
 
     return plan
 
