@@ -10,8 +10,7 @@ from typing import Iterable
 import httpx
 from starlette.middleware.cors import CORSMiddleware
 import yaml
-import bmt
-from bmt import Toolkit as BMToolkit
+from bmt.toolkit import Toolkit as BMToolkit
 import logging.config
 
 
@@ -38,76 +37,27 @@ class WrappedBMT:
         self.prefix = "biolink:"
 
         self.entity_prefix_mapping = {
-            bmt.util.format(el_name, case="pascal"): id_prefixes
-            for el_name in self.bmt.get_all_classes()
+            el_name: id_prefixes
+            for el_name in self.bmt.get_all_classes(formatted=True)
             if (el := self.bmt.get_element(el_name)) is not None
             if (id_prefixes := getattr(el, "id_prefixes", []))
         }
 
-    def new_case_to_old_case(self, s):
-        """
-        Convert new biolink case format (biolink:GeneOrGeneProduct)
-        to old case format (gene or gene product)
-
-        Also works with slots (biolink:related_to -> related to)
-        """
-        s = s.replace(self.prefix, "")
-        if s in self.all_slots_formatted:
-            return s.replace("_", " ")
-        else:
-            return camel_to_snake(s)
-
-    def old_case_to_new_case(self, s):
-        """
-        Convert old case format (gene or gene product)
-        to new biolink case format (biolink:GeneOrGeneProduct)
-
-        Also works with slots (related to -> biolink:related_to)
-        """
-        if s in self.all_slots:
-            return self.prefix + s.replace(" ", "_")
-        else:
-            return self.prefix + snake_to_camel(s)
-
-    def get_descendants(self, concept):
+    def get_descendants(self, concept, formatted=True, reflexive=True):
         """Wrapped BMT descendants function that does case conversions"""
-        descendants = self.bmt.get_descendants(concept, formatted=True)
-        if len(descendants) == 0:
-            descendants.append(concept)
-        return descendants
+        return self.bmt.get_descendants(concept, formatted=formatted, reflexive=reflexive)
 
-    def get_ancestors(self, concept, reflexive=True):
+    def get_ancestors(self, concept, formatted=True, reflexive=True):
         """Wrapped BMT ancestors function that does case conversions"""
-        concept_old_format = self.new_case_to_old_case(concept)
-        ancestors_old_format = self.bmt.get_ancestors(
-            concept_old_format, reflexive=reflexive
-        )
-        ancestors = [self.old_case_to_new_case(a) for a in ancestors_old_format]
-        return ancestors
+        return self.bmt.get_ancestors(concept, formatted=formatted, reflexive=reflexive)
 
     def predicate_is_symmetric(self, predicate):
         """Get whether a given predicate is symmetric"""
-        predicate_old_format = self.new_case_to_old_case(predicate)
-        predicate_element = self.bmt.get_element(predicate_old_format)
-        if not predicate_element:
-            # Not in the biolink model
-            return False
-        return predicate_element.symmetric
+        return self.bmt.is_symmetric(predicate)
 
-    def predicate_inverse(self, predicate):
+    def predicate_inverse(self, predicate, formatted=True):
         """Get the inverse of a predicate if it has one"""
-        predicate_old_format = self.new_case_to_old_case(predicate)
-        predicate_element = self.bmt.get_element(predicate_old_format)
-        if not predicate_element:
-            # Not in the biolink model
-            return None
-        if predicate_element.symmetric:
-            return predicate
-        predicate_inverse_old_format = predicate_element.inverse
-        if not predicate_inverse_old_format:
-            # No inverse
-            return None
-        return self.old_case_to_new_case(predicate_inverse_old_format)
+        return self.bmt.get_inverse_predicate(predicate, formatted=formatted)
 
 
 WBMT = WrappedBMT()

@@ -110,17 +110,16 @@ def get_canonical_qedge(
     predicates = HashableSequence[BiolinkPredicate]()
     flipped_predicates = HashableSequence[BiolinkPredicate]()
     for predicate in input_qedge.predicates or []:
-        slot = WBMT.bmt.get_element(predicate)
+        slot = WBMT.predicate_inverse(predicate)
         # if predicate not in bmt
         if slot is None:
             predicates.append(predicate)
             continue
-        is_canonical = slot.annotations.get("canonical_predicate", False)
-        if is_canonical or slot.symmetric or slot.inverse is None:
-            # predicate is canonical, use it
+        if slot == predicate:
+            # is symmetric
             predicates.append(predicate)
         else:
-            flipped_predicates.append(bmt.util.format(slot.inverse, case="snake"))
+            flipped_predicates.append(slot)
 
     qedge = input_qedge.copy()
     flipped_qedge = input_qedge.copy()
