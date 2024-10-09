@@ -688,8 +688,13 @@ async def generate_traversal_plan(
 async def get_kps():
     """Return all kps in registry."""
     registry = await get_kp_registry()
-    # print(registry)
-    return list(registry.keys())
+    return sorted(
+        list(
+            kp["infores"]
+            for kp in registry.values()
+            if kp["maturity"] == settings.openapi_server_maturity
+        )
+    )
 
 
 class ClearCacheRequest(BaseModel):
