@@ -46,13 +46,17 @@ class WrappedBMT:
     def get_descendants(self, concept, formatted=True, reflexive=True):
         """Wrapped BMT descendants function that does case conversions"""
         if self.bmt.get_element(concept) is not None:
-            return self.bmt.get_descendants(concept, formatted=formatted, reflexive=reflexive)
+            return self.bmt.get_descendants(
+                concept, formatted=formatted, reflexive=reflexive
+            )
         return [concept]
 
     def get_ancestors(self, concept, formatted=True, reflexive=True):
         """Wrapped BMT ancestors function that does case conversions"""
         if self.bmt.get_element(concept) is not None:
-            return self.bmt.get_ancestors(concept, formatted=formatted, reflexive=reflexive)
+            return self.bmt.get_ancestors(
+                concept, formatted=formatted, reflexive=reflexive
+            )
         return [concept]
 
     def predicate_is_symmetric(self, predicate):
