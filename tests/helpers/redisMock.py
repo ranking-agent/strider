@@ -12,7 +12,7 @@ default_kps = {
         "maturity": "development",
         "operations": [
             {
-                "subject_category": "biolink:ChemicalSubstance",
+                "subject_category": "biolink:SmallMolecule",
                 "predicate": "biolink:treats",
                 "object_category": "biolink:Disease",
             },
@@ -20,7 +20,7 @@ default_kps = {
         "details": {
             "preferred_prefixes": {
                 "biolink:Disease": ["MONDO", "DOID"],
-                "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+                "biolink:SmallMolecule": ["CHEBI", "MESH"],
                 "biolink:PhenotypicFeature": ["HP"],
             },
         },
@@ -46,17 +46,17 @@ default_kps = {
                 "object_category": "biolink:Disease",
             },
             {
-                "subject_category": "biolink:ChemicalSubstance",
+                "subject_category": "biolink:SmallMolecule",
                 "predicate": "biolink:treats",
                 "object_category": "biolink:Disease",
             },
             {
-                "subject_category": "biolink:ChemicalSubstance",
+                "subject_category": "biolink:SmallMolecule",
                 "predicate": "biolink:genetically_interacts_with",
                 "object_category": "biolink:Disease",
             },
             {
-                "subject_category": "biolink:ChemicalSubstance",
+                "subject_category": "biolink:SmallMolecule",
                 "predicate": "biolink:treats",
                 "object_category": "biolink:PhenotypicFeature",
             },
@@ -69,7 +69,7 @@ default_kps = {
         "details": {
             "preferred_prefixes": {
                 "biolink:Disease": ["MONDO", "DOID"],
-                "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+                "biolink:SmallMolecule": ["CHEBI", "MESH"],
                 "biolink:PhenotypicFeature": ["HP"],
             },
         },
@@ -95,15 +95,15 @@ default_kps = {
                 "object_category": "biolink:Disease",
             },
             {
-                "subject_category": "biolink:ChemicalSubstance",
-                "predicate": "biolink:ameliorates",
+                "subject_category": "biolink:SmallMolecule",
+                "predicate": "biolink:ameliorates_condition",
                 "object_category": "biolink:Gene",
             },
         ],
         "details": {
             "preferred_prefixes": {
                 "biolink:Disease": ["MONDO", "DOID"],
-                "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+                "biolink:SmallMolecule": ["CHEBI", "MESH"],
                 "biolink:PhenotypicFeature": ["HP"],
             },
         },
@@ -114,15 +114,15 @@ default_kps = {
         "maturity": "development",
         "operations": [
             {
-                "subject_category": "biolink:Vitamin",
+                "subject_category": "biolink:Disease",
                 "predicate": "biolink:treats",
-                "object_category": "biolink:Disease",
+                "object_category": "biolink:NucleicAcidEntity",
             },
         ],
         "details": {
             "preferred_prefixes": {
                 "biolink:Disease": ["MONDO", "DOID"],
-                "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+                "biolink:SmallMolecule": ["CHEBI", "MESH"],
                 "biolink:PhenotypicFeature": ["HP"],
             },
         },
@@ -133,7 +133,7 @@ default_kps = {
         "maturity": "development",
         "operations": [
             {
-                "subject_category": "biolink:ChemicalSubstance",
+                "subject_category": "biolink:SmallMolecule",
                 "predicate": "biolink:not_a_real_predicate",
                 "object_category": "biolink:Disease",
             },
@@ -141,7 +141,7 @@ default_kps = {
         "details": {
             "preferred_prefixes": {
                 "biolink:Disease": ["MONDO", "DOID"],
-                "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+                "biolink:SmallMolecule": ["CHEBI", "MESH"],
                 "biolink:PhenotypicFeature": ["HP"],
             },
         },

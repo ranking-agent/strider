@@ -36,7 +36,7 @@ async def test_kp_response_empty_message(monkeypatch, httpx_mock: HTTPXMock):
         n0(( categories[] biolink:Drug ))
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
-        n1(( category biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
         """
     )
 
@@ -66,12 +66,12 @@ async def test_kp_response_empty_message_pinned_two_hop(
     """
     # mock the return of the kp registry from redis
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    httpx_mock.add_response(url="http://kp1/query", json={"message": {}})
+    httpx_mock.add_response(url="http://kp2/query", json={"message": {}})
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:1 ))
         n0-- biolink:related_to -->n1
-        n1(( category biolink:Gene ))
+        n1(( categories[] biolink:Gene ))
         n1-- biolink:related_to -->n2
         n2(( ids[] MONDO:2 ))
 
@@ -108,7 +108,7 @@ async def test_kp_500(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
         """
@@ -145,7 +145,7 @@ async def test_kp_not_trapi(monkeypatch, httpx_mock: HTTPXMock):
         n0(( categories[] biolink:Disease ))
         n0(( ids[] MONDO:0005737 ))
         n0-- biolink:treated_by -->n1
-        n1(( category biolink:Drug ))
+        n1(( categories[] biolink:Drug ))
         """
     )
 
@@ -181,10 +181,10 @@ async def test_kp_no_kg(monkeypatch, httpx_mock: HTTPXMock):
     )
     QGRAPH = query_graph_from_string(
         """
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n0(( ids[] CHEBI:0001 ))
         n0-- biolink:treats -->n1
-        n1(( category biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
         """
     )
 
@@ -217,10 +217,10 @@ async def test_kp_response_no_qg(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     QGRAPH = query_graph_from_string(
         """
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
-        n1(( category biolink:Disease ))
+        n1(( categories[] biolink:Disease ))
         """
     )
 
@@ -302,7 +302,7 @@ async def test_constraint_error(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
         """

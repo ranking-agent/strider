@@ -81,7 +81,7 @@ async def test_plan_loop(monkeypatch):
         n0(( ids[] MONDO:0008114 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:PhenotypicFeature ))
-        n2(( categories[] biolink:ChemicalSubstance ))
+        n2(( categories[] biolink:SmallMolecule ))
         n0-- biolink:has_phenotype -->n1
         n2-- biolink:treats -->n0
         n2-- biolink:treats -->n1
@@ -370,7 +370,7 @@ async def test_predicate_fanout(monkeypatch):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = {
         "nodes": {
-            "a": {"categories": ["biolink:ChemicalSubstance"], "ids": ["CHEBI:34253"]},
+            "a": {"categories": ["biolink:SmallMolecule"], "ids": ["CHEBI:34253"]},
             "b": {"categories": ["biolink:Gene"]},
         },
         "edges": {
@@ -436,7 +436,7 @@ async def test_subpredicate(monkeypatch):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     qg = {
         "nodes": {
-            "a": {"categories": ["biolink:ChemicalSubstance"], "ids": ["CHEBI:34253"]},
+            "a": {"categories": ["biolink:SmallMolecule"], "ids": ["CHEBI:34253"]},
             "b": {"categories": ["biolink:Disease"]},
         },
         "edges": {
@@ -472,8 +472,8 @@ async def test_solve_double_subclass(monkeypatch):
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
-    assert plan == {"n0n1": ["infores:kp1"]}
-    assert "infores:kp1" in kps
+    assert plan == {"n0n1": ["infores:kp2"]}
+    assert "infores:kp2" in kps
 
 
 @pytest.mark.asyncio
@@ -488,7 +488,7 @@ async def test_pinned_to_pinned(monkeypatch):
         n0(( ids[] MONDO:1 ))
         n0(( categories[] biolink:Disease ))
         n1(( ids[] CHEBI:1 ))
-        n1(( categories[] biolink:Vitamin ))
+        n1(( categories[] biolink:NucleicAcidEntity ))
         n0-- biolink:related_to -->n1
         """
     )
