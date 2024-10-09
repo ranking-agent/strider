@@ -31,12 +31,12 @@ logger = setup_logger()
 
 DEFAULT_PREFIXES = {
     "biolink:Disease": ["MONDO", "DOID"],
-    "biolink:ChemicalSubstance": ["CHEBI", "MESH"],
+    "biolink:SmallMolecule": ["CHEBI", "MESH"],
     "biolink:PhenotypicFeature": ["HP"],
 }
 MYCHEM_PREFIXES = {
     **DEFAULT_PREFIXES,
-    "biolink:ChemicalSubstance": ["MESH"],
+    "biolink:SmallMolecule": ["MESH"],
     "biolink:Disease": ["DOID"],
 }
 CTD_PREFIXES = {
@@ -61,7 +61,7 @@ async def test_duplicate_results(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:DiseaseOrPhenotypicFeature ))
         n0-- biolink:related_to -->n1
         """
@@ -94,7 +94,7 @@ async def test_merge_results_different_predicates(monkeypatch, httpx_mock: HTTPX
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
         """
@@ -188,8 +188,8 @@ async def test_solve_missing_category(monkeypatch, mocker):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
-        n1(( categories[] biolink:Disease ))
+        n0(( categories[] biolink:SmallMolecule ))
+        n1(( categories[] biolink:NucleicAcidEntity ))
         n0-- biolink:treats -->n1
         """
     )
@@ -215,7 +215,7 @@ async def test_solve_missing_category(monkeypatch, mocker):
                             "constraints": [],
                         },
                         "n1": {
-                            "categories": ["biolink:Disease"],
+                            "categories": ["biolink:NucleicAcidEntity"],
                             "set_interpretation": "BATCH",
                             "member_ids": [],
                             "constraints": [],
@@ -234,7 +234,7 @@ async def test_solve_missing_category(monkeypatch, mocker):
             }
         },
         False,
-        ["infores:kp1"],
+        ["infores:kp3"],
         True,
     )
 
@@ -252,7 +252,7 @@ async def test_normalizer_different_category(
         url="http://normalizer/get_normalized_nodes",
         json=get_normalizer_response(
             """
-            CHEBI:6801 categories biolink:Vitamin
+            CHEBI:6801 categories biolink:NucleicAcidEntity
         """
         ),
     )
@@ -262,9 +262,9 @@ async def test_normalizer_different_category(
     )
     QGRAPH = query_graph_from_string(
         """
-        n0(( categories[] biolink:ChemicalSubstance ))
-        n0(( ids[] CHEBI:6801 ))
-        n1(( categories[] biolink:Disease ))
+        n1(( categories[] biolink:SmallMolecule ))
+        n1(( ids[] CHEBI:6801 ))
+        n0(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
         """
     )
@@ -281,14 +281,14 @@ async def test_normalizer_different_category(
                 "query_graph": {
                     "nodes": {
                         "n0": {
-                            "ids": ["CHEBI:6801"],
-                            "categories": ["biolink:Vitamin"],
+                            "categories": ["biolink:Disease"],
                             "set_interpretation": "BATCH",
                             "member_ids": [],
                             "constraints": [],
                         },
                         "n1": {
-                            "categories": ["biolink:Disease"],
+                            "ids": ["CHEBI:6801"],
+                            "categories": ["biolink:NucleicAcidEntity"],
                             "set_interpretation": "BATCH",
                             "member_ids": [],
                             "constraints": [],
@@ -332,7 +332,7 @@ async def test_solve_loop(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] MONDO:0008114 ))
-        n1(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:SmallMolecule ))
         n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
@@ -355,7 +355,7 @@ async def test_log_level_param(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
         """
@@ -386,7 +386,7 @@ async def test_mutability_bug(monkeypatch):
     QGRAPH = {
         "nodes": {
             "n0": {
-                "categories": ["biolink:ChemicalSubstance"],
+                "categories": ["biolink:SmallMolecule"],
                 "set_interpretation": "BATCH",
                 "member_ids": [],
                 "constraints": [],
@@ -430,7 +430,7 @@ async def test_solve_not_real_predicate(monkeypatch, mocker, httpx_mock: HTTPXMo
         url="http://normalizer/get_normalized_nodes",
         json=get_normalizer_response(
             """
-            CHEBI:6801 categories biolink:ChemicalSubstance
+            CHEBI:6801 categories biolink:SmallMolecule
             MONDO:0005148 categories biolink:Disease
         """
         ),
@@ -526,7 +526,7 @@ async def test_workflow(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
         """
@@ -567,14 +567,14 @@ async def test_multiple_identifiers(monkeypatch, httpx_mock: HTTPXMock):
             NCIT:C25742 synonyms NCIT:C25742 NCIT:C92933
             NCIT:C92933 categories biolink:PhenotypicFeature
             NCIT:C92933 synonyms NCIT:C25742 NCIT:C92933
-            CHEBI:2904 categories biolink:ChemicalSubstance
-            CHEBI:30146 categories biolink:ChemicalSubstance
+            CHEBI:2904 categories biolink:SmallMolecule
+            CHEBI:30146 categories biolink:SmallMolecule
         """
         ),
     )
     QGRAPH = query_graph_from_string(
         """
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:PhenotypicFeature ))
         n1(( ids[] UMLS:C0032961 ))
         n0-- biolink:contraindicated_for -->n1
@@ -599,7 +599,7 @@ async def test_provenance(monkeypatch, httpx_mock: HTTPXMock):
         url="http://normalizer/get_normalized_nodes",
         json=get_normalizer_response(
             """
-            MONDO:0005148 categories biolink:Vitamin
+            MONDO:0005148 categories biolink:NucleicAcidEntity
         """
         ),
     )
@@ -641,7 +641,7 @@ async def test_async_query(monkeypatch, httpx_mock: HTTPXMock):
     QGRAPH = query_graph_from_string(
         """
         n0(( ids[] CHEBI:6801 ))
-        n0(( categories[] biolink:ChemicalSubstance ))
+        n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
         """
@@ -663,7 +663,7 @@ async def test_different_callbacks_multiquery():
         """
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
-        n1(( categories[] biolink:ChemicalSubstance ))
+        n1(( categories[] biolink:SmallMolecule ))
         n1-- biolink:treats -->n0
         """
     )
@@ -703,9 +703,9 @@ async def test_multi_lookup(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(url=callback_url, status_code=200)
     QGRAPH1 = query_graph_from_string(
         """
-        n0(( ids[] MONDO:0005148 ))
-        n0(( categories[] biolink:Disease ))
-        n1(( categories[] biolink:Vitamin ))
+        n1(( ids[] MONDO:0005148 ))
+        n1(( categories[] biolink:Disease ))
+        n0(( categories[] biolink:NucleicAcidEntity ))
         n1-- biolink:treats -->n0
         """
     )
