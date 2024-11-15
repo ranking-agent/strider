@@ -15,7 +15,7 @@ Another standardization step is handling prefixes. Multiple identifiers (IDs) ca
 
 ## Execution
 
-After planning, query execution is handled by Binder in [fetcher.py](strider/fetcher.py). Binder processes a query graph by recursively breakign it down into subgraphs. More information on this can be found in [docs/COMPONENTS](docs/components.md#important-functions). The motivation for this architecture is to be able to return results before the query has finished execution. In this case you can think of a completed result as a binding of all nodes to IDs:
+After planning, query execution is handled by Fetcher in [fetcher.py](strider/fetcher.py). Fetcher processes a query graph by recursively breaking it down into subgraphs. More information on this can be found in [docs/COMPONENTS](docs/components.md#important-functions). The motivation for this architecture is to be able to return results before the query has finished execution. In this case you can think of a completed result as a binding of all nodes to IDs:
 
 #### Example Query Graph:
 
@@ -54,4 +54,4 @@ When contacting KPs we combine the information in the plan with the current ID t
 
 We also convert the results from the KP to Strider's preferred prefixes. This is not just for the query graph but for the knowledge graph and results list. The utilities that are used to do this can be found in the [trapi.py](strider/trapi.py) file.
 
-After receiving and converting KP results we merge the existing results with new ones. We do our best to combine results that have matching information. The utilities for this are also in the trapi.py file. Knowledge graph nodes are combined based on the ID, and knowledge graph edges are combined if they have the same subject/predicate/object triple. Combining these results perfectly is still an active area of development so the existing implementation can be seen as a sort of heuristic.
+After receiving and converting KP results we merge the existing results with new ones. We do our best to combine results that have matching information. The utilities for this are also in the trapi.py file. Knowledge graph nodes are combined based on the ID, and knowledge graph edges are combined if they have the same subject/predicate/object triple. Combining these results perfectly is still an active area of development and is handled by the `reasoner_pydantic` dependency.

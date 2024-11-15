@@ -127,3 +127,13 @@ pros:
 
 components:
 * Python web server/worker
+
+### November 2024
+
+components:
+* Python web server/workers: handles all incoming API requests
+* redis: stores cache of kp-registry as well as all one-hop KP requests
+
+external services (outside KPs):
+* Node Normalizer
+* OTEL/Jaeger: web API tracing for full query profiles

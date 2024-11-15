@@ -1,7 +1,7 @@
 
 # Strider
 
-__A web service and API for Strider, the knowledge-provider querying, answer generating, ranking module of ARAGORN.__
+__A web service and API for Strider, the knowledge-provider querying, answer generating module of ARAGORN.__
 
 This service accepts a biomedical question as a [Translator reasoner standard message](https://github.com/NCATSTranslator/ReasonerAPI) and asynchronously generates results in the same format.
 
@@ -31,11 +31,11 @@ docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build
 
 This will start the requisite containers as well as the strider container. Changes made locally will update the container while running. 
 
-You can also run tests and coverage reports withou the management script. Check the `manage.py` file for instructions on how to do this.
+You can also run tests and coverage reports without the management script. Check the `manage.py` file for instructions on how to do this.
 
 ### Profiler
 
-The local development environment also includes a built-in profiler for debugging performance issues. To use this, set `PROFILER=true` in a `.env` file in the root of the repository. Once the application is running the profiler will automatically be run on all incoming requests. To view profiles you can visit [localhost:5781/profiles](http://localhost:5781/profiles), which will give you a list of the captured profiles. These captured profiles can be used with the [snakeviz](https://jiffyclub.github.io/snakeviz/) utility to easily diagnose performance issues.
+The local development environment also includes a built-in profiler for debugging performance issues. To use this, set `PROFILER=true` in a `.env` file in the root of the repository. Once the application is running the profiler will automatically be run on all incoming requests. We haven't found a great asynchronous python profiler, but the current "best" one is pyinstrument. When the profiler is enabled, a browser page will open after a query has completed that shows the profile.
 
 ## Testing
 
