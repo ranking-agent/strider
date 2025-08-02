@@ -244,23 +244,47 @@ def filter_ancestor_types(categories):
     return [category for category, drop in zip(categories, has_descendant) if not drop]
 
 
-def recursive_filter_edge_support_graphs(edge, filtered_edges, filtered_auxgraphs, kgraph, auxgraphs, filtered_nodes, logger):
+def recursive_filter_edge_support_graphs(
+    edge, filtered_edges, filtered_auxgraphs, kgraph, auxgraphs, filtered_nodes, logger
+):
     """Recursive method to find auxiliary graphs to keep when filtering. Each auxiliary
     graph then has its edges filterd."""
     filtered_edges.add(edge)
     filtered_nodes.add(kgraph.edges[edge].subject)
     filtered_nodes.add(kgraph.edges[edge].object)
     for attribute in kgraph.edges[edge].attributes:
-        if attribute.attribute_type_id == 'biolink:support_graphs':
+        if attribute.attribute_type_id == "biolink:support_graphs":
             for auxgraph in attribute.value:
                 if auxgraph not in auxgraphs:
-                    logger.warning(f"aux_edge {auxgraph} not in message.auxiliary_graphs")
+                    logger.warning(
+                        f"aux_edge {auxgraph} not in message.auxiliary_graphs"
+                    )
                     continue
-                filtered_edges, filtered_auxgraphs, filtered_nodes = recursive_filter_auxgraph_edges(auxgraph, filtered_edges, filtered_auxgraphs, kgraph, auxgraphs, filtered_nodes, logger)
+                (
+                    filtered_edges,
+                    filtered_auxgraphs,
+                    filtered_nodes,
+                ) = recursive_filter_auxgraph_edges(
+                    auxgraph,
+                    filtered_edges,
+                    filtered_auxgraphs,
+                    kgraph,
+                    auxgraphs,
+                    filtered_nodes,
+                    logger,
+                )
     return filtered_edges, filtered_auxgraphs, filtered_nodes
 
 
-def recursive_filter_auxgraph_edges(auxgraph, filtered_edges, filtered_auxgraphs, kgraph, auxgraphs, filtered_nodes, logger):
+def recursive_filter_auxgraph_edges(
+    auxgraph,
+    filtered_edges,
+    filtered_auxgraphs,
+    kgraph,
+    auxgraphs,
+    filtered_nodes,
+    logger,
+):
     """Recursive method to find edges to keep when filtering. Each edge then
     has support graphs filtered."""
     filtered_auxgraphs.add(auxgraph)
@@ -268,7 +292,19 @@ def recursive_filter_auxgraph_edges(auxgraph, filtered_edges, filtered_auxgraphs
         if aux_edge not in kgraph.edges:
             logger.warning(f"aux_edge {aux_edge} not in knowledge_graph.edges")
             continue
-        filtered_edges, filtered_auxgraphs, filtered_nodes = recursive_filter_edge_support_graphs(aux_edge, filtered_edges, filtered_auxgraphs, kgraph, auxgraphs, filtered_nodes, logger)
+        (
+            filtered_edges,
+            filtered_auxgraphs,
+            filtered_nodes,
+        ) = recursive_filter_edge_support_graphs(
+            aux_edge,
+            filtered_edges,
+            filtered_auxgraphs,
+            kgraph,
+            auxgraphs,
+            filtered_nodes,
+            logger,
+        )
     return filtered_edges, filtered_auxgraphs, filtered_nodes
 
 
@@ -357,26 +393,34 @@ def filter_message(
                 for analysis in result.analyses or []:
                     # add support graphs from result
                     for support_graph_id in analysis.support_graphs or []:
-                        filtered_edges, filtered_auxgraphs, filtered_nodes = recursive_filter_auxgraph_edges(
+                        (
+                            filtered_edges,
+                            filtered_auxgraphs,
+                            filtered_nodes,
+                        ) = recursive_filter_auxgraph_edges(
                             support_graph_id,
                             filtered_edges,
                             filtered_auxgraphs,
                             message.knowledge_graph,
                             message.auxiliary_graphs,
                             filtered_nodes,
-                            logger
+                            logger,
                         )
                     # add edges from result
                     for edge_bindings in analysis.edge_bindings.values():
                         for edge_binding in edge_bindings:
-                            filtered_edges, filtered_auxgraphs, filtered_nodes = recursive_filter_edge_support_graphs(
+                            (
+                                filtered_edges,
+                                filtered_auxgraphs,
+                                filtered_nodes,
+                            ) = recursive_filter_edge_support_graphs(
                                 edge_binding.id,
                                 filtered_edges,
                                 filtered_auxgraphs,
                                 message.knowledge_graph,
                                 message.auxiliary_graphs,
                                 filtered_nodes,
-                                logger
+                                logger,
                             )
                 # keep any results that don't have promiscuous nodes
                 # only add result if all the knowledge and aux graph stuff worked out
@@ -385,9 +429,9 @@ def filter_message(
                         support_graph_id
                     ]
                 for edge_id in filtered_edges:
-                    kept_knowledge_graph.edges[edge_id] = (
-                        message.knowledge_graph.edges[edge_id]
-                    )
+                    kept_knowledge_graph.edges[edge_id] = message.knowledge_graph.edges[
+                        edge_id
+                    ]
                 kept_results.append(result)
             except Exception as e:
                 logger.error(f"Error while filtering message: {str(e)}")
