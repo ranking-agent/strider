@@ -28,6 +28,8 @@ from .knowledge_provider import KnowledgeProvider
 from .trapi import (
     map_qgraph_curies,
     fill_categories_predicates,
+    recursive_filter_auxgraph_edges,
+    recursive_filter_edge_support_graphs,
 )
 from .query_planner import generate_plan, get_next_qedge
 from .mcq import is_mcq_node, get_mcq_edge_ids
@@ -221,76 +223,76 @@ class Fetcher:
                 if qnode_id in populated_subqgraph.query_graph.nodes:
                     populated_subqgraph.query_graph.nodes[qnode_id].ids = []
             for result in batch_results:
+
                 # add edge to results and kgraph
 
-                # collect all auxiliary graph ids from results and edges
-                aux_graphs = [
-                    aux_graph_id
-                    for analysis in result.analyses or []
-                    for aux_graph_id in analysis.support_graphs or []
-                ]
+                filtered_edges, filtered_auxgraphs = set(), set()
 
-                aux_graphs.extend(
-                    [
-                        aux_graph_id
-                        for analysis in result.analyses or []
-                        for _, bindings in analysis.edge_bindings.items()
-                        for binding in bindings
-                        for attribute in onehop_kgraph.edges[binding.id].attributes
-                        or []
-                        if attribute.attribute_type_id == "biolink:support_graphs"
-                        for aux_graph_id in attribute.value
-                    ]
-                )
-
-                result_auxgraph = AuxiliaryGraphs.parse_obj(
-                    {
-                        aux_graph_id: onehop_auxgraphs[aux_graph_id]
-                        for aux_graph_id in aux_graphs
-                    }
-                )
+                # get nodes from node bindings
+                filtered_nodes = {
+                    binding.id
+                    for _, bindings in result.node_bindings.items()
+                    for binding in bindings
+                }
 
                 # get all edge ids from the result
-                kgraph_edge_ids = [
+                temp_edges = [
                     binding.id
                     for analysis in result.analyses or []
                     for _, bindings in analysis.edge_bindings.items()
                     for binding in bindings
                 ]
 
-                # get all edge ids from auxiliary graphs
-                kgraph_edge_ids.extend(
-                    [
-                        edge_id
-                        for aux_graph_id in aux_graphs
-                        for edge_id in result_auxgraph[aux_graph_id].edges or []
-                    ]
+                # collect all auxiliary graph ids from results
+                temp_aux_graphs = [
+                    aux_graph_id
+                    for analysis in result.analyses or []
+                    for aux_graph_id in analysis.support_graphs or []
+                ]
+
+                # recursively add aux graphs from edges and edges from aux graphs
+                for edge in temp_edges:
+                    filtered_edges, filtered_auxgraphs, filtered_nodes = recursive_filter_edge_support_graphs(
+                        edge,
+                        filtered_edges,
+                        filtered_auxgraphs,
+                        onehop_kgraph,
+                        onehop_auxgraphs,
+                        filtered_nodes,
+                        self.logger
+                    )
+
+                # recursively add edges from aux graphs and aux graphs from edges
+                for auxgraph in temp_aux_graphs:
+                    filtered_edges, filtered_auxgraphs, filtered_nodes = recursive_filter_auxgraph_edges(
+                        auxgraph,
+                        filtered_edges,
+                        filtered_auxgraphs,
+                        onehop_kgraph,
+                        onehop_auxgraphs,
+                        filtered_nodes,
+                        self.logger
+                    )
+
+                result_auxgraph = AuxiliaryGraphs.parse_obj(
+                    {
+                        aux_graph_id: onehop_auxgraphs[aux_graph_id]
+                        for aux_graph_id in filtered_auxgraphs
+                    }
                 )
 
                 try:
                     # do some knowledge graph collection
-                    node_ids = [
-                        onehop_kgraph.edges[edge_id].subject
-                        for edge_id in kgraph_edge_ids
-                        if onehop_kgraph.edges[edge_id].subject in onehop_kgraph.nodes
-                    ]
-                    node_ids.extend(
-                        [
-                            onehop_kgraph.edges[edge_id].object
-                            for edge_id in kgraph_edge_ids
-                            if onehop_kgraph.edges[edge_id].object
-                            in onehop_kgraph.nodes
-                        ]
-                    )
                     result_kgraph = KnowledgeGraph.parse_obj(
                         {
                             "nodes": {
                                 node_id: onehop_kgraph.nodes[node_id]
-                                for node_id in node_ids
+                                for node_id in filtered_nodes
+                                if node_id in onehop_kgraph.nodes.keys()
                             },
                             "edges": {
                                 edge_id: onehop_kgraph.edges[edge_id]
-                                for edge_id in kgraph_edge_ids
+                                for edge_id in filtered_edges
                             },
                         }
                     )
