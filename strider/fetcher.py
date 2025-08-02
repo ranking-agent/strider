@@ -316,22 +316,22 @@ class Fetcher:
                     # add curies from result into the qgraph
                     if is_mcq:
                         # TODO: this doesn't support cyclic graphs
-                        populated_subqgraph.query_graph.nodes[
-                            qnode_id
-                        ].member_ids = list(
-                            # need to call set() to remove any duplicates
-                            set(
-                                (
-                                    populated_subqgraph.query_graph.nodes[
-                                        qnode_id
-                                    ].member_ids
-                                    or []
+                        populated_subqgraph.query_graph.nodes[qnode_id].member_ids = (
+                            list(
+                                # need to call set() to remove any duplicates
+                                set(
+                                    (
+                                        populated_subqgraph.query_graph.nodes[
+                                            qnode_id
+                                        ].member_ids
+                                        or []
+                                    )
+                                    # use query_id (original curie) for any subclass results
+                                    + [
+                                        binding.query_id or binding.id
+                                        for binding in bindings
+                                    ]
                                 )
-                                # use query_id (original curie) for any subclass results
-                                + [
-                                    binding.query_id or binding.id
-                                    for binding in bindings
-                                ]
                             )
                         )
                     else:
@@ -423,15 +423,15 @@ class Fetcher:
                     mcq_node_id = await kp.get_mcq_uuid(node.member_ids)
                     node.ids = [mcq_node_id]
                     node_dict = node.dict()
-                    populated_subqgraph.knowledge_graph.nodes[
-                        mcq_node_id
-                    ] = Node.parse_obj(
-                        {
-                            "categories": node_dict["categories"],
-                            "is_set": True,
-                            "name": "MCQ_Set",
-                            "attributes": [],
-                        }
+                    populated_subqgraph.knowledge_graph.nodes[mcq_node_id] = (
+                        Node.parse_obj(
+                            {
+                                "categories": node_dict["categories"],
+                                "is_set": True,
+                                "name": "MCQ_Set",
+                                "attributes": [],
+                            }
+                        )
                     )
 
             generators.append(
