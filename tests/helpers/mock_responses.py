@@ -656,7 +656,7 @@ response_with_nested_aux_graphs = {
                     ],
                     "name": "Water",
                     "attributes": [],
-                }
+                },
             },
             "edges": {
                 "n0n1": {
@@ -670,8 +670,8 @@ response_with_nested_aux_graphs = {
                         },
                         {
                             "attribute_type_id": "biolink:support_graphs",
-                            "value": ["a0"]
-                        }
+                            "value": ["a0"],
+                        },
                     ],
                     "sources": [
                         {
@@ -708,8 +708,8 @@ response_with_nested_aux_graphs = {
                         },
                         {
                             "attribute_type_id": "biolink:support_graphs",
-                            "value": ["a1"]
-                        }
+                            "value": ["a1"],
+                        },
                     ],
                     "sources": [
                         {
@@ -787,17 +787,11 @@ response_with_nested_aux_graphs = {
         ],
         "auxiliary_graphs": {
             "a0": {
-                "edges": [
-                    "extra_edge_0",
-                    "extra_edge_1"
-                ],
+                "edges": ["extra_edge_0", "extra_edge_1"],
                 "attributes": [],
             },
             "a1": {
-                "edges": [
-                    "extra_edge_2",
-                    "extra_edge_3"
-                ],
+                "edges": ["extra_edge_2", "extra_edge_3"],
                 "attributes": [],
             },
         },
