@@ -8,7 +8,7 @@ from tests.helpers.mock_responses import (
     kp_response,
     response_with_aux_graphs,
     blocked_response,
-    response_with_nested_aux_graphs
+    response_with_nested_aux_graphs,
 )
 from tests.helpers.utils import get_normalizer_response
 
@@ -199,10 +199,11 @@ async def test_aux_graph_edges_are_kept(httpx_mock: HTTPXMock):
     # extra edge should be kept
     assert len(list(msg.message.knowledge_graph.edges.keys())) == 3
 
+
 @pytest.mark.asyncio
 async def test_nested_aux_graphs(httpx_mock: HTTPXMock):
     """
-    Test that nestede aux graphs and edges are not filtered out
+    Test that nested aux graphs and edges are not filtered out
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
