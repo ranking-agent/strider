@@ -614,6 +614,196 @@ response_with_aux_graphs = {
     },
 }
 
+response_with_nested_aux_graphs = {
+    "message": {
+        "query_graph": {
+            "nodes": {
+                "n0": {"ids": ["MONDO:0005015"]},
+                "n1": {"categories": ["biolink:ChemicalEntity"]},
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "n1",
+                    "object": "n0",
+                    "predicates": ["biolink:treats"],
+                }
+            },
+        },
+        "knowledge_graph": {
+            "nodes": {
+                "MESH:D008687": {
+                    "categories": ["biolink:SmallMolecule"],
+                    "name": "Metformin",
+                    "attributes": [],
+                },
+                "MONDO:0005148": {
+                    "categories": [
+                        "biolink:Disease",
+                    ],
+                    "name": "type 2 diabetes mellitus",
+                    "attributes": [],
+                },
+                "MONDO:0005015": {
+                    "categories": [
+                        "biolink:Disease",
+                    ],
+                    "name": "diabetes mellitus",
+                    "attributes": [],
+                },
+                "CHEBI:17996": {
+                    "categories": [
+                        "biolink:ChemicalEntity",
+                    ],
+                    "name": "Water",
+                    "attributes": [],
+                }
+            },
+            "edges": {
+                "n0n1": {
+                    "subject": "CHEBI:17996",
+                    "object": "MONDO:0005015",
+                    "predicate": "biolink:treats",
+                    "attributes": [
+                        {
+                            "value": "infores:kp3",
+                            "attribute_type_id": "biolink:knowledge_source",
+                        },
+                        {
+                            "attribute_type_id": "biolink:support_graphs",
+                            "value": ["a0"]
+                        }
+                    ],
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp3",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                },
+                "extra_edge_0": {
+                    "subject": "MESH:D008687",
+                    "object": "CHEBI:17996",
+                    "predicate": "biolink:subclass_of",
+                    "attributes": [
+                        {
+                            "value": "infores:kp3",
+                            "attribute_type_id": "biolink:knowledge_source",
+                        },
+                    ],
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp3",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                },
+                "extra_edge_1": {
+                    "subject": "MESH:D008687",
+                    "object": "MONDO:0005015",
+                    "predicate": "biolink:treats",
+                    "attributes": [
+                        {
+                            "value": "infores:kp3",
+                            "attribute_type_id": "biolink:knowledge_source",
+                        },
+                        {
+                            "attribute_type_id": "biolink:support_graphs",
+                            "value": ["a1"]
+                        }
+                    ],
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp3",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                },
+                "extra_edge_2": {
+                    "subject": "MONDO:0005148",
+                    "object": "MONDO:0005015",
+                    "predicate": "biolink:subclass_of",
+                    "attributes": [
+                        {
+                            "value": "infores:kp3",
+                            "attribute_type_id": "biolink:knowledge_source",
+                        },
+                    ],
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp3",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                },
+                "extra_edge_3": {
+                    "subject": "MESH:D008687",
+                    "object": "MONDO:0005148",
+                    "predicate": "biolink:treats",
+                    "attributes": [
+                        {
+                            "value": "infores:kp3",
+                            "attribute_type_id": "biolink:knowledge_source",
+                        },
+                    ],
+                    "sources": [
+                        {
+                            "resource_id": "infores:kp3",
+                            "resource_role": "primary_knowledge_source",
+                        },
+                    ],
+                },
+            },
+        },
+        "results": [
+            {
+                "node_bindings": {
+                    "n0": [
+                        {
+                            "id": "MONDO:0005015",
+                            "attributes": [],
+                        },
+                    ],
+                    "n1": [
+                        {
+                            "id": "CHEBI:17996",
+                            "attributes": [],
+                        },
+                    ],
+                },
+                "analyses": [
+                    {
+                        "resource_id": "kp3",
+                        "edge_bindings": {
+                            "n0n1": [
+                                {
+                                    "id": "n0n1",
+                                    "attributes": [],
+                                },
+                            ],
+                        },
+                    },
+                ],
+            }
+        ],
+        "auxiliary_graphs": {
+            "a0": {
+                "edges": [
+                    "extra_edge_0",
+                    "extra_edge_1"
+                ],
+                "attributes": [],
+            },
+            "a1": {
+                "edges": [
+                    "extra_edge_2",
+                    "extra_edge_3"
+                ],
+                "attributes": [],
+            },
+        },
+    },
+}
+
 blocked_response = {
     "message": {
         "query_graph": {
