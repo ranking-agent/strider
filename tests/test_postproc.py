@@ -8,6 +8,7 @@ from tests.helpers.mock_responses import (
     kp_response,
     response_with_aux_graphs,
     blocked_response,
+    response_with_nested_aux_graphs
 )
 from tests.helpers.utils import get_normalizer_response
 
@@ -65,7 +66,7 @@ async def test_node_filtered(httpx_mock: HTTPXMock):
 @pytest.mark.asyncio
 async def test_aux_graph_filtering(httpx_mock: HTTPXMock):
     """
-    Test that node with an information content lower than the threshold are removed
+    Test that aux graps are removed when filtered out
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
@@ -140,7 +141,7 @@ async def test_blocklist(httpx_mock: HTTPXMock):
 @pytest.mark.asyncio
 async def test_aux_graph_edges_are_kept(httpx_mock: HTTPXMock):
     """
-    Test that node with an information content lower than the threshold are removed
+    Test that aux graphs are kept when applied to result
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
@@ -197,3 +198,41 @@ async def test_aux_graph_edges_are_kept(httpx_mock: HTTPXMock):
     assert len(msg.message.results) == 2
     # extra edge should be kept
     assert len(list(msg.message.knowledge_graph.edges.keys())) == 3
+
+@pytest.mark.asyncio
+async def test_nested_aux_graphs(httpx_mock: HTTPXMock):
+    """
+    Test that nestede aux graphs and edges are not filtered out
+    """
+    httpx_mock.add_response(
+        url="http://normalizer/get_normalized_nodes",
+        json=get_normalizer_response(
+            """
+            MONDO:0005148 categories biolink:Disease
+            MONDO:0005148 synonyms DOID:9352
+            MONDO:0005148 information_content 100
+            MESH:D008687 categories biolink:ChemicalEntity
+            MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
+            MESH:D008687 information_content 100
+        """
+        ),
+    )
+    provider = KnowledgeProvider("test", kp, logger)
+
+    preferred_prefixes = {"biolink:Disease": ["MONDO"]}
+
+    response = copy.deepcopy(response_with_nested_aux_graphs)
+
+    msg = Response.parse_obj(response)
+
+    assert len(list(msg.message.knowledge_graph.edges.keys())) == 5
+
+    processor = provider.get_postprocessor(preferred_prefixes)
+
+    await processor(msg, False)
+
+    print(msg.message.auxiliary_graphs.json())
+
+    assert len(list(msg.message.auxiliary_graphs.keys())) == 2
+    # extra edge should be kept
+    assert len(list(msg.message.knowledge_graph.edges.keys())) == 5
