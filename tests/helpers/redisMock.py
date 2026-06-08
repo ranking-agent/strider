@@ -4,7 +4,6 @@ import fakeredis.aioredis as fakeredis
 import gzip
 import json
 
-
 default_kps = {
     "kp0": {
         "url": "http://kp0/query",

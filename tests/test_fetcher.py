@@ -52,14 +52,12 @@ async def test_fetcher_bad_response(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://kp1/query", json=mock_responses.response_with_pinned_node_subclasses
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:Disease ))
         n0(( ids[] MONDO:0005011 ))
         n0-- biolink:related_to -->n1
         n1(( category biolink:NamedThing ))
-        """
-    )
+        """)
     message = {"query_graph": QGRAPH}
 
     fetcher = Fetcher(logger, False, {})

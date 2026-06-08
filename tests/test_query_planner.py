@@ -33,13 +33,11 @@ async def test_not_enough_kps(monkeypatch):
     that has edges we can't solve
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( categories[] biolink:ExposureEvent ))
         n1(( categories[] biolink:Drug ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     with pytest.raises(NoAnswersError, match=r"cannot reach"):
@@ -54,14 +52,12 @@ async def test_plan_reverse_edge(monkeypatch):
     direction of one that was given
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Drug ))
         n1-- biolink:treats -->n0
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
@@ -76,8 +72,7 @@ async def test_plan_loop(monkeypatch):
     Test that we create a plan for a query with a loop
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0008114 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:PhenotypicFeature ))
@@ -85,8 +80,7 @@ async def test_plan_loop(monkeypatch):
         n0-- biolink:has_phenotype -->n1
         n2-- biolink:treats -->n0
         n2-- biolink:treats -->n1
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, _ = await generate_plan(qg, {})
@@ -100,8 +94,7 @@ async def test_plan_reuse_pinned(monkeypatch):
     Test that we create a plan that uses a pinned node twice
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Disease ))
@@ -111,8 +104,7 @@ async def test_plan_reuse_pinned(monkeypatch):
         n1-- biolink:related_to -->n2
         n2-- biolink:related_to -->n0
         n0-- biolink:related_to -->n3
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
@@ -124,8 +116,7 @@ async def test_plan_double_loop(monkeypatch):
     Test valid plan for a more complex query with two loops
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Disease ))
@@ -138,8 +129,7 @@ async def test_plan_double_loop(monkeypatch):
         n2-- biolink:related_to -->n3
         n3-- biolink:related_to -->n4
         n4-- biolink:related_to -->n2
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {})
 
@@ -152,16 +142,14 @@ async def test_valid_two_pinned_nodes(monkeypatch):
     a path from a pinned node to all unbound nodes.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
         n2(( ids[] MONDO:0011122 ))
         n2(( categories[] biolink:Disease ))
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
     await prepare_query_graph(qg)
 
@@ -177,16 +165,14 @@ async def test_fork(monkeypatch):
     a fork to multiple paths.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Drug ))
         n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treated_by -->n1
         n0-- biolink:has_phenotype -->n2
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {})
@@ -200,14 +186,12 @@ async def test_unbound_unconnected_node(monkeypatch):
     to the unbound node
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
         n2(( categories[] biolink:PhenotypicFeature ))
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
     await prepare_query_graph(qg)
     print(qg)
@@ -224,8 +208,7 @@ async def test_valid_two_disconnected_components(monkeypatch):
     a pinned node to all unbound nodes.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Drug ))
@@ -234,8 +217,7 @@ async def test_valid_two_disconnected_components(monkeypatch):
         n2(( categories[] biolink:Disease ))
         n3(( categories[] biolink:Drug ))
         n2-- biolink:treated_by -->n3
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {})
     assert plan == {"n0n1": ["infores:kp1"], "n2n3": ["infores:kp1"]}
@@ -278,14 +260,12 @@ async def test_double_sided(monkeypatch):
     Test planning when a KP provides edges in both directions.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:0005737 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n0n1": ["infores:kp1"]}
@@ -395,14 +375,12 @@ async def test_inverse_predicate(monkeypatch):
     the inverse of a given predicate to get the right answer.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( categories[] biolink:Disease ))
         n1(( ids[] CHEBI:6801 ))
         n1(( categories[] biolink:Drug ))
         n0-- biolink:treated_by -->n1
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
@@ -416,14 +394,12 @@ async def test_symmetric_predicate(monkeypatch):
     Test that we get a kp in the plan with reverse categories and a symmetric predicate.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( categories[] biolink:Disease ))
         n0(( ids[] MONDO:0005148 ))
         n1(( categories[] biolink:Drug ))
         n1-- biolink:correlated_with -->n0
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
     assert plan == {"n1n0": ["infores:kp1"]}
@@ -461,14 +437,12 @@ async def test_solve_double_subclass(monkeypatch):
     it and contact all KPs available for information about that node
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:1 ))
         n0(( categories[] biolink:NamedThing ))
         n1(( categories[] biolink:NamedThing ))
         n0-- biolink:ameliorates -->n1
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
@@ -483,15 +457,13 @@ async def test_pinned_to_pinned(monkeypatch):
     connected to another pinned node
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] MONDO:1 ))
         n0(( categories[] biolink:Disease ))
         n1(( ids[] CHEBI:1 ))
         n1(( categories[] biolink:NucleicAcidEntity ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     plan, kps = await generate_plan(qg, {}, logger=logging.getLogger())
@@ -505,13 +477,11 @@ async def test_self_edge(monkeypatch):
     Test that we can solve a query with a self-edge
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    qg = query_graph_from_string(
-        """
+    qg = query_graph_from_string("""
         n0(( ids[] CHEBI:1 ))
         n0(( categories[] biolink:Gene ))
         n0-- biolink:related_to -->n0
-        """
-    )
+        """)
     qg = QueryGraph.parse_obj(qg)
 
     # await prepare_query_graph(qg)

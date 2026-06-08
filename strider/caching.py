@@ -9,7 +9,6 @@ import redis.asyncio as aioredis
 
 from strider.config import settings
 
-
 onehop_redis_pool = aioredis.BlockingConnectionPool(
     host=settings.redis_host,
     port=settings.redis_port,
