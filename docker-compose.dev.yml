@@ -6,8 +6,6 @@ services:
     volumes:
       - ./:/app
     command: --bind 0.0.0.0:5781 --reload
-    environment:
-      OTLP_ENDPOINT: http://jaeger:4317
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
