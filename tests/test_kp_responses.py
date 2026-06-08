@@ -31,14 +31,12 @@ async def test_kp_response_empty_message(monkeypatch, httpx_mock: HTTPXMock):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp1/query", json={"message": {}})
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:Drug ))
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj(
@@ -67,16 +65,14 @@ async def test_kp_response_empty_message_pinned_two_hop(
     # mock the return of the kp registry from redis
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp2/query", json={"message": {}})
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] MONDO:1 ))
         n0-- biolink:related_to -->n1
         n1(( categories[] biolink:Gene ))
         n1-- biolink:related_to -->n2
         n2(( ids[] MONDO:2 ))
 
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj(
@@ -105,14 +101,12 @@ async def test_kp_500(monkeypatch, httpx_mock: HTTPXMock):
         url="http://kp0/query", status_code=500, text="Internal Server Error"
     )
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj(
@@ -140,14 +134,12 @@ async def test_kp_not_trapi(monkeypatch, httpx_mock: HTTPXMock):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp1/query", json={"message": None})
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:Disease ))
         n0(( ids[] MONDO:0005737 ))
         n0-- biolink:treated_by -->n1
         n1(( categories[] biolink:Drug ))
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj(
@@ -179,14 +171,12 @@ async def test_kp_no_kg(monkeypatch, httpx_mock: HTTPXMock):
         url="http://kp1/query",
         json={"message": {"query_graph": {"nodes": {}, "edges": {}}}},
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:SmallMolecule ))
         n0(( ids[] CHEBI:0001 ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -215,14 +205,12 @@ async def test_kp_response_no_qg(monkeypatch, httpx_mock: HTTPXMock):
         },
     )
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:SmallMolecule ))
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -299,14 +287,12 @@ async def test_constraint_error(monkeypatch, httpx_mock: HTTPXMock):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp1/query", json=constraint_error_response)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     QGRAPH["nodes"]["n1"]["constraints"] = [
         {

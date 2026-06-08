@@ -37,13 +37,11 @@ async def test_node_filtered(httpx_mock: HTTPXMock):
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MONDO:0005148 categories biolink:Disease
             MONDO:0005148 synonyms DOID:9352
             MONDO:0005148 information_content 2
-        """
-        ),
+        """),
     )
     provider = KnowledgeProvider("test", kp, logger)
 
@@ -70,8 +68,7 @@ async def test_aux_graph_filtering(httpx_mock: HTTPXMock):
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MONDO:0005148 categories biolink:Disease
             MONDO:0005148 synonyms DOID:9352
             MONDO:0005148 information_content 100
@@ -81,8 +78,7 @@ async def test_aux_graph_filtering(httpx_mock: HTTPXMock):
             MESH:D014867 categories biolink:ChemicalEntity
             MESH:D014867 synonyms PUBCHEM.COMPOUND:4901
             MESH:D014867 information_content 74
-        """
-        ),
+        """),
     )
     provider = KnowledgeProvider("test", kp, logger)
 
@@ -111,12 +107,10 @@ async def test_blocklist(httpx_mock: HTTPXMock):
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MESH:D014867 categories biolink:SmallMolecule
             MESH:D014867 synonyms MESH:D000838
-        """
-        ),
+        """),
     )
     provider = KnowledgeProvider("test", kp, logger)
 
@@ -145,16 +139,14 @@ async def test_aux_graph_edges_are_kept(httpx_mock: HTTPXMock):
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MONDO:0005148 categories biolink:Disease
             MONDO:0005148 synonyms DOID:9352
             MONDO:0005148 information_content 100
             MESH:D008687 categories biolink:ChemicalEntity
             MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
             MESH:D008687 information_content 100
-        """
-        ),
+        """),
     )
     provider = KnowledgeProvider("test", kp, logger)
 
@@ -207,16 +199,14 @@ async def test_nested_aux_graphs(httpx_mock: HTTPXMock):
     """
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MONDO:0005148 categories biolink:Disease
             MONDO:0005148 synonyms DOID:9352
             MONDO:0005148 information_content 100
             MESH:D008687 categories biolink:ChemicalEntity
             MESH:D008687 synonyms PUBCHEM.COMPOUND:4901
             MESH:D008687 information_content 100
-        """
-        ),
+        """),
     )
     provider = KnowledgeProvider("test", kp, logger)
 

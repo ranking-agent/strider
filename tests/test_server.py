@@ -58,14 +58,12 @@ async def test_duplicate_results(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://kp1/query", json=mock_responses.duplicate_result_response_2
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:DiseaseOrPhenotypicFeature ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -91,14 +89,12 @@ async def test_merge_results_different_predicates(monkeypatch, httpx_mock: HTTPX
         url="http://kp1/query",
         json=mock_responses.duplicate_result_response_different_predicate,
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -123,14 +119,12 @@ async def test_solve_missing_predicate(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] HP:001 ))
         n0(( categories[] biolink:Gene ))
         n1(( categories[] biolink:Gene ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     del QGRAPH["edges"]["n0n1"]["predicates"]
 
@@ -185,14 +179,12 @@ async def test_solve_missing_category(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:NucleicAcidEntity ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     del QGRAPH["nodes"]["n0"]["categories"]
 
@@ -250,24 +242,20 @@ async def test_normalizer_different_category(
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             CHEBI:6801 categories biolink:NucleicAcidEntity
-        """
-        ),
+        """),
     )
     query = mocker.patch(
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n1(( categories[] biolink:SmallMolecule ))
         n1(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -322,23 +310,19 @@ async def test_solve_loop(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MONDO:0008114 categories biolink:Disease
-        """
-        ),
+        """),
     )
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] MONDO:0008114 ))
         n1(( categories[] biolink:SmallMolecule ))
         n2(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:related_to -->n1
         n1-- biolink:related_to -->n2
         n2-- biolink:related_to -->n0
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -352,14 +336,12 @@ async def test_log_level_param(monkeypatch, httpx_mock: HTTPXMock):
     """Test that changing the log level changes the output"""
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -428,24 +410,20 @@ async def test_solve_not_real_predicate(monkeypatch, mocker, httpx_mock: HTTPXMo
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             CHEBI:6801 categories biolink:SmallMolecule
             MONDO:0005148 categories biolink:Disease
-        """
-        ),
+        """),
     )
     query = mocker.patch(
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:not_a_real_predicate -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}, "log_level": "INFO"})
@@ -490,13 +468,11 @@ async def test_normalizer_unavailable(monkeypatch):
     Test that we log a message properly if the Node Normalizer is not available.
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj(
@@ -523,14 +499,12 @@ async def test_workflow(monkeypatch, httpx_mock: HTTPXMock):
     """
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj(
@@ -559,8 +533,7 @@ async def test_multiple_identifiers(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             UMLS:C0032961 categories biolink:PhenotypicFeature
             UMLS:C0032961 synonyms NCIT:C25742 NCIT:C92933
             NCIT:C25742 categories biolink:PhenotypicFeature
@@ -569,17 +542,14 @@ async def test_multiple_identifiers(monkeypatch, httpx_mock: HTTPXMock):
             NCIT:C92933 synonyms NCIT:C25742 NCIT:C92933
             CHEBI:2904 categories biolink:SmallMolecule
             CHEBI:30146 categories biolink:SmallMolecule
-        """
-        ),
+        """),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:PhenotypicFeature ))
         n1(( ids[] UMLS:C0032961 ))
         n0-- biolink:contraindicated_for -->n1
-        """
-    )
+        """)
 
     # Create query
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
@@ -597,22 +567,18 @@ async def test_provenance(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(
         url="http://normalizer/get_normalized_nodes",
-        json=get_normalizer_response(
-            """
+        json=get_normalizer_response("""
             MONDO:0005148 categories biolink:NucleicAcidEntity
-        """
-        ),
+        """),
     )
     httpx_mock.add_response(
         url="http://kp3/query", json=mock_responses.response_with_attributes
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n1(( categories[] biolink:NamedThing ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
     q = Query.parse_obj({"message": {"query_graph": QGRAPH}})
 
     # Run
@@ -638,14 +604,12 @@ async def test_async_query(monkeypatch, httpx_mock: HTTPXMock):
     monkeypatch.setattr(redis.asyncio, "Redis", redisMock)
     httpx_mock.add_response(url="http://kp1/query", json=mock_responses.kp_response)
     httpx_mock.add_response(url=callback_url, status_code=200)
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:SmallMolecule ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     # Run
     await async_lookup(
@@ -659,22 +623,18 @@ async def test_async_query(monkeypatch, httpx_mock: HTTPXMock):
 @pytest.mark.asyncio
 async def test_different_callbacks_multiquery():
     """Test multiquery endpoint fails with different callbacks."""
-    QGRAPH1 = query_graph_from_string(
-        """
+    QGRAPH1 = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:SmallMolecule ))
         n1-- biolink:treats -->n0
-        """
-    )
-    QGRAPH2 = query_graph_from_string(
-        """
+        """)
+    QGRAPH2 = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:has_phenotype -->n1
-        """
-    )
+        """)
 
     q_error = {
         "query1": AsyncQuery.parse_obj(
@@ -701,22 +661,18 @@ async def test_multi_lookup(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(url="http://kp3/query", json=mock_responses.kp_response)
     httpx_mock.add_response(url=callback_url, match_json=expected_status)
     httpx_mock.add_response(url=callback_url, status_code=200)
-    QGRAPH1 = query_graph_from_string(
-        """
+    QGRAPH1 = query_graph_from_string("""
         n1(( ids[] MONDO:0005148 ))
         n1(( categories[] biolink:Disease ))
         n0(( categories[] biolink:NucleicAcidEntity ))
         n1-- biolink:treats -->n0
-        """
-    )
-    QGRAPH2 = query_graph_from_string(
-        """
+        """)
+    QGRAPH2 = query_graph_from_string("""
         n0(( ids[] MONDO:0005148 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:PhenotypicFeature ))
         n0-- biolink:has_phenotype -->n1
-        """
-    )
+        """)
 
     q = {
         "query1": {

@@ -14,7 +14,6 @@ from .utils import (
 )
 from .config import settings
 
-
 Entity = namedtuple(
     "Entity", ["categories", "identifiers", "information_content", "preferred_curie"]
 )

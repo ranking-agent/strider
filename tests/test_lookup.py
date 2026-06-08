@@ -31,14 +31,12 @@ async def test_mixed_canonical(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:ChemicalSubstance ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats biolink:phenotype_of -->n1
-        """
-    )
+        """)
 
     # Create query
     q = {
@@ -94,14 +92,12 @@ async def test_symmetric_noncanonical(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:ChemicalSubstance ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:genetically_interacts_with -->n1
-        """
-    )
+        """)
 
     # Create query
     q = {
@@ -158,13 +154,11 @@ async def test_disambiguation(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://kp1/query", json=mock_responses.disambiguation_response
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     # Create query
     q = {
@@ -184,13 +178,11 @@ async def test_trivial_unbatching(monkeypatch, httpx_mock: HTTPXMock):
     httpx_mock.add_response(
         url="http://kp1/query", json=mock_responses.unbatching_response
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0-- biolink:treats -->n1
         n1(( categories[] biolink:Disease ))
-        """
-    )
+        """)
 
     # Create query
     q = {
@@ -212,14 +204,12 @@ async def test_protein_gene_conflation(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] MONDO:0008114 ))
         n0(( categories[] biolink:Disease ))
         n1(( categories[] biolink:Protein ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
 
     # Create query
     q = {"message": {"query_graph": QGRAPH}, "log_level": "INFO"}
@@ -273,14 +263,12 @@ async def test_gene_protein_conflation(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( categories[] biolink:Gene ))
         n1(( ids[] MONDO:0008114 ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:related_to -->n1
-        """
-    )
+        """)
 
     # Create query
     q = {"message": {"query_graph": QGRAPH}, "log_level": "INFO"}
@@ -333,14 +321,12 @@ async def test_node_set(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:ChemicalSubstance ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
     QGRAPH["nodes"]["n1"]["set_interpretation"] = "ALL"
 
     # Create query
@@ -397,14 +383,12 @@ async def test_bypass_cache_is_sent_along_to_kps(monkeypatch, mocker):
         "strider.throttle.ThrottledServer._query",
         return_value=PydanticResponse.parse_obj({"message": {}}),
     )
-    QGRAPH = query_graph_from_string(
-        """
+    QGRAPH = query_graph_from_string("""
         n0(( ids[] CHEBI:6801 ))
         n0(( categories[] biolink:ChemicalSubstance ))
         n1(( categories[] biolink:Disease ))
         n0-- biolink:treats -->n1
-        """
-    )
+        """)
 
     # Create query
     q = {

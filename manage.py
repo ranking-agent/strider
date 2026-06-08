@@ -121,25 +121,21 @@ def verify_locked(extra_args):
     """
 
     for src, locked in REQUIREMENTS_FILES.items():
-        dependencies = get_command_output(
-            f"""\
+        dependencies = get_command_output(f"""\
         docker run --rm -v $(pwd):/app python:3.12 \
             /bin/bash -c "
                 pip install -qqq -r /app/{locked} &&
                 pip install -qqq -r /app/{src}    &&
                 pip freeze
             "
-        """
-        )
-        lock_dependencies = get_command_output(
-            f"""\
+        """)
+        lock_dependencies = get_command_output(f"""\
         docker run -v $(pwd):/app python:3.12 \
             /bin/bash -c "
                 pip install -qqq -r /app/{locked} &&
                 pip freeze
             "
-        """
-        )
+        """)
 
         if dependencies != lock_dependencies:
             sys.exit(f"Lock file {locked} not up-to-date, please run ./manage.py lock")
