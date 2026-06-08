@@ -20,8 +20,10 @@ class Settings(BaseSettings):
     redis_password: str = "supersecretpassword"
 
     jaeger_enabled: str = "True"
-    jaeger_host: str = "jaeger"
-    jaeger_port: int = 6831
+    # OTLP span exporter endpoint. When left unset the exporter falls back to the
+    # standard OTEL_EXPORTER_OTLP_ENDPOINT env var, which the OpenTelemetry
+    # operator injects automatically in Kubernetes.
+    otlp_endpoint: Optional[str] = None
 
     profiler: bool = False
     use_cache: bool = True

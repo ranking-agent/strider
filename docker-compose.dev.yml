@@ -6,12 +6,17 @@ services:
     volumes:
       - ./:/app
     command: --bind 0.0.0.0:5781 --reload
+    environment:
+      OTLP_ENDPOINT: http://jaeger:4317
   jaeger:
     image: jaegertracing/all-in-one:latest
     container_name: jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
     ports:
-      - "6831:6831/udp"
-      - "16686:16686"
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "16686:16686" # Jaeger UI
     networks:
       - strider
   hotrod:

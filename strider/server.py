@@ -149,11 +149,13 @@ async def catch_exceptions_middleware(request: Request, call_next):
 APP.middleware("http")(catch_exceptions_middleware)
 
 if settings.jaeger_enabled == "True":
-    LOGGER.info("Starting up Jaeger")
+    LOGGER.info("Starting up OpenTelemetry tracing")
 
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
     from opentelemetry import trace
-    from opentelemetry.exporter.jaeger.thrift import JaegerExporter
+    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
+        OTLPSpanExporter,
+    )
     from opentelemetry.sdk.resources import (
         SERVICE_NAME,
         Resource,
@@ -168,13 +170,12 @@ if settings.jaeger_enabled == "True":
     logging.captureWarnings(capture=True)
     warnings.filterwarnings("ignore", category=ResourceWarning)
     service_name = os.environ.get("OTEL_SERVICE_NAME", "STRIDER")
-    jaeger_exporter = JaegerExporter(
-        agent_host_name=settings.jaeger_host,
-        agent_port=int(settings.jaeger_port),
-    )
+    # Jaeger ingests OTLP natively (gRPC on 4317). A falsy endpoint lets the
+    # exporter read OTEL_EXPORTER_OTLP_ENDPOINT, set by the OTel operator in k8s.
+    otlp_exporter = OTLPSpanExporter(endpoint=settings.otlp_endpoint or None)
     resource = Resource(attributes={SERVICE_NAME: service_name})
     provider = TracerProvider(resource=resource)
-    processor = BatchSpanProcessor(jaeger_exporter)
+    processor = BatchSpanProcessor(otlp_exporter)
     provider.add_span_processor(processor)
     trace.set_tracer_provider(provider)
     FastAPIInstrumentor.instrument_app(
