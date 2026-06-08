@@ -170,9 +170,11 @@ if settings.jaeger_enabled == "True":
     logging.captureWarnings(capture=True)
     warnings.filterwarnings("ignore", category=ResourceWarning)
     service_name = os.environ.get("OTEL_SERVICE_NAME", "STRIDER")
-    # Jaeger ingests OTLP natively (gRPC on 4317). A falsy endpoint lets the
-    # exporter read OTEL_EXPORTER_OTLP_ENDPOINT, set by the OTel operator in k8s.
-    otlp_exporter = OTLPSpanExporter(endpoint=settings.otlp_endpoint or None)
+    # Jaeger ingests OTLP natively (gRPC on 4317). The http:// scheme selects an
+    # insecure channel, matching the old plaintext agent connection.
+    otlp_exporter = OTLPSpanExporter(
+        endpoint=f"http://{settings.jaeger_host}:{settings.jaeger_port}",
+    )
     resource = Resource(attributes={SERVICE_NAME: service_name})
     provider = TracerProvider(resource=resource)
     processor = BatchSpanProcessor(otlp_exporter)
