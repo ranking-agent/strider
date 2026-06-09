@@ -35,17 +35,6 @@ linkml-runtime==1.8.3
 markdown-it-py==3.0.0
 MarkupSafe==2.1.5
 mdurl==0.1.2
-opentelemetry-api==1.42.1
-opentelemetry-exporter-otlp-proto-common==1.42.1
-opentelemetry-exporter-otlp-proto-grpc==1.42.1
-opentelemetry-instrumentation==0.63b1
-opentelemetry-instrumentation-asgi==0.63b1
-opentelemetry-instrumentation-fastapi==0.63b1
-opentelemetry-instrumentation-httpx==0.63b1
-opentelemetry-proto==1.42.1
-opentelemetry-sdk==1.42.1
-opentelemetry-semantic-conventions==0.63b1
-opentelemetry-util-http==0.63b1
 orjson==3.10.3
 packaging==24.1
 pluggy==1.5.0

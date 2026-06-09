@@ -11,10 +11,8 @@ oo     .d8P   888 .  888      888  888   888  888    .o  888
 import copy
 import datetime
 import json
-import os
 import uuid
 import logging
-import warnings
 import time
 import traceback
 import asyncio
@@ -147,43 +145,6 @@ async def catch_exceptions_middleware(request: Request, call_next):
 
 
 APP.middleware("http")(catch_exceptions_middleware)
-
-if settings.jaeger_enabled == "True":
-    LOGGER.info("Starting up OpenTelemetry tracing")
-
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    from opentelemetry import trace
-    from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-        OTLPSpanExporter,
-    )
-    from opentelemetry.sdk.resources import (
-        SERVICE_NAME,
-        Resource,
-    )
-    from opentelemetry.sdk.trace import TracerProvider
-    from opentelemetry.sdk.trace.export import BatchSpanProcessor
-    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-
-    # httpx connections need to be open a little longer by the otel decorators
-    # but some libs display warnings of resource being unclosed.
-    # these supresses such warnings.
-    logging.captureWarnings(capture=True)
-    warnings.filterwarnings("ignore", category=ResourceWarning)
-    service_name = os.environ.get("OTEL_SERVICE_NAME", "STRIDER")
-    # Jaeger ingests OTLP natively (gRPC on 4317). The http:// scheme selects an
-    # insecure channel, matching the old plaintext agent connection.
-    otlp_exporter = OTLPSpanExporter(
-        endpoint=f"http://{settings.jaeger_host}:{settings.jaeger_port}",
-    )
-    resource = Resource(attributes={SERVICE_NAME: service_name})
-    provider = TracerProvider(resource=resource)
-    processor = BatchSpanProcessor(otlp_exporter)
-    provider.add_span_processor(processor)
-    trace.set_tracer_provider(provider)
-    FastAPIInstrumentor.instrument_app(
-        APP, tracer_provider=provider, excluded_urls="docs,openapi.json"
-    )
-    HTTPXClientInstrumentor().instrument()
 
 
 @APP.on_event("startup")

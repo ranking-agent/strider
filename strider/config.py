@@ -19,12 +19,6 @@ class Settings(BaseSettings):
     redis_expiration: int = 1209600  # two weeks
     redis_password: str = "supersecretpassword"
 
-    jaeger_enabled: str = "True"
-    jaeger_host: str = "jaeger"
-    # 4317 is Jaeger's native OTLP gRPC receiver (replaces the old 6831
-    # thrift-agent port, which newer OpenTelemetry SDKs no longer support).
-    jaeger_port: int = 4317
-
     profiler: bool = False
     use_cache: bool = True
     offline_mode: bool = False
