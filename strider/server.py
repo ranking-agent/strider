@@ -148,6 +148,13 @@ async def catch_exceptions_middleware(request: Request, call_next):
 
 APP.middleware("http")(catch_exceptions_middleware)
 
+# Strider instruments itself and exports spans over OTLP/gRPC below. The gRPC
+# exporter pins opentelemetry-exporter-otlp-proto-common to an exact version,
+# so the OpenTelemetry Operator's Python auto-instrumentation
+# (instrumentation.opentelemetry.io/inject-python) MUST be disabled for this
+# service. The operator prepends a different OTel version to PYTHONPATH but
+# ships no gRPC exporter, which breaks the import below with a version-skew
+# error (e.g. missing _create_exp_backoff_generator / _exporter_metrics).
 if settings.jaeger_enabled == "True":
     LOGGER.info("Starting up OpenTelemetry tracing")
 
